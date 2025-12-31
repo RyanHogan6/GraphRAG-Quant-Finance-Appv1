@@ -1,0 +1,6 @@
+streamlit
+python-arango
+pandas
+numpy
+openai
+anthropic
