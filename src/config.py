@@ -13,7 +13,7 @@ import json
 load_dotenv() 
 
 # Configuration
-ARANGO_URL = "http://localhost:8529"
+ARANGO_URL = "https://e11129e8c5ae.arangodb.cloud:8529"   #  "http://localhost:8529"
 GRAPH_NAME = "QUANT_v1_FinanceGraph"
 DB_NAME = "QUANT_v1"
 USERNAME = "root"
