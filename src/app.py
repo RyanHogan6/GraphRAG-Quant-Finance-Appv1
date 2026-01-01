@@ -23,6 +23,22 @@ st.markdown("*Multi-source financial intelligence with LLM-powered query generat
 
 # Sidebar
 with st.sidebar:
+    st.header("⚙️ Settings")
+    
+    # Add model toggle HERE
+    use_local_model = st.checkbox(
+        "🤖 Use Local Fine-Tuned Model",
+        value=False,  # Start with OpenAI by default
+        help="Toggle between your fine-tuned Llama model (local) and OpenAI GPT-4"
+    )
+    
+    if use_local_model:
+        st.success("✅ Using Local Model")
+    else:
+        st.info("☁️ Using OpenAI GPT-4")
+    
+    st.divider()
+    
     st.header("ℹ️ About")
     st.markdown("""
     This platform queries:
@@ -51,6 +67,7 @@ with st.sidebar:
     st.divider()
     st.caption(f"📍 {cfg.DB_NAME}")
     st.caption(f"🔌 {cfg.ARANGO_URL}")
+
 
 # Create tabs
 tab1, tab2 = st.tabs(["🤖 AI Query Interface", "🗄️ Database Browser"])
@@ -82,54 +99,113 @@ with tab1:
     # In your Tab 1 query execution section, after planning:
 
 # In Tab 1, replace your entire query execution block with this:
+# working below > original open api implementation 
+# if (search_button or user_question) and user_question:
+    
+#     # Step 1: Quick intent check
+#     with st.spinner("🧠 Understanding query type..."):
+#         intent = llm.quick_intent_check(user_question)
+#         st.info(f"🎯 Detected: {intent.get('type', 'unknown').upper()} query")
+    
+#     # Step 2: Generate query with intent hint
+#     with st.spinner("⚙️ Planning query..."):
+#         # Add intent to the planning prompt
+#         query_plan = llm.plan_query_with_llm(user_question, intent_hint=intent)
+        
+#         if not query_plan:
+#             st.error("❌ Could not generate query plan.")
+#             st.stop()
+    
+#     # Step 3: Show plan
+#     with st.expander("🔍 Query Plan & Strategy", expanded=False):
+#         col_a, col_b = st.columns(2)
+#         with col_a:
+#             st.metric("Intent", query_plan.get("intent", "Unknown"))
+#             st.metric("Collections", ", ".join(query_plan.get("collections", [])))
+#         with col_b:
+#             st.metric("Semantic Search", "Yes" if query_plan.get("requires_embedding") else "No")
+#             st.caption(f"**Strategy:** {query_plan.get('explanation', 'N/A')}")
+        
+#         st.code(query_plan.get("aql_query", "No query"), language="sql")
+#         if query_plan.get("bind_vars"):
+#             st.json(query_plan.get("bind_vars"))
+    
+#     # Step 4: Execute
+#     with st.spinner("⚡ Executing query..."):
+#         results = llm.execute_planned_query(query_plan)
+
+#     # Rest of your existing code for displaying results...
+
+#         if results:
+#             st.success(f"✅ Retrieved {len(results)} results")
+#         else:
+#             st.warning("⚠️ No results found")
+        
+#         # Step 3: Analysis
+#         if results:
+#             with st.spinner("🤖 Analyzing results..."):
+#                 formatted_context = llm.format_results_for_llm(results, query_plan)
+#                 analysis_prompt = llm.create_analysis_prompt(user_question, formatted_context, query_plan)
+#                 answer = llm.get_llm_analysis(analysis_prompt)
 
 if (search_button or user_question) and user_question:
     
-    # Step 1: Quick intent check
-    with st.spinner("🧠 Understanding query type..."):
-        intent = llm.quick_intent_check(user_question)
-        st.info(f"🎯 Detected: {intent.get('type', 'unknown').upper()} query")
-    
-    # Step 2: Generate query with intent hint
-    with st.spinner("⚙️ Planning query..."):
-        # Add intent to the planning prompt
-        query_plan = llm.plan_query_with_llm(user_question, intent_hint=intent)
+        # Step 1: Quick intent check
+        with st.spinner("🧠 Understanding query type..."):
+            intent = llm.quick_intent_check(user_question, use_local=use_local_model)  # Add flag
+            st.info(f"🎯 Detected: {intent.get('type', 'unknown').upper()} query")
         
-        if not query_plan:
-            st.error("❌ Could not generate query plan.")
-            st.stop()
-    
-    # Step 3: Show plan
-    with st.expander("🔍 Query Plan & Strategy", expanded=False):
-        col_a, col_b = st.columns(2)
-        with col_a:
-            st.metric("Intent", query_plan.get("intent", "Unknown"))
-            st.metric("Collections", ", ".join(query_plan.get("collections", [])))
-        with col_b:
-            st.metric("Semantic Search", "Yes" if query_plan.get("requires_embedding") else "No")
-            st.caption(f"**Strategy:** {query_plan.get('explanation', 'N/A')}")
+        # Step 2: Generate query with intent hint
+        with st.spinner("⚙️ Planning query..."):
+            query_plan = llm.plan_query_with_llm(
+                user_question, 
+                intent_hint=intent,
+                use_local=use_local_model  # Add flag
+            )
+            
+            if not query_plan:
+                st.error("❌ Could not generate query plan.")
+                st.stop()
         
-        st.code(query_plan.get("aql_query", "No query"), language="sql")
-        if query_plan.get("bind_vars"):
-            st.json(query_plan.get("bind_vars"))
-    
-    # Step 4: Execute
-    with st.spinner("⚡ Executing query..."):
-        results = llm.execute_planned_query(query_plan)
-
-    # Rest of your existing code for displaying results...
+        # Step 3: Show plan
+        with st.expander("🔍 Query Plan & Strategy", expanded=False):
+            col_a, col_b = st.columns(2)
+            with col_a:
+                st.metric("Intent", query_plan.get("intent", "Unknown"))
+                st.metric("Collections", ", ".join(query_plan.get("collections", [])))
+                st.metric("Model", "Local (Fine-Tuned)" if use_local_model else "OpenAI GPT-4")  # Show which model
+            with col_b:
+                st.metric("Semantic Search", "Yes" if query_plan.get("requires_embedding") else "No")
+                st.caption(f"**Strategy:** {query_plan.get('explanation', 'N/A')}")
+            
+            st.code(query_plan.get("aql_query", "No query"), language="sql")
+            if query_plan.get("bind_vars"):
+                st.json(query_plan.get("bind_vars"))
+        
+        # Step 4: Execute (no changes needed here)
+        with st.spinner("⚡ Executing query..."):
+            results = llm.execute_planned_query(query_plan)
 
         if results:
             st.success(f"✅ Retrieved {len(results)} results")
         else:
             st.warning("⚠️ No results found")
         
-        # Step 3: Analysis
+        # Step 5: Analysis
         if results:
             with st.spinner("🤖 Analyzing results..."):
                 formatted_context = llm.format_results_for_llm(results, query_plan)
                 analysis_prompt = llm.create_analysis_prompt(user_question, formatted_context, query_plan)
-                answer = llm.get_llm_analysis(analysis_prompt)
+                answer = llm.get_llm_analysis(
+                    analysis_prompt, 
+                    use_local=use_local_model  # Add flag
+                )
+            
+            st.markdown("### 📊 Analysis")
+            st.markdown(answer)
+            
+        # Rest of your code stays the same...
+
             
             st.markdown("### 📊 Analysis")
             st.markdown(answer)

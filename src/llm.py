@@ -14,6 +14,8 @@ import os
 import pandas as pd 
 import json
 import database as arango_db
+from local_llm import get_local_llm
+
 
 def get_query_embedding(text):
     """Generate embedding vector for semantic search"""
@@ -27,7 +29,7 @@ def get_query_embedding(text):
         st.error(f"Embedding generation error: {str(e)}")
         return None
 
-def plan_query_with_llm(question, intent_hint=None):
+def plan_query_with_llm(question, intent_hint=None, use_local=False):
     """Generate AQL query plan from natural language"""
     current_date = datetime.now().strftime("%Y-%m-%d")
     
@@ -76,7 +78,7 @@ Response:"""
         return None
 
 
-def quick_intent_check(question):
+def quick_intent_check(question, use_local=False):
     """Quick LLM call to determine if ticker or semantic query"""
     
     check_prompt = f"""Question: "{question}"
@@ -303,15 +305,38 @@ ANSWER:"""
     return prompt
 
 
-def get_llm_analysis(prompt):
-    """Get analysis from OpenAI"""
-    try:
-        response = openai.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=1500,
-            temperature=0.2,
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        return f"OpenAI API error: {str(e)}"
+# def get_llm_analysis(prompt):
+#     """Get analysis from OpenAI"""
+#     try:
+#         response = openai.chat.completions.create(
+#             model="gpt-4o-mini",
+#             messages=[{"role": "user", "content": prompt}],
+#             max_tokens=1500,
+#             temperature=0.2,
+#         )
+#         return response.choices[0].message.content
+#     except Exception as e:
+#         return f"OpenAI API error: {str(e)}"
+
+# Schema context for the model
+def get_llm_analysis(prompt, use_local=False):
+    """Updated to support both models"""
+    if use_local:
+        try:
+            from local_llm import get_local_llm
+            llm = get_local_llm()
+            result = llm.generate(prompt, max_tokens=512, temperature=0.1)
+            return result.split("assistant<|end_header_id|>")[-1].strip().replace("<|eot_id|>", "")
+        except Exception as e:
+            st.warning(f"⚠️ Local model failed: {e}, using OpenAI")
+            # Fall through to OpenAI
+    
+    # OpenAI (default or fallback)
+    import openai
+    response = openai.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=1500,
+        temperature=0.2,
+    )
+    return response.choices[0].message.content
