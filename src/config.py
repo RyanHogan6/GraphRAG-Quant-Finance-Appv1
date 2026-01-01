@@ -13,11 +13,11 @@ import json
 load_dotenv() 
 
 # Configuration
-ARANGO_URL = "https://e11129e8c5ae.arangodb.cloud:8529"   #  "http://localhost:8529"
+ARANGO_URL ="https://e11129e8c5ae.arangodb.cloud:8529" #"http://localhost:8529"#"https://e11129e8c5ae.arangodb.cloud:8529"   #  "http://localhost:8529"
 GRAPH_NAME = "QUANT_v1_FinanceGraph"
 DB_NAME = "QUANT_v1"
 USERNAME = "root"
-PASSWORD = os.getenv('PASSWORD')
+PASSWORD = st.secrets["password"] #os.getenv('PASSWORD')
 COMPANY_COL = "Company"
 MARKETDATA_COL = "MarketData"
 EDGE_MARKETDATA_COL = "HAS_MARKETDATA"
@@ -27,7 +27,7 @@ FRED_COL = "FREDData"
 COMMODITY_COL = "CommodityPosition"
 SEC_COL = "sec_filings"
 
-openai.api_key = os.getenv('OPENAI_API_KEY')
+openai.api_key = st.secrets['open_api_key'] #os.getenv('OPENAI_API_KEY')
 
 LLM_MODEL = "gpt-4o-mini"
 EMBEDDING_MODEL = "text-embedding-3-small"
