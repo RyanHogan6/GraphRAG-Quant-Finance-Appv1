@@ -14,7 +14,7 @@ import os
 import pandas as pd 
 import json
 import database as arango_db
-from local_llm import get_local_llm
+import local_llm as get_local_llm
 
 
 def get_query_embedding(text):
