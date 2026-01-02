@@ -6,6 +6,7 @@ import llm as llm
 import ui as ui 
 
 import streamlit as st
+import os 
 import base64
 
 st.set_page_config(
@@ -13,7 +14,8 @@ st.set_page_config(
     page_icon="assets/fga_icon.png",
     layout="wide"
 )
-
+st.write("Current directory:", os.getcwd())
+st.write("Files in current dir:", os.listdir())
 # Initialize ALL session state variables
 if 'selected_collection' not in st.session_state:
     st.session_state.selected_collection = None
