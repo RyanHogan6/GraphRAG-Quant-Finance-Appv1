@@ -5,8 +5,14 @@ import database as arango_db
 import llm as llm 
 import ui as ui 
 
-# Page config
-st.set_page_config(page_title="GraphRAG Finance Platform", page_icon="📊", layout="wide")
+import streamlit as st
+import base64
+
+st.set_page_config(
+    page_title="Finna Go Alpha", 
+    page_icon="D:/Users/Ryan/Desktop/QUANT/streamlit/src/assets/fga_icon.png",
+    layout="wide"
+)
 
 # Initialize ALL session state variables
 if 'selected_collection' not in st.session_state:
@@ -18,8 +24,70 @@ if 'show_stock_overview' not in st.session_state:
 if 'conversation_history' not in st.session_state:
     st.session_state.conversation_history = []
 
-st.title("🔍 GraphRAG Quantitative Finance Platform")
-st.markdown("*Multi-source financial intelligence with LLM-powered query generation*")
+# Custom CSS for better styling
+st.markdown("""
+    <style>
+    /* Reduce top padding */
+    .block-container {
+        padding-top: 2rem;
+    }
+    
+    /* Hide Streamlit branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Custom header styling */
+    .header-container {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 10px;
+    }
+    
+    .header-title {
+        font-size: 3.5rem;
+        font-weight: 700;
+        margin: 0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        line-height: 1.2;
+    }
+    
+    .header-subtitle {
+        font-size: 1.15rem;
+        color: #a8a8a8;
+        font-style: italic;
+        margin-top: 5px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Convert image to base64 for inline embedding
+def get_base64_image(path):
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+icon_base64 = get_base64_image("D:/Users/Ryan/Desktop/QUANT/streamlit/src/assets/fga_icon.png")
+
+# Header with icon + title
+st.markdown(
+    f"""
+    <div class="header-container">
+        <img src="data:image/png;base64,{icon_base64}" width="70" height="70">
+        <div>
+            <h1 class="header-title">Finna Go Alpha</h1>
+        </div>
+    </div>
+    <p class="header-subtitle">
+        Ask anything. Get answers. Powered by AI & knowledge graphs.
+    </p>
+    <hr style="margin: 20px 0; border: none; border-top: 1px solid #333;">
+    """,
+    unsafe_allow_html=True
+)
+
 
 # Sidebar
 with st.sidebar:
