@@ -200,12 +200,7 @@ if (search_button or user_question) and user_question:
                     analysis_prompt, 
                     use_local=use_local_model  # Add flag
                 )
-            
-            st.markdown("### 📊 Analysis")
-            st.markdown(answer)
-            
-        # Rest of your code stays the same...
-
+        
             
             st.markdown("### 📊 Analysis")
             st.markdown(answer)

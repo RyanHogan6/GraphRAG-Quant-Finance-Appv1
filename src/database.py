@@ -12,7 +12,8 @@ import config as cfg
 def get_arango_connection():
     """Establish cached connection to ArangoDB"""
     client = ArangoClient(hosts=cfg.ARANGO_URL)
-    db = client.db(cfg.DB_NAME, username=cfg.USERNAME, password=cfg.PASSWORD)
+    cert_path = st.secrets['arangodb']['creds']
+    db = client.db(cfg.DB_NAME, username=cfg.USERNAME, password=cfg.PASSWORD, verify=cert_path)
     return db
 
 

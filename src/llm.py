@@ -4,17 +4,11 @@ import json
 from config import *
 from prompts import *
 import streamlit as st
-from arango import ArangoClient
-import torch
 import re
 import openai
 from datetime import datetime
-from dotenv import load_dotenv
-import os 
-import pandas as pd 
 import json
 import database as arango_db
-import local_llm as get_local_llm
 
 
 def get_query_embedding(text):
@@ -320,19 +314,42 @@ ANSWER:"""
 
 # Schema context for the model
 def get_llm_analysis(prompt, use_local=False):
-    """Updated to support both models"""
+    """Get analysis from model with explicit logging"""
+    
+    print(f"🔍 get_llm_analysis called with use_local={use_local}")  # DEBUG
+    
     if use_local:
+        print("🟢 Attempting local model...")  # DEBUG
         try:
             from local_llm import get_local_llm
+            
             llm = get_local_llm()
+            print("✅ Local model loaded")  # DEBUG
+            
             result = llm.generate(prompt, max_tokens=512, temperature=0.1)
-            return result.split("assistant<|end_header_id|>")[-1].strip().replace("<|eot_id|>", "")
+            
+            # Extract response
+            if "assistant<|end_header_id|>" in result:
+                response = result.split("assistant<|end_header_id|>")[-1].strip()
+            else:
+                response = result
+            
+            response = response.replace("<|eot_id|>", "").strip()
+            
+            print(f"✅ Local model generated {len(response)} chars")  # DEBUG
+            return response
+            
         except Exception as e:
-            st.warning(f"⚠️ Local model failed: {e}, using OpenAI")
-            # Fall through to OpenAI
+            print(f"❌ Local model failed: {e}")  # DEBUG
+            import traceback
+            traceback.print_exc()
+            # DON'T fall back - raise error to see what's wrong
+            raise Exception(f"Local model failed: {e}")
     
-    # OpenAI (default or fallback)
+    # OpenAI path
+    print("🔵 Using OpenAI...")  # DEBUG
     import openai
+    
     response = openai.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
