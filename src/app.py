@@ -155,29 +155,48 @@ with tab1:
         "During the month of April 2018 how did AAPL's stock perform?"
     ]
     
+    # Initialize session state for question if not exists
+    if 'current_question' not in st.session_state:
+        st.session_state.current_question = ""
+    
+    # Dropdown selection
     selected_sample = st.selectbox(
         "Try a sample question:",
         sample_questions,
         key="sample_question_select"
     )
     
+    # Update session state when sample is selected
+    if selected_sample != sample_questions[0]:
+        st.session_state.current_question = selected_sample
+    
     # Create columns for input and button
     col1, col2 = st.columns([3, 1])
     
     with col1:
-        # Auto-populate if sample selected
-        default_value = "" if selected_sample == sample_questions[0] else selected_sample
-        
         user_question = st.text_input(
             "Ask a question about financial data:",
-            value=default_value,
+            value=st.session_state.current_question,
             placeholder="e.g., What was Microsoft's closing price on 2024-05-15?",
             key="question_input"
         )
+        
+        # Update session state with manual input
+        if user_question:
+            st.session_state.current_question = user_question
     
     with col2:
         search_button = st.button("🔎 Search", type="primary", use_container_width=True, key="search_btn")
-
+    
+    # When search is clicked, use the current question
+    if search_button:
+        if st.session_state.current_question:
+            # Your LLM call here
+            final_question = st.session_state.current_question
+            st.write(f"Sending to LLM: {final_question}")
+            # process_question(final_question)
+        else:
+            st.warning("Please enter a question or select a sample.")
 
     # Conversation history
     if st.session_state.conversation_history:
