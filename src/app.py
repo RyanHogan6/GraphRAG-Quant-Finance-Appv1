@@ -1,13 +1,13 @@
 import streamlit as st
 import pandas as pd 
 import config as cfg 
+import database as arango_db
 import llm as llm 
 import ui as ui 
 
 import streamlit as st
+import os 
 import base64
-import streamlit as st
-from streamlit_searchbox import st_searchbox
 
 st.set_page_config(
     page_title="Finna Go Alpha", 
@@ -70,7 +70,7 @@ def get_base64_image(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
-icon_base64 = get_base64_image("src/fga-v3.png")
+icon_base64 = get_base64_image("fga-v3.png")
 
 # Header with icon + title
 st.markdown(
@@ -143,57 +143,28 @@ with st.sidebar:
 tab1, tab2 = st.tabs(["🤖 AI Query Interface", "🗄️ Database Browser"])
 
 # ==================== TAB 1: AI QUERY ====================
-
 with tab1:
-    # Sample questions list
-    sample_questions = [
-        "What was Tesla's closing price on 2020-06-15?",
-        "What was AAPL's closing price on January 6th, 2020?",
-        "What was RTX's EBITDA value on March 9th, 2017?",
-        "During the month of April 2018 how did AAPL's stock perform?"
-    ]
-    
-    # Search function that filters sample questions
-    def search_sample_questions(searchterm: str):
-        """Return matching sample questions as user types"""
-        if not searchterm:
-            return sample_questions
-        return [q for q in sample_questions if searchterm.lower() in q.lower()]
-    
-    # Create columns for search box and button
     col1, col2 = st.columns([3, 1])
-    
+
     with col1:
-        user_question = st_searchbox(
-            search_sample_questions,
-            placeholder="Type your question or select from samples...",
-            label="Ask a question about financial data:",
-            key="question_searchbox",
-            clear_on_submit=False,
-            default=None
+    # Auto-populate if sample selected
+
+        sample_questions = [
+            "What was Tesla's closing price on 2020-06-15?",
+            "What was AAPL's closing price on January 6th, 2020",
+            "What was RTXs EBITDA value on March 9th, 2017",
+            "During the month of April 2018 how did AAPLs stock perform?"
+        ]
+        user_question = st.selectbox(
+            "Ask a question about financial data:",
+            options=[""] + sample_questions,  # Empty option first
+            placeholder="Type or select quesion ..",
+            format_func=lambda x: x if x == "" else x,
+            key="question_input"
         )
-    
+
     with col2:
         search_button = st.button("🔎 Search", type="primary", use_container_width=True, key="search_btn")
-    
-    # Handle search
-    if search_button:
-        if user_question:
-            # Your LLM processing here
-            st.write(f"Processing: {user_question}")
-        else:
-            st.warning("Please enter a question or select from samples.")
-
-    
-    # When search is clicked, use the current question
-    if search_button:
-        if st.session_state.current_question:
-            # Your LLM call here
-            final_question = st.session_state.current_question
-            st.write(f"Sending to LLM: {final_question}")
-            # process_question(final_question)
-        else:
-            st.warning("Please enter a question or select a sample.")
 
     # Conversation history
     if st.session_state.conversation_history:
@@ -204,59 +175,7 @@ with tab1:
                 elif msg["role"] == "assistant":
                     st.markdown(f"**Assistant:** {msg['content'][:150]}...")
 
-    # Query execution
-    # In your Tab 1 query execution section, after planning:
-
-# In Tab 1, replace your entire query execution block with this:
-# working below > original open api implementation 
-# if (search_button or user_question) and user_question:
-    
-#     # Step 1: Quick intent check
-#     with st.spinner("🧠 Understanding query type..."):
-#         intent = llm.quick_intent_check(user_question)
-#         st.info(f"🎯 Detected: {intent.get('type', 'unknown').upper()} query")
-    
-#     # Step 2: Generate query with intent hint
-#     with st.spinner("⚙️ Planning query..."):
-#         # Add intent to the planning prompt
-#         query_plan = llm.plan_query_with_llm(user_question, intent_hint=intent)
-        
-#         if not query_plan:
-#             st.error("❌ Could not generate query plan.")
-#             st.stop()
-    
-#     # Step 3: Show plan
-#     with st.expander("🔍 Query Plan & Strategy", expanded=False):
-#         col_a, col_b = st.columns(2)
-#         with col_a:
-#             st.metric("Intent", query_plan.get("intent", "Unknown"))
-#             st.metric("Collections", ", ".join(query_plan.get("collections", [])))
-#         with col_b:
-#             st.metric("Semantic Search", "Yes" if query_plan.get("requires_embedding") else "No")
-#             st.caption(f"**Strategy:** {query_plan.get('explanation', 'N/A')}")
-        
-#         st.code(query_plan.get("aql_query", "No query"), language="sql")
-#         if query_plan.get("bind_vars"):
-#             st.json(query_plan.get("bind_vars"))
-    
-#     # Step 4: Execute
-#     with st.spinner("⚡ Executing query..."):
-#         results = llm.execute_planned_query(query_plan)
-
-#     # Rest of your existing code for displaying results...
-
-#         if results:
-#             st.success(f"✅ Retrieved {len(results)} results")
-#         else:
-#             st.warning("⚠️ No results found")
-        
-#         # Step 3: Analysis
-#         if results:
-#             with st.spinner("🤖 Analyzing results..."):
-#                 formatted_context = llm.format_results_for_llm(results, query_plan)
-#                 analysis_prompt = llm.create_analysis_prompt(user_question, formatted_context, query_plan)
-#                 answer = llm.get_llm_analysis(analysis_prompt)
-
+# Query Execution
 if (search_button or user_question) and user_question:
     
         # Step 1: Quick intent check
