@@ -26,7 +26,7 @@ EDGE_AWARD_COL = "HAS_AWARD"
 FRED_COL = "FREDData"
 COMMODITY_COL = "CommodityPosition"
 SEC_COL = "sec_filings"
-
+ARANGO_CREDS = st.secrets['arangodb']['creds']
 openai.api_key =  st.secrets["arangodb"]['open_api_key'] # os.getenv('OPENAI_API_KEY') #
 
 LLM_MODEL = "gpt-4o-mini"

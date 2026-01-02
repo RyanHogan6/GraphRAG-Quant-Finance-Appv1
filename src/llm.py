@@ -312,12 +312,13 @@ ANSWER:"""
 #     except Exception as e:
 #         return f"OpenAI API error: {str(e)}"
 
-# Schema context for the model
+#chema context for the model
 def get_llm_analysis(prompt, use_local=False):
     """Get analysis from model with explicit logging"""
     
     print(f"🔍 get_llm_analysis called with use_local={use_local}")  # DEBUG
     
+    use_local = False
     if use_local:
         print("🟢 Attempting local model...")  # DEBUG
         try:

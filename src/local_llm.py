@@ -1,12 +1,24 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
+import torch
+import gc
+
+# Clear any existing models from GPU
+def clear_gpu_memory():
+    """Clear GPU memory before loading model"""
+    gc.collect()
+    torch.cuda.empty_cache()
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
 
 class LocalLLM:
     def __init__(self, base_model_id="meta-llama/Llama-3.2-1B-Instruct", 
-                 adapter_path="./llama-3.2-1b-aql-lora-final"):
+                 adapter_path="D:/Users/Ryan/Desktop/QUANT/streamlit/llm/llama-aql-lora-final/"):
         """Load your fine-tuned model"""
         print("Loading fine-tuned model...")
+        # Clear GPU first!
+        clear_gpu_memory()
         
         # Load base model
         self.base_model = AutoModelForCausalLM.from_pretrained(
