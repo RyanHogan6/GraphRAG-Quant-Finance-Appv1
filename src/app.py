@@ -143,18 +143,41 @@ with st.sidebar:
 tab1, tab2 = st.tabs(["🤖 AI Query Interface", "🗄️ Database Browser"])
 
 # ==================== TAB 1: AI QUERY ====================
-with tab1:
-    col1, col2 = st.columns([3, 1])
+import streamlit as st
 
+with tab1:
+    # Sample questions dropdown
+    sample_questions = [
+        "-- Select a sample question --",
+        "What was Tesla's closing price on 2020-06-15?",
+        "What was AAPL's closing price on January 6th, 2020?",
+        "What was RTX's EBITDA value on March 9th, 2017?",
+        "During the month of April 2018 how did AAPL's stock perform?"
+    ]
+    
+    selected_sample = st.selectbox(
+        "Try a sample question:",
+        sample_questions,
+        key="sample_question_select"
+    )
+    
+    # Create columns for input and button
+    col1, col2 = st.columns([3, 1])
+    
     with col1:
+        # Auto-populate if sample selected
+        default_value = "" if selected_sample == sample_questions[0] else selected_sample
+        
         user_question = st.text_input(
             "Ask a question about financial data:",
+            value=default_value,
             placeholder="e.g., What was Microsoft's closing price on 2024-05-15?",
             key="question_input"
         )
-
+    
     with col2:
         search_button = st.button("🔎 Search", type="primary", use_container_width=True, key="search_btn")
+
 
     # Conversation history
     if st.session_state.conversation_history:
