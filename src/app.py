@@ -11,7 +11,7 @@ import base64
 
 st.set_page_config(
     page_title="Finna Go Alpha", 
-    page_icon="src/fga-v3.jpg",
+    page_icon="src/fga-v3.png",
     layout="wide"
 )
 
@@ -70,7 +70,7 @@ def get_base64_image(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
-icon_base64 = get_base64_image("src/fga-v3.jpg")
+icon_base64 = get_base64_image("src/fga-v3.png")
 
 # Header with icon + title
 st.markdown(
