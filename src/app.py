@@ -1,13 +1,13 @@
 import streamlit as st
 import pandas as pd 
 import config as cfg 
-import database as arango_db
 import llm as llm 
 import ui as ui 
 
 import streamlit as st
-import os 
 import base64
+import streamlit as st
+from streamlit_searchbox import st_searchbox
 
 st.set_page_config(
     page_title="Finna Go Alpha", 
@@ -143,50 +143,47 @@ with st.sidebar:
 tab1, tab2 = st.tabs(["🤖 AI Query Interface", "🗄️ Database Browser"])
 
 # ==================== TAB 1: AI QUERY ====================
-import streamlit as st
 
 with tab1:
-    # Sample questions dropdown
+    # Sample questions list
     sample_questions = [
-        "-- Select a sample question --",
         "What was Tesla's closing price on 2020-06-15?",
         "What was AAPL's closing price on January 6th, 2020?",
         "What was RTX's EBITDA value on March 9th, 2017?",
         "During the month of April 2018 how did AAPL's stock perform?"
     ]
     
-    # Initialize session state for question if not exists
-    if 'current_question' not in st.session_state:
-        st.session_state.current_question = ""
+    # Search function that filters sample questions
+    def search_sample_questions(searchterm: str):
+        """Return matching sample questions as user types"""
+        if not searchterm:
+            return sample_questions
+        return [q for q in sample_questions if searchterm.lower() in q.lower()]
     
-    # Dropdown selection
-    selected_sample = st.selectbox(
-        "Try a sample question:",
-        sample_questions,
-        key="sample_question_select"
-    )
-    
-    # Update session state when sample is selected
-    if selected_sample != sample_questions[0]:
-        st.session_state.current_question = selected_sample
-    
-    # Create columns for input and button
+    # Create columns for search box and button
     col1, col2 = st.columns([3, 1])
     
     with col1:
-        user_question = st.text_input(
-            "Ask a question about financial data:",
-            value=st.session_state.current_question,
-            placeholder="e.g., What was Microsoft's closing price on 2024-05-15?",
-            key="question_input"
+        user_question = st_searchbox(
+            search_sample_questions,
+            placeholder="Type your question or select from samples...",
+            label="Ask a question about financial data:",
+            key="question_searchbox",
+            clear_on_submit=False,
+            default=None
         )
-        
-        # Update session state with manual input
-        if user_question:
-            st.session_state.current_question = user_question
     
     with col2:
         search_button = st.button("🔎 Search", type="primary", use_container_width=True, key="search_btn")
+    
+    # Handle search
+    if search_button:
+        if user_question:
+            # Your LLM processing here
+            st.write(f"Processing: {user_question}")
+        else:
+            st.warning("Please enter a question or select from samples.")
+
     
     # When search is clicked, use the current question
     if search_button:

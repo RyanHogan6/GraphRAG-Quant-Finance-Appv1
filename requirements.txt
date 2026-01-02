@@ -7,3 +7,4 @@ anthropic
 torch
 python-dotenv
 transformers
+streamlit-searchbox
