@@ -70,7 +70,7 @@ def get_base64_image(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
-icon_base64 = get_base64_image("fga-v3.png")
+icon_base64 = get_base64_image("src/fga-v3.png")
 
 # Header with icon + title
 st.markdown(
