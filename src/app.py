@@ -53,9 +53,10 @@ with st.sidebar:
     
     st.header("💡 Examples")
     st.markdown("""
-    - "What was Tesla's closing price on 2024-06-15?"
-    - "Show me the largest defense contracts"
-    - "Find awards related to AI"
+    - "What was Tesla's closing price on 2020-06-15?"
+    - "What was AAPL’s closing price on January 6th, 2020"
+    - "What was RTXs EBITDA value on March 9th, 2017"
+    - "During the month of April 2018 how did AAPLs stock perform?"
     """)
     
     st.divider()
