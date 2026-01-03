@@ -10,7 +10,7 @@ import os
 import base64
 
 st.set_page_config(
-    page_title="Finna Go Alpha", 
+    page_title="GraphRAG LLM", 
     page_icon="src/fga-v3.png",
     layout="wide"
 )
@@ -78,7 +78,7 @@ st.markdown(
     <div class="header-container">
         <img src="data:image/png;base64,{icon_base64}" width="70" height="70">
         <div>
-            <h1 class="header-title">Finna Go Alpha</h1>
+            <h1 class="header-title">GraphRAG LLM</h1>
         </div>
     </div>
     <p class="header-subtitle">
@@ -147,24 +147,53 @@ with tab1:
     col1, col2 = st.columns([3, 1])
 
     with col1:
-    # Auto-populate if sample selected
-
         sample_questions = [
             "What was Tesla's closing price on 2020-06-15?",
-            "What was AAPL's closing price on January 6th, 2020",
-            "What was RTXs EBITDA value on March 9th, 2017",
-            "During the month of April 2018 how did AAPLs stock perform?"
+            "What was AAPL's closing price on January 6th, 2020?",
+            "What was RTX's EBITDA value on March 9th, 2017?",
+            "During the month of April 2018 how did AAPL's stock perform?",
+            "Which tech companies have the most negative risk sentiment?",
+            "Show me cybersecurity risks mentioned in SEC filings",
+            "Compare risk sentiment between AAPL and MSFT"
         ]
-        user_question = st.selectbox(
-            "Ask a question about financial data:",
-            options=[""] + sample_questions,  # Empty option first
-            placeholder="Type or select quesion ..",
-            format_func=lambda x: x if x == "" else x,
-            key="question_input"
+        
+        # Show sample questions as clickable buttons
+        st.markdown("**💡 Sample Questions (click to use):**")
+        cols = st.columns(2)
+        for idx, question in enumerate(sample_questions):
+            with cols[idx % 2]:
+                if st.button(
+                    f"📌 {question[:60]}...",
+                    key=f"sample_{idx}",
+                    use_container_width=True,
+                    help=question
+                ):
+                    st.session_state.selected_sample = question
+        
+        st.markdown("---")
+        
+        # Main input - always editable
+        default_value = st.session_state.get('selected_sample', '')
+        user_question = st.text_input(
+            "**Or type your own question:**",
+            value=default_value,
+            placeholder="Ask anything about stocks, SEC filings, or contracts...",
+            key="question_input",
+            label_visibility="visible"
         )
+        
+        # Clear the selected sample after it's loaded
+        if 'selected_sample' in st.session_state:
+            del st.session_state.selected_sample
 
     with col2:
-        search_button = st.button("🔎 Search", type="primary", use_container_width=True, key="search_btn")
+        search_button = st.button(
+            "🔎 Search", 
+            type="primary", 
+            use_container_width=True, 
+            key="search_btn",
+            disabled=not user_question  # Disable if empty
+        )
 
     # Conversation history
     if st.session_state.conversation_history:
