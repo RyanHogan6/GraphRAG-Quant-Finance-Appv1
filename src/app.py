@@ -157,34 +157,23 @@ with tab1:
             "Compare risk sentiment between AAPL and MSFT"
         ]
         
-        # Show sample questions as clickable buttons
-        st.markdown("**💡 Sample Questions (click to use):**")
-        cols = st.columns(2)
-        for idx, question in enumerate(sample_questions):
-            with cols[idx % 2]:
-                if st.button(
-                    f"📌 {question[:60]}...",
-                    key=f"sample_{idx}",
-                    use_container_width=True,
-                    help=question
-                ):
-                    st.session_state.selected_sample = question
-        
-        st.markdown("---")
-        
-        # Main input - always editable
-        default_value = st.session_state.get('selected_sample', '')
-        user_question = st.text_input(
-            "**Or type your own question:**",
-            value=default_value,
-            placeholder="Ask anything about stocks, SEC filings, or contracts...",
-            key="question_input",
-            label_visibility="visible"
+        # Single selectbox that allows custom input
+        user_question = st.selectbox(
+            "Ask a question about financial data:",
+            options=[""] + sample_questions,
+            index=0,
+            format_func=lambda x: "Type or select a question..." if x == "" else x,
+            key="question_input"
         )
         
-        # Clear the selected sample after it's loaded
-        if 'selected_sample' in st.session_state:
-            del st.session_state.selected_sample
+        # If empty option selected, show text input instead
+        if user_question == "":
+            user_question = st.text_input(
+                "Or type your custom question:",
+                placeholder="Ask anything about stocks, SEC filings, or contracts...",
+                label_visibility="collapsed",
+                key="custom_question_input"
+            )
 
     with col2:
         search_button = st.button(
@@ -203,6 +192,7 @@ with tab1:
                     st.markdown(f"**You:** {msg['content'][:150]}...")
                 elif msg["role"] == "assistant":
                     st.markdown(f"**Assistant:** {msg['content'][:150]}...")
+
 
 # Query Execution
 if (search_button or user_question) and user_question:
