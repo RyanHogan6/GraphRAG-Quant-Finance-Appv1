@@ -26,7 +26,11 @@ AQL ROUNDING (no decimal places parameter):
 - To round to 2 decimals: FLOOR(value * 100) / 100 ✅
 - NEVER use: ROUND(value, 2) ❌ WRONG
 
-CRITICAL FIELD NAMING RULES - EXACT NAMES FROM DATABASE
+
+AQL ORDER OF OPERATIONS: FOR → FILTER → SORT → LIMIT → RETURN ⚠️
+   - SORT must come BEFORE RETURN
+   - LIMIT must come BEFORE RETURN
+   - NEVER put SORT/LIMIT after RETURN
 
 ⚠️ CRITICAL FIELD NAMING RULES (EXACT NAMES FROM DATABASE):
 
@@ -970,6 +974,55 @@ Requires Embedding: false
 - When specific ticker mentioned, use @ticker bind variable
 - Get latest filing first, then drill down
 - More efficient than scanning all sentences
+
+---
+
+EXAMPLE - Price Change Over Period (CORRECT ORDER)
+Question: "What are the top 15 companies that have seen their stock price increase by more than 2% in the last 180 days?"
+Intent: price_screening
+Collections: Company, MarketData
+Edges: HAS_MARKETDATA
+
+AQL:
+LET six_months_ago = DATE_SUBTRACT(DATE_NOW(), 180, "day")
+
+FOR company IN Company
+  LIMIT 500
+  
+  LET market_data = (
+    FOR m IN OUTBOUND company HAS_MARKETDATA
+      FILTER m.date >= six_months_ago
+      SORT m.date ASC
+      RETURN m
+  )
+  
+  FILTER LENGTH(market_data) >= 2
+  
+  LET oldest_price = FIRST(market_data).close
+  LET newest_price = LAST(market_data).close
+  LET price_change_pct = (newest_price - oldest_price) / oldest_price * 100
+  
+  FILTER price_change_pct > 2
+  
+  SORT price_change_pct DESC
+  LIMIT 15
+  RETURN {
+    ticker: company.ticker,
+    start_price: oldest_price,
+    end_price: newest_price,
+    change_pct: FLOOR(price_change_pct * 100) / 100,
+    days: LENGTH(market_data)
+  }
+
+Bind Variables: {}
+Requires_Embedding: false
+
+Strategy:
+✅ CORRECT ORDER: FOR → FILTER → SORT → LIMIT → RETURN
+❌ WRONG: Don't put SORT after RETURN
+- Compare first vs last price over 180 days (not daily close > open)
+- Use DATE_SUBTRACT(DATE_NOW(), 180, "day")
+- SORT DESC before RETURN to get top performers
 
 ---
 
