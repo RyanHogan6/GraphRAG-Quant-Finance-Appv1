@@ -1,138 +1,437 @@
+"""
+prompts.py - Schema descriptions and few-shot examples for AQL query generation
+Last updated: 2026-01-06 with Kalshi support
+"""
 
-# Schema description for LLM
+# =============================================================================
+# SCHEMA DESCRIPTION (Based on actual ArangoDB collections)
+# =============================================================================
+
 SCHEMA_DESCRIPTION = """
-Database: QUANT_v1 (ArangoDB Multi-Model Graph)
+Database: QUANT_v3 (ArangoDB Multi-Model Graph)
 
-COLLECTIONS:
+⚠️ CRITICAL FIELD NAMING RULES (EXACT NAMES FROM DATABASE):
+
+Award:
+- award_amount_float (for math), start_date, recipient_name, awarding_agency
+- description_embedding (for semantic search), contract_year
+
+Company:
+- sharesOutstanding (camelCase, NOT shares_outstanding)
+- marketCap (camelCase, NOT market_cap)
+- fullTimeEmployees (camelCase, NOT employees)
+- sp500_member (snake_case - correct!)
+- ticker, company, sector, industry, country, cik, website
+
+MarketData:
+- Technical: sma_20, sma_50, ema_12, macd_signal, macd_histogram (underscores)
+- Flags: golden_cross, death_cross, above_sma20 (underscores)
+- Fundamentals: targetMeanPrice, forwardEps, trailingPE (camelCase)
+
+EconomicData:
+- sandp_500_index, federal_funds_rate, unemployment_rate (underscores)
+- 10y_2y_treasury_spread, yield_curve_inverted
+
+SEC:
+- sec_filings: avg_finbert, avg_uncertainty, avg_negative
+- sec_sentences: finbert_score, negative_per_1k, uncertainty_per_1k
+- ❌ NO embeddings on SEC - use CONTAINS(LOWER(text), keyword)
+
+Polymarket:
+- yes_probability, no_probability, volume_24h, market_slug
+
+Commodity:
+- Market_and_Exchange_Names (Capital letters!), as_of_date
+
+⚠️ SEMANTIC SEARCH RULES:
+- Award descriptions: HAS embeddings - use COSINE_SIMILARITY ✅
+- SEC content: NO embeddings - use CONTAINS() text filters ❌
+- Never use COSINE_SIMILARITY on sec_sentences or sec_sections
+
+⚠️ COLLECTION NAMES:
+- Use "Award" (capital A, singular)
+- Use "sec_filings" (with underscores)
+- Use "sec_sections" (with underscores)
+- Use "sec_sentences" (with underscores)
+- commodity_positions (NOT "commodity_position" or "CommodityPositions")
+- prediction_markets_polymarket (NOT "polymarket" or "prediction_market")
+- prediction_markets_kalshi (NOT "kalshi" or "kalshi_markets")
+
+DOCUMENT COLLECTIONS:
+
 1. Company
-   - ticker (string): Stock ticker symbol
-   - name (string): Company name
-   - sector (string): Business sector
+   - ticker (string): Stock ticker symbol (e.g., "AAPL", "DG")
+   
+   ⚠️ WARNING: This collection ONLY contains ticker. No name, sector, or other fields.
+   Collection name: "Company" (capital C, singular)
 
-2. MarketData
+2. MarketData (daily OHLCV + 40+ technical/fundamental indicators)
    - ticker (string): Stock ticker
-   - date (string): Format YYYY-MM-DD
-   - close, open, high, low (float): Price data
+   - date (string): Format YYYY-MM-DD (e.g., "2016-01-05")
+   - open, high, low, close (float): Price data
    - volume (int): Trading volume
-   - marketCap (float): Market capitalization
-   - grossMargins, ebitdaMargins (float): Financial ratios
    
-3. Award (government contracts)
+   Technical Indicators:
+   - sma_5, sma_10, sma_20, sma_50, sma_200 (float): Simple moving averages
+   - ema_12, ema_26 (float): Exponential moving averages
+   - macd, macd_signal, macd_histogram (float): MACD indicator
+   - obv (float): On-balance volume
+   - dist_from_sma20, dist_from_sma50, dist_from_sma200 (float): Distance from SMAs
+   - golden_cross, death_cross (int): 1 if occurred, else 0
+   - above_sma20, above_sma50, above_sma200 (int): 1 if above SMA, else 0
+   
+   Fundamental Data:
+   - targetMeanPrice, targetHighPrice, targetLowPrice, targetMedianPrice (float): Analyst targets
+   - recommendationKey (string): "buy", "hold", "sell"
+   - numberOfAnalystOpinions (int): Number of analysts
+   - forwardEps, trailingEps (float): Earnings per share
+   - earningsGrowth, revenueGrowth (float): Growth rates
+   - returnOnEquity, returnOnAssets (float): Profitability metrics
+   - grossMargins, ebitdaMargins, operatingMargins, profitMargins (float): Margin metrics
+   - trailingPE, forwardPE (float): Price-to-earnings ratios
+   - priceToBook, priceToSalesTrailing12Months (float): Valuation ratios
+   - debtToEquity (float): Leverage ratio
+   - totalDebt, totalCash (float): Balance sheet items
+   - currentRatio, quickRatio (float): Liquidity ratios
+   - freeCashflow, operatingCashflow (float): Cash flow metrics
+   - dividendRate, dividendYield (float): Dividend data
+   - beta (float): Volatility vs market
+   - fiftyTwoWeekHigh, fiftyTwoWeekLow (float): 52-week range
+   
+   Time Features:
+   - year, month, quarter, day_of_week, day_of_month (int): Date components
+
+3. Award (government contracts from USASpending.gov)
    - ticker (string): Recipient company ticker
-   - award_id (string): Unique award identifier
-   - award_amount (float): Contract value in USD
-   - recipient_name (string): Company receiving award
-   - awarding_agency (string): Government agency
-   - start_date, end_date (string): Contract period (YYYY-MM-DD)
-   - description (string): Award description
-   - description_embedding (array): Semantic vector (1536 dimensions)
+   - recipient_name (string): Company name (e.g., "3M COMPANY")
+   - matched_sp500_name (string): Standardized company name
+   - start_date (string): Contract start YYYY-MM-DD
+   - award_amount (string): Contract value as string (for display)
+   - award_amount_float (float): Contract value as number (USE THIS for filtering/sorting)
+   - awarding_agency (string): Government agency (e.g., "Department of Defense")
+   - description (string): Award description (full text)
+   - description_embedding (array): Semantic vector (1536 dimensions) for similarity search
+   - contract_year (string): Year as string (e.g., "2017")
+   - source_file (string): Origin file (e.g., "contracts_2017.csv")
+   - ingested_at (string): Timestamp of data ingestion
 
-4. CommodityPosition (CFTC data)
-   - As_of_Date_in_Form_YYYY-MM-DD (string): Report date ⚠️ USE BACKTICKS: doc.`As_of_Date_in_Form_YYYY-MM-DD`
-   - Market_and_Exchange_Names (string): Commodity name
-   - Open_Interest_All (int): Total open interest
-
-    IMPORTANT: Fields with hyphens MUST be wrapped in backticks!
-    Wrong: doc.As_of_Date_in_Form_YYYY-MM-DD
-    Correct: doc.`As_of_Date_in_Form_YYYY-MM-DD`
+4. EconomicData (macroeconomic indicators from FRED)
+   ⚠️ CRITICAL: Field names use underscores, not camelCase!
+   - date (string): Date YYYY-MM-DD
+   - ingested_at (string): Timestamp
    
-5. FREDData (macroeconomic indicators)
-   - Unnamed_0 (string): Date in YYYY-MM-DD format
-   - S&P_500_Index (float): S&P 500 value
-   - Civilian_Unemployment_Rate (float): Unemployment %
-   - Federal_Funds_Rate (float): Fed funds rate %
+   Stock Indices:
+   - sandp_500_index (float): S&P 500 value (NOT "sp500"!)
+   - nasdaq_composite (float): NASDAQ value
+   - dow_jones_industrial_average (float): DJIA value
+   - vix_volatility_index (float): VIX value
+   
+   Interest Rates:
+   - federal_funds_rate (float): Fed funds rate % (NOT "fed_funds_rate"!)
+   - 2_year_treasury_yield (float): 2Y Treasury %
+   - 10_year_treasury_yield (float): 10Y Treasury %
+   - 30_year_treasury_yield (float): 30Y Treasury %
+   - 10y_2y_treasury_spread (float): Yield curve spread
+   
+   Inflation:
+   - consumer_price_index_cpi (float): CPI value
+   - core_cpi_ex_food_and_energy (float): Core CPI
+   - core_pce_feds_preferred (float): Fed's preferred inflation gauge
+   
+   Labor Market:
+   - unemployment_rate (float): Unemployment %
+   - nonfarm_payrolls (int): Payroll count
+   - initial_jobless_claims (int): Weekly jobless claims
+   
+   Economic Activity:
+   - real_gdp (float): Real GDP
+   - industrial_production (float): Industrial production index
+   - retail_sales (float): Retail sales
+   - consumer_sentiment (float): Consumer sentiment index
+   
+   Commodities & Other:
+   - crude_oil_price_wti (float): Oil price (WTI)
+   - m2_money_supply (float): M2 money supply
+   - housing_starts (int): New housing starts
+   - case_shiller_home_price_index (float): Home price index
+   
+   Derived Fields:
+   - yield_curve_slope (float): 10Y - 2Y spread
+   - yield_curve_inverted (int): 1 if inverted, else 0
 
-6. sec_filings
+5. commodity_positions (CFTC Commitments of Traders data)
    - ticker (string): Company ticker
-   - filing_type (string): 10-K, 10-Q, etc.
+   - as_of_date (string): Report date YYYY-MM-DD
+   - Market_and_Exchange_Names (string): Commodity name (e.g., "CRUDE OIL, LIGHT SWEET - CHICAGO MERCANTILE EXCHANGE")
+   - net_noncommercial_position (int): Net speculator position (long - short)
+   - net_commercial_position (int): Net hedger position
+   - open_interest (int): Total open interest
+   - commodity_count (int): Number of commodity types tracked for this ticker
+   - total_position_size (int): Total position size across all commodities
+   
+   ⚠️ Use Case: Track commodity exposure for energy, agriculture, mining companies
+
+6. prediction_markets_polymarket (Polymarket prediction market data)
+   - _key (string): Unique market ID (condition_id)
+   - condition_id (string): Market condition ID
+   - question (string): Market question (e.g., "Will Apple release new iPhone in Q1 2024?")
+   - description (string): Detailed market description
+   - market_slug (string): URL-friendly slug
+   - end_date (string): Market close date
+   - volume (float): Total trading volume ($)
+   - volume_24h (float): 24-hour trading volume ($)
+   - liquidity (float): Current liquidity ($)
+   - closed (bool): Market status (true/false)
+   - category (string): Market category
+   - outcomes (array): Possible outcomes ["Yes", "No"]
+   - outcome_prices (array): Current prices [yes_price, no_price]
+   - yes_probability (float): Probability of "Yes" outcome (0-1)
+   - no_probability (float): Probability of "No" outcome (0-1)
+   - fetched_at (string): Data fetch timestamp
+   
+   ⚠️ Use Case: Forward-looking sentiment, event probabilities, crowd predictions
+
+7. prediction_markets_kalshi (Kalshi prediction market data)
+   - _key (string): Unique market ID
+   - market_ticker (string): Kalshi market ticker (e.g., "INXD-24JAN19")
+   - title (string): Market question (e.g., "Will the Nasdaq be above 18,000 on January 19?")
+   - category (string): Market category
+   - status (string): Market status ("active", "closed", "settled")
+   - close_time (string): Market close timestamp
+   - expiration_time (string): Market expiration timestamp
+   - volume (float): Total trading volume ($)
+   - volume_24h (float): 24-hour trading volume ($)
+   - open_interest (float): Current open interest ($)
+   - yes_price (float): Current "Yes" price (0-1, equivalent to probability)
+   - no_price (float): Current "No" price (0-1)
+   - last_price (float): Most recent trade price
+   - previous_yes_price (float): Previous yes price for comparison
+   - previous_no_price (float): Previous no price
+   - strike_date (string): Event date/strike date
+   - floor_strike (float): Floor strike price (for ranged markets)
+   - cap_strike (float): Cap strike price (for ranged markets)
+   - result (string): Market result (if settled)
+   - fetched_at (string): Data fetch timestamp
+   
+   ⚠️ Key Differences from Polymarket:
+   - Uses "status" instead of "closed" (values: "active", "closed", "settled")
+   - Uses "title" instead of "question"
+   - Uses "yes_price" instead of "yes_probability" (both 0-1 scale)
+   - Has strike prices for binary markets
+   - More structured for financial/index markets
+   
+   ⚠️ Use Case: Financial markets, economic indicators, index levels
+
+8. sec_filings (SEC document metadata)
+   - ticker (string): Company ticker
+   - type (string): Filing type ("10-K", "10-Q", "8-K", etc.)
+   - accession (string): SEC accession number (unique ID)
+   - file_name (string): Source file name
+   - filing_date (string): Date filed YYYY-MM-DD
+   - fiscal_year (int): Fiscal year
+   
+   Sentiment Metrics (aggregated from sentences):
+   - avg_finbert (float): Average FinBERT sentiment (-1 to +1)
+   - avg_uncertainty (float): Uncertainty score per 1000 words
+   - avg_positive (float): Positive words per 1000
+   - avg_negative (float): Negative words per 1000
+   - sentence_count (int): Total sentences in filing
+   
+   ⚠️ NO CONTENT FIELD: Full text is NOT stored here. Use sec_sections or sec_sentences.
+
+9. sec_sections (sections within filings)
+   - filing_id (string): Parent filing ID (format: "sec_filings/{ticker}_{type}_{accession}_{filename}")
+   - section_type (string): Section type (e.g., "Full Document", "Risk Factors", "MD&A")
+   - start_char (int): Start position in original document
+   - length (int): Length in characters
+   
+   ⚠️ NO EMBEDDING FIELD: Cannot do semantic search on sections.
+   ⚠️ NO CONTENT FIELD: Text is NOT stored. Use sec_sentences for actual content.
+
+10. sec_sentences (individual sentences - most granular level)
+    - section_id (string): Parent section ID (format: "sec_sections/{ticker}_{type}_{accession}_{filename}_sec{N}")
+    - text (string): Sentence text (THIS is where content lives)
+    - n_tokens (int): Token count
+    
+    Sentiment Metrics:
+    - finbert_score (float): FinBERT sentiment score (-1 to +1)
+    - finbert_probs (object): Probabilities {positive, negative, neutral}
+    - negative_per_1k (float): Negative words per 1000
+    - positive_per_1k (float): Positive words per 1000
+    - uncertainty_per_1k (float): Uncertainty words per 1000
+    - litigious_per_1k (float): Legal language per 1000
+    
+    ⚠️ NO EMBEDDING FIELD: Cannot do vector similarity search.
+    ⚠️ For semantic search, use finbert_score filtering instead of cosine similarity.
+
+EDGE COLLECTIONS (Graph Relationships):
+
+1. HAS_MARKETDATA: Company -> MarketData
+   - date (string): Market date
+   
+   Usage: FOR market IN OUTBOUND company HAS_MARKETDATA
+
+2. HAS_AWARD: Company -> Award
+   - award_amount (float): Contract value
+   
+   Usage: FOR award IN OUTBOUND company HAS_AWARD
+
+3. HAS_COMMODITY_POSITION: Company -> commodity_positions
+   - commodity_name (string): Commodity type
+   - as_of_date (string): CFTC report date
+   
+   Usage: FOR position IN OUTBOUND company HAS_COMMODITY_POSITION
+
+4. market_mentions_company_polymarket: prediction_markets_polymarket -> Company
+   - match_type (string): "keyword" (direct mention)
+   - matched_keywords (array): Keywords that matched (e.g., ["tesla", "elon musk"])
+   - confidence (float): Match confidence score (0-1)
+   - market_volume_24h (float): Market trading volume
+   
+   Usage: FOR market IN INBOUND company market_mentions_company_polymarket
+
+5. market_related_to_sector_polymarket: prediction_markets_polymarket -> Company
+   - match_type (string): "sector" (sector-level relationship)
+   - sector (string): Affected sector (e.g., "technology", "defense")
+   - matched_keywords (array): Sector keywords matched
+   - confidence (float): Lower confidence (typically 0.4)
+   
+   Usage: FOR market IN INBOUND company market_related_to_sector_polymarket
+   
+   ⚠️ WARNING: Contains 919k edges (noisy). Use sparingly or prefer market_mentions_company_polymarket.
+
+6. market_affects_company_polymarket: prediction_markets_polymarket -> Company
+   - match_type (string): "macro_event" (macroeconomic relationship)
+   - event_type (string): Event category (e.g., "fed_rate", "inflation", "recession")
+   - confidence (float): Low confidence (typically 0.3)
+   
+   Usage: FOR market IN INBOUND company market_affects_company_polymarket
+   
+   ⚠️ WARNING: Contains 119k edges (very noisy). Use only for macro analysis.
+
+7. market_mentions_company_kalshi: prediction_markets_kalshi -> Company
+   - match_type (string): "keyword" (direct mention)
+   - matched_keywords (array): Keywords that matched
+   - confidence (float): Match confidence score (0-1)
+   - market_volume_24h (float): Market trading volume
+   - source (string): Data source ("kalshi")
+   - created_at (string): Edge creation timestamp
+   
+   Usage: FOR market IN INBOUND company market_mentions_company_kalshi
+
+8. market_related_to_sector_kalshi: prediction_markets_kalshi -> Company
+   - match_type (string): "sector" (sector-level relationship)
+   - sector (string): Affected sector
+   - matched_keywords (array): Sector keywords matched
+   - confidence (float): Confidence score
+   - market_volume_24h (float): Market trading volume
+   
+   Usage: FOR market IN INBOUND company market_related_to_sector_kalshi
+
+9. HAS_FILING: Company -> sec_filings
    - filing_date (string): Date filed
-   - content (string): Filing text
+   - filing_type (string): Filing type
+   - links companies to SEC filings
+   
+   Usage: FOR filing IN OUTBOUND company HAS_FILING
 
-EDGES (Relationships):
-- HAS_MARKETDATA: Company -> MarketData (links company to price history)
-- HAS_AWARD: Company -> Award (links company to government contracts)
+10. has_section: sec_filings -> sec_sections
+    
+    Usage: FOR section IN OUTBOUND filing has_section
 
-QUERY CAPABILITIES:
-- Exact match: Filter by ticker, date, specific values
-- Semantic search: Available for Award.description_embedding using COSINE_SIMILARITY
-- Graph traversal: Use OUTBOUND/INBOUND with edge collections
-- Time-series: Filter by date ranges
-- Aggregations: SUM, AVG, COUNT, MIN, MAX
+11. has_sentence: sec_sections -> sec_sentences
+    
+    Usage: FOR sentence IN OUTBOUND section has_sentence
+
+GRAPHS:
+- QUANT_v3_FinanceGraph: Company + MarketData + Award + commodity_positions + prediction_markets (financial data)
+- sec_graph: sec_filings + sec_sections + sec_sentences (SEC document hierarchy)
+
+⚠️ CRITICAL LIMITATIONS:
+1. NO SEMANTIC SEARCH on SEC data (no embeddings in sec_sections or sec_sentences)
+2. Company collection is MINIMAL (only ticker, no name/sector/industry)
+3. SEC content is ONLY in sec_sentences.text (not in filings or sections)
+4. EconomicData field names use snake_case with full names (sandp_500_index, not sp500)
+5. Award amounts: Use award_amount_float for math, award_amount for display
+6. Polymarket sector/macro edges are NOISY (prefer market_mentions_company_polymarket)
+7. CFTC data: Not all companies have commodity positions (only relevant for commodity-exposed firms)
+8. Kalshi uses "title" not "question", "yes_price" not "yes_probability", "status" not "closed"
+
+⚠️ IMPORTANT RULES:
+1. All dates are strings in YYYY-MM-DD format
+2. For Award filtering, use award_amount_float (not award_amount)
+3. For EconomicData, use full field names: sandp_500_index, federal_funds_rate
+4. For SEC content, query sec_sentences.text (NOT sec_filings.content)
+5. For SEC sentiment search, filter by finbert_score (no vector similarity)
+6. For Polymarket, prefer market_mentions_company_polymarket (15k clean edges) over sector/macro edges
+7. For Kalshi, use market.title (not market.question) and market.yes_price (not market.yes_probability)
+8. Always add LIMIT to prevent timeout (default 20)
 """
 
+# =============================================================================
+# FEW-SHOT EXAMPLES
+# =============================================================================
 
-# Add this to FEW_SHOT_EXAMPLES
-OPTIMIZED_TRAVERSAL_EXAMPLES = """
-EXAMPLE: Cross-Collection with Traversal (OPTIMIZED)
-Question: "Which companies received awards over $5M and what were their stock prices?"
-Strategy: Start with Award (smaller dataset), filter early, limit results, then join to MarketData
+FEW_SHOT_EXAMPLES = """
+EXAMPLE 1 - Market Data Lookup:
+Question: "What was Apple's closing price on 2016-01-05?"
+Intent: single_value_lookup
+Collections: ["MarketData"]
+AQL:
+FOR doc IN MarketData
+  FILTER doc.ticker == @ticker AND doc.date == @date
+  RETURN {date: doc.date, close: doc.close, volume: doc.volume}
+Bind Variables: {"ticker": "AAPL", "date": "2016-01-05"}
+Requires Embedding: false
 
-BAD APPROACH (Will timeout):
-FOR company IN Company
-  FOR award IN OUTBOUND company HAS_AWARD
-    FILTER award.award_amount > 5000000
-    FOR market IN OUTBOUND company HAS_MARKETDATA
-      RETURN {company, award, market}
+---
 
-GOOD APPROACH (Fast):
-FOR award IN Award
-  FILTER award.award_amount > 5000000
-  FILTER award.ticker != null
-  LIMIT 10
-  FOR market IN MarketData
-    FILTER market.ticker == award.ticker
-    SORT market.date DESC
-    LIMIT 1
-    RETURN {
-      ticker: award.ticker,
-      recipient: award.recipient_name,
-      award_amount: award.award_amount,
-      latest_close: market.close,
-      market_date: market.date
-    }
-
-Key optimizations:
-1. Start with Award (pre-filtered dataset)
-2. Filter award_amount BEFORE traversal
-3. LIMIT to 10 awards early
-4. Use direct ticker match instead of graph traversal (faster)
-5. LIMIT market data to latest record only
-
-EXAMPLE: Time-Window Traversal (OPTIMIZED)
-Question: "Show companies that got awards in 2024 and their stock performance after"
-Strategy: Filter by date range first, use indexed fields
-
-OPTIMIZED QUERY:
-FOR award IN Award
-  FILTER award.start_date >= "2024-01-01" AND award.start_date <= "2024-12-31"
-  FILTER award.award_amount > 1000000
-  FILTER award.ticker != null
-  SORT award.award_amount DESC
+EXAMPLE 2 - Award Lookup (CORRECT field name!):
+Question: "Show me the top 5 largest government awards"
+Intent: ranking
+Collections: ["Award"]
+AQL:
+FOR doc IN Award
+  FILTER doc.award_amount_float != null
+  SORT doc.award_amount_float DESC
   LIMIT 5
-  LET market_data = (
-    FOR market IN MarketData
-      FILTER market.ticker == award.ticker
-      FILTER market.date >= award.start_date
-      FILTER market.date <= DATE_ADD(award.start_date, 30, 'day')
-      SORT market.date ASC
-      RETURN {date: market.date, close: market.close}
-  )
   RETURN {
-    ticker: award.ticker,
-    award_date: award.start_date,
-    award_amount: award.award_amount,
-    price_movement: market_data
+    recipient: doc.recipient_name,
+    ticker: doc.ticker,
+    amount: doc.award_amount_float,
+    agency: doc.awarding_agency,
+    start_date: doc.start_date,
+    description: SUBSTRING(doc.description, 0, 200)
   }
-
 Bind Variables: {}
-"""
+Requires Embedding: false
 
-SEMANTIC_EXAMPLES = """
-EXAMPLE: Semantic Search (NOT a ticker lookup!)
-Question: "Show me awards related to AI" or "Find AI contracts"
-Intent: semantic_search (NOT ticker lookup for "AI" symbol!)
-Strategy: Generate embedding for "artificial intelligence machine learning", search description_embedding
+---
 
+EXAMPLE 3 - Economic Data (CORRECT field names!):
+Question: "What was the unemployment rate and S&P 500 on 2016-01-04?"
+Intent: single_value_lookup
+Collections: ["EconomicData"]
+AQL:
+FOR doc IN EconomicData
+  FILTER doc.date == @date
+  RETURN {
+    date: doc.date,
+    sandp_500: doc.sandp_500_index,
+    unemployment: doc.unemployment_rate,
+    fed_rate: doc.federal_funds_rate,
+    vix: doc.vix_volatility_index,
+    yield_curve: doc.yield_curve_slope
+  }
+Bind Variables: {"date": "2016-01-04"}
+Requires Embedding: false
+
+---
+
+EXAMPLE 4 - Award Semantic Search:
+Question: "Find awards related to artificial intelligence"
+Intent: semantic_search
+Collections: ["Award"]
 AQL:
 FOR doc IN Award
   FILTER doc.description_embedding != null
@@ -141,170 +440,997 @@ FOR doc IN Award
   SORT similarity DESC
   LIMIT 10
   RETURN {
-    award_id: doc.award_id,
-    recipient_name: doc.recipient_name,
-    ticker: doc.ticker,
-    description: doc.description,
-    award_amount: doc.award_amount,
-    start_date: doc.start_date,
-    similarity_score: similarity
-  }
-
-Bind Variables: {"query_vector": [embedding from "artificial intelligence machine learning"]}
-Requires Embedding: true
-Embedding Text: "artificial intelligence machine learning AI deep learning neural networks"
-
-🚨 DO NOT confuse "AI" with ticker symbol! "Awards related to AI" = semantic search, NOT ticker lookup!
-
-TRIGGER WORDS for semantic search (use embeddings, NOT ticker):
-- "related to", "about", "involving", "containing"
-- "cybersecurity", "AI", "machine learning", "renewable energy", "quantum computing"
-"""
-
-# Add to your FEW_SHOT_EXAMPLES
-
-
-# Update your planning prompt to include these patterns
-
-# Few-shot examples for the LLM
-FEW_SHOT_EXAMPLES = """
-EXAMPLE 1:
-Question: "What was Apple's closing price on 2024-01-15?"
-Intent: Single value lookup
-Query Strategy: Exact match on MarketData
-AQL:
-FOR doc IN MarketData
-  FILTER doc.ticker == @ticker AND doc.date == @date
-  RETURN {date: doc.date, close: doc.close, ticker: doc.ticker}
-Bind Variables: {"ticker": "AAPL", "date": "2024-01-15"}
-
-EXAMPLE 2:
-Question: "Show me government awards for defense contractors in 2024"
-Intent: Multi-result retrieval with filtering
-Query Strategy: Filter Award collection by agency and date
-AQL:
-FOR doc IN Award
-  FILTER (doc.awarding_agency LIKE "%Defense%" OR doc.awarding_agency LIKE "%DoD%")
-  FILTER doc.start_date >= @start_date AND doc.start_date <= @end_date
-  SORT doc.award_amount DESC
-  LIMIT 20
-  RETURN {
-    award_id: doc.award_id,
     recipient: doc.recipient_name,
     ticker: doc.ticker,
-    amount: doc.award_amount,
-    agency: doc.awarding_agency,
+    description: SUBSTRING(doc.description, 0, 300),
+    amount: doc.award_amount_float,
     start_date: doc.start_date,
-    description: doc.description
+    similarity: similarity
   }
-Bind Variables: {"start_date": "2024-01-01", "end_date": "2024-12-31"}
+Bind Variables: {"query_vector": [0.123, ...]}
+Requires Embedding: true
+Embedding Text: "artificial intelligence AI machine learning deep learning neural networks"
 
-EXAMPLE 3:
-Question: "What was the unemployment rate on 2024-03-01?"
-Intent: Single value lookup from macroeconomic data
-Query Strategy: Exact match on FREDData
+---
+
+EXAMPLE 5 - SEC Filing Sentiment:
+Question: "Show me Apple's most negative 10-K filings"
+Intent: sentiment_analysis
+Collections: ["sec_filings"]
 AQL:
-FOR doc IN FREDData
-  FILTER doc.Unnamed_0 == @date
+FOR doc IN sec_filings
+  FILTER doc.ticker == @ticker
+  FILTER doc.type == "10-K"
+  FILTER doc.avg_finbert != null
+  SORT doc.avg_finbert ASC
+  LIMIT 5
   RETURN {
-    date: doc.Unnamed_0,
-    unemployment_rate: doc.Civilian_Unemployment_Rate,
-    fed_funds_rate: doc.Federal_Funds_Rate,
-    sp500: doc["S&P_500_Index"]
+    ticker: doc.ticker,
+    filing_date: doc.filing_date,
+    fiscal_year: doc.fiscal_year,
+    sentiment: doc.avg_finbert,
+    negative_score: doc.avg_negative,
+    uncertainty: doc.avg_uncertainty
   }
-Bind Variables: {"date": "2024-03-01"}
+Bind Variables: {"ticker": "AAPL"}
+Requires Embedding: false
 
-EXAMPLE 4:
-Question: "Find awards with descriptions similar to 'cybersecurity defense systems'"
-Intent: Semantic similarity search
-Query Strategy: Vector search using embeddings
+---
+
+EXAMPLE 6 - SEC Sentence Search (NO embeddings, use text filter):
+Question: "Find SEC sentences mentioning supply chain risk"
+Intent: text_search
+Collections: ["sec_sentences"]
 AQL:
-FOR doc IN Award
-  FILTER doc.description_embedding != null
-  SORT COSINE_SIMILARITY(doc.description_embedding, @query_vector) DESC
+FOR doc IN sec_sentences
+  FILTER CONTAINS(LOWER(doc.text), "supply chain")
+  FILTER CONTAINS(LOWER(doc.text), "risk")
+  FILTER doc.finbert_score < -0.3
+  SORT doc.finbert_score ASC
   LIMIT 10
   RETURN {
-    award_id: doc.award_id,
-    recipient: doc.recipient_name,
-    ticker: doc.ticker,
-    description: doc.description,
-    amount: doc.award_amount,
-    start_date: doc.start_date
+    text: SUBSTRING(doc.text, 0, 500),
+    sentiment: doc.finbert_score,
+    section_id: doc.section_id,
+    negative_words: doc.negative_per_1k
   }
-Bind Variables: {"query_vector": [0.123, 0.456, ...]} (embedding generated from query text)
+Bind Variables: {}
+Requires Embedding: false
 
-EXAMPLE 5:
-Question: "Show me Tesla's market data for the last week of January 2024"
-Intent: Time-series data retrieval
-Query Strategy: Filter by ticker and date range
+---
+
+EXAMPLE 7 - Graph Traversal (Company -> Awards):
+Question: "Show me awards for ticker DG"
+Intent: graph_traversal
+Collections: ["Company", "Award"]
+Edges: ["HAS_AWARD"]
+AQL:
+FOR company IN Company
+  FILTER company.ticker == @ticker
+  FOR award IN OUTBOUND company HAS_AWARD
+    SORT award.start_date DESC
+    LIMIT 10
+    RETURN {
+      ticker: company.ticker,
+      recipient: award.recipient_name,
+      amount: award.award_amount_float,
+      agency: award.awarding_agency,
+      start_date: award.start_date,
+      description: SUBSTRING(award.description, 0, 200)
+    }
+Bind Variables: {"ticker": "DG"}
+Requires Embedding: false
+
+---
+
+EXAMPLE 8 - Market Data with Indicators:
+Question: "Show me stocks with price above 20-day SMA on 2016-01-05"
+Intent: technical_screening
+Collections: ["MarketData"]
+AQL:
+FOR doc IN MarketData
+  FILTER doc.date == @date
+  FILTER doc.sma_20 != null
+  FILTER doc.above_sma20 == 1
+  SORT doc.close DESC
+  LIMIT 20
+  RETURN {
+    ticker: doc.ticker,
+    close: doc.close,
+    sma_20: doc.sma_20,
+    dist_from_sma20: doc.dist_from_sma20,
+    volume: doc.volume
+  }
+Bind Variables: {"date": "2016-01-05"}
+Requires Embedding: false
+
+---
+
+EXAMPLE 9 - Date Range Query:
+Question: "Show me Tesla's stock prices for January 2016"
+Intent: time_series
+Collections: ["MarketData"]
 AQL:
 FOR doc IN MarketData
   FILTER doc.ticker == @ticker
-  FILTER doc.date >= @start_date AND doc.date <= @end_date
+  FILTER doc.date >= @start_date AND doc.date < @end_date
   SORT doc.date ASC
+  LIMIT 50
   RETURN {
     date: doc.date,
     ticker: doc.ticker,
     open: doc.open,
     close: doc.close,
-    high: doc.high,
-    low: doc.low,
     volume: doc.volume
   }
-Bind Variables: {"ticker": "TSLA", "start_date": "2024-01-24", "end_date": "2024-01-31"}
+Bind Variables: {"ticker": "TSLA", "start_date": "2016-01-01", "end_date": "2016-02-01"}
+Requires Embedding: false
 
-EXAMPLE 6:
-Question: "What are the top 5 largest government awards?"
-Intent: Aggregation and ranking
-Query Strategy: Sort by amount and limit results
+---
+
+EXAMPLE 10 - Aggregation:
+Question: "What's the total value of defense awards in 2017?"
+Intent: aggregation
+Collections: ["Award"]
 AQL:
 FOR doc IN Award
-  FILTER doc.award_amount != null
-  SORT doc.award_amount DESC
-  LIMIT 5
-  RETURN {
-    award_id: doc.award_id,
-    recipient: doc.recipient_name,
-    ticker: doc.ticker,
-    amount: doc.award_amount,
-    agency: doc.awarding_agency,
-    start_date: doc.start_date
-  }
+  FILTER doc.contract_year == "2017"
+  FILTER doc.awarding_agency LIKE "%Defense%" OR doc.awarding_agency LIKE "%DoD%"
+  COLLECT AGGREGATE total = SUM(doc.award_amount_float), count = COUNT(1)
+  RETURN {total_amount: total, award_count: count}
 Bind Variables: {}
+Requires Embedding: false
 
-EXAMPLE 7:
-Question: "Show commodity positions for wheat on 2024-06-15"
-Intent: Single commodity lookup
-Query Strategy: Filter CommodityPosition by name and date
+---
+
+EXAMPLE 11 - Commodity Positions:
+Question: "Show me companies with crude oil exposure"
+Intent: commodity_exposure
+Collections: ["commodity_positions"]
 AQL:
-FOR doc IN CommodityPosition
-  FILTER doc["As_of_Date_in_Form_YYYY-MM-DD"] == @date
-  FILTER doc.Market_and_Exchange_Names LIKE @commodity
-  RETURN doc
-Bind Variables: {"date": "2024-06-15", "commodity": "%WHEAT%"}
-
-# Add this to FEW_SHOT_EXAMPLES:
-
-EXAMPLE *: Commodity Position Query (Special Field Names)
-Question: "Show me commodity open interest for corn in June 2024"
-Intent: lookup
-Collections: ["CommodityPosition"]
-AQL:
-FOR doc IN CommodityPosition
-  FILTER doc.Market_and_Exchange_Names LIKE @commodity
-  FILTER doc.`As_of_Date_in_Form_YYYY-MM-DD` >= @start_date 
-  FILTER doc.`As_of_Date_in_Form_YYYY-MM-DD` <= @end_date
-  SORT doc.`As_of_Date_in_Form_YYYY-MM-DD` ASC
+FOR doc IN commodity_positions
+  FILTER CONTAINS(LOWER(doc.Market_and_Exchange_Names), "crude oil")
+  FILTER doc.net_noncommercial_position != 0
+  SORT ABS(doc.net_noncommercial_position) DESC
   LIMIT 20
   RETURN {
-    date: doc.`As_of_Date_in_Form_YYYY-MM-DD`,
+    ticker: doc.ticker,
     commodity: doc.Market_and_Exchange_Names,
-    open_interest: doc.Open_Interest_All
+    report_date: doc.as_of_date,
+    net_position: doc.net_noncommercial_position,
+    open_interest: doc.open_interest
   }
-Bind Variables: {
-  "commodity": "%CORN%",
-  "start_date": "2024-06-01",
-  "end_date": "2024-06-30"
-}
+Bind Variables: {}
+Requires Embedding: false
 
+---
+
+EXAMPLE 12 - Polymarket Prediction Markets:
+Question: "Find Polymarket predictions about Tesla"
+Intent: prediction_market_search
+Collections: ["prediction_markets_polymarket"]
+AQL:
+FOR market IN prediction_markets_polymarket
+  FILTER CONTAINS(LOWER(market.question), "tesla") OR CONTAINS(LOWER(market.question), "musk")
+  FILTER market.volume_24h > 1000
+  FILTER market.closed == false
+  SORT market.volume_24h DESC
+  LIMIT 10
+  RETURN {
+    question: market.question,
+    yes_prob: market.yes_probability,
+    volume_24h: market.volume_24h,
+    liquidity: market.liquidity,
+    end_date: market.end_date,
+    description: SUBSTRING(market.description, 0, 200)
+  }
+Bind Variables: {}
+Requires Embedding: false
+
+---
+
+EXAMPLE 12b - Kalshi Prediction Markets:
+Question: "Find Kalshi markets about Nasdaq"
+Intent: prediction_market_search
+Collections: ["prediction_markets_kalshi"]
+AQL:
+FOR market IN prediction_markets_kalshi
+  FILTER CONTAINS(LOWER(market.title), "nasdaq") OR 
+         CONTAINS(LOWER(market.title), "inxd")
+  FILTER market.status == "active"
+  FILTER market.volume_24h > 1000
+  SORT market.volume_24h DESC
+  LIMIT 10
+  RETURN {
+    title: market.title,
+    yes_price: market.yes_price,
+    volume_24h: market.volume_24h,
+    open_interest: market.open_interest,
+    close_time: market.close_time
+  }
+Bind Variables: {}
+Requires Embedding: false
+
+---
+
+EXAMPLE 13 - Graph: Company -> Polymarket:
+Question: "What are Polymarket prediction markets saying about Apple?"
+Intent: graph_traversal
+Collections: ["Company", "prediction_markets_polymarket"]
+Edges: ["market_mentions_company_polymarket"]
+AQL:
+FOR company IN Company
+  FILTER company.ticker == @ticker
+  FOR market IN INBOUND company market_mentions_company_polymarket
+    FILTER market.volume_24h > 5000
+    FILTER market.closed == false
+    SORT market.volume_24h DESC
+    LIMIT 10
+    RETURN {
+      ticker: company.ticker,
+      question: market.question,
+      yes_prob: market.yes_probability,
+      volume_24h: market.volume_24h,
+      matched_keywords: market.matched_keywords,
+      confidence: market.confidence
+    }
+Bind Variables: {"ticker": "AAPL"}
+Requires Embedding: false
+
+---
+
+EXAMPLE 13b - Graph: Company -> Kalshi:
+Question: "What Kalshi markets mention Microsoft?"
+Intent: graph_traversal
+Collections: ["Company", "prediction_markets_kalshi"]
+Edges: ["market_mentions_company_kalshi"]
+AQL:
+FOR edge IN market_mentions_company_kalshi
+  FILTER CONTAINS(edge._to, "MSFT")
+  
+  LET market = FIRST(
+    FOR m IN prediction_markets_kalshi
+      FILTER m._id == edge._from
+      RETURN m
+  )
+  
+  FILTER market != null
+  FILTER market.status == "active"
+  FILTER market.volume_24h > 5000
+  
+  SORT market.volume_24h DESC
+  LIMIT 10
+  
+  RETURN {
+    title: market.title,
+    yes_price: market.yes_price,
+    volume_24h: market.volume_24h,
+    matched_keywords: edge.matched_keywords,
+    confidence: edge.confidence
+  }
+Bind Variables: {}
+Requires Embedding: false
+
+---
+
+EXAMPLE 14 - Combined: Market + Awards + Commodities:
+Question: "Show me defense contractors with commodity exposure"
+Intent: multi_source_analysis
+Collections: ["Company", "Award", "commodity_positions"]
+Edges: ["HAS_AWARD", "HAS_COMMODITY_POSITION"]
+AQL:
+FOR company IN Company
+  LET awards = (
+    FOR award IN OUTBOUND company HAS_AWARD
+      FILTER award.awarding_agency LIKE "%Defense%"
+      RETURN award
+  )
+  
+  LET commodities = (
+    FOR position IN OUTBOUND company HAS_COMMODITY_POSITION
+      RETURN position
+  )
+  
+  FILTER LENGTH(awards) > 0 AND LENGTH(commodities) > 0
+  
+  RETURN {
+    ticker: company.ticker,
+    award_count: LENGTH(awards),
+    total_awards: SUM(awards[*].award_amount_float),
+    commodities: commodities[*].Market_and_Exchange_Names,
+    net_positions: commodities[*].net_noncommercial_position
+  }
+Bind Variables: {}
+Requires Embedding: false
+
+---
+
+EXAMPLE 15 - Polymarket Sentiment Score:
+Question: "Calculate bullish sentiment for tech stocks from Polymarket"
+Intent: sentiment_aggregation
+Collections: ["Company", "prediction_markets_polymarket"]
+Edges: ["market_mentions_company_polymarket"]
+AQL:
+FOR company IN Company
+  FILTER company.ticker IN ["AAPL", "MSFT", "GOOGL", "AMZN", "META"]
+  
+  LET markets = (
+    FOR market IN INBOUND company market_mentions_company_polymarket
+      FILTER market.volume_24h > 10000
+      FILTER market.closed == false
+      RETURN market
+  )
+  
+  FILTER LENGTH(markets) > 0
+  
+  LET avg_bullish = AVG(markets[*].yes_probability)
+  LET total_volume = SUM(markets[*].volume_24h)
+  
+  SORT avg_bullish DESC
+  
+  RETURN {
+    ticker: company.ticker,
+    market_count: LENGTH(markets),
+    avg_yes_prob: ROUND(avg_bullish * 100, 1),
+    total_volume_24h: total_volume,
+    sentiment: avg_bullish > 0.6 ? "🚀 BULLISH" : 
+               avg_bullish < 0.4 ? "📉 BEARISH" : "⚖️ NEUTRAL"
+  }
+Bind Variables: {}
+Requires Embedding: false
+
+---
+
+EXAMPLE 16 - Combined Polymarket + Kalshi Sentiment:
+Question: "Compare Polymarket and Kalshi sentiment for Apple"
+Intent: multi_source_comparison
+Collections: ["Company", "prediction_markets_polymarket", "prediction_markets_kalshi"]
+Edges: ["market_mentions_company_polymarket", "market_mentions_company_kalshi"]
+AQL:
+LET polymarket_data = (
+  FOR edge IN market_mentions_company_polymarket
+    FILTER CONTAINS(edge._to, "AAPL")
+    LET market = DOCUMENT(edge._from)
+    FILTER market != null AND market.closed == false
+    RETURN market.yes_probability
+)
+
+LET kalshi_data = (
+  FOR edge IN market_mentions_company_kalshi
+    FILTER CONTAINS(edge._to, "AAPL")
+    LET market = DOCUMENT(edge._from)
+    FILTER market != null AND market.status == "active"
+    RETURN market.yes_price
+)
+
+RETURN {
+  ticker: "AAPL",
+  polymarket: {
+    market_count: LENGTH(polymarket_data),
+    avg_sentiment: AVG(polymarket_data)
+  },
+  kalshi: {
+    market_count: LENGTH(kalshi_data),
+    avg_sentiment: AVG(kalshi_data)
+  },
+  combined_sentiment: (AVG(polymarket_data) + AVG(kalshi_data)) / 2
+}
+Bind Variables: {}
+Requires Embedding: false
+
+--- EXAMPLE: SEC Text Search with Date + Company Data ---
+Question: Show me cybersecurity risks in 2022 with company details
+Intent: sec_text_search_with_date_and_company
+Collections: sec_filings, sec_sections, sec_sentences, Company
+AQL:
+FOR filing IN sec_filings
+  FILTER filing.filing_date >= '2022-01-01'
+  AND filing.filing_date <= '2022-12-31'
+  
+  LET company = FIRST(
+    FOR c IN Company
+    FILTER c.ticker == filing.ticker
+    RETURN c
+  )
+  
+  FILTER company != null
+  
+  LET risks = (
+    FOR section IN sec_sections
+    FILTER section.filing_id == filing._id
+      FOR sentence IN sec_sentences
+      FILTER sentence.section_id == section._id
+      AND sentence.finbert_score < -0.3
+      AND CONTAINS(LOWER(sentence.text), 'cybersecurity')
+      LIMIT 3
+      RETURN {
+        text: SUBSTRING(sentence.text, 0, 300),
+        sentiment: sentence.finbert_score
+      }
+  )
+  
+  FILTER LENGTH(risks) > 0
+  LIMIT 10
+  
+  RETURN {
+    ticker: filing.ticker,
+    company: company.company,
+    cik: company.cik,
+    marketCap: company.marketCap,
+    sharesOutstanding: company.sharesOutstanding,
+    sector: company.sector,
+    filing_date: filing.filing_date,
+    risks: risks
+  }
+
+Bind Variables: {}
+Requires Embedding: false
+
+💡 Strategy:
+- Start with sec_filings (date index makes this fast)
+- Filter by date FIRST (reduces from 7,495 to ~250 filings)
+- Join to Company via ticker
+- Navigate filing → sections → sentences using ID fields
+- Use subquery for risks to keep result clean
+- NO @ticker bind variable (we're searching all companies)
+---
+
+--- EXAMPLE: SEC Keyword Search (Simple) ---
+Question: What are the biggest risks mentioned in filings?
+Intent: sec_keyword_search
+Collections: sec_sentences
+AQL:
+FOR sentence IN sec_sentences
+  FILTER sentence.finbert_score < -0.3
+  AND (
+    CONTAINS(LOWER(sentence.text), 'risk')
+    OR CONTAINS(LOWER(sentence.text), 'threat')
+  )
+  SORT sentence.finbert_score ASC
+  LIMIT 20
+  RETURN {
+    text: SUBSTRING(sentence.text, 0, 400),
+    sentiment: sentence.finbert_score,
+    negative_per_1k: sentence.negative_per_1k
+  }
+
+Bind Variables: {}
+Requires Embedding: false
+
+💡 Strategy:
+- Simple sentence-level search (no joins needed)
+- Use text filters + sentiment
+- Sort by most negative
+---
+
+--- EXAMPLE: SEC Company-Specific Search ---
+Question: Show Apple's cybersecurity risks in their latest 10-K
+Intent: sec_company_specific
+Collections: sec_filings, sec_sections, sec_sentences, Company
+AQL:
+FOR filing IN sec_filings
+  FILTER filing.ticker == @ticker
+  AND filing.type == '10-K'
+  SORT filing.filing_date DESC
+  LIMIT 1
+  
+  FOR section IN sec_sections
+  FILTER section.filing_id == filing._id
+    FOR sentence IN sec_sentences
+    FILTER sentence.section_id == section._id
+    AND sentence.finbert_score < -0.3
+    AND CONTAINS(LOWER(sentence.text), 'cybersecurity')
+    SORT sentence.finbert_score ASC
+    LIMIT 10
+    RETURN {
+      text: SUBSTRING(sentence.text, 0, 400),
+      sentiment: sentence.finbert_score,
+      filing_date: filing.filing_date
+    }
+
+Bind Variables: {"ticker": "AAPL"}
+Requires Embedding: false
+
+💡 Strategy:
+- When specific ticker mentioned, use @ticker bind variable
+- Get latest filing first, then drill down
+- More efficient than scanning all sentences
+
+---
+
+⚠️ FIELD NAME CHEAT SHEET (Common Mistakes):
+
+WRONG → CORRECT
+- sp500 → sandp_500_index
+- fed_funds_rate → federal_funds_rate
+- award_amount (for math) → award_amount_float
+- sec_filings.content → sec_sentences.text
+- sec_sections.embedding → (DOESN'T EXIST, use finbert_score filter)
+- polymarket → prediction_markets_polymarket
+- kalshi → prediction_markets_kalshi
+- commodity_position → commodity_positions
+
+⚠️ PREDICTION MARKET FIELD DIFFERENCES:
+
+POLYMARKET:
+- Collection: prediction_markets_polymarket
+- Question field: .question
+- Probability field: .yes_probability
+- Status field: .closed (boolean)
+- Volume field: .volume_24h
+
+KALSHI:
+- Collection: prediction_markets_kalshi
+- Question field: .title
+- Probability field: .yes_price
+- Status field: .status (string: "active", "closed", "settled")
+- Volume field: .volume_24h
+- Additional: .open_interest, .strike_date, .market_ticker
+
+EDGES:
+- Polymarket edges: market_mentions_company_polymarket
+- Kalshi edges: market_mentions_company_kalshi
+- Both have same edge structure (matched_keywords, confidence)
+
+⚠️ SEMANTIC SEARCH RULES:
+- Award descriptions: ✅ Has description_embedding (use COSINE_SIMILARITY)
+- SEC content: ❌ NO embeddings (use CONTAINS() text filters + finbert_score instead)
+- Polymarket: ❌ NO embeddings (use CONTAINS() on question/description)
+- Kalshi: ❌ NO embeddings (use CONTAINS() on title)
+- Trigger words for semantic: "related to", "about", "similar to", "involving"
+- Concepts that need semantic: "AI", "cybersecurity", "renewable energy", "blockchain"
+
+⚠️ PREDICTION MARKET EDGE USAGE:
+- market_mentions_company_polymarket: ✅ Clean (15k edges, use THIS)
+- market_related_to_sector_polymarket: ⚠️ Noisy (919k edges, use cautiously)
+- market_affects_company_polymarket: ⚠️ Very noisy (119k edges, avoid unless doing macro)
+- market_mentions_company_kalshi: ✅ Clean (use for Kalshi)
+- market_related_to_sector_kalshi: ⚠️ Use cautiously
+
+⚠️ ALWAYS ADD LIMIT:
+- Default: 20
+- Semantic: 10
+- Time-series: 50
+- Prediction markets: 10
+- Never omit LIMIT or query may timeout
 """
+
+
+# """
+# prompts.py - Schema descriptions and few-shot examples for AQL query generation
+# Last updated: 2026-01-04
+# """
+
+# # =============================================================================
+# # SCHEMA DESCRIPTION (Based on actual ArangoDB collections)
+# # =============================================================================
+
+# SCHEMA_DESCRIPTION = """
+# Database: QUANT_v2 (ArangoDB Multi-Model Graph)
+# 🚨 CRITICAL: Collection names are CASE-SENSITIVE and SINGULAR:
+# - Company (NOT "companies" or "company")
+# - MarketData (NOT "marketdata" or "market_data")
+# - Award (NOT "awards")
+# - EconomicData (NOT "economicdata" or "economic_data")
+# - sec_filings (NOT "sec_filing" or "secFilings")
+# - sec_sections (NOT "sec_section")
+# - sec_sentences (NOT "sec_sentence")
+# DOCUMENT COLLECTIONS:
+
+# 1. Company
+#    - ticker (string): Stock ticker symbol (e.g., "AAPL", "DG")
+#     WARNING: This collection ONLY contains ticker. No name, sector, or other fields.
+#     Collection name: "Company" (capital C, singular)
+   
+# 2. MarketData (daily OHLCV + 40+ technical/fundamental indicators)
+#    - ticker (string): Stock ticker
+#    - date (string): Format YYYY-MM-DD (e.g., "2016-01-05")
+#    - open, high, low, close (float): Price data
+#    - volume (int): Trading volume
+   
+#    Technical Indicators:
+#    - sma_5, sma_10, sma_20, sma_50, sma_200 (float): Simple moving averages
+#    - ema_12, ema_26 (float): Exponential moving averages
+#    - macd, macd_signal, macd_histogram (float): MACD indicator
+#    - obv (float): On-balance volume
+#    - dist_from_sma20, dist_from_sma50, dist_from_sma200 (float): Distance from SMAs
+#    - golden_cross, death_cross (int): 1 if occurred, else 0
+#    - above_sma20, above_sma50, above_sma200 (int): 1 if above SMA, else 0
+   
+#    Fundamental Data:
+#    - targetMeanPrice, targetHighPrice, targetLowPrice, targetMedianPrice (float): Analyst targets
+#    - recommendationKey (string): "buy", "hold", "sell"
+#    - numberOfAnalystOpinions (int): Number of analysts
+#    - forwardEps, trailingEps (float): Earnings per share
+#    - earningsGrowth, revenueGrowth (float): Growth rates
+#    - returnOnEquity, returnOnAssets (float): Profitability metrics
+#    - grossMargins, ebitdaMargins, operatingMargins, profitMargins (float): Margin metrics
+#    - trailingPE, forwardPE (float): Price-to-earnings ratios
+#    - priceToBook, priceToSalesTrailing12Months (float): Valuation ratios
+#    - debtToEquity (float): Leverage ratio
+#    - totalDebt, totalCash (float): Balance sheet items
+#    - currentRatio, quickRatio (float): Liquidity ratios
+#    - freeCashflow, operatingCashflow (float): Cash flow metrics
+#    - dividendRate, dividendYield (float): Dividend data
+#    - beta (float): Volatility vs market
+#    - fiftyTwoWeekHigh, fiftyTwoWeekLow (float): 52-week range
+   
+#    Time Features:
+#    - year, month, quarter, day_of_week, day_of_month (int): Date components
+
+# 3. Award (government contracts)
+#    - ticker (string): Recipient company ticker
+#    - recipient_name (string): Company name (e.g., "3M COMPANY")
+#    - matched_sp500_name (string): Standardized company name
+#    - start_date (string): Contract start YYYY-MM-DD
+#    - award_amount (string): Contract value as string (for display)
+#    - award_amount_float (float): Contract value as number (USE THIS for filtering/sorting)
+#    - awarding_agency (string): Government agency (e.g., "Department of Defense")
+#    - description (string): Award description (full text)
+#    - description_embedding (array): Semantic vector (1536 dimensions) for similarity search
+#    - contract_year (string): Year as string (e.g., "2017")
+#    - source_file (string): Origin file (e.g., "contracts_2017.csv")
+#    - ingested_at (string): Timestamp of data ingestion
+
+# 4. EconomicData (macroeconomic indicators)
+#     CRITICAL: Field names use underscores, not camelCase!
+   
+#    - date (string): Date YYYY-MM-DD
+#    - ingested_at (string): Timestamp
+   
+#    Stock Indices:
+#    - sandp_500_index (float): S&P 500 value (NOT "sp500"!)
+#    - nasdaq_composite (float): NASDAQ value
+#    - dow_jones_industrial_average (float): DJIA value
+#    - vix_volatility_index (float): VIX value
+   
+#    Interest Rates:
+#    - federal_funds_rate (float): Fed funds rate % (NOT "fed_funds_rate"!)
+#    - 2_year_treasury_yield (float): 2Y Treasury %
+#    - 10_year_treasury_yield (float): 10Y Treasury %
+#    - 30_year_treasury_yield (float): 30Y Treasury %
+#    - 10y_2y_treasury_spread (float): Yield curve spread
+   
+#    Inflation:
+#    - consumer_price_index_cpi (float): CPI value
+#    - core_cpi_ex_food_and_energy (float): Core CPI
+#    - core_pce_feds_preferred (float): Fed's preferred inflation gauge
+   
+#    Labor Market:
+#    - unemployment_rate (float): Unemployment %
+#    - nonfarm_payrolls (int): Payroll count
+#    - initial_jobless_claims (int): Weekly jobless claims
+   
+#    Economic Activity:
+#    - real_gdp (float): Real GDP
+#    - industrial_production (float): Industrial production index
+#    - retail_sales (float): Retail sales
+#    - consumer_sentiment (float): Consumer sentiment index
+   
+#    Commodities & Other:
+#    - crude_oil_price_wti (float): Oil price (WTI)
+#    - m2_money_supply (float): M2 money supply
+#    - housing_starts (int): New housing starts
+#    - case_shiller_home_price_index (float): Home price index
+   
+#    Derived Fields:
+#    - yield_curve_slope (float): 10Y - 2Y spread
+#    - yield_curve_inverted (int): 1 if inverted, else 0
+
+# 5. sec_filings (SEC document metadata)
+#    - ticker (string): Company ticker
+#    - type (string): Filing type ("10-K", "10-Q", "8-K", etc.)
+#    - accession (string): SEC accession number (unique ID)
+#    - file_name (string): Source file name
+#    - filing_date (string): Date filed YYYY-MM-DD
+#    - fiscal_year (int): Fiscal year
+   
+#    Sentiment Metrics (aggregated from sentences):
+#    - avg_finbert (float): Average FinBERT sentiment (-1 to +1)
+#    - avg_uncertainty (float): Uncertainty score per 1000 words
+#    - avg_positive (float): Positive words per 1000
+#    - avg_negative (float): Negative words per 1000
+#    - sentence_count (int): Total sentences in filing
+   
+#     NO CONTENT FIELD: Full text is NOT stored here. Use sec_sections or sec_sentences.
+
+# 6. sec_sections (sections within filings)
+#    - filing_id (string): Parent filing ID (format: "sec_filings/{ticker}_{type}_{accession}_{filename}")
+#    - section_type (string): Section type (e.g., "Full Document", "Risk Factors", "MD&A")
+#    - start_char (int): Start position in original document
+#    - length (int): Length in characters
+   
+#     NO EMBEDDING FIELD: Cannot do semantic search on sections.
+#     NO CONTENT FIELD: Text is NOT stored. Use sec_sentences for actual content.
+
+# 7. sec_sentences (individual sentences - most granular level)
+#    - section_id (string): Parent section ID (format: "sec_sections/{ticker}_{type}_{accession}_{filename}_sec{N}")
+#    - text (string): Sentence text (THIS is where content lives)
+#    - n_tokens (int): Token count
+   
+#    Sentiment Metrics:
+#    - finbert_score (float): FinBERT sentiment score (-1 to +1)
+#    - finbert_probs (object): Probabilities {positive, negative, neutral}
+#    - negative_per_1k (float): Negative words per 1000
+#    - positive_per_1k (float): Positive words per 1000
+#    - uncertainty_per_1k (float): Uncertainty words per 1000
+#    - litigious_per_1k (float): Legal language per 1000
+   
+#     NO EMBEDDING FIELD: Cannot do vector similarity search.
+#     For semantic search, use finbert_score filtering instead of cosine similarity.
+
+# EDGE COLLECTIONS (Graph Relationships):
+
+# 1. HAS_MARKETDATA: Company -> MarketData
+#    - date (string): Market date
+#    Usage: FOR market IN OUTBOUND company HAS_MARKETDATA
+
+# 2. HAS_AWARD: Company -> Award
+#    - award_amount (float): Contract value
+#    Usage: FOR award IN OUTBOUND company HAS_AWARD
+
+# 3. HAS_FILING: Company -> sec_filings
+#    - filing_date (string): Date filed
+#    - filing_type (string): Filing type
+#    Usage: FOR filing IN OUTBOUND company HAS_FILING
+
+# 4. has_section: sec_filings -> sec_sections
+#    Usage: FOR section IN OUTBOUND filing has_section
+
+# 5. has_sentence: sec_sections -> sec_sentences
+#    Usage: FOR sentence IN OUTBOUND section has_sentence
+
+# GRAPHS:
+# - QUANT_v2_FinanceGraph: Company + MarketData + Award (financial data)
+# - sec_graph: sec_filings + sec_sections + sec_sentences (SEC document hierarchy)
+
+#  CRITICAL LIMITATIONS:
+# 1. NO SEMANTIC SEARCH on SEC data (no embeddings in sec_sections or sec_sentences)
+# 2. Company collection is MINIMAL (only ticker, no name/sector/industry)
+# 3. SEC content is ONLY in sec_sentences.text (not in filings or sections)
+# 4. EconomicData field names use snake_case with full names (sandp_500_index, not sp500)
+# 5. Award amounts: Use award_amount_float for math, award_amount for display
+
+#  IMPORTANT RULES:
+# 1. All dates are strings in YYYY-MM-DD format
+# 2. For Award filtering, use award_amount_float (not award_amount)
+# 3. For EconomicData, use full field names: sandp_500_index, federal_funds_rate
+# 4. For SEC content, query sec_sentences.text (NOT sec_filings.content)
+# 5. For SEC sentiment search, filter by finbert_score (no vector similarity)
+# 6. Always add LIMIT to prevent timeout (default 20)
+# """
+
+
+# # =============================================================================
+# # FEW-SHOT EXAMPLES
+# # =============================================================================
+
+# FEW_SHOT_EXAMPLES = """
+# EXAMPLE 1 - Market Data Lookup:
+# Question: "What was Apple's closing price on 2016-01-05?"
+# Intent: single_value_lookup
+# Collections: ["MarketData"]
+# AQL:
+# FOR doc IN MarketData
+#   FILTER doc.ticker == @ticker AND doc.date == @date
+#   RETURN {date: doc.date, close: doc.close, volume: doc.volume}
+# Bind Variables: {"ticker": "AAPL", "date": "2016-01-05"}
+# Requires Embedding: false
+
+# ---
+
+# EXAMPLE 2 - Award Lookup (CORRECT field name!):
+# Question: "Show me the top 5 largest government awards"
+# Intent: ranking
+# Collections: ["Award"]
+# AQL:
+# FOR doc IN Award
+#   FILTER doc.award_amount_float != null
+#   SORT doc.award_amount_float DESC
+#   LIMIT 5
+#   RETURN {
+#     recipient: doc.recipient_name,
+#     ticker: doc.ticker,
+#     amount: doc.award_amount_float,
+#     agency: doc.awarding_agency,
+#     start_date: doc.start_date,
+#     description: SUBSTRING(doc.description, 0, 200)
+#   }
+# Bind Variables: {}
+# Requires Embedding: false
+
+# ---
+
+# EXAMPLE 3 - Economic Data (CORRECT field names!):
+# Question: "What was the unemployment rate and S&P 500 on 2016-01-04?"
+# Intent: single_value_lookup
+# Collections: ["EconomicData"]
+# AQL:
+# FOR doc IN EconomicData
+#   FILTER doc.date == @date
+#   RETURN {
+#     date: doc.date,
+#     sandp_500: doc.sandp_500_index,
+#     unemployment: doc.unemployment_rate,
+#     fed_rate: doc.federal_funds_rate,
+#     vix: doc.vix_volatility_index,
+#     yield_curve: doc.yield_curve_slope
+#   }
+# Bind Variables: {"date": "2016-01-04"}
+# Requires Embedding: false
+
+# ---
+
+# EXAMPLE 4 - Award Semantic Search:
+# Question: "Find awards related to artificial intelligence"
+# Intent: semantic_search
+# Collections: ["Award"]
+# AQL:
+# FOR doc IN Award
+#   FILTER doc.description_embedding != null
+#   LET similarity = COSINE_SIMILARITY(doc.description_embedding, @query_vector)
+#   FILTER similarity >= 0.70
+#   SORT similarity DESC
+#   LIMIT 10
+#   RETURN {
+#     recipient: doc.recipient_name,
+#     ticker: doc.ticker,
+#     description: SUBSTRING(doc.description, 0, 300),
+#     amount: doc.award_amount_float,
+#     start_date: doc.start_date,
+#     similarity: similarity
+#   }
+# Bind Variables: {"query_vector": [0.123, ...]}
+# Requires Embedding: true
+# Embedding Text: "artificial intelligence AI machine learning deep learning neural networks"
+
+# ---
+
+# EXAMPLE 5 - SEC Filing Sentiment:
+# Question: "Show me Apple's most negative 10-K filings"
+# Intent: sentiment_analysis
+# Collections: ["sec_filings"]
+# AQL:
+# FOR doc IN sec_filings
+#   FILTER doc.ticker == @ticker
+#   FILTER doc.type == "10-K"
+#   FILTER doc.avg_finbert != null
+#   SORT doc.avg_finbert ASC
+#   LIMIT 5
+#   RETURN {
+#     ticker: doc.ticker,
+#     filing_date: doc.filing_date,
+#     fiscal_year: doc.fiscal_year,
+#     sentiment: doc.avg_finbert,
+#     negative_score: doc.avg_negative,
+#     uncertainty: doc.avg_uncertainty
+#   }
+# Bind Variables: {"ticker": "AAPL"}
+# Requires Embedding: false
+
+# ---
+
+# EXAMPLE 6 - SEC Sentence Search (NO embeddings, use text filter):
+# Question: "Find SEC sentences mentioning supply chain risk"
+# Intent: text_search
+# Collections: ["sec_sentences"]
+# AQL:
+# FOR doc IN sec_sentences
+#   FILTER CONTAINS(LOWER(doc.text), "supply chain")
+#   FILTER CONTAINS(LOWER(doc.text), "risk")
+#   FILTER doc.finbert_score < -0.3
+#   SORT doc.finbert_score ASC
+#   LIMIT 10
+#   RETURN {
+#     text: SUBSTRING(doc.text, 0, 500),
+#     sentiment: doc.finbert_score,
+#     section_id: doc.section_id,
+#     negative_words: doc.negative_per_1k
+#   }
+# Bind Variables: {}
+# Requires Embedding: false
+
+# ---
+
+# EXAMPLE 7 - Graph Traversal (Company -> Awards):
+# Question: "Show me awards for ticker DG"
+# Intent: graph_traversal
+# Collections: ["Company", "Award"]
+# Edges: ["HAS_AWARD"]
+# AQL:
+# FOR company IN Company
+#   FILTER company.ticker == @ticker
+#   FOR award IN OUTBOUND company HAS_AWARD
+#     SORT award.start_date DESC
+#     LIMIT 10
+#     RETURN {
+#       ticker: company.ticker,
+#       recipient: award.recipient_name,
+#       amount: award.award_amount_float,
+#       agency: award.awarding_agency,
+#       start_date: award.start_date,
+#       description: SUBSTRING(award.description, 0, 200)
+#     }
+# Bind Variables: {"ticker": "DG"}
+# Requires Embedding: false
+
+# ---
+
+# EXAMPLE 8 - Market Data with Indicators:
+# Question: "Show me stocks with price above 20-day SMA on 2016-01-05"
+# Intent: technical_screening
+# Collections: ["MarketData"]
+# AQL:
+# FOR doc IN MarketData
+#   FILTER doc.date == @date
+#   FILTER doc.sma_20 != null
+#   FILTER doc.above_sma20 == 1
+#   SORT doc.close DESC
+#   LIMIT 20
+#   RETURN {
+#     ticker: doc.ticker,
+#     close: doc.close,
+#     sma_20: doc.sma_20,
+#     dist_from_sma20: doc.dist_from_sma20,
+#     volume: doc.volume
+#   }
+# Bind Variables: {"date": "2016-01-05"}
+# Requires Embedding: false
+
+# ---
+
+# EXAMPLE 9 - Date Range Query:
+# Question: "Show me Tesla's stock prices for January 2016"
+# Intent: time_series
+# Collections: ["MarketData"]
+# AQL:
+# FOR doc IN MarketData
+#   FILTER doc.ticker == @ticker
+#   FILTER doc.date >= @start_date AND doc.date < @end_date
+#   SORT doc.date ASC
+#   LIMIT 50
+#   RETURN {
+#     date: doc.date,
+#     ticker: doc.ticker,
+#     open: doc.open,
+#     close: doc.close,
+#     volume: doc.volume
+#   }
+# Bind Variables: {"ticker": "TSLA", "start_date": "2016-01-01", "end_date": "2016-02-01"}
+# Requires Embedding: false
+
+# ---
+
+# EXAMPLE 10 - Aggregation:
+# Question: "What's the total value of defense awards in 2017?"
+# Intent: aggregation
+# Collections: ["Award"]
+# AQL:
+# FOR doc IN Award
+#   FILTER doc.contract_year == "2017"
+#   FILTER doc.awarding_agency LIKE "%Defense%" OR doc.awarding_agency LIKE "%DoD%"
+#   COLLECT AGGREGATE total = SUM(doc.award_amount_float), count = COUNT(1)
+#   RETURN {total_amount: total, award_count: count}
+# Bind Variables: {}
+# Requires Embedding: false
+
+# ---
+
+#  FIELD NAME CHEAT SHEET (Common Mistakes):
+# WRONG → CORRECT
+# - sp500 → sandp_500_index
+# - fed_funds_rate → federal_funds_rate
+# - award_amount (for math) → award_amount_float
+# - sec_filings.content → sec_sentences.text
+# - sec_sections.embedding → (DOESN'T EXIST, use finbert_score filter)
+
+#  SEMANTIC SEARCH RULES:
+# - Award descriptions:  Has description_embedding (use COSINE_SIMILARITY)
+# - SEC content: NO embeddings (use CONTAINS() text filters + finbert_score instead)
+# - Trigger words for semantic: "related to", "about", "similar to", "involving"
+# - Concepts that need semantic: "AI", "cybersecurity", "renewable energy", "blockchain"
+
+#  ALWAYS ADD LIMIT:
+# - Default: 20, Semantic: 10, Time-series: 50
+# - Never omit LIMIT or query may timeout
+# """

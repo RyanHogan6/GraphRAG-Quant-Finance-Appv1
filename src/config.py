@@ -1,37 +1,53 @@
 import streamlit as st
-from arango import ArangoClient
-import torch
-import re
 import openai
-from datetime import datetime
 from dotenv import load_dotenv
-import os 
-import pandas as pd 
-import json
 
 # Load environment variables
 load_dotenv() 
 
 # Configuration
-ARANGO_URL = "https://e11129e8c5ae.arangodb.cloud:8529" #"http://localhost:8529"# #"https://e11129e8c5ae.arangodb.cloud:8529"   #  "http://:8529"
-GRAPH_NAME = "QUANT_v1_FinanceGraph"
-DB_NAME = "QUANT_v1"
-USERNAME = "root"
-PASSWORD =   st.secrets["arangodb"]["password"] #s.getenv('LOCAL_PASSWORD')# 
+ARANGO_URL = st.secrets["arangodb"]["host"] #"http://localhost:8529" 
+GRAPH_NAME = "QUANT_v3_FinanceGraph"
+DB_NAME = st.secrets["arangodb"]["database"]
+USERNAME = st.secrets["arangodb"]["username"]
+PASSWORD =  st.secrets["arangodb"]["password"]
+openai.api_key =  st.secrets["arangodb"]['open_api_key'] 
+
+
+# Document Collections
 COMPANY_COL = "Company"
 MARKETDATA_COL = "MarketData"
-EDGE_MARKETDATA_COL = "HAS_MARKETDATA"
 AWARD_COL = "Award"
-EDGE_AWARD_COL = "HAS_AWARD"
-FRED_COL = "FREDData"
-COMMODITY_COL = "CommodityPosition"
-SEC_COL = "sec_filings"
-ARANGO_CREDS = st.secrets['arangodb']['creds']
-openai.api_key =  st.secrets["arangodb"]['open_api_key'] # os.getenv('OPENAI_API_KEY') #
+ECONOMIC_COL = "EconomicData"  # Updated from FREDData
+COMMODITY_COL = "commodity_positions"
+SEC_FILING_COL = "sec_filings"
+SEC_SECTION_COL = "sec_sections"
+SEC_SENTENCE_COL = "sec_sentences"
+POLYMARKET_COL = "prediction_markets_polymarket"
+KALSHIMARKET_COL = "prediction_markets_kalshi"
+# Edge Collections - Company Relationships
+EDGE_MARKETDATA = "HAS_MARKETDATA"
+EDGE_AWARD = "HAS_AWARD"
+EDGE_COMMODITY = "HAS_COMMODITY_POSITION"
+EDGE_FILING = "HAS_FILING"
 
+# Edge Collections - SEC Hierarchy
+EDGE_SECTION = "has_section"
+EDGE_SENTENCE = "has_sentence"
+
+# Edge Collections - Prediction Markets (Polymarket)
+EDGE_POLYMARKET_DIRECT = "market_mentions_company_polymarket"
+EDGE_POLYMARKET_SECTOR = "market_related_to_sector_polymarket"
+EDGE_POLYMARKET_MACRO = "market_affects_company_polymarket"
+
+# Edge Collections - Prediction Markets (Kalshi)
+EDGE_KALSHI_DIRECT = "market_mentions_company_kalshi"
+EDGE_KALSHI_SECTOR = "market_related_to_sector_kalshi"
+
+# LLM Configuration
 LLM_MODEL = "gpt-4o-mini"
 EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_DIMENSIONS = 1536
 MAX_TOKENS = 1500
 TEMPERATURE = 0.1
-QUERY_TIMEOUT = 30
+QUERY_TIMEOUT = 360
