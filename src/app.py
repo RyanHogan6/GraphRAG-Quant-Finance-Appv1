@@ -17,6 +17,7 @@ server.Server._max_message_size_bytes = 200 * 1024 * 1024  # 200MB for large res
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"  Using device: {device}")
+use_local_model = False  # Default to OpenAI GPT-4
 
 st.set_page_config(
     page_title="GraphRAG LLM", 
@@ -314,20 +315,20 @@ def show_summary_metrics(results, query_plan):
 with st.sidebar:
     st.header(" Settings")
     
-    # Model toggle
-    use_local_model = st.checkbox(
-        " Use Local Fine-Tuned Model",
-        value=False,
-        help="Toggle between your fine-tuned Llama model (local) and OpenAI GPT-4"
-    )
+    # # Model toggle
+    # use_local_model = st.checkbox(
+    #     " Use Local Fine-Tuned Model",
+    #     value=False,
+    #     help="Toggle between your fine-tuned Llama model (local) and OpenAI GPT-4"
+    # )
     
-    if use_local_model:
-        st.success(" Using Local Model")
-    else:
-        st.info("Using OpenAI GPT-4")
+    # if use_local_model:
+    #     st.success(" Using Local Model")
+    # else:
+    #     st.info("Using OpenAI GPT-4")
     
-    st.divider()
-    
+    # st.divider()
+    st.info("Using OpenAI GPT-4")
     # Saved Queries
     st.header("Saved Queries")
     
@@ -369,18 +370,18 @@ with st.sidebar:
     
     st.divider()
     
-    st.header("Quick Examples")
-    examples = [
-        "Tesla closing price 2020-06-15",
-        "AAPL EBITDA March 2017",
-        "Cybersecurity risks in SEC",
-        "Top defense contracts 2024"
-    ]
+    # st.header("Quick Examples")
+    # examples = [
+    #     "Tesla closing price 2020-06-15",
+    #     "AAPL EBITDA March 2017",
+    #     "Cybersecurity risks in SEC",
+    #     "Top defense contracts 2024"
+    # ]
     
-    for example in examples:
-        if st.button(example, key=f"example_{example[:10]}", use_container_width=True):
-            st.session_state.current_question = example
-            st.rerun()
+    # for example in examples:
+    #     if st.button(example, key=f"example_{example[:10]}", use_container_width=True):
+    #         st.session_state.current_question = example
+    #         st.rerun()
     
     st.divider()
     
@@ -390,8 +391,8 @@ with st.sidebar:
         st.rerun()
     
     st.divider()
-    st.caption(f" {cfg.DB_NAME}")
-    st.caption(f" {cfg.ARANGO_URL}")
+    # st.caption(f" {cfg.DB_NAME}")
+    # st.caption(f" {cfg.ARANGO_URL}")
 
 # Create tabs
 tab1, tab2 = st.tabs([" AI Query Interface", "Database Browser"])
@@ -673,7 +674,7 @@ try:
             st.metric("Avg Time", summary['avg_execution_time'])
         
         if summary['collections_used']:
-            with st.sidebar.expander("ðŸ“š Collections Used"):
+            with st.sidebar.expander("Collections Used"):
                 for coll, count in sorted(summary['collections_used'].items(), key=lambda x: x[1], reverse=True):
                     st.caption(f"{coll}: {count}x")
         
