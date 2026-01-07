@@ -10,6 +10,24 @@ Last updated: 2026-01-06 with Kalshi support
 SCHEMA_DESCRIPTION = """
 Database: QUANT_v3 (ArangoDB Multi-Model Graph)
 
+⚠️ CRITICAL AQL SYNTAX - READ FIRST ⚠️
+
+AQL DATE FUNCTIONS (MySQL/SQL syntax does NOT work):
+- DATE_SUBTRACT(date, amount, unit) ✅ CORRECT - Subtract time
+  Example: DATE_SUBTRACT(DATE_NOW(), 30, "day")
+- DATE_ADD(date, amount, unit) ✅ CORRECT - Add time
+- DATE_NOW() ✅ CORRECT - Current timestamp
+- NEVER use: DATE_SUB() ❌ WRONG - Does not exist in AQL!
+- NEVER use: DATEADD() ❌ WRONG - Does not exist in AQL!
+- NEVER use: DATEDIFF() ❌ WRONG - Does not exist in AQL!
+
+AQL ROUNDING (no decimal places parameter):
+- ROUND(value) - Rounds to integer only
+- To round to 2 decimals: FLOOR(value * 100) / 100 ✅
+- NEVER use: ROUND(value, 2) ❌ WRONG
+
+CRITICAL FIELD NAMING RULES - EXACT NAMES FROM DATABASE
+
 ⚠️ CRITICAL FIELD NAMING RULES (EXACT NAMES FROM DATABASE):
 
 Award:
