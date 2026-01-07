@@ -485,7 +485,19 @@ if (search_button or user_question) and user_question:
                 error = "Could not generate query plan"
                 st.error(f"{error}")
                 st.stop()
-        
+
+            if not isinstance(query_plan, dict):
+                st.error(f"⚠️ Invalid query plan type: {type(query_plan)}")
+                st.error(f"LLM returned: {str(query_plan)[:200]}")
+                st.stop()
+            
+            required_fields = ['aql_query', 'bind_vars']
+            missing = [f for f in required_fields if f not in query_plan]
+            if missing:
+                st.error(f"⚠️ Query plan missing required fields: {missing}")
+                st.json(query_plan)
+                st.stop()
+                
         # Step 3: Show plan
         with st.expander(" Query Plan & Strategy", expanded=False):
             col_a, col_b = st.columns(2)
