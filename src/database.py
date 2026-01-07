@@ -164,6 +164,10 @@ def setup_performance_indexes():
         return
     
     try:
+        if db.has_collection('Company'):
+            # Company ticker lookup (most common)
+            db.collection('Company').add_hash_index(fields=['ticker'], unique=True)
+            print("✅ Added ticker index")
         # MarketData indexes
         if db.has_collection('MarketData'):
             market_col = db.collection('MarketData')
