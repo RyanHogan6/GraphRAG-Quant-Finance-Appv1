@@ -792,8 +792,9 @@ def execute_planned_query(plan):
             cursor = db.aql.execute(
                 aql_query,
                 bind_vars=bind_vars,
-                ttl=timeout,
-                batch_size=1000,
+                ttl=180,
+                max_runtime=300.0,
+                batch_size=5000,
                 optimizer_rules=["+all"]
             )
             results = list(cursor)
