@@ -13,36 +13,36 @@ import config as cfg
 
 def preprocess_query(question):
     """Handle simple queries without LLM"""
-    ticker_match = re.search(r'\b([A-Z]{2,5})\b', question)
-    if ticker_match and len(question.split()) <= 5:
-        ticker = ticker_match.group(1)
-        if any(word in question.lower() for word in ['show', 'get', 'find']):
-            return {
-                "intent": "ticker_lookup",
-                "aql_query": "FOR doc IN Award FILTER doc.ticker == @ticker SORT doc.startdate DESC LIMIT 20 RETURN doc",  # FIXED
-                "bind_vars": {"ticker": ticker},
-                "requires_embedding": False,
-                "explanation": f"Simple ticker lookup for {ticker}"
-            }
+    # ticker_match = re.search(r'\b([A-Z]{2,5})\b', question)
+    # if ticker_match and len(question.split()) <= 5:
+    #     ticker = ticker_match.group(1)
+    #     if any(word in question.lower() for word in ['show', 'get', 'find']):
+    #         return {
+    #             "intent": "ticker_lookup",
+    #             "aql_query": "FOR doc IN Award FILTER doc.ticker == @ticker SORT doc.startdate DESC LIMIT 20 RETURN doc",  # FIXED
+    #             "bind_vars": {"ticker": ticker},
+    #             "requires_embedding": False,
+    #             "explanation": f"Simple ticker lookup for {ticker}"
+    #         }
     
-    if question.lower().startswith("how many"):
-        if "awards" in question.lower():
-            return {
-                "intent": "count_awards",
-                "aql_query": "RETURN LENGTH(Award)",
-                "bind_vars": {},
-                "requires_embedding": False,
-                "explanation": "Count total awards"
-            }
+    # if question.lower().startswith("how many"):
+    #     if "awards" in question.lower():
+    #         return {
+    #             "intent": "count_awards",
+    #             "aql_query": "RETURN LENGTH(Award)",
+    #             "bind_vars": {},
+    #             "requires_embedding": False,
+    #             "explanation": "Count total awards"
+    #         }
     
-    if any(word in question.lower() for word in ['latest', 'recent', 'last']):
-        return {
-            "intent": "recent_data",
-            "aql_query": "FOR doc IN Award SORT doc.startdate DESC LIMIT 10 RETURN doc",  # FIXED
-            "bind_vars": {},
-            "requires_embedding": False,
-            "explanation": "Fetch most recent awards"
-        }
+    # if any(word in question.lower() for word in ['latest', 'recent', 'last']):
+    #     return {
+    #         "intent": "recent_data",
+    #         "aql_query": "FOR doc IN Award SORT doc.startdate DESC LIMIT 10 RETURN doc",  # FIXED
+    #         "bind_vars": {},
+    #         "requires_embedding": False,
+    #         "explanation": "Fetch most recent awards"
+    #     }
     
     return None
 
