@@ -344,28 +344,45 @@ EDGE COLLECTIONS (Graph Relationships):
     Usage: FOR sentence IN OUTBOUND section has_sentence
 
 GRAPHS:
-- QUANT_v3_FinanceGraph: Company + MarketData + Award + commodity_positions + prediction_markets (financial data)
-- sec_graph: sec_filings + sec_sections + sec_sentences (SEC document hierarchy)
+- QUANT_v3_FinanceGraph: Company-centric financial data graph
 
-⚠️ CRITICAL LIMITATIONS:
-1. NO SEMANTIC SEARCH on SEC data (no embeddings in sec_sections or sec_sentences)
-2. Company collection is MINIMAL (only ticker, no name/sector/industry)
-3. SEC content is ONLY in sec_sentences.text (not in filings or sections)
-4. EconomicData field names use snake_case with full names (sandp_500_index, not sp500)
-5. Award amounts: Use award_amount_float for math, award_amount for display
-6. Polymarket sector/macro edges are NOISY (prefer market_mentions_company_polymarket)
-7. CFTC data: Not all companies have commodity positions (only relevant for commodity-exposed firms)
-8. Kalshi uses "title" not "question", "yes_price" not "yes_probability", "status" not "closed"
+## GRAPH STRUCTURE - ALWAYS PREFER EDGES OVER TICKER FILTERING
 
-⚠️ IMPORTANT RULES:
-1. All dates are strings in YYYY-MM-DD format
-2. For Award filtering, use award_amount_float (not award_amount)
-3. For EconomicData, use full field names: sandp_500_index, federal_funds_rate
-4. For SEC content, query sec_sentences.text (NOT sec_filings.content)
-5. For SEC sentiment search, filter by finbert_score (no vector similarity)
-6. For Polymarket, prefer market_mentions_company_polymarket (15k clean edges) over sector/macro edges
-7. For Kalshi, use market.title (not market.question) and market.yes_price (not market.yes_probability)
-8. Always add LIMIT to prevent timeout (default 20)
+Edge Definitions:
+1. Company → Award (via HAS_AWARD edge)
+2. Company → sec_filings (via HAS_FILING edge)
+3. Company → MarketData (via HAS_MARKETDATA edge)
+4. sec_filings → sec_sections (via has_section edge)
+5. sec_sections → sec_sentences (via has_sentence edge)
+
+## CRITICAL: When to Use Graph Traversals
+- If query involves Company + Award → USE: FOR award IN OUTBOUND company HAS_AWARD
+- If query involves Company + MarketData → USE: FOR m IN OUTBOUND company HAS_MARKETDATA
+- If query involves Company + Filings → USE: FOR filing IN OUTBOUND company HAS_FILING
+- For multi-hop traversal → USE nested OUTBOUND (e.g., Company → Filing → Section → Sentence)
+
+## Graph Traversal Examples:
+```aql
+// Companies with awards (PREFERRED)
+FOR company IN Company
+  FOR award IN OUTBOUND company HAS_AWARD
+    RETURN {company, award}
+
+// Companies with market data (PREFERRED)
+FOR company IN Company
+  FOR m IN OUTBOUND company HAS_MARKETDATA
+    FILTER m.date >= "2025-01-01"
+    RETURN {company, market: m}
+
+// Deep traversal: Company → Filing → Section → Sentence
+FOR company IN Company
+  FILTER company.ticker == @ticker
+  FOR filing IN OUTBOUND company HAS_FILING
+    FOR section IN OUTBOUND filing has_section
+      FOR sentence IN OUTBOUND section has_sentence
+        FILTER sentence.finbertscore < -0.3
+        RETURN {company, filing, section, sentence}
+
 """
 
 # =============================================================================
