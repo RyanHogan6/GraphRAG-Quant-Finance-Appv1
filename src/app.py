@@ -481,6 +481,12 @@ if (search_button or user_question) and user_question:
                 use_local=use_local_model
             )
             
+            if isinstance(query_plan, str):
+                st.error("❌ LLM returned a STRING instead of JSON!")
+                st.code(query_plan, language='text')
+                st.stop()
+
+
             if not query_plan:
                 error = "Could not generate query plan"
                 st.error(f"{error}")
@@ -525,7 +531,12 @@ if (search_button or user_question) and user_question:
         
         # Step 5: Show Summary Metrics
         if results and len(results) > 0:
-            show_summary_metrics(results, query_plan)
+            # ✅ ADD THIS CHECK
+            if not isinstance(query_plan, dict):
+                st.error(f"⚠️ Cannot show summary - invalid query plan type: {type(query_plan)}")
+                st.text(f"Query plan value: {str(query_plan)[:200]}")
+            else:
+                show_summary_metrics(results, query_plan)
         
         # Step 6: Generate Insights
         if results and len(results) > 2:
