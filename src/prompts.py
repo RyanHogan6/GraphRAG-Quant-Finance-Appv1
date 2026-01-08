@@ -49,15 +49,24 @@ CRITICAL_AQL_RULES = """
    ❌ awards, companies, market_data
 
 5. CRITICAL FIELD NAMES:
-   Award: award_amount_float (for math), start_date, description_embedding
+   Award: award_amount_float (for math), start_date, description_embedding (ONLY collection with embeddings!)
    Company: sharesOutstanding, marketCap, fullTimeEmployees (camelCase!)
    MarketData: sma_20, sma_50 (snake_case), targetMeanPrice (camelCase)
    EconomicData: sandp_500_index, federal_funds_rate
-   SEC: finbert_score, avg_negative, avg_uncertainty (NO embeddings on SEC!)
+   SEC: finbert_score, avg_negative, avg_uncertainty (NO embeddings!)
+   Polymarket: question, description, yes_probability, volume_24h, closed (NO embeddings!)
+   Kalshi: title, yes_price, volume, status (NO embeddings!)
 
-6. SEMANTIC SEARCH:
-   ✅ Award: HAS description_embedding - use COSINE_SIMILARITY
-   ❌ SEC: NO embeddings - use CONTAINS(LOWER(text), 'keyword')
+6. SEMANTIC SEARCH - CRITICAL RULES:
+   ✅ Award ONLY: HAS description_embedding - use COSINE_SIMILARITY(doc.description_embedding, @query_vector)
+   ❌ ALL OTHER COLLECTIONS: NO embeddings - use CONTAINS(LOWER(field), 'keyword')
+
+   Examples:
+   - Award semantic: LET sim = COSINE_SIMILARITY(doc.description_embedding, @query_vector) FILTER sim >= 0.7
+   - Polymarket text: FILTER CONTAINS(LOWER(doc.question), 'football') OR CONTAINS(LOWER(doc.description), 'super bowl')
+   - SEC text: FILTER CONTAINS(LOWER(doc.text), 'cybersecurity')
+
+   ❌ NEVER use embeddings on: SEC, Polymarket, Kalshi, Company, MarketData, EconomicData
 
 7. ALWAYS ADD LIMIT:
    Every query must have LIMIT to prevent timeout.

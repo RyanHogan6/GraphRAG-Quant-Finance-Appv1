@@ -319,6 +319,18 @@ def validate_aql_syntax(aql_query):
         errors.append("❌ CRITICAL: AQL does not support JOIN! Use nested FOR loops instead.")
         raise ValueError("AQL does not support JOIN syntax. Use nested FOR loops to connect data.")
 
+    # Check for embeddings on wrong collections - CRITICAL ERROR
+    collections_without_embeddings = [
+        'sec_filings', 'sec_sections', 'sec_sentences',
+        'prediction_markets_polymarket', 'prediction_markets_kalshi',
+        'Company', 'MarketData', 'EconomicData', 'commodity_positions'
+    ]
+
+    for collection in collections_without_embeddings:
+        if collection in aql_query and 'COSINE_SIMILARITY' in aql_query:
+            errors.append(f"❌ CRITICAL: {collection} does NOT have embeddings!")
+            raise ValueError(f"Collection '{collection}' does not have embeddings. Only Award collection has description_embedding. Use CONTAINS(LOWER(doc.field), 'keyword') for text search instead.")
+
     # Check for common typos
     if "compan." in aql_query and "company" in aql_query:
         errors.append("Typo detected: 'compan.' should be 'company.'")
