@@ -3,7 +3,7 @@
 import openai
 import json
 from config import *
-from prompts import *
+from prompts import CRITICAL_AQL_RULES  # Import only what we need (not full SCHEMA_DESCRIPTION)
 import streamlit as st
 import re
 from datetime import datetime
@@ -80,36 +80,40 @@ def plan_query_with_llm(question, intent_hint=None, use_local=False):
             hint_text = f"\n\n🎯 CONFIRMED: This is a CONCEPT/SEMANTIC query about '{intent_hint.get('value')}'. Use semantic search with embeddings."
     
     relevant_schema = get_relevant_schema(question, intent_hint)
-    
+
     planning_prompt = f"""You are a database query planner for ArangoDB.
 
+RELEVANT SCHEMA:
 {relevant_schema}
 
-{SCHEMA_DESCRIPTION}
+{CRITICAL_AQL_RULES}
 
-{FEW_SHOT_EXAMPLES}
+EXAMPLE QUERIES (for reference):
+- Ticker query: FOR doc IN Award FILTER doc.ticker == @ticker SORT doc.award_amount_float DESC LIMIT 10 RETURN doc
+- Semantic query: FOR doc IN Award FILTER doc.description_embedding != null LET sim = COSINE_SIMILARITY(doc.description_embedding, @query_vector) FILTER sim >= 0.7 SORT sim DESC LIMIT 10 RETURN doc
+- SEC sentiment: FOR doc IN sec_sentences FILTER CONTAINS(LOWER(doc.text), @keyword) AND doc.finbert_score < -0.3 LIMIT 20 RETURN doc
+- Date range: FOR doc IN MarketData FILTER doc.ticker == @ticker AND doc.date >= DATE_SUBTRACT(DATE_NOW(), 180, "day") SORT doc.date DESC LIMIT 100 RETURN doc
 
 USER QUESTION: "{question}"{hint_text}
 
 Current Date: {current_date}
 
 Generate a JSON response with:
-- "intent": classification
+- "intent": classification (e.g., "ticker_awards", "semantic_awards", "sec_sentiment", "market_data")
 - "collections": array of collection names
-- "requires_embedding": boolean (true for concept queries)
+- "requires_embedding": boolean (true ONLY for Award semantic search)
 - "embedding_text": text to embed (if semantic search)
 - "aql_query": valid AQL query
 - "bind_vars": object with bind variables
-- "explanation": strategy explanation
+- "explanation": brief strategy explanation
 
-⚠️ CRITICAL REMINDERS:
-1. Use "Award" not "awards"
-2. Use "award_amount_float" for math operations
-3. Use "sandp_500_index" not "sp500"
-4. Use "federal_funds_rate" not "fed_funds_rate"
-5. For Kalshi: use "title" not "question", "yes_price" not "yes_probability", "status" not "closed"
-6. For commodity: use "Market_and_Exchange_Names" not "commodity_name"
-7. Always add LIMIT to prevent timeout
+CRITICAL CHECKLIST:
+✅ Collection names: Award (not awards), sec_filings (not SEC_Filings)
+✅ Field names: award_amount_float, sharesOutstanding, sandp_500_index
+✅ Date functions: DATE_SUBTRACT(DATE_NOW(), N, "day")
+✅ Order: FOR → FILTER → SORT → LIMIT → RETURN
+✅ Embeddings: Only Award collection has description_embedding
+✅ Always include LIMIT
 
 ⚠️ EMBEDDING RULES:
 - Set requires_embedding = true ONLY if:
@@ -665,16 +669,60 @@ def optimize_expensive_query_aggressive(aql_query):
         return original_query, ["No automatic optimizations applied - query structure is good"]
 
 
-def suggest_fulltext_conversion(aql_query):
-    """Suggest how to convert CONTAINS to FULLTEXT"""
+def apply_fulltext_conversion(aql_query):
+    """Automatically convert CONTAINS to FULLTEXT for sec_sentences/sec_sections queries"""
     import re
-    
+
+    # Only convert for SEC collections (large collections benefit most)
+    if 'sec_sentences' not in aql_query and 'sec_sections' not in aql_query:
+        return aql_query
+
+    # Pattern: FOR var IN sec_sentences FILTER ... CONTAINS(LOWER(var.text), 'keyword')
+    # Convert to: FOR var IN FULLTEXT(sec_sentences, 'text', 'keyword') FILTER ...
+
+    # Match CONTAINS pattern with single-word keywords
+    pattern = r"FOR\s+(\w+)\s+IN\s+(sec_sentences|sec_sections)\s+FILTER\s+(.*?)CONTAINS\(LOWER\(\1\.text\),\s*['\"]([^'\"]+)['\"]\)"
+
+    def replace_with_fulltext(match):
+        var_name = match.group(1)
+        collection = match.group(2)
+        other_filters = match.group(3).strip()
+        keyword = match.group(4).strip()
+
+        # Only convert single-word keywords (FULLTEXT works best with these)
+        if ' ' in keyword:
+            return match.group(0)  # Keep original for multi-word
+
+        # Build replacement
+        # Remove trailing AND/OR from other_filters if present
+        other_filters = re.sub(r'\s+(AND|OR)\s*$', '', other_filters, flags=re.IGNORECASE)
+
+        if other_filters:
+            # Keep other filters after FULLTEXT
+            return f"FOR {var_name} IN FULLTEXT({collection}, 'text', '{keyword}') FILTER {other_filters}"
+        else:
+            # No other filters, just FULLTEXT
+            return f"FOR {var_name} IN FULLTEXT({collection}, 'text', '{keyword}')"
+
+    converted = re.sub(pattern, replace_with_fulltext, aql_query, flags=re.DOTALL | re.IGNORECASE)
+
+    # Log if conversion happened
+    if converted != aql_query:
+        st.info("⚡ Auto-optimized: Converted CONTAINS to FULLTEXT (10x faster for SEC queries)")
+
+    return converted
+
+
+def suggest_fulltext_conversion(aql_query):
+    """Suggest how to convert CONTAINS to FULLTEXT (legacy function, now replaced by apply_fulltext_conversion)"""
+    import re
+
     suggestions = []
-    
+
     # Find all CONTAINS patterns
     pattern = r"FOR (\w+) IN (sec_sentences|sec_sections)\s+(.*?)CONTAINS\(LOWER\(\1\.text\),\s*['\"]([^'\"]+)['\"]\)"
     matches = re.findall(pattern, aql_query, re.DOTALL)
-    
+
     for var_name, collection, filters_between, keyword in matches:
         if ' ' not in keyword.strip():
             # Single word - can use FULLTEXT
@@ -693,7 +741,7 @@ Requirement: Create fulltext index first:
   db.collection('{collection}').add_fulltext_index(fields=['text'], min_length=3)
 """
             suggestions.append(suggestion)
-    
+
     return suggestions
 
 
@@ -744,7 +792,7 @@ def execute_planned_query(plan, raise_on_error=False):
             # Apply automatic optimizations
             st.info("🔧 Analyzing optimizations...")
             aql_query, optimizations = optimize_expensive_query(aql_query)
-            
+
             # if optimizations:
             #     with st.expander("⚡ Optimization Suggestions"):
             #         for opt in optimizations:
@@ -754,25 +802,23 @@ def execute_planned_query(plan, raise_on_error=False):
             #                 st.warning(opt)
             #             else:
             #                 st.info(opt)
-            
-            # Show FULLTEXT conversion suggestions
-            fulltext_suggestions = suggest_fulltext_conversion(plan.get("aql_query", ""))
-            if fulltext_suggestions:
-                with st.expander("🚀 FULLTEXT Optimization (10x Faster)"):
-                    for suggestion in fulltext_suggestions:
-                        st.code(suggestion, language="sql")
-            
+
+            # Note: FULLTEXT conversion now happens automatically in Step 2.5 (no manual suggestion needed)
+
             plan["aql_query"] = aql_query
         
         # Step 2: Validate and fix syntax
         aql_query, syntax_errors, required_bind_vars = validate_aql_syntax(aql_query)
-        
+
         if syntax_errors:
             pass
             # st.warning(f"⚠️ Query issues detected and auto-fixed:")
             # for error in syntax_errors:
             #     st.caption(f"  - {error}")
-        
+
+        # Step 2.5: Auto-apply FULLTEXT optimization for SEC queries
+        aql_query = apply_fulltext_conversion(aql_query)
+
         # Update the plan with fixed query
         plan["aql_query"] = aql_query
         

@@ -4,7 +4,43 @@ Last updated: 2026-01-06 with Kalshi support
 """
 
 # =============================================================================
-# SCHEMA DESCRIPTION (Based on actual ArangoDB collections)
+# CRITICAL AQL RULES (Condensed version - only essential syntax rules)
+# =============================================================================
+
+CRITICAL_AQL_RULES = """
+⚠️ CRITICAL AQL SYNTAX RULES ⚠️
+
+1. DATE FUNCTIONS:
+   ✅ DATE_SUBTRACT(DATE_NOW(), 30, "day")
+   ❌ DATE_SUB() - Does not exist in AQL!
+
+2. ORDER OF OPERATIONS:
+   FOR → FILTER → SORT → LIMIT → RETURN
+   (SORT/LIMIT must come BEFORE RETURN)
+
+3. COLLECTION NAMES (case-sensitive):
+   ✅ Award, Company, MarketData, EconomicData
+   ✅ sec_filings, sec_sections, sec_sentences
+   ✅ commodity_positions, prediction_markets_polymarket, prediction_markets_kalshi
+   ❌ awards, companies, market_data
+
+4. CRITICAL FIELD NAMES:
+   Award: award_amount_float (for math), start_date, description_embedding
+   Company: sharesOutstanding, marketCap (camelCase!)
+   MarketData: sma_20, sma_50 (snake_case), targetMeanPrice (camelCase)
+   EconomicData: sandp_500_index, federal_funds_rate
+   SEC: finbert_score, negative_per_1k (NO embeddings on SEC!)
+
+5. SEMANTIC SEARCH:
+   ✅ Award: HAS description_embedding - use COSINE_SIMILARITY
+   ❌ SEC: NO embeddings - use CONTAINS(LOWER(text), 'keyword')
+
+6. ALWAYS ADD LIMIT:
+   Every query must have LIMIT to prevent timeout.
+"""
+
+# =============================================================================
+# FULL SCHEMA DESCRIPTION (Used for reference, not injected into prompts)
 # =============================================================================
 
 SCHEMA_DESCRIPTION = """
