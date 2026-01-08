@@ -143,6 +143,7 @@ EXAMPLE QUERIES (for reference):
 - Semantic query: FOR doc IN Award FILTER doc.description_embedding != null LET sim = COSINE_SIMILARITY(doc.description_embedding, @query_vector) FILTER sim >= 0.7 SORT sim DESC LIMIT 10 RETURN doc
 - SEC sentiment: FOR doc IN sec_sentences FILTER CONTAINS(LOWER(doc.text), @keyword) AND doc.finbert_score < -0.3 LIMIT 20 RETURN doc
 - Date range: FOR doc IN MarketData FILTER doc.ticker == @ticker AND doc.date >= DATE_SUBTRACT(DATE_NOW(), 180, "day") SORT doc.date DESC LIMIT 100 RETURN doc
+- Multi-collection (SEC + Company): FOR filing IN sec_filings FILTER filing.ticker IN @tickers FOR company IN Company FILTER company.ticker == filing.ticker RETURN MERGE(filing, {marketCap: company.marketCap, employees: company.fullTimeEmployees}) LIMIT 50
 
 USER QUESTION: "{question}"{hint_text}
 
@@ -307,12 +308,22 @@ def generate_follow_up_questions(user_question, results, query_plan):
 def validate_aql_syntax(aql_query):
     """Basic syntax validation before execution"""
     errors = []
-    
+
+    # Check for UNION (not supported in AQL) - CRITICAL ERROR
+    if 'UNION' in aql_query.upper():
+        errors.append("❌ CRITICAL: AQL does not support UNION! Use nested FOR loops instead.")
+        raise ValueError("AQL does not support UNION syntax. Use nested FOR loops or MERGE() to combine data from multiple collections.")
+
+    # Check for JOIN (not supported in AQL) - CRITICAL ERROR
+    if re.search(r'\bJOIN\b', aql_query, re.IGNORECASE):
+        errors.append("❌ CRITICAL: AQL does not support JOIN! Use nested FOR loops instead.")
+        raise ValueError("AQL does not support JOIN syntax. Use nested FOR loops to connect data.")
+
     # Check for common typos
     if "compan." in aql_query and "company" in aql_query:
         errors.append("Typo detected: 'compan.' should be 'company.'")
         aql_query = aql_query.replace("compan.", "company.")
-    
+
     # Fix: INTO keyword (doesn't exist in AQL)
     if ' INTO ' in aql_query.upper():
         errors.append("⚠️ AQL syntax error: INTO keyword is not supported")
@@ -320,7 +331,7 @@ def validate_aql_syntax(aql_query):
             st.warning("🔧 Detected invalid INTO syntax. Attempting to rewrite as LET...")
             errors.append("Cannot auto-fix: Query needs manual rewrite using LET or subquery")
             errors.append("Recommendation: Use LET variable = (subquery) instead of RETURN ... INTO")
-    
+
     # Fix: Common collection name mistakes
     replacements = {
         'awards': 'Award',
