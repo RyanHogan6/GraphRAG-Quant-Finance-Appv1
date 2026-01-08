@@ -639,9 +639,10 @@ if (search_button or user_question) and user_question:
     finally:
         execution_time = time.time() - start_time
         
-        # Add to query history
+        # Add to query history (including plan for semantic similarity reuse)
         st.session_state.query_history.append({
             'question': user_question,
+            'plan': query_plan,  # Store plan for semantic similarity
             'result_count': len(results) if results else 0,
             'execution_time': execution_time,
             'timestamp': datetime.now().isoformat()

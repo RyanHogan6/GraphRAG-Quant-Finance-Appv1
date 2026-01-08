@@ -8,7 +8,8 @@ import streamlit as st
 import re
 from datetime import datetime
 import database as arango_db
-import config as cfg 
+import config as cfg
+import hashlib 
 
 
 def preprocess_query(question):
@@ -61,6 +62,50 @@ def get_query_embedding(text):
         return None
 
 
+def check_similar_previous_question(question):
+    """Check if this question is very similar to a recent one"""
+    if 'query_history' not in st.session_state or not st.session_state.query_history:
+        return None
+
+    # Check last 5 queries
+    recent_queries = st.session_state.query_history[-5:]
+
+    try:
+        # Get embedding for current question
+        current_embedding = get_query_embedding(question)
+        if not current_embedding:
+            return None
+
+        # Check similarity with recent queries
+        for past_query in reversed(recent_queries):
+            if 'question' not in past_query or 'plan' not in past_query:
+                continue
+
+            past_question = past_query['question']
+            past_embedding = get_query_embedding(past_question)
+
+            if not past_embedding:
+                continue
+
+            # Calculate cosine similarity
+            from numpy import dot
+            from numpy.linalg import norm
+
+            similarity = dot(current_embedding, past_embedding) / (norm(current_embedding) * norm(past_embedding))
+
+            # If >95% similar, reuse the plan
+            if similarity > 0.95:
+                st.info(f"💡 This question is very similar to: \"{past_question}\"")
+                st.caption("Reusing previous query plan...")
+                return past_query['plan']
+
+    except Exception as e:
+        # If similarity check fails, just proceed normally
+        pass
+
+    return None
+
+
 def plan_query_with_llm(question, intent_hint=None, use_local=False):
     """Generate query plan from natural language question"""
     # Try rules first
@@ -68,7 +113,12 @@ def plan_query_with_llm(question, intent_hint=None, use_local=False):
     if rule_result:
         st.info("✓ Handled by rule (no LLM call)")
         return rule_result
-    
+
+    # Check if similar question was asked recently
+    similar_plan = check_similar_previous_question(question)
+    if similar_plan:
+        return similar_plan
+
     current_date = datetime.now().strftime("%Y-%m-%d")
     
     # Add intent hint to prompt
@@ -745,13 +795,24 @@ Requirement: Create fulltext index first:
     return suggestions
 
 
-def execute_planned_query(plan, raise_on_error=False):
-    """Execute query with timeout protection and optimization
+@st.cache_data(ttl=3600, show_spinner=False)  # Cache for 1 hour
+def _execute_query_cached(aql_query, bind_vars_json, raise_on_error=False):
+    """Internal cached query execution - caches by query + bind vars"""
+    # Deserialize bind vars
+    bind_vars = json.loads(bind_vars_json)
 
-    Args:
-        plan: Query plan dict with aql_query and bind_vars
-        raise_on_error: If True, re-raises exceptions for retry logic. If False, returns [] on error.
-    """
+    # Reconstruct plan for actual execution
+    plan = {
+        "aql_query": aql_query,
+        "bind_vars": bind_vars
+    }
+
+    # Execute without caching to avoid recursion
+    return _execute_query_internal(plan, raise_on_error)
+
+
+def _execute_query_internal(plan, raise_on_error=False):
+    """Internal query execution (no caching) - used by cached wrapper"""
     if not plan or 'aql_query' not in plan:
         if raise_on_error:
             raise ValueError("Invalid query plan: missing aql_query")
@@ -782,26 +843,70 @@ def execute_planned_query(plan, raise_on_error=False):
 
         # Step 1: Estimate query cost
         cost_score, cost_issues = estimate_query_cost(aql_query)
-        
-        if cost_score > 70:
+
+        # COMPLEXITY GATE: Reject queries that are too expensive even after optimization
+        MAX_ACCEPTABLE_COST = 85
+
+        if cost_score > MAX_ACCEPTABLE_COST:
+            # Try optimization first
+            st.warning(f"⚠️ Very expensive query detected (cost score: {cost_score}/150)")
+            st.info("🔧 Attempting automatic optimization...")
+
+            aql_query_optimized, optimizations = optimize_expensive_query(aql_query)
+            aql_query_optimized = apply_fulltext_conversion(aql_query_optimized)
+
+            # Re-estimate cost after optimization
+            cost_after_optimization, _ = estimate_query_cost(aql_query_optimized)
+
+            if cost_after_optimization > MAX_ACCEPTABLE_COST:
+                # Still too expensive, reject and provide guidance
+                if raise_on_error:
+                    raise ValueError(f"Query too complex (cost: {cost_after_optimization})")
+
+                st.error("❌ Query too complex to execute safely")
+                with st.expander("💡 How to Simplify Your Query"):
+                    st.markdown("""
+**Your query is too expensive and may timeout. Please try:**
+
+1. **Add a specific date range:**
+   - Instead of: "all awards"
+   - Try: "awards in the last 6 months"
+
+2. **Filter by ticker:**
+   - Instead of: "companies with negative sentiment"
+   - Try: "AAPL, MSFT, GOOGL with negative sentiment"
+
+3. **Limit result count:**
+   - Add "top 10" or "show me 20 results"
+
+4. **Break into smaller questions:**
+   - Instead of: "cybersecurity risks + financials + sentiment"
+   - Try each separately
+
+**Cost score:** {cost_after_optimization}/150 (max: {MAX_ACCEPTABLE_COST})
+                    """)
+
+                with st.expander("🐛 Query Details"):
+                    st.code(aql_query, language="sql")
+                    if cost_issues:
+                        st.write("**Issues found:**")
+                        for issue in cost_issues:
+                            st.caption(f"  - {issue}")
+
+                return []
+
+            # Optimization succeeded, use optimized query
+            aql_query = aql_query_optimized
+            st.success(f"✅ Optimized to acceptable cost ({cost_after_optimization}/150)")
+            plan["aql_query"] = aql_query
+            cost_score = cost_after_optimization
+
+        elif cost_score > 70:
             st.warning(f"⚠️ Expensive query detected (cost score: {cost_score}/150)")
-            # with st.expander("💡 Performance Issues Detected"):
-            #     for issue in cost_issues:
-            #         st.caption(f"  - {issue}")
-            
+
             # Apply automatic optimizations
             st.info("🔧 Analyzing optimizations...")
             aql_query, optimizations = optimize_expensive_query(aql_query)
-
-            # if optimizations:
-            #     with st.expander("⚡ Optimization Suggestions"):
-            #         for opt in optimizations:
-            #             if opt.startswith("✅"):
-            #                 st.success(opt)
-            #             elif opt.startswith("⚠️") or opt.startswith("❌"):
-            #                 st.warning(opt)
-            #             else:
-            #                 st.info(opt)
 
             # Note: FULLTEXT conversion now happens automatically in Step 2.5 (no manual suggestion needed)
 
@@ -923,6 +1028,52 @@ def execute_planned_query(plan, raise_on_error=False):
 #                 st.json(plan.get("bind_vars", {}))
 
         return []
+
+
+def execute_planned_query(plan, raise_on_error=False):
+    """Execute query with caching and timeout protection
+
+    Args:
+        plan: Query plan dict with aql_query and bind_vars
+        raise_on_error: If True, re-raises exceptions for retry logic
+
+    Returns:
+        List of query results (or empty list on error)
+    """
+    aql_query = plan.get("aql_query", "")
+    bind_vars = plan.get("bind_vars", {})
+
+    # Serialize bind_vars for caching (must be JSON-serializable)
+    # Remove non-serializable items (like query_vector which is a list)
+    serializable_bind_vars = {}
+    for k, v in bind_vars.items():
+        if isinstance(v, (str, int, float, bool, type(None))):
+            serializable_bind_vars[k] = v
+        elif isinstance(v, list) and k != "query_vector":
+            serializable_bind_vars[k] = v
+
+    bind_vars_json = json.dumps(serializable_bind_vars, sort_keys=True)
+
+    # Check if we can use cache (only for non-embedding queries)
+    if plan.get("requires_embedding") or "query_vector" in bind_vars:
+        # Skip cache for semantic search (embedding vectors not serializable)
+        return _execute_query_internal(plan, raise_on_error)
+
+    # Use cached execution
+    try:
+        # Show cache hit indicator
+        cache_key = hashlib.md5(f"{aql_query}{bind_vars_json}".encode()).hexdigest()[:8]
+        results = _execute_query_cached(aql_query, bind_vars_json, raise_on_error)
+
+        # Indicate cache hit (only if results exist)
+        if results:
+            st.caption(f"⚡ Results retrieved from cache (key: {cache_key})")
+
+        return results
+    except Exception as e:
+        # If caching fails, fall back to direct execution
+        st.warning(f"Cache error, executing directly: {str(e)}")
+        return _execute_query_internal(plan, raise_on_error)
 
 
 def format_results_for_llm(results, query_plan=None):
