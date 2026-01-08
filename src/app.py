@@ -159,13 +159,46 @@ st.markdown("""
         color: #d4af37;
     }
 
-    /* Data tables - terminal style */
+    /* Data tables - enhanced contrast terminal style */
     [data-testid="stDataFrame"] {
-        background: rgba(0, 0, 0, 0.4);
-        border: 1px solid rgba(212, 175, 55, 0.2);
+        background: rgba(0, 0, 0, 0.6);
+        border: 1px solid rgba(212, 175, 55, 0.3);
         border-radius: 4px;
         font-family: 'IBM Plex Mono', monospace;
-        font-size: 0.85rem;
+        font-size: 0.8rem;
+    }
+
+    /* Table headers */
+    [data-testid="stDataFrame"] thead tr {
+        background: rgba(212, 175, 55, 0.15) !important;
+        border-bottom: 2px solid rgba(212, 175, 55, 0.4);
+    }
+
+    [data-testid="stDataFrame"] thead th {
+        color: #d4af37 !important;
+        font-weight: 500 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        padding: 12px 8px !important;
+        font-size: 0.75rem !important;
+        border-right: 1px solid rgba(212, 175, 55, 0.1);
+    }
+
+    /* Table cells */
+    [data-testid="stDataFrame"] tbody td {
+        color: #cccccc !important;
+        padding: 10px 8px !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.05);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* Zebra striping */
+    [data-testid="stDataFrame"] tbody tr:nth-child(even) {
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    [data-testid="stDataFrame"] tbody tr:hover {
+        background: rgba(212, 175, 55, 0.08) !important;
     }
 
     /* Metrics */
