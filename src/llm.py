@@ -143,7 +143,7 @@ EXAMPLE QUERIES (for reference):
 - Semantic query: FOR doc IN Award FILTER doc.description_embedding != null LET sim = COSINE_SIMILARITY(doc.description_embedding, @query_vector) FILTER sim >= 0.7 SORT sim DESC LIMIT 10 RETURN doc
 - SEC sentiment: FOR doc IN sec_sentences FILTER CONTAINS(LOWER(doc.text), @keyword) AND doc.finbert_score < -0.3 LIMIT 20 RETURN doc
 - Date range: FOR doc IN MarketData FILTER doc.ticker == @ticker AND doc.date >= DATE_SUBTRACT(DATE_NOW(), 180, "day") SORT doc.date DESC LIMIT 100 RETURN doc
-- Multi-collection (SEC + Company): FOR filing IN sec_filings FILTER filing.ticker IN @tickers FOR company IN Company FILTER company.ticker == filing.ticker RETURN MERGE(filing, {marketCap: company.marketCap, employees: company.fullTimeEmployees}) LIMIT 50
+- Multi-collection (SEC + Company): FOR filing IN sec_filings FILTER filing.ticker IN @tickers FOR company IN Company FILTER company.ticker == filing.ticker RETURN MERGE(filing, {{marketCap: company.marketCap, employees: company.fullTimeEmployees}}) LIMIT 50
 
 USER QUESTION: "{question}"{hint_text}
 
