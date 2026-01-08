@@ -18,24 +18,48 @@ CRITICAL_AQL_RULES = """
    FOR → FILTER → SORT → LIMIT → RETURN
    (SORT/LIMIT must come BEFORE RETURN)
 
-3. COLLECTION NAMES (case-sensitive):
+   ⚠️ For NESTED FOR loops:
+   FOR outer IN collection
+     FILTER ...
+     LIMIT ...    ← LIMIT for outer loop goes HERE
+     FOR inner IN collection2
+       FILTER ...
+       RETURN ...  ← NOT after this!
+
+3. NO UNION/JOIN - Use Nested FOR Loops or MERGE:
+   ❌ UNION ALL - Does not exist in AQL!
+   ❌ JOIN - Use nested FOR loops instead
+   ✅ Multiple FOR loops to combine data
+   ✅ MERGE() to combine objects
+
+   Example (combining SEC + Company data):
+   FOR filing IN sec_filings
+     FILTER filing.ticker IN ["RTX", "LMT", "BA"]
+     LIMIT 50
+     FOR company IN Company
+       FILTER company.ticker == filing.ticker
+       RETURN MERGE(filing, {marketCap: company.marketCap, employees: company.fullTimeEmployees})
+
+   ⚠️ CRITICAL: In nested FOR loops, LIMIT must come BEFORE the inner FOR loop!
+
+4. COLLECTION NAMES (case-sensitive):
    ✅ Award, Company, MarketData, EconomicData
    ✅ sec_filings, sec_sections, sec_sentences
    ✅ commodity_positions, prediction_markets_polymarket, prediction_markets_kalshi
    ❌ awards, companies, market_data
 
-4. CRITICAL FIELD NAMES:
+5. CRITICAL FIELD NAMES:
    Award: award_amount_float (for math), start_date, description_embedding
-   Company: sharesOutstanding, marketCap (camelCase!)
+   Company: sharesOutstanding, marketCap, fullTimeEmployees (camelCase!)
    MarketData: sma_20, sma_50 (snake_case), targetMeanPrice (camelCase)
    EconomicData: sandp_500_index, federal_funds_rate
-   SEC: finbert_score, negative_per_1k (NO embeddings on SEC!)
+   SEC: finbert_score, avg_negative, avg_uncertainty (NO embeddings on SEC!)
 
-5. SEMANTIC SEARCH:
+6. SEMANTIC SEARCH:
    ✅ Award: HAS description_embedding - use COSINE_SIMILARITY
    ❌ SEC: NO embeddings - use CONTAINS(LOWER(text), 'keyword')
 
-6. ALWAYS ADD LIMIT:
+7. ALWAYS ADD LIMIT:
    Every query must have LIMIT to prevent timeout.
 """
 
