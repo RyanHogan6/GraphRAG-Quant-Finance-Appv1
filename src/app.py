@@ -9,7 +9,7 @@ from query_logger import get_logger
 from datetime import datetime
 import torch
 
-st.set_page_config(page_title="GraphRAG", page_icon="📊", layout="wide")
+st.set_page_config(page_title="GraphRAG", page_icon="▓", layout="centered")
 
 # Initialize session state
 if 'conversation_history' not in st.session_state:
@@ -19,17 +19,20 @@ if 'query_history' not in st.session_state:
 if 'current_question' not in st.session_state:
     st.session_state.current_question = ""
 
-# Custom CSS - Minimal ChatGPT-like design
+# Custom CSS - Vaporwave/Hacker aesthetic
 st.markdown("""
     <style>
-    /* Clean dark background */
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&display=swap');
+
+    /* Dark hacker background */
     .stApp {
         background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+        font-family: 'IBM Plex Mono', monospace;
     }
 
     .block-container {
-        padding-top: 4rem;
-        max-width: 800px;
+        padding-top: 5rem;
+        max-width: 700px;
     }
 
     /* Hide everything */
@@ -39,89 +42,168 @@ st.markdown("""
     [data-testid="stSidebar"] {display: none;}
     [data-testid="stElementToolbar"] {display: none;}
 
-    /* Centered header */
+    /* Centered header - sleek monospace with subtle glow */
     h1 {
         text-align: center;
-        font-size: 2.5rem;
-        font-weight: 600;
+        font-size: 2.2rem;
+        font-weight: 300;
         color: #ffffff;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.3rem;
+        letter-spacing: 0.15em;
+        font-family: 'IBM Plex Mono', monospace;
+        text-transform: uppercase;
+        text-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
     }
 
-    /* Tabs - text only with underline */
+    /* Tabs - minimal text with gold underline */
     .stTabs [data-baseweb="tab-list"] {
         gap: 0;
         background: transparent;
         padding: 0;
         justify-content: center;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         margin-bottom: 3rem;
     }
 
     .stTabs [data-baseweb="tab"] {
         background: transparent;
         border: none;
-        color: #666666;
-        font-weight: 400;
-        padding: 12px 24px;
-        font-size: 0.95rem;
+        color: #555555;
+        font-weight: 300;
+        padding: 10px 20px;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-family: 'IBM Plex Mono', monospace;
     }
 
     .stTabs [data-baseweb="tab"]:hover {
-        color: #999999;
+        color: #888888;
     }
 
     .stTabs [aria-selected="true"] {
         background: transparent;
         border: none;
-        border-bottom: 2px solid #d4af37;
+        border-bottom: 1px solid #d4af37;
         color: #d4af37;
     }
 
-    /* Large centered search input */
-    .stTextInput input {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: #ffffff;
-        border-radius: 12px;
-        padding: 16px 20px;
-        font-size: 1rem;
+    /* Search input - hacker terminal style */
+    .stTextInput input, .stSelectbox [data-baseweb="select"] > div {
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(212, 175, 55, 0.2);
+        color: #d4af37;
+        border-radius: 4px;
+        padding: 14px 16px;
+        font-size: 0.9rem;
+        font-family: 'IBM Plex Mono', monospace;
+        font-weight: 300;
     }
 
     .stTextInput input:focus {
-        border-color: rgba(212, 175, 55, 0.4);
-        box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+        border-color: rgba(212, 175, 55, 0.5);
+        box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.2);
+        outline: none;
     }
 
     .stTextInput input::placeholder {
-        color: #555555;
+        color: #444444;
+        font-family: 'IBM Plex Mono', monospace;
     }
 
-    /* Buttons - gold accent */
+    /* Selectbox styling */
+    .stSelectbox {
+        margin-bottom: 1rem;
+    }
+
+    .stSelectbox label {
+        font-size: 0.75rem;
+        color: #666666;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .stSelectbox [data-baseweb="select"] {
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(212, 175, 55, 0.2);
+    }
+
+    /* Text input spacing */
+    .stTextInput {
+        margin-bottom: 1rem;
+    }
+
+    /* Search button - prominent gold */
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(90deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.25) 100%);
+        border: 1px solid rgba(212, 175, 55, 0.5);
+        color: #d4af37;
+        border-radius: 4px;
+        font-weight: 400;
+        padding: 12px 48px;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        font-family: 'IBM Plex Mono', monospace;
+        width: 100%;
+        transition: all 0.2s ease;
+    }
+
+    .stButton > button[kind="primary"]:hover {
+        background: linear-gradient(90deg, rgba(212, 175, 55, 0.25) 0%, rgba(212, 175, 55, 0.35) 100%);
+        border-color: #d4af37;
+        box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+    }
+
+    /* Regular buttons */
     .stButton > button {
         background: transparent;
-        border: 1px solid rgba(212, 175, 55, 0.3);
-        color: #d4af37;
-        border-radius: 8px;
-        font-weight: 400;
-        padding: 8px 20px;
+        border: 1px solid rgba(212, 175, 55, 0.2);
+        color: #888888;
+        border-radius: 4px;
+        font-weight: 300;
+        padding: 8px 16px;
+        font-size: 0.8rem;
+        font-family: 'IBM Plex Mono', monospace;
     }
 
     .stButton > button:hover {
-        background: rgba(212, 175, 55, 0.1);
-        border-color: rgba(212, 175, 55, 0.5);
+        background: rgba(212, 175, 55, 0.05);
+        border-color: rgba(212, 175, 55, 0.4);
+        color: #d4af37;
     }
 
-    /* Data tables */
+    /* Data tables - terminal style */
     [data-testid="stDataFrame"] {
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(212, 175, 55, 0.2);
+        border-radius: 4px;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 0.85rem;
     }
 
     /* Metrics */
     [data-testid="stMetricValue"] {
         color: #d4af37;
+        font-family: 'IBM Plex Mono', monospace;
+        font-weight: 300;
+    }
+
+    /* Captions */
+    .stCaption {
+        color: #555555;
+        font-size: 0.75rem;
+        font-family: 'IBM Plex Mono', monospace;
+    }
+
+    /* Alerts */
+    .stAlert {
+        background: rgba(0, 0, 0, 0.3);
+        border-left: 2px solid #d4af37;
+        border-radius: 4px;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 0.85rem;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -134,70 +216,63 @@ tab1, tab2 = st.tabs(["AI Query", "Database"])
 
 # ==================== AI QUERY TAB ====================
 with tab1:
-    # Main search input
-    user_question = st.text_input(
-        "query",
-        placeholder="Ask anything about stocks, SEC filings, or government contracts...",
+    # Sample questions for dropdown
+    sample_questions = [
+        "What was Tesla's closing price on 2020-06-15?",
+        "What was AAPL's closing price on January 6th, 2020?",
+        "What was RTX's EBITDA value on March 9th, 2017?",
+        "During the month of April 2018 how did AAPL's stock perform?",
+        "Which tech companies have the most negative risk sentiment?",
+        "Show me cybersecurity risks mentioned in SEC filings",
+        "Show top 5 awards for companies with positive SEC sentiment"
+    ]
+
+    # Dropdown to select sample question
+    st.caption("SELECT SAMPLE OR TYPE BELOW")
+    selected_sample = st.selectbox(
+        "sample",
+        options=[""] + sample_questions,
+        format_func=lambda x: "Choose a sample question..." if x == "" else x,
         label_visibility="collapsed",
-        key="main_search"
+        key="sample_selector"
     )
 
-    # Sample questions
-    if not user_question:
-        st.caption("Example questions:")
-        col1, col2 = st.columns(2)
+    # Text input for custom query
+    user_question = st.text_input(
+        "custom",
+        placeholder="Ask anything about stocks, SEC filings, or government contracts...",
+        value=selected_sample if selected_sample else "",
+        label_visibility="collapsed",
+        key="custom_query"
+    )
 
-        samples_left = [
-            "Tesla closing price on 2020-06-15",
-            "Top defense contracts in 2024",
-            "Cybersecurity risks in SEC filings"
-        ]
-
-        samples_right = [
-            "AAPL EBITDA in March 2017",
-            "Tech companies with negative sentiment",
-            "Government contracts with positive sentiment"
-        ]
-
-        with col1:
-            for q in samples_left:
-                if st.button(q, key=f"s1_{q[:15]}", use_container_width=True):
-                    st.session_state.current_question = q
-                    st.rerun()
-
-        with col2:
-            for q in samples_right:
-                if st.button(q, key=f"s2_{q[:15]}", use_container_width=True):
-                    st.session_state.current_question = q
-                    st.rerun()
+    # Single search button
+    search_clicked = st.button("Search", type="primary", use_container_width=True, disabled=not user_question)
 
     # Query execution
-    if user_question or st.session_state.current_question:
-        if st.session_state.current_question and not user_question:
-            user_question = st.session_state.current_question
-
+    if search_clicked and user_question:
         logger = get_logger()
         start_time = time.time()
 
         try:
             # Step 1: Intent check
-            with st.spinner("Understanding query..."):
+            with st.spinner("[ ANALYZING QUERY ]"):
                 intent = llm.quick_intent_check(user_question, use_local=False)
 
             # Step 2: Generate query plan
-            with st.spinner("Planning query..."):
+            with st.spinner("[ GENERATING AQL ]"):
                 query_plan = llm.plan_query_with_llm(user_question, intent_hint=intent, use_local=False)
 
             # Step 3: Execute
-            with st.spinner("Fetching results..."):
+            with st.spinner("[ EXECUTING ]"):
                 results, error = llm.execute_with_retry(query_plan, max_retries=2)
 
             execution_time = time.time() - start_time
 
             if error:
-                st.error(f"Query failed: {error}")
+                st.error(f"ERROR: {error}")
             elif results:
-                st.success(f"Found {len(results)} results ({execution_time:.1f}s)")
+                st.success(f"✓ {len(results)} results | {execution_time:.2f}s")
 
                 # Display results
                 df = pd.DataFrame(results)
@@ -213,14 +288,11 @@ with tab1:
                     'execution_time': execution_time,
                     'timestamp': datetime.now().isoformat()
                 })
-
-                # Clear current question
-                st.session_state.current_question = ""
             else:
                 st.warning("No results found")
 
         except Exception as e:
-            st.error(f"Error: {str(e)}")
+            st.error(f"ERROR: {str(e)}")
 
 
 # ==================== DATABASE TAB ====================
