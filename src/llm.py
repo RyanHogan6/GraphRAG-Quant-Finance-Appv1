@@ -701,16 +701,28 @@ def execute_planned_query(plan):
     """Execute query with timeout protection and optimization"""
     if not plan or 'aql_query' not in plan:
         return []
-    
+
     db = arango_db.get_arango_connection()
     if not db:
         return []
-    
+
     try:
         aql_query = plan.get("aql_query", "")
         bind_vars = plan.get("bind_vars", {})
-        
-        # Step 1: Estimate query cost BEFORE validation
+
+        # Step 0: Quick validation of bind variables (fail fast before expensive operations)
+        # Extract required bind variables from query (simple regex check)
+        required_bind_vars_quick = set(re.findall(r'@(\w+)', aql_query))
+        # Exclude query_vector since it's handled specially later
+        required_bind_vars_quick.discard('query_vector')
+
+        missing_vars_quick = required_bind_vars_quick - set(bind_vars.keys())
+        if missing_vars_quick and not plan.get("requires_embedding"):
+            # Fail fast if basic bind vars are missing (before cost estimation)
+            st.error(f"❌ Missing required bind variables: {missing_vars_quick}")
+            st.caption("Query plan is incomplete. This is likely an LLM generation error.")
+            return []
+
         # Step 1: Estimate query cost
         cost_score, cost_issues = estimate_query_cost(aql_query)
         
@@ -784,16 +796,15 @@ def execute_planned_query(plan):
             return []
         
         # Step 4: Execute with timeout protection
-        # Step 4: Execute with timeout protection
-        timeout = min(60 + (cost_score // 10), 360)  # ❌ Capped at 90 seconds
+        # Calculate timeout based on query cost (higher cost = longer timeout)
+        timeout = min(60 + (cost_score // 10), cfg.QUERY_TIMEOUT)  # Uses config.QUERY_TIMEOUT (360s)
 
-        
         with st.spinner(f"Executing query... (timeout: {timeout}s)"):
             cursor = db.aql.execute(
                 aql_query,
                 bind_vars=bind_vars,
-                ttl=180,
-                max_runtime=300.0,
+                ttl=timeout + 10,  # TTL slightly longer than max_runtime
+                max_runtime=float(timeout),  # Use calculated timeout instead of hardcoded 300.0
                 batch_size=5000,
                 optimizer_rules=["+all"]
             )
@@ -814,42 +825,42 @@ def execute_planned_query(plan):
         # Check if timeout error
         if "Read timed out" in error_msg or "timeout" in error_msg.lower():
             st.error("⏱️ Query timed out (took longer than 60 seconds)")
-            with st.expander("💡 How to Fix Timeout Issues"):
-                st.markdown("""
-**Your query is too expensive. Try these fixes:**
+#             with st.expander("💡 How to Fix Timeout Issues"):
+#                 st.markdown("""
+# **Your query is too expensive. Try these fixes:**
 
-1. **Add more specific filters:**
-   - Instead of: "all cybersecurity risks"
-   - Try: "cybersecurity risks in 2024" or "cybersecurity risks for AAPL"
+# 1. **Add more specific filters:**
+#    - Instead of: "all cybersecurity risks"
+#    - Try: "cybersecurity risks in 2024" or "cybersecurity risks for AAPL"
 
-2. **Limit results:**
-   - Add "top 10" or "show me 20" to your question
+# 2. **Limit results:**
+#    - Add "top 10" or "show me 20" to your question
 
-3. **Use tickers instead of concepts:**
-   - Instead of: "tech companies with negative sentiment"
-   - Try: "AAPL, MSFT, GOOGL with negative sentiment"
+# 3. **Use tickers instead of concepts:**
+#    - Instead of: "tech companies with negative sentiment"
+#    - Try: "AAPL, MSFT, GOOGL with negative sentiment"
 
-4. **Break into simpler questions:**
-   - Instead of: "cybersecurity risks + cash flow + EPS"
-   - Try: "Which companies mention cybersecurity risks?" (then ask about financials separately)
-                """)
-            with st.expander("🐛 Debug Query"):
-                st.code(plan.get("aql_query", ""), language="sql")
-                st.json(plan.get("bind_vars", {}))
+# 4. **Break into simpler questions:**
+#    - Instead of: "cybersecurity risks + cash flow + EPS"
+#    - Try: "Which companies mention cybersecurity risks?" (then ask about financials separately)
+#                 """)
+#             with st.expander("🐛 Debug Query"):
+#                 st.code(plan.get("aql_query", ""), language="sql")
+#                 st.json(plan.get("bind_vars", {}))
             
-            # Show cost analysis
-            cost, issues = estimate_query_cost(plan.get("aql_query", ""))
-            st.write(f"**Query Cost Score:** {cost}/150")
-            if issues:
-                st.write("**Issues:**")
-                for issue in issues:
-                    st.caption(f"  - {issue}")
-        else:
-            # Other error
-            st.error(f"Query execution error: {error_msg}")
-            with st.expander("🐛 Debug Query"):
-                st.code(plan.get("aql_query", ""), language="sql")
-                st.json(plan.get("bind_vars", {}))
+#             # Show cost analysis
+#             cost, issues = estimate_query_cost(plan.get("aql_query", ""))
+#             st.write(f"**Query Cost Score:** {cost}/150")
+#             if issues:
+#                 st.write("**Issues:**")
+#                 for issue in issues:
+#                     st.caption(f"  - {issue}")
+#         else:
+#             # Other error
+#             st.error(f"Query execution error: {error_msg}")
+#             with st.expander("🐛 Debug Query"):
+#                 st.code(plan.get("aql_query", ""), language="sql")
+#                 st.json(plan.get("bind_vars", {}))
         
         return []
 
