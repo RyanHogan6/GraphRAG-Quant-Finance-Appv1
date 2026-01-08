@@ -94,11 +94,11 @@ st.markdown("""
         border: 1px solid rgba(212, 175, 55, 0.2);
         color: #d4af37;
         border-radius: 4px;
-        padding: 10px 14px;
-        font-size: 0.85rem;
+        padding: 6px 12px;
+        font-size: 0.8rem;
         font-family: 'IBM Plex Mono', monospace;
         font-weight: 300;
-        height: 38px;
+        height: 32px;
     }
 
     .stTextInput input:focus {
@@ -124,14 +124,14 @@ st.markdown("""
         color: #d4af37;
         border-radius: 4px;
         font-weight: 400;
-        padding: 10px 32px;
-        font-size: 0.8rem;
+        padding: 6px 24px;
+        font-size: 0.75rem;
         text-transform: uppercase;
         letter-spacing: 0.15em;
         font-family: 'IBM Plex Mono', monospace;
         width: 100%;
         transition: all 0.2s ease;
-        height: 38px;
+        height: 32px;
     }
 
     .stButton > button[kind="primary"]:hover {
@@ -211,29 +211,6 @@ with tab1:
 
     # Single search button
     search_clicked = st.button("Search", type="primary", use_container_width=True, disabled=not user_question)
-
-    # Show sample questions as small buttons below
-    if not user_question and not search_clicked:
-        st.caption("TRY:")
-        sample_questions = [
-            "Tesla closing price on 2020-06-15",
-            "AAPL EBITDA in March 2017",
-            "Tech companies with negative sentiment",
-            "Cybersecurity risks in SEC filings"
-        ]
-
-        cols = st.columns(2)
-        for i, q in enumerate(sample_questions):
-            with cols[i % 2]:
-                if st.button(q, key=f"sample_{i}", use_container_width=True):
-                    st.session_state.current_question = q
-                    st.rerun()
-
-    # Handle sample question clicks
-    if st.session_state.current_question and not user_question:
-        user_question = st.session_state.current_question
-        search_clicked = True
-        st.session_state.current_question = ""
 
     # Query execution
     if search_clicked and user_question:
