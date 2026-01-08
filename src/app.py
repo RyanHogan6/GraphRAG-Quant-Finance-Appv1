@@ -88,16 +88,17 @@ st.markdown("""
         color: #d4af37;
     }
 
-    /* Search input - hacker terminal style */
-    .stTextInput input, .stSelectbox [data-baseweb="select"] > div {
+    /* Search input - compact terminal style */
+    .stTextInput input {
         background: rgba(0, 0, 0, 0.4);
         border: 1px solid rgba(212, 175, 55, 0.2);
         color: #d4af37;
         border-radius: 4px;
-        padding: 14px 16px;
-        font-size: 0.9rem;
+        padding: 10px 14px;
+        font-size: 0.85rem;
         font-family: 'IBM Plex Mono', monospace;
         font-weight: 300;
+        height: 38px;
     }
 
     .stTextInput input:focus {
@@ -111,43 +112,26 @@ st.markdown("""
         font-family: 'IBM Plex Mono', monospace;
     }
 
-    /* Selectbox styling */
-    .stSelectbox {
-        margin-bottom: 1rem;
-    }
-
-    .stSelectbox label {
-        font-size: 0.75rem;
-        color: #666666;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        font-family: 'IBM Plex Mono', monospace;
-    }
-
-    .stSelectbox [data-baseweb="select"] {
-        background: rgba(0, 0, 0, 0.4);
-        border: 1px solid rgba(212, 175, 55, 0.2);
-    }
-
     /* Text input spacing */
     .stTextInput {
         margin-bottom: 1rem;
     }
 
-    /* Search button - prominent gold */
+    /* Search button - compact gold */
     .stButton > button[kind="primary"] {
         background: linear-gradient(90deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.25) 100%);
         border: 1px solid rgba(212, 175, 55, 0.5);
         color: #d4af37;
         border-radius: 4px;
         font-weight: 400;
-        padding: 12px 48px;
-        font-size: 0.85rem;
+        padding: 10px 32px;
+        font-size: 0.8rem;
         text-transform: uppercase;
         letter-spacing: 0.15em;
         font-family: 'IBM Plex Mono', monospace;
         width: 100%;
         transition: all 0.2s ease;
+        height: 38px;
     }
 
     .stButton > button[kind="primary"]:hover {
@@ -156,21 +140,22 @@ st.markdown("""
         box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
     }
 
-    /* Regular buttons */
+    /* Regular buttons - compact sample questions */
     .stButton > button {
         background: transparent;
-        border: 1px solid rgba(212, 175, 55, 0.2);
-        color: #888888;
+        border: 1px solid rgba(212, 175, 55, 0.15);
+        color: #666666;
         border-radius: 4px;
         font-weight: 300;
-        padding: 8px 16px;
-        font-size: 0.8rem;
+        padding: 6px 12px;
+        font-size: 0.75rem;
         font-family: 'IBM Plex Mono', monospace;
+        height: 32px;
     }
 
     .stButton > button:hover {
         background: rgba(212, 175, 55, 0.05);
-        border-color: rgba(212, 175, 55, 0.4);
+        border-color: rgba(212, 175, 55, 0.3);
         color: #d4af37;
     }
 
@@ -216,38 +201,39 @@ tab1, tab2 = st.tabs(["AI Query", "Database"])
 
 # ==================== AI QUERY TAB ====================
 with tab1:
-    # Sample questions for dropdown
-    sample_questions = [
-        "What was Tesla's closing price on 2020-06-15?",
-        "What was AAPL's closing price on January 6th, 2020?",
-        "What was RTX's EBITDA value on March 9th, 2017?",
-        "During the month of April 2018 how did AAPL's stock perform?",
-        "Which tech companies have the most negative risk sentiment?",
-        "Show me cybersecurity risks mentioned in SEC filings",
-        "Show top 5 awards for companies with positive SEC sentiment"
-    ]
-
-    # Dropdown to select sample question
-    st.caption("SELECT SAMPLE OR TYPE BELOW")
-    selected_sample = st.selectbox(
-        "sample",
-        options=[""] + sample_questions,
-        format_func=lambda x: "Choose a sample question..." if x == "" else x,
-        label_visibility="collapsed",
-        key="sample_selector"
-    )
-
-    # Text input for custom query
+    # Single compact search bar
     user_question = st.text_input(
-        "custom",
-        placeholder="Ask anything about stocks, SEC filings, or government contracts...",
-        value=selected_sample if selected_sample else "",
+        "query",
+        placeholder="Ask about stocks, SEC filings, government contracts...",
         label_visibility="collapsed",
-        key="custom_query"
+        key="main_query"
     )
 
     # Single search button
     search_clicked = st.button("Search", type="primary", use_container_width=True, disabled=not user_question)
+
+    # Show sample questions as small buttons below
+    if not user_question and not search_clicked:
+        st.caption("TRY:")
+        sample_questions = [
+            "Tesla closing price on 2020-06-15",
+            "AAPL EBITDA in March 2017",
+            "Tech companies with negative sentiment",
+            "Cybersecurity risks in SEC filings"
+        ]
+
+        cols = st.columns(2)
+        for i, q in enumerate(sample_questions):
+            with cols[i % 2]:
+                if st.button(q, key=f"sample_{i}", use_container_width=True):
+                    st.session_state.current_question = q
+                    st.rerun()
+
+    # Handle sample question clicks
+    if st.session_state.current_question and not user_question:
+        user_question = st.session_state.current_question
+        search_clicked = True
+        st.session_state.current_question = ""
 
     # Query execution
     if search_clicked and user_question:
