@@ -407,7 +407,7 @@ def execute_with_retry(plan, max_retries=2):
     """Execute query with self-correction"""
     for attempt in range(max_retries + 1):
         try:
-            results = execute_planned_query(plan)
+            results = execute_planned_query(plan, raise_on_error=True)  # Enable exception raising
             return results, None  # Success
         except Exception as e:
             error_msg = str(e)
@@ -697,13 +697,22 @@ Requirement: Create fulltext index first:
     return suggestions
 
 
-def execute_planned_query(plan):
-    """Execute query with timeout protection and optimization"""
+def execute_planned_query(plan, raise_on_error=False):
+    """Execute query with timeout protection and optimization
+
+    Args:
+        plan: Query plan dict with aql_query and bind_vars
+        raise_on_error: If True, re-raises exceptions for retry logic. If False, returns [] on error.
+    """
     if not plan or 'aql_query' not in plan:
+        if raise_on_error:
+            raise ValueError("Invalid query plan: missing aql_query")
         return []
 
     db = arango_db.get_arango_connection()
     if not db:
+        if raise_on_error:
+            raise ConnectionError("Failed to connect to ArangoDB")
         return []
 
     try:
@@ -821,7 +830,12 @@ def execute_planned_query(plan):
         
     except Exception as e:
         error_msg = str(e)
-        
+
+        # If raise_on_error=True, re-raise for retry logic (don't show UI errors yet)
+        if raise_on_error:
+            raise  # Re-raise the exception for execute_with_retry to handle
+
+        # Otherwise, show UI error messages and return empty list
         # Check if timeout error
         if "Read timed out" in error_msg or "timeout" in error_msg.lower():
             st.error("⏱️ Query timed out (took longer than 60 seconds)")
@@ -847,7 +861,7 @@ def execute_planned_query(plan):
 #             with st.expander("🐛 Debug Query"):
 #                 st.code(plan.get("aql_query", ""), language="sql")
 #                 st.json(plan.get("bind_vars", {}))
-            
+
 #             # Show cost analysis
 #             cost, issues = estimate_query_cost(plan.get("aql_query", ""))
 #             st.write(f"**Query Cost Score:** {cost}/150")
@@ -861,7 +875,7 @@ def execute_planned_query(plan):
 #             with st.expander("🐛 Debug Query"):
 #                 st.code(plan.get("aql_query", ""), language="sql")
 #                 st.json(plan.get("bind_vars", {}))
-        
+
         return []
 
 

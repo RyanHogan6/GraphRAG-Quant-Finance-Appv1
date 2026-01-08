@@ -519,11 +519,19 @@ if (search_button or user_question) and user_question:
             if query_plan.get("bind_vars"):
                 st.json(query_plan.get("bind_vars"))
         
-        # Step 4: Execute
+        # Step 4: Execute with automatic retry and error correction
         with st.spinner("Executing query..."):
-            results = llm.execute_planned_query(query_plan)
+            results, error = llm.execute_with_retry(query_plan, max_retries=2)
 
-        if results:
+        # Handle execution results
+        if error:
+            st.error(f"❌ Query failed after {2} retry attempts")
+            with st.expander("🔍 Error Details"):
+                st.code(error, language="text")
+                st.caption("The query could not be executed even after automatic correction attempts.")
+            results = []  # Ensure empty list for downstream code
+            llm_response = "I couldn't retrieve results for your query due to execution errors."
+        elif results:
             st.success(f"Retrieved {len(results)} results")
         else:
             st.warning("No results found")
