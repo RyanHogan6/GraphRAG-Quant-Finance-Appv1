@@ -270,11 +270,37 @@ with tab1:
             elif results:
                 st.success(f"✓ {len(results)} results | {execution_time:.2f}s")
 
-                # Display results
+                # Display results with enhanced styling
                 df = pd.DataFrame(results)
                 cols = [c for c in df.columns if not c.startswith('_') and c != 'description_embedding']
                 if cols:
-                    st.dataframe(df[cols], use_container_width=True, hide_index=True)
+                    # Apply pandas styling for better visual hierarchy
+                    styled_df = df[cols].style.set_properties(**{
+                        'background-color': 'rgba(0, 0, 0, 0.4)',
+                        'color': '#cccccc',
+                        'border': '1px solid rgba(255, 255, 255, 0.1)',
+                        'padding': '8px',
+                        'font-family': 'IBM Plex Mono, monospace',
+                        'font-size': '0.8rem'
+                    }).set_table_styles([
+                        {'selector': 'thead th',
+                         'props': [
+                             ('background-color', 'rgba(212, 175, 55, 0.2)'),
+                             ('color', '#d4af37'),
+                             ('font-weight', '500'),
+                             ('text-transform', 'uppercase'),
+                             ('letter-spacing', '0.1em'),
+                             ('padding', '12px 8px'),
+                             ('border', '1px solid rgba(212, 175, 55, 0.3)'),
+                             ('font-size', '0.75rem')
+                         ]},
+                        {'selector': 'tbody tr:nth-child(even)',
+                         'props': [('background-color', 'rgba(255, 255, 255, 0.02)')]},
+                        {'selector': 'tbody tr:hover',
+                         'props': [('background-color', 'rgba(212, 175, 55, 0.1)')]}
+                    ])
+
+                    st.dataframe(styled_df, use_container_width=True, hide_index=True, height=500)
 
                 # Log query
                 st.session_state.query_history.append({
