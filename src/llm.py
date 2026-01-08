@@ -333,23 +333,39 @@ def validate_aql_syntax(aql_query):
             errors.append("Recommendation: Use LET variable = (subquery) instead of RETURN ... INTO")
 
     # Fix: Common collection name mistakes
+    # CRITICAL: Use word boundaries \b to prevent double-replacement
+    # (e.g., don't replace "polymarket" inside "prediction_markets_polymarket")
     replacements = {
-        'awards': 'Award',
-        'Companies': 'Company',
-        'companies': 'Company',
-        'market_data': 'MarketData',
-        'MarketData_edge': 'HAS_MARKETDATA',  # FIXED
-        'fred_data': 'EconomicData',
-        'FREDData': 'EconomicData',
-        'polymarket': 'prediction_markets_polymarket',
-        'kalshi': 'prediction_markets_kalshi',
-        'CommodityPosition': 'commodity_positions',
+        # Document collections
+        r'\bawards\b': 'Award',
+        r'\bAwards\b': 'Award',
+        r'\bCompanies\b': 'Company',
+        r'\bcompanies\b': 'Company',
+        r'\bmarket_data\b': 'MarketData',
+        r'\bMarketDatas\b': 'MarketData',
+        r'\bfred_data\b': 'EconomicData',
+        r'\bFREDData\b': 'EconomicData',
+        r'\bCommodityPosition\b': 'commodity_positions',
+        r'\bcommodity_position\b': 'commodity_positions',  # singular form
+        r'\bsec_filing\b': 'sec_filings',  # singular form
+        r'\bsec_section\b': 'sec_sections',  # singular form
+        r'\bsec_sentence\b': 'sec_sentences',  # singular form
+
+        # Abbreviated names (only if standalone, not as substring)
+        r'\bpolymarket\b(?!_)': 'prediction_markets_polymarket',  # "polymarket" but not "polymarket_"
+        r'\bkalshi\b(?!_)': 'prediction_markets_kalshi',  # "kalshi" but not "kalshi_"
+
+        # Edge collections
+        r'\bMarketData_edge\b': 'HAS_MARKETDATA',
     }
-    
-    for wrong, correct in replacements.items():
-        if wrong in aql_query:
-            aql_query = aql_query.replace(wrong, correct)
-            errors.append(f"Auto-fixed: '{wrong}' → '{correct}'")
+
+    for wrong_pattern, correct in replacements.items():
+        # Use regex with word boundaries to avoid replacing substrings
+        if re.search(wrong_pattern, aql_query, flags=re.IGNORECASE):
+            aql_query = re.sub(wrong_pattern, correct, aql_query, flags=re.IGNORECASE)
+            # Extract readable name for error message (remove regex markers)
+            wrong_word = wrong_pattern.replace(r'\b', '').replace(r'(?!_)', '')
+            errors.append(f"Auto-fixed: '{wrong_word}' → '{correct}'")
     
     # Check for undeclared variables
     declared_vars = set(re.findall(r'FOR\s+(\w+)\s+IN', aql_query, re.IGNORECASE))
