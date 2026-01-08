@@ -11,7 +11,7 @@ import database as arango_db
 COLLECTION_CONFIG = {
     'Company': {
         'display_name': 'Companies',
-        'icon': '🏢',
+        'icon': '',
         'description': 'Corporate entity information and profiles',
         'field_mappings': {
             'ticker': 'Ticker',
@@ -31,8 +31,8 @@ COLLECTION_CONFIG = {
         'searchable_fields': ['ticker', 'name', 'sector', 'industry']
     },
     'MarketData': {
-        'display_name': 'S&P 500 Market Data',
-        'icon': '📊',
+        'display_name': 'Market Data',
+        'icon': '',
         'description': 'Historical and real-time market prices',
         'field_mappings': {
             'ticker': 'Ticker',
@@ -60,8 +60,8 @@ COLLECTION_CONFIG = {
         'searchable_fields': ['ticker', 'date']
     },
     'Award': {
-        'display_name': 'Government Contract Awards',
-        'icon': '🏛️',
+        'display_name': 'Government Contracts',
+        'icon': '',
         'description': 'Federal government contract data',
         'field_mappings': {
             'award_id': 'Award ID',
@@ -119,23 +119,23 @@ COLLECTION_CONFIG = {
 
     'CommodityPosition': {
         'display_name': 'Commodity Positions',
-        'icon': '📦',
+        'icon': '',
         'description': 'CFTC commodity positions',
         'field_mappings': {},
         'numeric_fields': [],
         'searchable_fields': []
     },
     'FREDData': {
-        'display_name': 'Federal Reserve Economic Data (FRED)',
-        'icon': '📈',
+        'display_name': 'Economic Data',
+        'icon': '',
         'description': 'Macroeconomic indicators',
         'field_mappings': {},
         'numeric_fields': [],
         'searchable_fields': []
     },
     'sec_filings': {
-        'display_name': 'SEC Filings (8-K, 10-K, 10-Q)',
-        'icon': '📄',
+        'display_name': 'SEC Filings',
+        'icon': '',
         'description': 'SEC regulatory filings',
         'field_mappings': {},
         'numeric_fields': [],
@@ -161,61 +161,82 @@ def get_collection_config(collection_name):
 # ============================================================================
 
 def inject_custom_css():
-    """Inject custom CSS"""
+    """Inject custom CSS - Gold accent theme"""
     st.markdown("""
         <style>
         /* Main app styling */
         .stApp {
-            background: linear-gradient(135deg, #0f1419 0%, #1a1f2e 100%);
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
         }
-        
+
         [data-testid="stSidebar"] {
-            background: linear-gradient(180deg, #1a1f2e 0%, #0f1419 100%);
-            border-right: 2px solid #6366f1;
+            background: linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%);
+            border-right: 1px solid rgba(212, 175, 55, 0.2);
         }
-        
-        /* Button styling */
+
+        /* Button styling - Gold accents */
         .stButton > button {
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-            color: white;
-            border-radius: 8px;
-            font-weight: 600;
-            transition: all 0.3s ease;
+            background-color: rgba(212, 175, 55, 0.1);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            color: #d4af37;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.2s ease;
         }
-        
+
         .stButton > button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.5);
+            background-color: rgba(212, 175, 55, 0.2);
+            border-color: rgba(212, 175, 55, 0.5);
+            transform: translateY(-1px);
         }
-        
+
+        .stButton > button[kind="primary"] {
+            background: linear-gradient(135deg, #d4af37 0%, #c9a030 100%);
+            border: none;
+            color: #000000;
+            font-weight: 600;
+        }
+
+        .stButton > button[kind="primary"]:hover {
+            background: linear-gradient(135deg, #f0c952 0%, #d4af37 100%);
+        }
+
         /* Tab styling */
         .stTabs [data-baseweb="tab-list"] {
             gap: 8px;
-            background: rgba(255, 255, 255, 0.03);
-            padding: 0.5rem;
-            border-radius: 10px;
-        }
-        
-        .stTabs [data-baseweb="tab"] {
+            background: rgba(255, 255, 255, 0.02);
+            padding: 8px;
             border-radius: 8px;
-            color: #9ca3af;
-            font-weight: 600;
-            padding: 0.5rem 1.5rem;
         }
-        
+
+        .stTabs [data-baseweb="tab"] {
+            border-radius: 6px;
+            color: #888888;
+            font-weight: 500;
+            padding: 8px 20px;
+            border: 1px solid transparent;
+        }
+
         .stTabs [aria-selected="true"] {
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-            color: white;
+            background-color: rgba(212, 175, 55, 0.15);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            color: #d4af37;
         }
-        
+
         /* Dataframe styling */
         [data-testid="stDataFrame"] {
             background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(212, 175, 55, 0.1);
+            border-radius: 8px;
         }
-        
-        /* Remove extra padding */
+
+        /* Metrics */
+        [data-testid="stMetricValue"] {
+            color: #d4af37;
+        }
+
         .block-container {
-            padding-top: 2rem;
+            padding-top: 1.5rem;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -341,7 +362,7 @@ def render_awards_collection(db):
     
     with col_search:
         search_term = st.text_input(
-            "🔍 Search Government Contract Awards:",
+            "Search:",
             placeholder="Enter search term",
             key="awards_search"
         )
@@ -392,7 +413,7 @@ def render_awards_collection(db):
         st.warning("No awards found")
         return
     
-    st.success(f"✅ Loaded {len(results)} documents")
+    st.success(f"Loaded {len(results)} documents")
     
     # Prepare data
     df = pd.DataFrame(results)
@@ -454,7 +475,7 @@ def render_awards_collection(db):
     # Download button
     csv = df_display.to_csv(index=False)
     st.download_button(
-        label="📥 Download CSV",
+        label="Download CSV",
         data=csv,
         file_name=f"government_awards_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
         mime="text/csv"
@@ -471,7 +492,7 @@ def render_market_data_collection(db):
     
     with col_search:
         search_term = st.text_input(
-            "🔍 Search by ticker:",
+            "Search by ticker:",
             placeholder="e.g., AAPL, MSFT, GOOGL",
             key="market_search"
         )
@@ -518,7 +539,7 @@ def render_market_data_collection(db):
         st.warning("No market data found")
         return
     
-    st.success(f"✅ Loaded {len(results)} documents")
+    st.success(f"Loaded {len(results)} documents")
     
     # Prepare data
     df = pd.DataFrame(results)
@@ -545,7 +566,7 @@ def render_market_data_collection(db):
     # Download button
     csv = df_display.to_csv(index=False)
     st.download_button(
-        label="📥 Download CSV",
+        label="Download CSV",
         data=csv,
         file_name=f"market_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
         mime="text/csv"
@@ -564,8 +585,8 @@ def render_company_collection(db):
     
     with col_search:
         search_term = st.text_input(
-            "🔍 Search companies by ticker, name, sector, or industry:",
-            placeholder="e.g., AAPL, Healthcare, Technology",
+            "Search:",
+            placeholder="Ticker, name, sector, or industry",
             key="company_search"
         )
     
@@ -625,7 +646,7 @@ def render_company_collection(db):
     col_overview, col_top5 = st.columns([2.5, 2.5])
     
     with col_overview:
-        st.markdown("### 📊 Overview")
+        st.markdown("### Overview")
         
         # 2x2 grid of metrics
         m1, m2 = st.columns(2)
@@ -637,7 +658,7 @@ def render_company_collection(db):
             st.metric("Industries", f"{unique_industries}")
     
     with col_top5:
-        st.markdown("### 🏆 Top 5 by Market Cap")
+        st.markdown("### Top 5 by Market Cap")
         
         # Get top 5 - COMPACT LIST
         if 'marketCap' in df_raw.columns and 'ticker' in df_raw.columns:
@@ -650,7 +671,7 @@ def render_company_collection(db):
                 
                 # Streamlit button styled to look like a list row
                 if st.button(
-                    f"🏢 {ticker} · {format_currency(market_cap)}",
+                    f"{ticker} · {format_currency(market_cap)}",
                     key=f"top_company_{ticker}",
                     use_container_width=True
                 ):
@@ -664,7 +685,7 @@ def render_company_collection(db):
     col_table, col_select = st.columns([4, 1])
     
     with col_table:
-        st.markdown("### 📋 Company Data")
+        st.markdown("### Company Data")
         
         # Prepare data
         cols_to_show = ['ticker', 'sector', 'industry', 'marketCap', 'sharesOutstanding']
@@ -686,7 +707,7 @@ def render_company_collection(db):
         )
     
     with col_select:
-        st.markdown("### 🔍 View Details")
+        st.markdown("### View Details")
         
         if 'ticker' in df_raw.columns:
             selected_ticker = st.selectbox(
@@ -703,7 +724,7 @@ def render_company_collection(db):
     # Download button
     csv = df_display.to_csv(index=False)
     st.download_button(
-        label="📥 Download CSV",
+        label="Download CSV",
         data=csv,
         file_name=f"companies_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
         mime="text/csv"
@@ -721,7 +742,7 @@ def render_generic_collection(db, collection_name):
     
     with col_search:
         search_term = st.text_input(
-            f"🔍 Search {config['display_name']}:",
+            "Search:",
             placeholder="Enter search term",
             key=f"{collection_name}_search"
         )
@@ -770,7 +791,7 @@ def render_generic_collection(db, collection_name):
         st.warning("No data found")
         return
     
-    st.success(f"✅ Loaded {len(results)} documents")
+    st.success(f"Loaded {len(results)} documents")
     
     # Display data
     df = pd.DataFrame(results)
@@ -795,107 +816,13 @@ def render_generic_collection(db, collection_name):
         # Download
         csv = df_display.to_csv(index=False)
         st.download_button(
-            label="📥 Download CSV",
+            label="Download CSV",
             data=csv,
             file_name=f"{collection_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
             mime="text/csv"
         )
 
 
-
-# ============================================================================
-# GENERIC COLLECTION RENDERER (for other collections)
-# ============================================================================
-def render_generic_collection(db, collection_name):
-    """Render generic collection view"""
-    config = get_collection_config(collection_name)
-    
-    st.caption(config['description'])
-    
-    # Simple search and limit
-    col_search, col_limit = st.columns([4, 1])
-    
-    with col_search:
-        search_term = st.text_input(
-            f"🔍 Search {config['display_name']}:",
-            placeholder="Enter search term",
-            key=f"{collection_name}_search"
-        )
-    
-    with col_limit:
-        limit = st.number_input(
-            "Limit:",
-            min_value=10,
-            max_value=500,
-            value=50,
-            step=10,
-            key=f"{collection_name}_limit"
-        )
-    
-    # Build query
-    if search_term and config.get('searchable_fields'):
-        filter_conditions = " OR ".join([
-            f"LOWER(doc.{field}) LIKE LOWER(@search)"
-            for field in config['searchable_fields']
-        ])
-        aql_query = f"""
-        FOR doc IN {collection_name}
-            FILTER {filter_conditions}
-            LIMIT @limit
-            RETURN doc
-        """
-        bind_vars = {"search": f"%{search_term}%", "limit": limit}
-    else:
-        aql_query = f"""
-        FOR doc IN {collection_name}
-            LIMIT @limit
-            RETURN doc
-        """
-        bind_vars = {"limit": limit}
-    
-    # Execute query
-    with st.spinner("Loading data..."):
-        try:
-            cursor = db.aql.execute(aql_query, bind_vars=bind_vars)
-            results = list(cursor)
-        except Exception as e:
-            st.error(f"Error loading data: {e}")
-            return
-    
-    if not results:
-        st.warning("No data found")
-        return
-    
-    st.success(f"✅ Loaded {len(results)} documents")
-    
-    # Display data
-    df = pd.DataFrame(results)
-    cols_to_show = [c for c in df.columns if not c.startswith('_') and c != 'description_embedding']
-    
-    if cols_to_show:
-        df_display = df[cols_to_show].copy()
-        
-        # Rename columns
-        df_display = rename_dataframe_columns(df_display, config['field_mappings'])
-        
-        # Format values
-        df_display = format_dataframe_values(df_display, config)
-        
-        st.dataframe(
-            df_display,
-            use_container_width=True,
-            hide_index=True,
-            height=500
-        )
-        
-        # Download
-        csv = df_display.to_csv(index=False)
-        st.download_button(
-            label="📥 Download CSV",
-            data=csv,
-            file_name=f"{collection_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-            mime="text/csv"
-        )
 
 def render_awards_collection(db):
     """Render enhanced Government Contract Awards collection"""
@@ -906,7 +833,7 @@ def render_awards_collection(db):
     
     with col_search:
         search_term = st.text_input(
-            "🔍 Search Government Contract Awards:",
+            "Search:",
             placeholder="Enter search term",
             key="awards_search"
         )
@@ -957,7 +884,7 @@ def render_awards_collection(db):
         st.warning("No awards found")
         return
     
-    st.success(f"✅ Loaded {len(results)} documents")
+    st.success(f"Loaded {len(results)} documents")
     
     # Prepare data
     df = pd.DataFrame(results)
@@ -1000,7 +927,7 @@ def render_awards_collection(db):
     # Download button
     csv = df_display.to_csv(index=False)
     st.download_button(
-        label="📥 Download CSV",
+        label="Download CSV",
         data=csv,
         file_name=f"government_awards_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
         mime="text/csv"
@@ -1058,7 +985,7 @@ def render_stock_overview(db, ticker):
     col_title, col_period, col_back = st.columns([1, 2, 1])
     
     with col_title:
-        st.markdown(f"## 📈 {ticker}")
+        st.markdown(f"## {ticker}")
     
     with col_period:
         time_period = st.radio(
@@ -1221,7 +1148,7 @@ def render_stock_overview(db, ticker):
     
     with col_awards:
         if awards and len(awards) > 0:
-            st.markdown("### 🏛️ Gov Contracts")
+            st.markdown("### Gov Contracts")
             
             awards_df = pd.DataFrame(awards)
             total_awards = len(awards)
@@ -1245,7 +1172,7 @@ def render_database_browser_tab():
     """Render the database browser interface"""
     inject_custom_css()
     
-    st.header("🗄️ Database Browser")
+    st.header("Database Browser")
     
     db = arango_db.get_arango_connection()
     if not db:
@@ -1271,7 +1198,7 @@ def render_database_browser_tab():
         config = get_collection_config(col_info['name'])
         collection_tabs.append(f"{config['icon']} {config['display_name']}")
     
-    collection_tabs.extend(["📈 Stock Overview", "⚡ Custom AQL"])
+    collection_tabs.extend(["Stock Overview", "Custom AQL"])
     
     selected_tab = st.tabs(collection_tabs)
     
@@ -1290,7 +1217,7 @@ def render_database_browser_tab():
     
     # Stock Overview tab
     with selected_tab[-2]:
-        st.subheader("📈 Stock Overview")
+        st.subheader("Stock Overview")
         
         ticker_input = st.text_input(
             "Enter Ticker Symbol:",
@@ -1303,7 +1230,7 @@ def render_database_browser_tab():
     
     # Custom AQL tab
     with selected_tab[-1]:
-        st.subheader("⚡ Custom AQL Query")
+        st.subheader("Custom AQL Query")
         
         aql_query = st.text_area(
             "Enter AQL Query:",
@@ -1317,7 +1244,7 @@ def render_database_browser_tab():
             if error:
                 st.error(f"Query error: {error}")
             else:
-                st.success(f"✅ Retrieved {len(results)} documents")
+                st.success(f"Retrieved {len(results)} documents")
                 if results:
                     df = pd.DataFrame(results)
                     cols = [c for c in df.columns if not c.startswith('_') and c != 'description_embedding']

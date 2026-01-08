@@ -40,66 +40,145 @@ if 'query_history' not in st.session_state:
 if 'current_question' not in st.session_state:
     st.session_state.current_question = ""
 
-# Custom CSS for better styling
+# Custom CSS - Clean dark theme with gold accents
 st.markdown("""
     <style>
-    /* Reduce top padding */
-    .block-container {
-        padding-top: 2rem;
+    /* Main app styling */
+    .stApp {
+        background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
     }
-    
+
+    .block-container {
+        padding-top: 1.5rem;
+        max-width: 1400px;
+    }
+
     /* Hide Streamlit branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    
-    /* Custom header styling */
+
+    /* Header styling */
     .header-container {
         display: flex;
         align-items: center;
         gap: 20px;
-        margin-bottom: 10px;
+        margin-bottom: 20px;
+        padding: 20px 0;
+        border-bottom: 1px solid rgba(212, 175, 55, 0.2);
     }
-    
+
     .header-title {
-        font-size: 3.5rem;
+        font-size: 2.8rem;
         font-weight: 700;
         margin: 0;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        line-height: 1.2;
+        color: #ffffff;
+        letter-spacing: -0.02em;
     }
-    
+
     .header-subtitle {
-        font-size: 1.15rem;
-        color: #a8a8a8;
-        font-style: italic;
+        font-size: 1rem;
+        color: #888888;
         margin-top: 5px;
     }
-    
-    /* Follow-up button styling */
+
+    /* Button styling - Gold accents */
     .stButton > button {
-        border-radius: 8px;
-        transition: all 0.3s;
+        background-color: rgba(212, 175, 55, 0.1);
+        border: 1px solid rgba(212, 175, 55, 0.3);
+        color: #d4af37;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.2s ease;
     }
-    
-    /* Insight cards */
-    .insight-card {
-        padding: 15px;
-        border-radius: 10px;
-        background: linear-gradient(135deg, #667eea22 0%, #764ba222 100%);
-        border-left: 4px solid #667eea;
-        margin: 10px 0;
+
+    .stButton > button:hover {
+        background-color: rgba(212, 175, 55, 0.2);
+        border-color: rgba(212, 175, 55, 0.5);
+        transform: translateY(-1px);
     }
-    
-    /* Discovery banner */
-    .discovery-banner {
-        background: linear-gradient(90deg, #ff6b6b22 0%, #feca5722 100%);
-        border-left: 4px solid #ff6b6b;
-        padding: 15px;
+
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #d4af37 0%, #c9a030 100%);
+        border: none;
+        color: #000000;
+        font-weight: 600;
+    }
+
+    .stButton > button[kind="primary"]:hover {
+        background: linear-gradient(135deg, #f0c952 0%, #d4af37 100%);
+    }
+
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%);
+        border-right: 1px solid rgba(212, 175, 55, 0.2);
+    }
+
+    /* Tab styling - Gold accents */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.02);
+        padding: 8px;
         border-radius: 8px;
-        margin: 15px 0;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 6px;
+        color: #888888;
+        font-weight: 500;
+        padding: 8px 20px;
+        border: 1px solid transparent;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background-color: rgba(212, 175, 55, 0.15);
+        border: 1px solid rgba(212, 175, 55, 0.3);
+        color: #d4af37;
+    }
+
+    /* Metrics styling */
+    [data-testid="stMetricValue"] {
+        color: #d4af37;
+        font-size: 1.8rem;
+    }
+
+    /* Input fields */
+    .stTextInput input, .stSelectbox select {
+        background-color: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(212, 175, 55, 0.2);
+        color: #ffffff;
+        border-radius: 6px;
+    }
+
+    .stTextInput input:focus, .stSelectbox select:focus {
+        border-color: rgba(212, 175, 55, 0.5);
+        box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.2);
+    }
+
+    /* Dataframe styling */
+    [data-testid="stDataFrame"] {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(212, 175, 55, 0.1);
+        border-radius: 8px;
+    }
+
+    /* Expander styling */
+    .streamlit-expanderHeader {
+        background-color: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(212, 175, 55, 0.15);
+        border-radius: 6px;
+    }
+
+    /* Divider */
+    hr {
+        border-color: rgba(212, 175, 55, 0.2);
+    }
+
+    /* Info/warning/success boxes */
+    .stAlert {
+        background-color: rgba(255, 255, 255, 0.05);
+        border-left-width: 3px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -111,19 +190,16 @@ def get_base64_image(path):
 
 icon_base64 = get_base64_image("src/fga-v3.png")
 
-# Header with icon + title
+# Clean minimal header
 st.markdown(
     f"""
     <div class="header-container">
-        <img src="data:image/png;base64,{icon_base64}" width="70" height="70">
+        <img src="data:image/png;base64,{icon_base64}" width="50" height="50">
         <div>
-            <h1 class="header-title">GraphRAG LLM</h1>
+            <h1 class="header-title">GraphRAG</h1>
+            <p class="header-subtitle">Financial Intelligence Platform</p>
         </div>
     </div>
-    <p class="header-subtitle">
-        Ask anything. Get answers. Powered by AI & knowledge graphs.
-    </p>
-    <hr style="margin: 20px 0; border: none; border-top: 1px solid #333;">
     """,
     unsafe_allow_html=True
 )
@@ -308,12 +384,12 @@ def show_summary_metrics(results, query_plan):
                 date_range = f"{dates_sorted[0][:4]}-{dates_sorted[-1][:4]}"
                 st.metric("Time Range", date_range)
         else:
-            st.metric("Status", " Complete")
+            st.metric("Status", "Complete")
 
 
 # Sidebar
 with st.sidebar:
-    st.header(" Settings")
+    st.header("Settings")
     
     # # Model toggle
     # use_local_model = st.checkbox(
@@ -358,14 +434,13 @@ with st.sidebar:
     
     st.divider()
     
-    st.header(" About")
+    st.header("Data Sources")
     st.markdown("""
-    This platform queries:
-    -  Market data
+    - Market data (S&P 500)
     - Government contracts
-    - Macro indicators
+    - Economic indicators
     - Commodity positions
-    - SEC filings
+    - SEC filings & sentiment
     """)
     
     st.divider()
@@ -395,7 +470,7 @@ with st.sidebar:
     # st.caption(f" {cfg.ARANGO_URL}")
 
 # Create tabs
-tab1, tab2 = st.tabs([" AI Query Interface", "Database Browser"])
+tab1, tab2 = st.tabs(["AI Query Interface", "Database Browser"])
 
 # ==================== TAB 1: AI QUERY ====================
 with tab1:
