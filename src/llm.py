@@ -679,99 +679,125 @@ def optimize_expensive_query(aql_query):
 
 
 def optimize_expensive_query_aggressive(aql_query):
-    """Aggressive optimization that actually rewrites queries"""
+    """Aggressive optimization - actually rewrites queries for better performance"""
     import re
     optimizations_applied = []
     original_query = aql_query
-    
-    # 1. Replace CONTAINS with FULLTEXT (actual replacement)
-    if 'CONTAINS(LOWER(' in aql_query and 'sec_sentences' in aql_query:
-        pattern = r"FOR (\w+) IN sec_sentences\s+FILTER[^F]*CONTAINS\(LOWER\(\1\.text\),\s*['\"](\w+)['\"]\)"
-        
-        def replace_with_fulltext(match):
-            var_name = match.group(1)
-            keyword = match.group(2)
-            
-            # Get the rest of the filters
-            rest = match.group(0).split('CONTAINS')[1].split('\n')[1:]
-            
-            optimizations_applied.append(f"✅ Replaced CONTAINS with FULLTEXT for '{keyword}'")
-            
-            return f"FOR {var_name} IN FULLTEXT(sec_sentences, 'text', '{keyword}')\n  FILTER"
-        
-        aql_query = re.sub(pattern, replace_with_fulltext, aql_query)
-    
-    # 2. Add LIMIT to unlimited loops
-    if 'FOR' in aql_query and 'LIMIT' not in aql_query.split('RETURN')[0]:
-        aql_query = aql_query.replace('RETURN', 'LIMIT 100\n  RETURN', 1)
-        optimizations_applied.append("✅ Added LIMIT 100")
-    
-    # 3. Move sentiment filters earlier
-    if 'finbert_score' in aql_query:
-        # Try to move sentiment filter up
-        lines = aql_query.split('\n')
-        sentiment_line = None
-        for_line = None
-        
-        for i, line in enumerate(lines):
-            if 'FOR' in line and 'sec_sentences' in line:
-                for_line = i
-            if 'finbert_score' in line and for_line:
-                sentiment_line = i
-                break
-        
-        if sentiment_line and for_line and sentiment_line > for_line + 2:
-            optimizations_applied.append("💡 Consider moving sentiment filter closer to FOR loop")
-    
+
+    # 1. Apply FULLTEXT conversion (use the working function)
+    optimized_query = apply_fulltext_conversion(aql_query)
+    if optimized_query != aql_query:
+        aql_query = optimized_query
+        optimizations_applied.append("✅ Converted CONTAINS to FULLTEXT")
+
+    # 2. Add LIMIT if missing (for single FOR loops)
+    # Check if it's a simple query without nested FOR loops
+    for_count = aql_query.count('FOR ')
+    if for_count == 1 and 'LIMIT' not in aql_query:
+        # Find position of RETURN
+        if 'RETURN' in aql_query:
+            # Insert LIMIT before RETURN
+            aql_query = aql_query.replace('RETURN', 'LIMIT 100\n  RETURN', 1)
+            optimizations_applied.append("✅ Added LIMIT 100 to prevent full scan")
+
+    # 3. Reduce LIMIT on expensive SEC queries
+    if 'sec_sentences' in aql_query or 'sec_sections' in aql_query:
+        # Replace high limits with more reasonable ones
+        aql_query = re.sub(r'LIMIT\s+([5-9]\d{2,}|\d{4,})', 'LIMIT 100', aql_query)
+        if aql_query != original_query:
+            optimizations_applied.append("✅ Reduced LIMIT to 100 for SEC query")
+
+    # 4. Move sentiment filters earlier in SEC queries
+    if 'finbert_score' in aql_query and 'sec_sentences' in aql_query:
+        # Pattern: FOR var IN sec_sentences\n  FILTER other_filter\n  FILTER finbert_score
+        # Goal: Move finbert_score right after FOR loop
+        pattern = r'(FOR\s+\w+\s+IN\s+sec_sentences)\s+(FILTER\s+(?!.*finbert).*?\n)(\s+FILTER\s+.*?finbert_score.*?\n)'
+
+        def move_sentiment_up(match):
+            for_stmt = match.group(1)
+            other_filter = match.group(2)
+            sentiment_filter = match.group(3)
+            # Reorder: FOR, sentiment filter, then other filters
+            return f"{for_stmt}\n{sentiment_filter}{other_filter}"
+
+        new_query = re.sub(pattern, move_sentiment_up, aql_query, flags=re.DOTALL)
+        if new_query != aql_query:
+            aql_query = new_query
+            optimizations_applied.append("✅ Moved sentiment filter earlier for faster filtering")
+
+    # 5. Simplify nested loops if possible
+    if for_count > 2:
+        optimizations_applied.append("💡 Query has multiple nested loops - consider breaking into separate queries")
+
     if aql_query != original_query:
         return aql_query, optimizations_applied
     else:
-        # No aggressive changes made, return suggestions only
-        return original_query, ["No automatic optimizations applied - query structure is good"]
+        return original_query, ["Query structure is already optimal"]
 
 
 def apply_fulltext_conversion(aql_query):
-    """Automatically convert CONTAINS to FULLTEXT for sec_sentences/sec_sections queries"""
+    """Automatically convert CONTAINS to FULLTEXT for sec_sentences/sec_sections queries
+
+    Converts patterns like:
+      FOR s IN sec_sentences FILTER CONTAINS(LOWER(s.text), 'keyword')
+    To:
+      FOR s IN FULLTEXT(sec_sentences, 'text', 'keyword')
+    """
     import re
 
     # Only convert for SEC collections (large collections benefit most)
     if 'sec_sentences' not in aql_query and 'sec_sections' not in aql_query:
         return aql_query
 
-    # Pattern: FOR var IN sec_sentences FILTER ... CONTAINS(LOWER(var.text), 'keyword')
-    # Convert to: FOR var IN FULLTEXT(sec_sentences, 'text', 'keyword') FILTER ...
+    original_query = aql_query
+    conversions_made = []
 
-    # Match CONTAINS pattern with single-word keywords
-    pattern = r"FOR\s+(\w+)\s+IN\s+(sec_sentences|sec_sections)\s+FILTER\s+(.*?)CONTAINS\(LOWER\(\1\.text\),\s*['\"]([^'\"]+)['\"]\)"
+    # Strategy 1: Simple CONTAINS-only filter (most common)
+    # Pattern: FOR var IN sec_sentences FILTER CONTAINS(LOWER(var.text), 'keyword')
+    pattern1 = r"FOR\s+(\w+)\s+IN\s+(sec_sentences|sec_sections)\s+FILTER\s+CONTAINS\(LOWER\(\1\.text\),\s*['\"](\w+)['\"]\)"
 
-    def replace_with_fulltext(match):
+    def replace_simple(match):
         var_name = match.group(1)
         collection = match.group(2)
-        other_filters = match.group(3).strip()
-        keyword = match.group(4).strip()
+        keyword = match.group(3)
+        conversions_made.append(f"CONTAINS→FULLTEXT: '{keyword}'")
+        return f"FOR {var_name} IN FULLTEXT({collection}, 'text', '{keyword}')"
 
-        # Only convert single-word keywords (FULLTEXT works best with these)
-        if ' ' in keyword:
-            return match.group(0)  # Keep original for multi-word
+    aql_query = re.sub(pattern1, replace_simple, aql_query, flags=re.IGNORECASE)
 
-        # Build replacement
-        # Remove trailing AND/OR from other_filters if present
-        other_filters = re.sub(r'\s+(AND|OR)\s*$', '', other_filters, flags=re.IGNORECASE)
+    # Strategy 2: CONTAINS with additional filters (e.g., sentiment filter)
+    # Pattern: FOR var IN sec_sentences FILTER CONTAINS(...) AND finbert_score < X
+    pattern2 = r"FOR\s+(\w+)\s+IN\s+(sec_sentences|sec_sections)\s+FILTER\s+CONTAINS\(LOWER\(\1\.text\),\s*['\"](\w+)['\"]\)\s+AND\s+(.*?)(?=\n|SORT|LIMIT|RETURN)"
 
-        if other_filters:
-            # Keep other filters after FULLTEXT
-            return f"FOR {var_name} IN FULLTEXT({collection}, 'text', '{keyword}') FILTER {other_filters}"
-        else:
-            # No other filters, just FULLTEXT
-            return f"FOR {var_name} IN FULLTEXT({collection}, 'text', '{keyword}')"
+    def replace_with_filter(match):
+        var_name = match.group(1)
+        collection = match.group(2)
+        keyword = match.group(3)
+        additional_filter = match.group(4).strip()
+        conversions_made.append(f"CONTAINS+filter→FULLTEXT: '{keyword}'")
+        return f"FOR {var_name} IN FULLTEXT({collection}, 'text', '{keyword}') FILTER {additional_filter}"
 
-    converted = re.sub(pattern, replace_with_fulltext, aql_query, flags=re.DOTALL | re.IGNORECASE)
+    aql_query = re.sub(pattern2, replace_with_filter, aql_query, flags=re.IGNORECASE | re.DOTALL)
+
+    # Strategy 3: Handle reverse order (filter AND CONTAINS)
+    # Pattern: FOR var IN sec_sentences FILTER other_condition AND CONTAINS(...)
+    pattern3 = r"FOR\s+(\w+)\s+IN\s+(sec_sentences|sec_sections)\s+FILTER\s+(.*?)\s+AND\s+CONTAINS\(LOWER\(\1\.text\),\s*['\"](\w+)['\"]\)"
+
+    def replace_reverse(match):
+        var_name = match.group(1)
+        collection = match.group(2)
+        other_filter = match.group(3).strip()
+        keyword = match.group(4)
+        conversions_made.append(f"Filter+CONTAINS→FULLTEXT: '{keyword}'")
+        return f"FOR {var_name} IN FULLTEXT({collection}, 'text', '{keyword}') FILTER {other_filter}"
+
+    aql_query = re.sub(pattern3, replace_reverse, aql_query, flags=re.IGNORECASE)
 
     # Log if conversion happened
-    if converted != aql_query:
-        st.info("⚡ Auto-optimized: Converted CONTAINS to FULLTEXT (10x faster for SEC queries)")
+    if conversions_made:
+        st.info(f"⚡ Auto-optimized: {', '.join(conversions_made)}")
 
-    return converted
+    return aql_query
 
 
 def suggest_fulltext_conversion(aql_query):
@@ -859,12 +885,18 @@ def _execute_query_internal(plan, raise_on_error=False):
         MAX_ACCEPTABLE_COST = 85
 
         if cost_score > MAX_ACCEPTABLE_COST:
-            # Try optimization first
+            # Try aggressive optimization first
             st.warning(f"⚠️ Very expensive query detected (cost score: {cost_score}/150)")
-            st.info("🔧 Attempting automatic optimization...")
+            st.info("🔧 Attempting aggressive optimization...")
 
-            aql_query_optimized, optimizations = optimize_expensive_query(aql_query)
-            aql_query_optimized = apply_fulltext_conversion(aql_query_optimized)
+            # Use aggressive optimizer which includes FULLTEXT + LIMIT + filter reordering
+            aql_query_optimized, optimizations = optimize_expensive_query_aggressive(aql_query)
+
+            # Show what optimizations were applied
+            if optimizations:
+                with st.expander("⚡ Optimizations Applied"):
+                    for opt in optimizations:
+                        st.caption(opt)
 
             # Re-estimate cost after optimization
             cost_after_optimization, _ = estimate_query_cost(aql_query_optimized)
