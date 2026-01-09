@@ -482,9 +482,8 @@ with tab2:
 
         if top_markets:
             # Create custom HTML table with better styling
-            table_html = """
-            <style>
-            .market-table {
+            table_html = """<style>
+.market-table {
                 width: 100%;
                 border-collapse: separate;
                 border-spacing: 0;
