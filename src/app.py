@@ -484,7 +484,7 @@ with tab2:
                      ('padding', '10px 8px'),
                      ('border', '1px solid rgba(212, 175, 55, 0.3)'),
                      ('font-size', '0.7rem'),
-                     ('text-align': 'left')
+                     ('text-align', 'left')
                  ]},
                 {'selector': 'tbody tr:nth-child(even)',
                  'props': [('background-color', 'rgba(255, 255, 255, 0.02)')]},
