@@ -9,7 +9,7 @@ from query_logger import get_logger
 from datetime import datetime
 import torch
 
-st.set_page_config(page_title="Finna Go Alpha", page_icon="▓", layout="centered")
+st.set_page_config(page_title="Finna Go Alpha", page_icon="▓", layout="wide")
 
 # Initialize session state
 if 'conversation_history' not in st.session_state:
@@ -319,11 +319,61 @@ with tab1:
 
 # ==================== MARKETS TAB ====================
 with tab2:
-    st.markdown("### Prediction Markets")
+    st.markdown("### 📊 Prediction Markets")
 
     # Get database connection
     try:
         db = arango_db.get_arango_connection()
+
+        # Fetch categories for filter
+        categories_query = """
+        FOR m IN prediction_markets_polymarket
+            FILTER m.closed == false AND m.category != null
+            COLLECT category = m.category WITH COUNT INTO count
+            SORT count DESC
+            RETURN {category: category, count: count}
+        """
+        categories_data = list(db.aql.execute(categories_query))
+        categories = ["All"] + [c['category'] for c in categories_data]
+
+        # Filters row
+        col1, col2, col3, col4 = st.columns([2, 2, 2, 2])
+
+        with col1:
+            selected_category = st.selectbox(
+                "Category",
+                categories,
+                index=0,
+                key="market_category_filter"
+            )
+
+        with col2:
+            min_volume = st.number_input(
+                "Min 24h Volume ($)",
+                min_value=0,
+                max_value=1000000,
+                value=0,
+                step=1000,
+                key="min_volume_filter"
+            )
+
+        with col3:
+            sort_by = st.selectbox(
+                "Sort by",
+                ["Volume (High to Low)", "Volume (Low to High)", "Probability (High to Low)", "Probability (Low to High)", "Liquidity (High to Low)"],
+                index=0,
+                key="market_sort"
+            )
+
+        with col4:
+            limit = st.selectbox(
+                "Show",
+                [10, 20, 50, 100],
+                index=1,
+                key="market_limit"
+            )
+
+        st.markdown("<br>", unsafe_allow_html=True)
 
         # Fetch key metrics
         metrics_query = """
@@ -354,90 +404,193 @@ with tab2:
 
         metrics = list(db.aql.execute(metrics_query))[0]
 
-        # Display metrics in columns
-        col1, col2, col3 = st.columns(3)
+        # Display metrics in columns with custom styling
+        metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
 
-        with col1:
-            st.metric(
-                "Active Markets",
-                f"{metrics['total_markets']:,}",
-                help="Open prediction markets on Polymarket"
-            )
+        with metric_col1:
+            st.markdown(f"""
+                <div style="background: rgba(212, 175, 55, 0.05); border-left: 3px solid #d4af37; padding: 15px; border-radius: 4px;">
+                    <div style="color: #666; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 5px;">Active Markets</div>
+                    <div style="color: #d4af37; font-size: 1.8rem; font-weight: 300; font-family: 'IBM Plex Mono', monospace;">{metrics['total_markets']:,}</div>
+                </div>
+            """, unsafe_allow_html=True)
 
-        with col2:
-            st.metric(
-                "Whale Traders",
-                f"{metrics['total_whales']:,}",
-                help="Traders with >$50k volume"
-            )
+        with metric_col2:
+            st.markdown(f"""
+                <div style="background: rgba(212, 175, 55, 0.05); border-left: 3px solid #d4af37; padding: 15px; border-radius: 4px;">
+                    <div style="color: #666; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 5px;">Whale Traders</div>
+                    <div style="color: #d4af37; font-size: 1.8rem; font-weight: 300; font-family: 'IBM Plex Mono', monospace;">{metrics['total_whales']:,}</div>
+                </div>
+            """, unsafe_allow_html=True)
 
-        with col3:
-            st.metric(
-                "24h Volume",
-                f"${metrics['total_volume_24h']/1e6:.1f}M",
-                help="Total 24-hour trading volume"
-            )
+        with metric_col3:
+            st.markdown(f"""
+                <div style="background: rgba(212, 175, 55, 0.05); border-left: 3px solid #d4af37; padding: 15px; border-radius: 4px;">
+                    <div style="color: #666; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 5px;">24h Volume</div>
+                    <div style="color: #d4af37; font-size: 1.8rem; font-weight: 300; font-family: 'IBM Plex Mono', monospace;">${metrics['total_volume_24h']/1e6:.1f}M</div>
+                </div>
+            """, unsafe_allow_html=True)
 
-        st.markdown("---")
+        # Build dynamic query based on filters FIRST (need count for metric)
+        category_filter = f"FILTER market.category == '{selected_category}'" if selected_category != "All" else ""
+        volume_filter = f"FILTER market.volume_24h >= {min_volume}" if min_volume > 0 else ""
 
-        # Top Markets by Volume
-        st.markdown("#### 🔥 Top Markets by Volume")
+        # Determine sort field and direction
+        sort_mapping = {
+            "Volume (High to Low)": ("market.volume_24h", "DESC"),
+            "Volume (Low to High)": ("market.volume_24h", "ASC"),
+            "Probability (High to Low)": ("market.yes_probability", "DESC"),
+            "Probability (Low to High)": ("market.yes_probability", "ASC"),
+            "Liquidity (High to Low)": ("market.liquidity", "DESC")
+        }
+        sort_field, sort_dir = sort_mapping[sort_by]
 
-        top_markets_query = """
+        top_markets_query = f"""
         FOR market IN prediction_markets_polymarket
             FILTER market.closed == false
             FILTER market.volume_24h > 0
-            SORT market.volume_24h DESC
-            LIMIT 20
-            RETURN {
+            {category_filter}
+            {volume_filter}
+            SORT {sort_field} {sort_dir}
+            LIMIT {limit}
+            RETURN {{
                 question: market.question,
                 yes_prob: FLOOR(market.yes_probability * 100),
                 volume_24h: market.volume_24h,
                 liquidity: market.liquidity,
                 category: market.category,
                 end_date: market.end_date
-            }
+            }}
         """
 
         top_markets = list(db.aql.execute(top_markets_query))
+        filtered_count = len(top_markets)
+
+        # Now display metric with actual count
+        with metric_col4:
+            st.markdown(f"""
+                <div style="background: rgba(212, 175, 55, 0.05); border-left: 3px solid #d4af37; padding: 15px; border-radius: 4px;">
+                    <div style="color: #666; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 5px;">Showing</div>
+                    <div style="color: #d4af37; font-size: 1.8rem; font-weight: 300; font-family: 'IBM Plex Mono', monospace;">{filtered_count:,}</div>
+                </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        st.markdown("#### 🔥 Top Markets")
 
         if top_markets:
-            markets_df = pd.DataFrame(top_markets)
-            markets_df.columns = ['Question', 'Yes %', '24h Volume', 'Liquidity', 'Category', 'End Date']
-            markets_df['24h Volume'] = markets_df['24h Volume'].apply(lambda x: f"${x:,.0f}")
-            markets_df['Liquidity'] = markets_df['Liquidity'].apply(lambda x: f"${x:,.0f}")
+            # Create custom HTML table with better styling
+            table_html = """
+            <style>
+            .market-table {
+                width: 100%;
+                border-collapse: separate;
+                border-spacing: 0;
+                font-family: 'IBM Plex Mono', monospace;
+                font-size: 0.88rem;
+                margin-top: 20px;
+                background: rgba(0, 0, 0, 0.4);
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            }
+            .market-table thead {
+                background: rgba(212, 175, 55, 0.2);
+                position: sticky;
+                top: 0;
+                z-index: 10;
+            }
+            .market-table th {
+                padding: 16px 20px;
+                text-align: left;
+                color: #d4af37;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                font-size: 0.7rem;
+                border-bottom: 2px solid rgba(212, 175, 55, 0.4);
+            }
+            .market-table td {
+                padding: 16px 20px;
+                color: #cccccc;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+                vertical-align: middle;
+            }
+            .market-table tbody tr {
+                transition: all 0.2s ease;
+            }
+            .market-table tbody tr:hover {
+                background: rgba(212, 175, 55, 0.12);
+                cursor: pointer;
+                transform: translateX(2px);
+            }
+            .market-question {
+                line-height: 1.5;
+                color: #ffffff;
+                font-size: 0.92rem;
+            }
+            .market-prob {
+                color: #d4af37;
+                font-weight: 600;
+                font-size: 1rem;
+            }
+            .market-volume {
+                color: #88ccff;
+                font-weight: 500;
+            }
+            .market-category {
+                display: inline-block;
+                padding: 5px 12px;
+                background: rgba(212, 175, 55, 0.15);
+                border: 1px solid rgba(212, 175, 55, 0.4);
+                border-radius: 4px;
+                font-size: 0.68rem;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+                color: #d4af37;
+            }
+            </style>
+            <div style="overflow-x: auto; max-height: 800px; overflow-y: auto;">
+            <table class="market-table">
+                <thead>
+                    <tr>
+                        <th style="width: 48%;">Market Question</th>
+                        <th style="width: 10%; text-align: center;">Yes %</th>
+                        <th style="width: 14%; text-align: right;">24h Volume</th>
+                        <th style="width: 14%; text-align: right;">Liquidity</th>
+                        <th style="width: 14%; text-align: center;">Category</th>
+                    </tr>
+                </thead>
+                <tbody>
+            """
 
-            # Style the dataframe
-            styled_markets = markets_df.style.set_properties(**{
-                'background-color': 'rgba(0, 0, 0, 0.4)',
-                'color': '#cccccc',
-                'border': '1px solid rgba(255, 255, 255, 0.1)',
-                'padding': '8px',
-                'font-family': 'IBM Plex Mono, monospace',
-                'font-size': '0.75rem',
-                'text-align': 'left'
-            }).set_table_styles([
-                {'selector': 'thead th',
-                 'props': [
-                     ('background-color', 'rgba(212, 175, 55, 0.2)'),
-                     ('color', '#d4af37'),
-                     ('font-weight', '500'),
-                     ('text-transform', 'uppercase'),
-                     ('letter-spacing', '0.1em'),
-                     ('padding', '10px 8px'),
-                     ('border', '1px solid rgba(212, 175, 55, 0.3)'),
-                     ('font-size', '0.7rem'),
-                     ('text-align', 'left')
-                 ]},
-                {'selector': 'tbody tr:nth-child(even)',
-                 'props': [('background-color', 'rgba(255, 255, 255, 0.02)')]},
-                {'selector': 'tbody tr:hover',
-                 'props': [('background-color', 'rgba(212, 175, 55, 0.08)')]}
-            ])
+            for market in top_markets:
+                question = market['question'][:180] + "..." if len(market['question']) > 180 else market['question']
+                yes_prob = market['yes_prob']
+                volume = f"${market['volume_24h']/1000:.1f}k" if market['volume_24h'] < 100000 else f"${market['volume_24h']/1000000:.2f}M"
+                liquidity = f"${market['liquidity']/1000:.1f}k" if market.get('liquidity') and market['liquidity'] < 100000 else (f"${market['liquidity']/1000000:.2f}M" if market.get('liquidity') else "N/A")
+                category = market['category'] or "Other"
 
-            st.dataframe(styled_markets, use_container_width=True, hide_index=True, height=600)
+                table_html += f"""
+                    <tr>
+                        <td class="market-question">{question}</td>
+                        <td class="market-prob" style="text-align: center;">{yes_prob}%</td>
+                        <td class="market-volume" style="text-align: right;">{volume}</td>
+                        <td style="text-align: right;">{liquidity}</td>
+                        <td style="text-align: center;"><span class="market-category">{category}</span></td>
+                    </tr>
+                """
 
-        st.markdown("---")
+            table_html += """
+                </tbody>
+            </table>
+            </div>
+            """
+
+            st.markdown(table_html, unsafe_allow_html=True)
+
+        st.markdown("<br><br>", unsafe_allow_html=True)
 
         # Top Whale Traders
         st.markdown("#### 🐋 Top Whale Traders")
@@ -446,53 +599,134 @@ with tab2:
         FOR trader IN polymarket_traders
             FILTER trader.is_whale == true
             SORT trader.total_volume DESC
-            LIMIT 15
+            LIMIT 20
             RETURN {
-                address: CONCAT(SUBSTRING(trader.address, 0, 6), "...", SUBSTRING(trader.address, -4)),
+                address: trader.address,
                 volume: trader.total_volume,
                 profit: trader.total_profit,
                 trades: trader.total_trades,
-                activity: trader.activity_level
+                activity: trader.activity_level,
+                profit_ratio: trader.profit_ratio
             }
         """
 
         top_whales = list(db.aql.execute(top_whales_query))
 
         if top_whales:
-            whales_df = pd.DataFrame(top_whales)
-            whales_df.columns = ['Address', 'Total Volume', 'Total Profit', 'Trades', 'Activity']
-            whales_df['Total Volume'] = whales_df['Total Volume'].apply(lambda x: f"${x:,.0f}")
-            whales_df['Total Profit'] = whales_df['Total Profit'].apply(lambda x: f"${x:,.0f}")
+            # Create custom HTML table for whales
+            whale_table_html = """
+            <style>
+            .whale-table {
+                width: 100%;
+                border-collapse: separate;
+                border-spacing: 0;
+                font-family: 'IBM Plex Mono', monospace;
+                font-size: 0.88rem;
+                margin-top: 20px;
+                background: rgba(0, 0, 0, 0.4);
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            }
+            .whale-table thead {
+                background: rgba(212, 175, 55, 0.2);
+            }
+            .whale-table th {
+                padding: 16px 20px;
+                text-align: left;
+                color: #d4af37;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                font-size: 0.7rem;
+                border-bottom: 2px solid rgba(212, 175, 55, 0.4);
+            }
+            .whale-table td {
+                padding: 16px 20px;
+                color: #cccccc;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+                vertical-align: middle;
+            }
+            .whale-table tbody tr {
+                transition: all 0.2s ease;
+            }
+            .whale-table tbody tr:hover {
+                background: rgba(212, 175, 55, 0.12);
+                cursor: pointer;
+                transform: translateX(2px);
+            }
+            .whale-address {
+                font-family: 'Courier New', monospace;
+                color: #88ccff;
+                font-size: 0.85rem;
+                letter-spacing: 0.02em;
+            }
+            .whale-profit-positive {
+                color: #00ff88;
+                font-weight: 600;
+            }
+            .whale-profit-negative {
+                color: #ff6b6b;
+                font-weight: 600;
+            }
+            .whale-activity {
+                display: inline-block;
+                padding: 5px 12px;
+                background: rgba(212, 175, 55, 0.15);
+                border: 1px solid rgba(212, 175, 55, 0.4);
+                border-radius: 4px;
+                font-size: 0.68rem;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+                color: #d4af37;
+            }
+            </style>
+            <div style="overflow-x: auto; max-height: 700px; overflow-y: auto;">
+            <table class="whale-table">
+                <thead>
+                    <tr>
+                        <th style="width: 22%;">Address</th>
+                        <th style="width: 16%; text-align: right;">Total Volume</th>
+                        <th style="width: 16%; text-align: right;">Total Profit</th>
+                        <th style="width: 13%; text-align: center;">Profit Ratio</th>
+                        <th style="width: 13%; text-align: center;">Trades</th>
+                        <th style="width: 20%; text-align: center;">Activity</th>
+                    </tr>
+                </thead>
+                <tbody>
+            """
 
-            # Style the dataframe
-            styled_whales = whales_df.style.set_properties(**{
-                'background-color': 'rgba(0, 0, 0, 0.4)',
-                'color': '#cccccc',
-                'border': '1px solid rgba(255, 255, 255, 0.1)',
-                'padding': '8px',
-                'font-family': 'IBM Plex Mono, monospace',
-                'font-size': '0.75rem',
-                'text-align': 'left'
-            }).set_table_styles([
-                {'selector': 'thead th',
-                 'props': [
-                     ('background-color', 'rgba(212, 175, 55, 0.2)'),
-                     ('color', '#d4af37'),
-                     ('font-weight', '500'),
-                     ('text-transform', 'uppercase'),
-                     ('letter-spacing', '0.1em'),
-                     ('padding', '10px 8px'),
-                     ('border', '1px solid rgba(212, 175, 55, 0.3)'),
-                     ('font-size', '0.7rem'),
-                     ('text-align', 'left')
-                 ]},
-                {'selector': 'tbody tr:nth-child(even)',
-                 'props': [('background-color', 'rgba(255, 255, 255, 0.02)')]},
-                {'selector': 'tbody tr:hover',
-                 'props': [('background-color', 'rgba(212, 175, 55, 0.08)')]}
-            ])
+            for whale in top_whales:
+                address = whale['address'][:10] + "..." + whale['address'][-8:]
+                volume_val = whale['volume']
+                volume = f"${volume_val/1000:.1f}k" if volume_val < 100000 else f"${volume_val/1000000:.2f}M"
+                profit = whale['profit']
+                profit_abs = abs(profit)
+                profit_formatted = f"${profit_abs/1000:.1f}k" if profit_abs < 100000 else f"${profit_abs/1000000:.2f}M"
+                profit_class = "whale-profit-positive" if profit >= 0 else "whale-profit-negative"
+                profit_sign = "+" if profit >= 0 else "-"
+                profit_ratio = f"{whale['profit_ratio']*100:.1f}%" if whale.get('profit_ratio') else "N/A"
+                trades = f"{whale['trades']:,}"
+                activity = whale['activity'] or "unknown"
 
-            st.dataframe(styled_whales, use_container_width=True, hide_index=True, height=400)
+                whale_table_html += f"""
+                    <tr>
+                        <td class="whale-address">{address}</td>
+                        <td style="color: #d4af37; font-weight: 500; text-align: right;">{volume}</td>
+                        <td class="{profit_class}" style="text-align: right;">{profit_sign}{profit_formatted}</td>
+                        <td class="{profit_class}" style="text-align: center; font-size: 0.92rem;">{profit_ratio}</td>
+                        <td style="text-align: center;">{trades}</td>
+                        <td style="text-align: center;"><span class="whale-activity">{activity}</span></td>
+                    </tr>
+                """
+
+            whale_table_html += """
+                </tbody>
+            </table>
+            </div>
+            """
+
+            st.markdown(whale_table_html, unsafe_allow_html=True)
 
     except Exception as e:
         st.error(f"Error loading markets data: {str(e)}")
