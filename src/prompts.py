@@ -46,6 +46,7 @@ CRITICAL_AQL_RULES = """
    ✅ Award, Company, MarketData, EconomicData
    ✅ sec_filings, sec_sections, sec_sentences
    ✅ commodity_positions, prediction_markets_polymarket, prediction_markets_kalshi
+   ✅ polymarket_traders, polymarket_positions
    ❌ awards, companies, market_data
 
 5. CRITICAL FIELD NAMES:
@@ -55,6 +56,8 @@ CRITICAL_AQL_RULES = """
    EconomicData: sandp_500_index, federal_funds_rate
    SEC: finbert_score, avg_negative, avg_uncertainty (NO embeddings!)
    Polymarket: question, description, yes_probability, volume_24h, closed (NO embeddings!)
+   Polymarket Traders: total_volume, total_profit, is_whale, activity_level (NO embeddings!)
+   Polymarket Positions: market_question, size, average_price, realized_profit, unrealizedProfit
    Kalshi: title, yes_price, volume, status (NO embeddings!)
 
 6. SEMANTIC SEARCH - CRITICAL RULES:
@@ -313,7 +316,45 @@ DOCUMENT COLLECTIONS:
    
    ⚠️ Use Case: Financial markets, economic indicators, index levels
 
-8. sec_filings (SEC document metadata)
+8. polymarket_traders (Polymarket trader/whale data from Data API v1)
+   - _key (string): Unique trader key (hash of address)
+   - address (string): Wallet address
+   - total_volume (float): Lifetime trading volume ($)
+   - total_trades (int): Total number of trades
+   - total_profit (float): Total realized profit/loss ($)
+   - is_whale (bool): True if total_volume >= $50,000
+   - fetched_at (string): Data fetch timestamp
+
+   Engineered Features:
+   - volume_rank (int): Rank by trading volume
+   - avg_position_size (float): Average position size ($)
+   - activity_level (string): "casual" | "regular" | "active" | "whale"
+   - profit_ratio (float): Profit per dollar traded
+   - is_profitable (bool): True if total_profit > 0
+
+   ⚠️ Use Case: Whale tracking, smart money analysis, trader behavior
+
+9. polymarket_positions (Current positions held by traders)
+   - _key (string): Unique position key (trader_address + market_id + outcome)
+   - position_id (string): Position identifier
+   - trader_address (string): Wallet address of trader
+   - trader_key (string): FK to polymarket_traders._key
+   - market_condition_id (string): Market condition ID
+   - market_key (string): FK to prediction_markets_polymarket._key
+   - market_question (string): Market question text
+   - outcome_index (int): 0 for "No", 1 for "Yes"
+   - size (float): Position size (number of shares)
+   - average_price (float): Average entry price (0-1)
+   - realized_profit (float): Realized P&L ($)
+   - unrealizedProfit (float): Unrealized P&L ($)
+   - current_value (float): Current position value ($)
+   - current_price (float): Current market price (0-1)
+   - redeemable (bool): Can be redeemed
+   - fetched_at (string): Data fetch timestamp
+
+   ⚠️ Use Case: Track what whales are betting on, position analysis, portfolio exposure
+
+10. sec_filings (SEC document metadata)
    - ticker (string): Company ticker
    - type (string): Filing type ("10-K", "10-Q", "8-K", etc.)
    - accession (string): SEC accession number (unique ID)
@@ -419,7 +460,27 @@ EDGE COLLECTIONS (Graph Relationships):
    
    Usage: FOR market IN INBOUND company market_related_to_sector_kalshi
 
-9. HAS_FILING: Company -> sec_filings
+9. trader_has_position: polymarket_traders -> polymarket_positions
+   - position_size (float): Position size (shares)
+   - avg_price (float): Average entry price
+   - realized_profit (float): Realized P&L
+   - created_at (string): Edge creation timestamp
+
+   Usage: FOR position IN OUTBOUND trader trader_has_position
+
+   ⚠️ Use Case: Find all positions for a specific whale trader
+
+10. position_in_market: polymarket_positions -> prediction_markets_polymarket
+    - position_size (float): Position size (shares)
+    - outcome_index (int): 0="No", 1="Yes"
+    - current_price (float): Current market price
+    - created_at (string): Edge creation timestamp
+
+    Usage: FOR market IN OUTBOUND position position_in_market
+
+    ⚠️ Use Case: See which markets a position belongs to
+
+11. HAS_FILING: Company -> sec_filings
    - filing_date (string): Date filed
    - filing_type (string): Filing type
    - links companies to SEC filings
@@ -1092,6 +1153,113 @@ Strategy:
 - Compare first vs last price over 180 days (not daily close > open)
 - Use DATE_SUBTRACT(DATE_NOW(), 180, "day")
 - SORT DESC before RETURN to get top performers
+
+---
+
+EXAMPLE: Prediction Markets - Top Markets by Volume
+Question: "What are the top 10 most active Polymarket markets?"
+Intent: ranking
+Collections: ["prediction_markets_polymarket"]
+AQL:
+FOR market IN prediction_markets_polymarket
+  FILTER market.volume_24h > 0
+  FILTER market.closed == false
+  SORT market.volume_24h DESC
+  LIMIT 10
+  RETURN {
+    question: market.question,
+    volume_24h: market.volume_24h,
+    yes_probability: market.yes_probability,
+    liquidity: market.liquidity,
+    end_date: market.end_date,
+    category: market.category
+  }
+Bind Variables: {}
+Requires Embedding: false
+
+---
+
+EXAMPLE: Prediction Markets - Markets Mentioning Company
+Question: "Show me prediction markets about Tesla"
+Intent: company_related_search
+Collections: ["prediction_markets_polymarket", "Company"]
+AQL:
+FOR company IN Company
+  FILTER company.ticker == @ticker
+  FOR market IN INBOUND company market_mentions_company_polymarket
+    FILTER market.closed == false
+    SORT market.volume_24h DESC
+    LIMIT 20
+    RETURN {
+      question: market.question,
+      yes_probability: market.yes_probability,
+      volume_24h: market.volume_24h,
+      confidence: market.confidence,
+      matched_keywords: market.matched_keywords
+    }
+Bind Variables: {"ticker": "TSLA"}
+Requires Embedding: false
+
+Strategy:
+✅ Use graph edges (market_mentions_company_polymarket) not text search
+✅ Filter by ticker on Company collection first
+✅ INBOUND traversal to find markets pointing to company
+
+---
+
+EXAMPLE: Whale Traders - Top Traders by Profit
+Question: "Who are the most profitable whale traders on Polymarket?"
+Intent: ranking
+Collections: ["polymarket_traders"]
+AQL:
+FOR trader IN polymarket_traders
+  FILTER trader.is_whale == true
+  FILTER trader.total_profit > 0
+  SORT trader.total_profit DESC
+  LIMIT 10
+  RETURN {
+    address: trader.address,
+    total_volume: trader.total_volume,
+    total_profit: trader.total_profit,
+    total_trades: trader.total_trades,
+    profit_ratio: trader.profit_ratio,
+    activity_level: trader.activity_level
+  }
+Bind Variables: {}
+Requires Embedding: false
+
+---
+
+EXAMPLE: Whale Positions - What Markets Are Whales Betting On
+Question: "What markets are whale traders betting Yes on?"
+Intent: graph_traversal
+Collections: ["polymarket_traders", "polymarket_positions", "prediction_markets_polymarket"]
+AQL:
+FOR trader IN polymarket_traders
+  FILTER trader.is_whale == true
+  FOR position IN OUTBOUND trader trader_has_position
+    FILTER position.outcome_index == 1
+    FILTER position.size > 100
+    FOR market IN OUTBOUND position position_in_market
+      FILTER market.closed == false
+      SORT position.size DESC
+      LIMIT 20
+      RETURN DISTINCT {
+        market_question: market.question,
+        yes_probability: market.yes_probability,
+        position_size: position.size,
+        trader_address: trader.address,
+        trader_volume: trader.total_volume,
+        current_price: position.current_price
+      }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ CORRECT: Graph traversal trader -> position -> market
+✅ Filter outcome_index == 1 for "Yes" bets
+✅ OUTBOUND for trader->position, OUTBOUND for position->market
+✅ Use DISTINCT to avoid duplicate markets
 
 ---
 
