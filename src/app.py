@@ -237,7 +237,7 @@ with tab1:
     # Single compact search bar
     user_question = st.text_input(
         "query",
-        placeholder="Ask about stocks, SEC filings, government contracts...",
+        placeholder="Ask about stocks, SEC filings, prediction markets, whale traders...",
         label_visibility="collapsed",
         key="main_query"
     )

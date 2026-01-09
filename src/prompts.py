@@ -10,6 +10,21 @@ Last updated: 2026-01-06 with Kalshi support
 CRITICAL_AQL_RULES = """
 ⚠️ CRITICAL AQL SYNTAX RULES ⚠️
 
+0. DISAMBIGUATE "MARKETS" (CRITICAL!):
+   ✅ "prediction markets" / "betting markets" / "polymarket" / "kalshi" → prediction_markets_polymarket
+   ✅ "stock prices" / "OHLCV" / "trading data" / "closing price" → MarketData
+
+   Examples:
+   - "prediction markets about Tesla" → Use prediction_markets_polymarket + graph edges
+   - "Tesla stock price" → Use MarketData collection
+   - "markets that whales are betting on" → Use prediction_markets_polymarket (context: betting/whales)
+   - "markets with high volume last week" → AMBIGUOUS - default to MarketData unless "prediction" mentioned
+
+   ⚠️ When user says "markets" without context:
+   - If question mentions: whales, betting, prediction, probability, polymarket, kalshi → prediction_markets_polymarket
+   - If question mentions: stock, price, OHLCV, technical indicators → MarketData
+   - Default: Ask for clarification or prefer prediction_markets_polymarket in whale/trader context
+
 1. DATE FUNCTIONS:
    ✅ DATE_SUBTRACT(DATE_NOW(), 30, "day")
    ❌ DATE_SUB() - Does not exist in AQL!
@@ -1263,6 +1278,40 @@ Strategy:
 
 ---
 
+EXAMPLE: DISAMBIGUATION - "Markets" with Company Context
+Question: "Show me Tesla-related markets that whales are betting on"
+Intent: graph_traversal_prediction_markets (NOT stock market data!)
+Collections: ["Company", "prediction_markets_polymarket", "polymarket_traders", "polymarket_positions"]
+AQL:
+FOR company IN Company
+  FILTER company.ticker == @ticker
+  FOR market IN INBOUND company market_mentions_company_polymarket
+    FILTER market.closed == false
+    FOR position IN INBOUND market position_in_market
+      FOR trader IN INBOUND position trader_has_position
+        FILTER trader.is_whale == true
+        SORT position.size DESC
+        LIMIT 15
+        RETURN DISTINCT {
+          market_question: market.question,
+          yes_probability: market.yes_probability,
+          volume_24h: market.volume_24h,
+          whale_position_size: position.size,
+          outcome: position.outcome_index == 1 ? "Yes" : "No",
+          trader_volume: trader.total_volume
+        }
+Bind Variables: {"ticker": "TSLA"}
+Requires Embedding: false
+
+Strategy:
+⚠️ CRITICAL: "markets" in whale/betting context = prediction_markets_polymarket (NOT MarketData!)
+✅ Graph path: Company -> prediction markets -> positions -> traders
+✅ INBOUND traversal: market -> position -> trader (backwards through edges)
+✅ Filter is_whale to get only whale traders
+❌ WRONG: Using MarketData collection for this query (that's stock OHLCV data)
+
+---
+
 ⚠️ FIELD NAME CHEAT SHEET (Common Mistakes):
 
 WRONG → CORRECT
@@ -1274,6 +1323,23 @@ WRONG → CORRECT
 - polymarket → prediction_markets_polymarket
 - kalshi → prediction_markets_kalshi
 - commodity_position → commodity_positions
+
+⚠️ TERMINOLOGY DISAMBIGUATION (CRITICAL!):
+
+"MARKETS" CAN MEAN TWO DIFFERENT THINGS:
+1. MarketData = Stock market data (OHLCV, technical indicators, fundamentals)
+   - Questions: "stock price", "closing price", "trading volume" (stock context), "SMA", "MACD"
+
+2. prediction_markets_polymarket = Prediction/betting markets (Polymarket, Kalshi)
+   - Questions: "prediction markets", "betting", "whales", "probability", "polymarket", "kalshi"
+
+CONTEXT CLUES:
+- "Tesla stock price" → MarketData
+- "Tesla prediction markets" → prediction_markets_polymarket
+- "markets that whales bet on" → prediction_markets_polymarket (whale = prediction market trader)
+- "markets with high trading volume" → AMBIGUOUS! Check for context:
+  - If question mentions whales/betting → prediction_markets_polymarket
+  - If question mentions stock/price → MarketData
 
 ⚠️ PREDICTION MARKET FIELD DIFFERENCES:
 
