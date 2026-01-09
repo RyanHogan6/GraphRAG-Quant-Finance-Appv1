@@ -8,6 +8,7 @@ import time
 from query_logger import get_logger
 from datetime import datetime
 import torch
+import html
 
 st.set_page_config(page_title="Finna Go Alpha", page_icon="▓", layout="wide")
 
@@ -370,7 +371,7 @@ with tab2:
                 "Show",
                 [10, 20, 50, 100],
                 index=1,
-                key="market_limit"
+                key="markets_tab_limit"
             )
 
         st.markdown("<br>", unsafe_allow_html=True)
@@ -566,11 +567,12 @@ with tab2:
             """
 
             for market in top_markets:
-                question = market['question'][:180] + "..." if len(market['question']) > 180 else market['question']
+                question_raw = market['question'][:180] + "..." if len(market['question']) > 180 else market['question']
+                question = html.escape(question_raw)
                 yes_prob = market['yes_prob']
                 volume = f"${market['volume_24h']/1000:.1f}k" if market['volume_24h'] < 100000 else f"${market['volume_24h']/1000000:.2f}M"
                 liquidity = f"${market['liquidity']/1000:.1f}k" if market.get('liquidity') and market['liquidity'] < 100000 else (f"${market['liquidity']/1000000:.2f}M" if market.get('liquidity') else "N/A")
-                category = market['category'] or "Other"
+                category = html.escape(market['category'] or "Other")
 
                 table_html += f"""
                     <tr>
