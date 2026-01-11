@@ -20,7 +20,7 @@ export default function DatabasePage() {
     <div className="container mx-auto px-6 py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gold mb-2">🗄️ Database Browser</h1>
+        <h1 className="text-4xl font-bold text-gold mb-2">Database Browser</h1>
         <p className="text-gray-500">Explore ArangoDB collections and graph structure</p>
       </div>
 
@@ -48,7 +48,7 @@ export default function DatabasePage() {
 
       {/* Collections Grid */}
       <div className="mb-8">
-        <h2 className="text-xl font-semibold text-gold mb-4">📚 Document Collections</h2>
+        <h2 className="text-xl font-semibold text-gold mb-4">Document Collections</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {collections.map((collection) => (
             <button
@@ -75,7 +75,7 @@ export default function DatabasePage() {
         <div className="bg-dark-800 border border-gold/20 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gold">
-              {collections.find(c => c.name === selectedCollection)?.icon} {selectedCollection}
+              {selectedCollection}
             </h2>
             <button
               onClick={() => setSelectedCollection(null)}
@@ -111,7 +111,6 @@ export default function DatabasePage() {
 
       {/* Graph Visualization Placeholder */}
       <div className="bg-dark-800 border border-gold/20 rounded-lg p-8 text-center">
-        <div className="text-6xl mb-4">🕸️</div>
         <div className="text-xl text-gray-400 mb-2">Graph Visualization</div>
         <div className="text-sm text-gray-600">Interactive graph view coming soon</div>
       </div>

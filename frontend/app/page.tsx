@@ -30,19 +30,53 @@ export default function HomePage() {
     }
 
     setMessages((prev) => [...prev, userMessage])
+    const currentInput = input
     setInput('')
     setIsLoading(true)
 
-    // TODO: Replace with actual API call
-    setTimeout(() => {
+    try {
+      // Import api at the top of the file
+      const { api } = await import('@/lib/api')
+
+      const response = await api.executeQuery(currentInput)
+
+      // Format results as markdown
+      let resultText = `Found ${response.count} results in ${response.execution_time.toFixed(2)}s.\n\n`
+
+      if (response.results && response.results.length > 0) {
+        resultText += '**Results:**\n'
+        response.results.slice(0, 5).forEach((result: any, idx: number) => {
+          resultText += `${idx + 1}. ${JSON.stringify(result).substring(0, 200)}...\n`
+        })
+
+        if (response.results.length > 5) {
+          resultText += `\n...and ${response.results.length - 5} more results`
+        }
+      }
+
+      if (response.follow_up_questions && response.follow_up_questions.length > 0) {
+        resultText += '\n\n**Follow-up questions:**\n'
+        response.follow_up_questions.forEach((q: string) => {
+          resultText += `• ${q}\n`
+        })
+      }
+
       const assistantMessage: Message = {
         role: 'assistant',
-        content: `I received your question: "${input}". This is a mock response. Once we connect the backend, I'll execute AQL queries against the knowledge graph and provide real insights!`,
+        content: resultText,
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, assistantMessage])
+    } catch (error) {
+      const errorMessage: Message = {
+        role: 'assistant',
+        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
+        timestamp: new Date(),
+      }
+      setMessages((prev) => [...prev, errorMessage])
+    } finally {
       setIsLoading(false)
-    }, 1500)
+    }
   }
 
   const suggestedQuestions = [
@@ -58,7 +92,7 @@ export default function HomePage() {
     <div className="container mx-auto px-6 py-8 max-w-6xl">
       {/* Header */}
       <div className="mb-8 text-center">
-        <h1 className="text-4xl font-bold text-gold mb-2">💬 AI Query Interface</h1>
+        <h1 className="text-4xl font-bold text-gold mb-2">AI Query Interface</h1>
         <p className="text-gray-500">Natural language queries over financial knowledge graph</p>
       </div>
 
@@ -79,8 +113,8 @@ export default function HomePage() {
                 }`}
               >
                 <div className="flex items-start space-x-3">
-                  <div className="text-xl">
-                    {message.role === 'user' ? '👤' : '🤖'}
+                  <div className="text-xs font-semibold text-gray-500 uppercase">
+                    {message.role === 'user' ? 'You' : 'AI'}
                   </div>
                   <div className="flex-1">
                     <div className="text-sm mb-2 leading-relaxed">{message.content}</div>
@@ -97,7 +131,7 @@ export default function HomePage() {
             <div className="flex justify-start">
               <div className="bg-dark-700 border border-gold/20 rounded-lg p-4">
                 <div className="flex items-center space-x-3">
-                  <div className="text-xl">🤖</div>
+                  <div className="text-xs font-semibold text-gray-500 uppercase">AI</div>
                   <div className="flex space-x-1">
                     <div className="w-2 h-2 bg-gold rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
                     <div className="w-2 h-2 bg-gold rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
@@ -133,7 +167,7 @@ export default function HomePage() {
 
       {/* Suggested Questions */}
       <div className="mb-8">
-        <h2 className="text-lg font-semibold text-gold mb-4">💡 Suggested Questions</h2>
+        <h2 className="text-lg font-semibold text-gold mb-4">Suggested Questions</h2>
         <div className="grid grid-cols-2 gap-3">
           {suggestedQuestions.map((question, idx) => (
             <button
@@ -150,17 +184,14 @@ export default function HomePage() {
       {/* Info Cards */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-dark-800 border border-gold/20 rounded-lg p-5">
-          <div className="text-2xl mb-2">📊</div>
           <div className="text-gold font-semibold mb-1">Market Data</div>
           <div className="text-xs text-gray-500">OHLCV, technical indicators, fundamentals</div>
         </div>
         <div className="bg-dark-800 border border-gold/20 rounded-lg p-5">
-          <div className="text-2xl mb-2">🏛️</div>
           <div className="text-gold font-semibold mb-1">Gov Contracts</div>
           <div className="text-xs text-gray-500">Federal awards with semantic search</div>
         </div>
         <div className="bg-dark-800 border border-gold/20 rounded-lg p-5">
-          <div className="text-2xl mb-2">📄</div>
           <div className="text-gold font-semibold mb-1">SEC Filings</div>
           <div className="text-xs text-gray-500">Sentiment analysis, sections, sentences</div>
         </div>

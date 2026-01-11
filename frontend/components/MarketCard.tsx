@@ -2,9 +2,10 @@ import { Market } from '@/lib/mockData'
 
 interface MarketCardProps {
   market: Market
+  onClick?: () => void
 }
 
-export default function MarketCard({ market }: MarketCardProps) {
+export default function MarketCard({ market, onClick }: MarketCardProps) {
   const formatVolume = (volume: number) => {
     if (volume >= 1000000) return `$${(volume / 1000000).toFixed(1)}M`
     if (volume >= 1000) return `$${(volume / 1000).toFixed(0)}k`
@@ -12,16 +13,13 @@ export default function MarketCard({ market }: MarketCardProps) {
   }
 
   return (
-    <div className="market-card group relative">
-      {/* Header with Icon and Category */}
+    <div className="market-card group relative" onClick={onClick}>
+      {/* Header with Category */}
       <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center space-x-3">
-          <div className="text-3xl">{market.icon}</div>
-          <div className="flex-1">
-            <h3 className="text-sm text-gray-100 leading-tight group-hover:text-gold transition-colors">
-              {market.question}
-            </h3>
-          </div>
+        <div className="flex-1">
+          <h3 className="text-sm text-gray-100 leading-tight group-hover:text-gold transition-colors mb-2">
+            {market.question}
+          </h3>
         </div>
         <div className="category-badge ml-2 shrink-0">
           {market.category}
@@ -62,15 +60,15 @@ export default function MarketCard({ market }: MarketCardProps) {
       <div className="flex items-center justify-between text-xs text-gray-500">
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-1" title="24h Volume">
-            <span>📊</span>
+            <span className="text-gold">Vol:</span>
             <span>{formatVolume(market.volume_24h)}</span>
           </div>
           <div className="flex items-center space-x-1" title="Liquidity">
-            <span>💧</span>
+            <span className="text-gold">Liq:</span>
             <span>{formatVolume(market.liquidity)}</span>
           </div>
           <div className="flex items-center space-x-1" title="Traders">
-            <span>👥</span>
+            <span className="text-gold">Traders:</span>
             <span>{market.traders}</span>
           </div>
         </div>

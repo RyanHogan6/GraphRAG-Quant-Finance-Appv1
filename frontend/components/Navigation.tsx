@@ -7,9 +7,9 @@ export default function Navigation() {
   const pathname = usePathname()
 
   const links = [
-    { href: '/', label: '💬 Query' },
-    { href: '/markets', label: '📊 Markets' },
-    { href: '/database', label: '🗄️ Database' },
+    { href: '/', label: 'Query' },
+    { href: '/markets', label: 'Markets' },
+    { href: '/database', label: 'Database' },
   ]
 
   return (
@@ -17,7 +17,6 @@ export default function Navigation() {
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <div className="text-2xl font-bold text-gold">⚡</div>
             <h1 className="text-xl font-bold text-gold">GraphRAG</h1>
           </div>
 
@@ -38,7 +37,7 @@ export default function Navigation() {
           </div>
 
           <div className="flex items-center space-x-4">
-            <div className="text-sm text-gray-500">Status: <span className="text-green-400">●</span> Online</div>
+            <div className="text-sm text-gray-500">Status: <span className="text-green-400">Online</span></div>
           </div>
         </div>
       </div>
