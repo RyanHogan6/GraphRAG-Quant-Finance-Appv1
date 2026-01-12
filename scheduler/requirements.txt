@@ -1,0 +1,17 @@
+# Core Dependencies
+APScheduler
+python-dotenv
+
+# Data Processing
+pandas
+numpy
+
+# HTTP Requests
+requests
+tenacity
+
+# ArangoDB
+python-arango
+
+# OpenAI (if needed)
+openai
