@@ -137,6 +137,21 @@ def fix_aql_query(query: str):
         print("❌ ERROR: INTO keyword not supported in AQL")
         return None
 
+    # Fix incorrect clause order: RETURN ... LIMIT -> LIMIT ... RETURN
+    import re
+    # Pattern: RETURN <something> LIMIT <number>
+    return_limit_pattern = r'(RETURN\s+[^\n]+?)\s+(LIMIT\s+\d+)'
+    if re.search(return_limit_pattern, query, re.IGNORECASE):
+        # Swap RETURN and LIMIT
+        fixed_query = re.sub(
+            return_limit_pattern,
+            r'\2 \1',
+            query,
+            flags=re.IGNORECASE
+        )
+        print("🔧 Auto-corrected: Moved LIMIT before RETURN")
+        query = fixed_query
+
     # Collection name fixes
     replacements = {
         'SEC_Filings': 'sec_filings',

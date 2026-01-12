@@ -65,11 +65,16 @@ def plan_query_with_llm(question: str, intent_hint=None):
 
 {CRITICAL_AQL_RULES}
 
+CRITICAL: AQL CLAUSE ORDER MUST BE:
+FOR → FILTER → SORT → LIMIT → RETURN
+⚠️ LIMIT always comes BEFORE RETURN!
+
 EXAMPLE QUERIES (for reference):
 - Ticker query: FOR doc IN Award FILTER doc.ticker == @ticker SORT doc.award_amount_float DESC LIMIT 10 RETURN doc
 - Semantic query: FOR doc IN Award FILTER doc.description_embedding != null LET sim = COSINE_SIMILARITY(doc.description_embedding, @query_vector) FILTER sim >= 0.7 SORT sim DESC LIMIT 10 RETURN doc
 - SEC sentiment: FOR doc IN sec_sentences FILTER CONTAINS(LOWER(doc.text), @keyword) AND doc.finbert_score < -0.3 LIMIT 20 RETURN doc
 - Date range: FOR doc IN MarketData FILTER doc.ticker == @ticker AND doc.date >= DATE_SUBTRACT(DATE_NOW(), 180, "day") SORT doc.date DESC LIMIT 100 RETURN doc
+- Simple query: FOR doc IN EconomicData FILTER doc.federal_funds_rate != null LIMIT 1 RETURN doc
 
 USER QUESTION: "{question}"{hint_text}
 
