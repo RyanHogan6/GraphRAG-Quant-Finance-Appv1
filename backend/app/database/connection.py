@@ -19,22 +19,16 @@ def get_db():
     """Get or create cached ArangoDB connection"""
     global _db_instance
     if _db_instance is None:
-        # Check for certificate in environment variable (Railway)
-        cert_content = os.getenv('ARANGO_CERT')
+        # For ArangoDB Cloud, we typically don't need custom cert verification
+        # The python-arango library handles SSL automatically for HTTPS URLs
 
-        if cert_content:
-            # Write cert to temporary file for python-arango
-            import tempfile
-            cert_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.pem')
-            cert_file.write(cert_content)
-            cert_file.close()
-            client = ArangoClient(hosts=config.ARANGO_URL, verify=cert_file.name)
-            print(f"✓ Using SSL certificate from environment variable")
-        elif 'arangodb.cloud' in config.ARANGO_URL or 'oasis' in config.ARANGO_URL:
-            # For ArangoDB Cloud without cert, disable SSL verification
-            client = ArangoClient(hosts=config.ARANGO_URL, verify=False)
-            print("⚠ SSL verification disabled for ArangoDB Cloud")
+        # Check if using ArangoDB Cloud
+        if 'arangodb.cloud' in config.ARANGO_URL or 'oasis' in config.ARANGO_URL:
+            # ArangoClient handles HTTPS automatically, no need for verify parameter
+            client = ArangoClient(hosts=config.ARANGO_URL)
+            print(f"✓ Connecting to ArangoDB Cloud with SSL")
         else:
+            # Local or non-cloud instance
             client = ArangoClient(hosts=config.ARANGO_URL)
 
         _db_instance = client.db(
@@ -42,6 +36,7 @@ def get_db():
             username=config.USERNAME,
             password=config.PASSWORD
         )
+        print(f"✓ Connected to ArangoDB: {config.DB_NAME}")
     return _db_instance
 
 
