@@ -28,6 +28,27 @@ class WhaleTraderResponse(BaseModel):
     profit_ratio: float
 
 
+@router.get("/polymarket/sample")
+def get_sample_market():
+    """Get a sample market to see available fields - DEBUG ENDPOINT"""
+    db = get_db()
+
+    query = """
+    FOR market IN prediction_markets_polymarket
+        FILTER market.closed == false
+        LIMIT 1
+        RETURN market
+    """
+
+    try:
+        results, error = execute_aql(query)
+        if error or not results:
+            return {"error": "No markets found"}
+        return results[0]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/polymarket/categories")
 def get_polymarket_categories():
     """Get all Polymarket categories with counts"""
@@ -55,16 +76,27 @@ def get_market_detail(market_id: str):
     """Get detailed information for a specific market including trader count"""
     db = get_db()
 
+    # First check if polymarket_positions collection exists
     query = f"""
     FOR market IN prediction_markets_polymarket
         FILTER market._key == @market_id
         LIMIT 1
 
-        // Count traders with positions in this market
-        LET trader_count = LENGTH(
-            FOR pos IN polymarket_positions
-                FILTER pos.market_id == market.market_id OR pos.condition_id == market.condition_id
-                RETURN DISTINCT pos.trader_key
+        // Try to count traders - fallback to stored value if collection doesn't exist
+        LET trader_count = (
+            LENGTH(
+                FOR pos IN polymarket_positions
+                    FILTER pos.market_id == market.market_id OR pos.condition_id == market.condition_id
+                    RETURN DISTINCT pos.trader_key
+            ) > 0 ? LENGTH(
+                FOR pos IN polymarket_positions
+                    FILTER pos.market_id == market.market_id OR pos.condition_id == market.condition_id
+                    RETURN DISTINCT pos.trader_key
+            ) : (
+                market.num_traders != null ? market.num_traders :
+                market.trader_count != null ? market.trader_count :
+                market.traders != null ? market.traders : 0
+            )
         )
 
         RETURN MERGE(market, {{
@@ -75,8 +107,24 @@ def get_market_detail(market_id: str):
 
     try:
         results, error = execute_aql(query, {"market_id": market_id})
-        if error or not results:
+        if error:
+            # Fallback: return market without trader count
+            fallback_query = """
+            FOR market IN prediction_markets_polymarket
+                FILTER market._key == @market_id
+                LIMIT 1
+                RETURN MERGE(market, {
+                    trader_count: market.num_traders != null ? market.num_traders : 0,
+                    num_traders: market.num_traders != null ? market.num_traders : 0
+                })
+            """
+            results, error2 = execute_aql(fallback_query, {"market_id": market_id})
+            if error2 or not results:
+                raise HTTPException(status_code=404, detail="Market not found")
+
+        if not results:
             raise HTTPException(status_code=404, detail="Market not found")
+
         return results[0]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -110,21 +158,45 @@ def get_polymarket_markets(
         FILTER market.volume_24h > 0
         {category_filter}
         {volume_filter}
+
+        // Handle different probability field names and formats
+        LET yes_prob_value = (
+            market.yes_probability != null ? market.yes_probability :
+            market.yes_price != null ? market.yes_price :
+            market.probability != null ? market.probability :
+            0.5
+        )
+
+        // Convert to percentage if it's a decimal (0-1 range)
+        LET yes_prob_pct = yes_prob_value <= 1 ? (yes_prob_value * 100) : yes_prob_value
+
+        // Filter out resolved markets (where probability is exactly 0 or 100)
+        FILTER yes_prob_pct > 1 AND yes_prob_pct < 99
+
         SORT {sort_field} {sort_dir}
         LIMIT {limit}
+
+        // Get trader count from any available field
+        LET trader_count = (
+            market.num_traders != null ? market.num_traders :
+            market.trader_count != null ? market.trader_count :
+            market.traders != null ? market.traders :
+            market.unique_traders != null ? market.unique_traders : 0
+        )
+
         RETURN {{
             id: market._key,
             market_id: market.market_id,
             condition_id: market.condition_id,
             question: market.question,
-            yes_prob: FLOOR(market.yes_probability * 100),
-            no_prob: FLOOR((1 - market.yes_probability) * 100),
+            yes_prob: ROUND(yes_prob_pct),
+            no_prob: ROUND(100 - yes_prob_pct),
             volume_24h: market.volume_24h,
             liquidity: market.liquidity,
             category: market.category,
             end_date: market.end_date,
             description: market.description,
-            traders: market.num_traders != null ? market.num_traders : 0
+            traders: trader_count
         }}
     """
 
