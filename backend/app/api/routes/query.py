@@ -7,7 +7,7 @@ from typing import Optional, Dict, List, Any
 import time
 
 from app.database.connection import get_db, execute_aql, fix_aql_query
-from app.llm.planning import plan_query_with_llm, quick_intent_check, get_query_embedding, generate_follow_up_questions
+from app.llm.planning import plan_query_with_llm, quick_intent_check, get_query_embedding, generate_follow_up_questions, analyze_results_with_llm
 
 router = APIRouter()
 
@@ -29,6 +29,7 @@ class QueryExecuteResponse(BaseModel):
     count: int
     execution_time: float
     query_plan: dict
+    analysis: str
     follow_up_questions: Optional[List[str]] = None
 
 
@@ -115,7 +116,10 @@ def execute_query(request: QueryRequest):
 
         execution_time = time.time() - start_time
 
-        # Step 6: Generate follow-up questions
+        # Step 6: Analyze results with LLM
+        analysis = analyze_results_with_llm(request.question, results, query_plan)
+
+        # Step 7: Generate follow-up questions
         follow_ups = generate_follow_up_questions(request.question, results, query_plan)
 
         return QueryExecuteResponse(
@@ -123,6 +127,7 @@ def execute_query(request: QueryRequest):
             count=len(results),
             execution_time=execution_time,
             query_plan=query_plan,
+            analysis=analysis,
             follow_up_questions=follow_ups
         )
 

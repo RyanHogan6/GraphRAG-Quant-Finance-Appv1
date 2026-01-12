@@ -126,6 +126,48 @@ def get_query_embedding(text: str):
         return None
 
 
+def analyze_results_with_llm(user_question: str, results: list, query_plan: dict):
+    """Analyze query results and generate natural language response"""
+
+    if not results:
+        return "No results found for your query."
+
+    # Limit results sample for LLM analysis (avoid token limits)
+    results_sample = results[:10] if len(results) > 10 else results
+    result_count = len(results)
+
+    analysis_prompt = f"""You are a financial data analyst. The user asked: "{user_question}"
+
+We queried the database and found {result_count} results. Here's a sample:
+
+{json.dumps(results_sample, indent=2)}
+
+Please provide a clear, concise analysis in markdown format:
+1. Summarize the key findings
+2. Highlight important numbers, dates, or trends
+3. Present data in a table if appropriate (use markdown tables)
+4. Keep it professional and easy to read
+
+Focus on answering the user's question directly. Don't mention technical details like query execution.
+
+Response:"""
+
+    try:
+        response = openai.chat.completions.create(
+            model=config.LLM_MODEL,
+            messages=[{"role": "user", "content": analysis_prompt}],
+            max_tokens=1000,
+            temperature=0.3
+        )
+
+        return response.choices[0].message.content.strip()
+
+    except Exception as e:
+        print(f"Analysis error: {str(e)}")
+        # Fallback to simple formatting
+        return f"Found {result_count} results. Here's a summary:\n\n" + "\n".join([f"- {json.dumps(r)[:100]}..." for r in results_sample[:5]])
+
+
 def generate_follow_up_questions(user_question: str, results: list, query_plan: dict):
     """Generate contextual follow-up questions based on results"""
     intent = query_plan.get('intent', '')

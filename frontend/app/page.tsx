@@ -40,10 +40,14 @@ export default function HomePage() {
 
       const response = await api.executeQuery(currentInput)
 
-      // Format results as markdown
+      // Use AI-generated analysis instead of raw JSON
       let resultText = `Found ${response.count} results in ${response.execution_time.toFixed(2)}s.\n\n`
 
-      if (response.results && response.results.length > 0) {
+      // Display AI analysis
+      if (response.analysis) {
+        resultText += response.analysis
+      } else if (response.results && response.results.length > 0) {
+        // Fallback to raw results if no analysis
         resultText += '**Results:**\n'
         response.results.slice(0, 5).forEach((result: any, idx: number) => {
           resultText += `${idx + 1}. ${JSON.stringify(result).substring(0, 200)}...\n`
