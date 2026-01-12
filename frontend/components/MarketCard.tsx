@@ -12,79 +12,126 @@ export default function MarketCard({ market, onClick }: MarketCardProps) {
     return `$${volume}`
   }
 
+  // Detect market type from question/category
+  const detectMarketType = () => {
+    const q = market.question.toLowerCase()
+    const cat = market.category?.toLowerCase() || ''
+
+    // Sports categories
+    if (cat.includes('sport') || cat.includes('nba') || cat.includes('nfl') ||
+        cat.includes('nhl') || cat.includes('mlb') || q.includes(' vs ') ||
+        q.includes('win the') && (q.includes('game') || q.includes('match'))) {
+      return 'sports'
+    }
+
+    // Multiple choice - has outcomes array
+    if (market.outcomes && market.outcomes.length > 2) {
+      return 'multiple'
+    }
+
+    // Binary yes/no
+    return 'binary'
+  }
+
+  const marketType = detectMarketType()
+
+  // Determine which side to highlight (higher probability)
+  const leadingSide = market.yes_prob > market.no_prob ? 'yes' : 'no'
+  const leadingProb = Math.max(market.yes_prob, market.no_prob)
+
   return (
-    <div className="market-card group relative" onClick={onClick}>
-      {/* Header with Category */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
-          <h3 className="text-sm text-gray-100 leading-tight group-hover:text-gold transition-colors mb-2">
+    <div
+      className="relative bg-dark-800 border border-gold/20 rounded-lg p-4 hover:border-gold/40 transition-all cursor-pointer group"
+      onClick={onClick}
+    >
+      {/* Top: Question + Probability Badge */}
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex-1 pr-3">
+          <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+            {market.category}
+          </div>
+          <h3 className="text-sm text-gray-100 font-medium leading-tight group-hover:text-gold transition-colors">
             {market.question}
           </h3>
         </div>
-        <div className="category-badge ml-2 shrink-0">
-          {market.category}
+
+        {/* Circular Probability Badge (like Polymarket) */}
+        <div className="flex flex-col items-center shrink-0">
+          <div className={`
+            w-14 h-14 rounded-full flex items-center justify-center border-2
+            ${leadingSide === 'yes' ? 'border-green-500/50 bg-green-500/10' : 'border-red-500/50 bg-red-500/10'}
+          `}>
+            <div className="text-center">
+              <div className={`text-lg font-bold ${leadingSide === 'yes' ? 'text-green-400' : 'text-red-400'}`}>
+                {leadingProb}%
+              </div>
+            </div>
+          </div>
+          <div className="text-xs text-gray-600 mt-1">chance</div>
         </div>
       </div>
 
-      {/* Outcomes or Yes/No */}
-      {market.outcomes && market.outcomes.length > 0 ? (
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          {market.outcomes.map((outcome, idx) => (
+      {/* Middle: Outcomes based on type */}
+      {marketType === 'multiple' && market.outcomes ? (
+        /* Multiple Choice: List of options */
+        <div className="space-y-2 mb-4">
+          {market.outcomes.slice(0, 3).map((outcome, idx) => (
             <div
               key={idx}
-              className="flex items-center justify-between bg-dark-700 border border-gold/20 rounded px-3 py-2 hover:border-gold/40 transition-all"
+              className="flex items-center justify-between bg-dark-700/50 border border-gold/10 rounded px-3 py-2 hover:bg-dark-700 transition-all"
             >
               <span className="text-xs text-gray-300">{outcome.name}</span>
-              <span className="text-sm font-semibold text-gold">{outcome.prob}%</span>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-semibold text-gold">{outcome.prob}%</span>
+                <div className="flex space-x-1">
+                  <span className="text-xs text-green-400">Yes</span>
+                  <span className="text-xs text-red-400">No</span>
+                </div>
+              </div>
             </div>
           ))}
+          {market.outcomes.length > 3 && (
+            <div className="text-xs text-gray-500 text-center">
+              +{market.outcomes.length - 3} more options
+            </div>
+          )}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <div className="flex items-center justify-center bg-green-500/10 border border-green-500/30 rounded py-3 hover:bg-green-500/20 transition-all cursor-pointer">
+        /* Binary: Simple Yes/No buttons without percentages */
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          <button className="bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 hover:border-green-500/50 rounded-lg py-3 px-4 transition-all">
             <div className="text-center">
-              <div className="text-xs text-green-400 mb-1">Yes</div>
-              <div className="text-lg font-bold text-green-400">{market.yes_prob}%</div>
+              <div className="text-sm font-medium text-green-400">Yes</div>
             </div>
-          </div>
-          <div className="flex items-center justify-center bg-red-500/10 border border-red-500/30 rounded py-3 hover:bg-red-500/20 transition-all cursor-pointer">
+          </button>
+          <button className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 hover:border-red-500/50 rounded-lg py-3 px-4 transition-all">
             <div className="text-center">
-              <div className="text-xs text-red-400 mb-1">No</div>
-              <div className="text-lg font-bold text-red-400">{market.no_prob}%</div>
+              <div className="text-sm font-medium text-red-400">No</div>
             </div>
-          </div>
+          </button>
         </div>
       )}
 
-      {/* Stats */}
-      <div className="flex items-center justify-between text-xs text-gray-500">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-1" title="24h Volume">
-            <span className="text-gold">Vol:</span>
-            <span>{formatVolume(market.volume_24h)}</span>
+      {/* Bottom: Stats */}
+      <div className="flex items-center justify-between text-xs">
+        <div className="flex items-center space-x-3 text-gray-500">
+          <div title="24h Volume">
+            <span className="text-gold">{formatVolume(market.volume_24h)}</span>
+            <span className="ml-1">Vol.</span>
           </div>
-          <div className="flex items-center space-x-1" title="Liquidity">
-            <span className="text-gold">Liq:</span>
-            <span>{formatVolume(market.liquidity)}</span>
-          </div>
-          <div className="flex items-center space-x-1" title="Traders">
-            <span className="text-gold">Traders:</span>
-            <span>{market.traders}</span>
-          </div>
+          {market.traders > 0 && (
+            <div className="flex items-center space-x-1">
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+              </svg>
+              <span>{market.traders.toLocaleString()}</span>
+            </div>
+          )}
         </div>
         <div className="text-gray-600">
           {new Date(market.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
         </div>
       </div>
-
-      {/* Hover tooltip */}
-      {market.description && (
-        <div className="absolute left-0 right-0 -bottom-2 opacity-0 group-hover:opacity-100 group-hover:bottom-[-60px] transition-all pointer-events-none z-10">
-          <div className="bg-dark-700 border border-gold/30 rounded-lg p-3 text-xs text-gray-400 shadow-xl">
-            {market.description}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

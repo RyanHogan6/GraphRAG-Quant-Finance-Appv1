@@ -76,32 +76,28 @@ def get_market_detail(market_id: str):
     """Get detailed information for a specific market including trader count"""
     db = get_db()
 
-    # First check if polymarket_positions collection exists
+    # Query with correct field names from polymarket_positions
     query = f"""
     FOR market IN prediction_markets_polymarket
         FILTER market._key == @market_id
         LIMIT 1
 
-        // Try to count traders - fallback to stored value if collection doesn't exist
-        LET trader_count = (
-            LENGTH(
-                FOR pos IN polymarket_positions
-                    FILTER pos.market_id == market.market_id OR pos.condition_id == market.condition_id
-                    RETURN DISTINCT pos.trader_key
-            ) > 0 ? LENGTH(
-                FOR pos IN polymarket_positions
-                    FILTER pos.market_id == market.market_id OR pos.condition_id == market.condition_id
-                    RETURN DISTINCT pos.trader_key
-            ) : (
-                market.num_traders != null ? market.num_traders :
-                market.trader_count != null ? market.trader_count :
-                market.traders != null ? market.traders : 0
-            )
+        // Count unique traders with positions in this market
+        LET trader_count = LENGTH(
+            FOR pos IN polymarket_positions
+                FILTER pos.market_condition_id == market.condition_id OR
+                       pos.market_key == market._key OR
+                       CONTAINS(pos.market_condition_id, market.condition_id)
+                RETURN DISTINCT pos.trader_address
         )
 
         RETURN MERGE(market, {{
-            trader_count: trader_count,
-            num_traders: trader_count
+            trader_count: trader_count > 0 ? trader_count : (
+                market.num_traders != null ? market.num_traders : 0
+            ),
+            num_traders: trader_count > 0 ? trader_count : (
+                market.num_traders != null ? market.num_traders : 0
+            )
         }})
     """
 
