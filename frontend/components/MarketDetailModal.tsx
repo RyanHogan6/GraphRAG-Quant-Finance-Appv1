@@ -1,4 +1,7 @@
 import { Market } from '@/lib/mockData'
+import { useEffect, useState } from 'react'
+import { api } from '@/lib/api'
+import ProbabilityChart from './ProbabilityChart'
 
 interface MarketDetailModalProps {
   market: Market
@@ -6,11 +9,38 @@ interface MarketDetailModalProps {
 }
 
 export default function MarketDetailModal({ market, onClose }: MarketDetailModalProps) {
+  const [fullMarketData, setFullMarketData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // Fetch full market details when modal opens
+    async function fetchDetails() {
+      try {
+        setLoading(true)
+        const details = await api.getMarketDetail(market.id)
+        setFullMarketData(details)
+      } catch (error) {
+        console.error('Failed to fetch market details:', error)
+        setFullMarketData(market) // Fallback to basic market data
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchDetails()
+  }, [market.id])
+
   const formatVolume = (volume: number) => {
     if (volume >= 1000000) return `$${(volume / 1000000).toFixed(2)}M`
-    if (volume >= 1000) return `$${(volume / 1000).toFixed(0)}k`
-    return `$${volume}`
+    if (volume >= 1000) return `$${(volume / 1000).toFixed(2)}k`
+    return `$${volume.toFixed(2)}`
   }
+
+  const formatPercent = (value: number) => {
+    if (value === null || value === undefined) return 'N/A'
+    return `${(value * 100).toFixed(2)}%`
+  }
+
+  const displayData = fullMarketData || market
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -42,26 +72,90 @@ export default function MarketDetailModal({ market, onClose }: MarketDetailModal
         </div>
 
         {/* Stats Bar */}
-        <div className="grid grid-cols-4 gap-4 p-6 border-b border-gold/20">
-          <div>
-            <div className="text-xs text-gray-500 mb-1">Volume (24h)</div>
-            <div className="text-lg font-bold text-gold">{formatVolume(market.volume_24h)}</div>
+        {loading ? (
+          <div className="p-6 text-center text-gray-500">
+            <div className="animate-pulse">Loading market details...</div>
           </div>
-          <div>
-            <div className="text-xs text-gray-500 mb-1">Liquidity</div>
-            <div className="text-lg font-bold text-gold">{formatVolume(market.liquidity)}</div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-500 mb-1">Traders</div>
-            <div className="text-lg font-bold text-gold">{market.traders.toLocaleString()}</div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-500 mb-1">End Date</div>
-            <div className="text-lg font-bold text-gold">
-              {new Date(market.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+        ) : (
+          <>
+            <div className="grid grid-cols-4 gap-4 p-6 border-b border-gold/20">
+              <div>
+                <div className="text-xs text-gray-500 mb-1">Volume (24h)</div>
+                <div className="text-lg font-bold text-gold">{formatVolume(displayData.volume_24h)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500 mb-1">Liquidity</div>
+                <div className="text-lg font-bold text-gold">{formatVolume(displayData.liquidity || 0)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500 mb-1">Traders</div>
+                <div className="text-lg font-bold text-gold">{(displayData.trader_count || displayData.traders || 0).toLocaleString()}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500 mb-1">End Date</div>
+                <div className="text-lg font-bold text-gold">
+                  {new Date(displayData.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </div>
+              </div>
             </div>
+
+            {/* Additional Metrics */}
+            {displayData && (displayData.volume || displayData.liquidity_24h || displayData.spread) && (
+              <div className="p-6 border-b border-gold/20">
+                <h3 className="text-sm font-semibold text-gold mb-4">MARKET METRICS</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  {displayData.volume && (
+                    <div className="bg-dark-700 border border-gold/10 rounded p-3">
+                      <div className="text-xs text-gray-500 mb-1">Total Volume</div>
+                      <div className="text-sm font-semibold text-gray-200">{formatVolume(displayData.volume)}</div>
+                    </div>
+                  )}
+                  {displayData.spread !== undefined && (
+                    <div className="bg-dark-700 border border-gold/10 rounded p-3">
+                      <div className="text-xs text-gray-500 mb-1">Spread</div>
+                      <div className="text-sm font-semibold text-gray-200">{formatPercent(displayData.spread)}</div>
+                    </div>
+                  )}
+                  {displayData.liq_vol_ratio && (
+                    <div className="bg-dark-700 border border-gold/10 rounded p-3">
+                      <div className="text-xs text-gray-500 mb-1">Liq/Vol Ratio</div>
+                      <div className="text-sm font-semibold text-gray-200">{displayData.liq_vol_ratio.toFixed(2)}</div>
+                    </div>
+                  )}
+                  {displayData.price_momentum && (
+                    <div className="bg-dark-700 border border-gold/10 rounded p-3">
+                      <div className="text-xs text-gray-500 mb-1">Price Momentum</div>
+                      <div className="text-sm font-semibold text-gray-200">{formatPercent(displayData.price_momentum)}</div>
+                    </div>
+                  )}
+                  {displayData.volume_momentum && (
+                    <div className="bg-dark-700 border border-gold/10 rounded p-3">
+                      <div className="text-xs text-gray-500 mb-1">Volume Momentum</div>
+                      <div className="text-sm font-semibold text-gray-200">{formatPercent(displayData.volume_momentum)}</div>
+                    </div>
+                  )}
+                  {displayData.turnover_ratio && (
+                    <div className="bg-dark-700 border border-gold/10 rounded p-3">
+                      <div className="text-xs text-gray-500 mb-1">Turnover Ratio</div>
+                      <div className="text-sm font-semibold text-gray-200">{displayData.turnover_ratio.toFixed(2)}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Probability Chart */}
+        {!loading && (
+          <div className="p-6 border-b border-gold/20">
+            <ProbabilityChart
+              yesProb={displayData.yes_prob}
+              noProb={displayData.no_prob}
+              marketData={displayData}
+            />
           </div>
-        </div>
+        )}
 
         {/* Outcomes */}
         <div className="p-6">
@@ -110,8 +204,10 @@ export default function MarketDetailModal({ market, onClose }: MarketDetailModal
 
         {/* Footer Info */}
         <div className="border-t border-gold/20 p-6 bg-dark-700/50">
-          <div className="text-xs text-gray-500">
-            Market ID: {market.id} • Category: {market.category}
+          <div className="text-xs text-gray-500 space-y-1">
+            <div>Market ID: {displayData.id || displayData.market_id}</div>
+            <div>Category: {displayData.category}</div>
+            {displayData.condition_id && <div>Condition ID: {displayData.condition_id}</div>}
           </div>
         </div>
       </div>

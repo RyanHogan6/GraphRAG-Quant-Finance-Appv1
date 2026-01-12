@@ -52,6 +52,12 @@ export const api = {
     return res.json();
   },
 
+  async getMarketDetail(marketId: string) {
+    const res = await fetch(`${API_BASE_URL}/api/markets/polymarket/market/${marketId}`);
+    if (!res.ok) throw new Error('Failed to fetch market details');
+    return res.json();
+  },
+
   // Database endpoints
   async getCollections() {
     const res = await fetch(`${API_BASE_URL}/api/database/collections`);

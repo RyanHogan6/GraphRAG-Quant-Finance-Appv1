@@ -50,6 +50,38 @@ def get_polymarket_categories():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/polymarket/market/{market_id}")
+def get_market_detail(market_id: str):
+    """Get detailed information for a specific market including trader count"""
+    db = get_db()
+
+    query = f"""
+    FOR market IN prediction_markets_polymarket
+        FILTER market._key == @market_id
+        LIMIT 1
+
+        // Count traders with positions in this market
+        LET trader_count = LENGTH(
+            FOR pos IN polymarket_positions
+                FILTER pos.market_id == market.market_id OR pos.condition_id == market.condition_id
+                RETURN DISTINCT pos.trader_key
+        )
+
+        RETURN MERGE(market, {{
+            trader_count: trader_count,
+            num_traders: trader_count
+        }})
+    """
+
+    try:
+        results, error = execute_aql(query, {"market_id": market_id})
+        if error or not results:
+            raise HTTPException(status_code=404, detail="Market not found")
+        return results[0]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/polymarket/markets")
 def get_polymarket_markets(
     category: Optional[str] = QueryParam(None),
@@ -82,6 +114,8 @@ def get_polymarket_markets(
         LIMIT {limit}
         RETURN {{
             id: market._key,
+            market_id: market.market_id,
+            condition_id: market.condition_id,
             question: market.question,
             yes_prob: FLOOR(market.yes_probability * 100),
             no_prob: FLOOR((1 - market.yes_probability) * 100),
@@ -89,7 +123,8 @@ def get_polymarket_markets(
             liquidity: market.liquidity,
             category: market.category,
             end_date: market.end_date,
-            traders: 0
+            description: market.description,
+            traders: market.num_traders != null ? market.num_traders : 0
         }}
     """
 
