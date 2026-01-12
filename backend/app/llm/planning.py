@@ -135,7 +135,8 @@ def analyze_results_with_llm(user_question: str, results: list, query_plan: dict
     """Analyze query results and generate natural language response"""
 
     if not results:
-        return "No results found for your query."
+        # Intelligent fallback when no results found
+        return generate_no_results_response(user_question, query_plan)
 
     # Limit results sample for LLM analysis (avoid token limits)
     results_sample = results[:10] if len(results) > 10 else results
@@ -171,6 +172,63 @@ Response:"""
         print(f"Analysis error: {str(e)}")
         # Fallback to simple formatting
         return f"Found {result_count} results. Here's a summary:\n\n" + "\n".join([f"- {json.dumps(r)[:100]}..." for r in results_sample[:5]])
+
+
+def generate_no_results_response(user_question: str, query_plan: dict):
+    """Generate helpful response when no results are found"""
+
+    collections = query_plan.get('collections', [])
+    intent = query_plan.get('intent', '')
+
+    fallback_prompt = f"""The user asked: "{user_question}"
+
+We searched our financial database but found no matching results.
+
+Available data in our system:
+- **Market Data**: Stock prices, technical indicators, fundamentals (OHLCV, P/E ratios, market cap, etc.)
+- **Government Contracts**: Federal awards with semantic search capabilities
+- **SEC Filings**: Corporate filings with sentiment analysis
+- **Prediction Markets**: Polymarket and Kalshi market data
+- **Economic Data**: Fed rates, S&P 500, unemployment, yield curves
+- **Commodities**: CFTC trader positions
+
+The query attempted to search: {', '.join(collections) if collections else 'multiple collections'}
+
+Please provide a helpful response that:
+1. Explains what the user was likely looking for
+2. Suggests why no results were found (wrong ticker symbol? data not available? incorrect time range?)
+3. Provides 2-3 alternative queries they could try that might yield results
+4. If appropriate, provide general context about their question using your knowledge
+
+Keep it conversational, helpful, and professional. Use markdown formatting.
+
+Response:"""
+
+    try:
+        response = openai.chat.completions.create(
+            model=config.LLM_MODEL,
+            messages=[{"role": "user", "content": fallback_prompt}],
+            max_tokens=800,
+            temperature=0.5
+        )
+
+        return "**No results found in database.**\n\n" + response.choices[0].message.content.strip()
+
+    except Exception as e:
+        print(f"Fallback response error: {str(e)}")
+        return f"""**No results found.**
+
+Your query searched: {', '.join(collections) if collections else 'the database'}
+
+**Possible reasons:**
+- The data you're looking for might not be in our database
+- Try checking the ticker symbol or company name
+- Adjust your date range or search criteria
+
+**Suggestions:**
+- Browse the Markets page to see available prediction markets
+- Try searching for a different company or topic
+- Use the Database page to explore available collections"""
 
 
 def generate_follow_up_questions(user_question: str, results: list, query_plan: dict):
