@@ -155,19 +155,27 @@ def get_polymarket_markets(
         {category_filter}
         {volume_filter}
 
-        // Handle different probability field names and formats
+        // Extract probabilities from outcome_prices array
         LET yes_prob_value = (
+            LENGTH(market.outcome_prices) >= 1 ? market.outcome_prices[0] :
             market.yes_probability != null ? market.yes_probability :
             market.yes_price != null ? market.yes_price :
-            market.probability != null ? market.probability :
             0.5
+        )
+
+        LET no_prob_value = (
+            LENGTH(market.outcome_prices) >= 2 ? market.outcome_prices[1] :
+            market.no_probability != null ? market.no_probability :
+            (1 - yes_prob_value)
         )
 
         // Convert to percentage if it's a decimal (0-1 range)
         LET yes_prob_pct = yes_prob_value <= 1 ? (yes_prob_value * 100) : yes_prob_value
+        LET no_prob_pct = no_prob_value <= 1 ? (no_prob_value * 100) : no_prob_value
 
-        // Filter out resolved markets (where probability is exactly 0 or 100)
+        // Filter out resolved markets and markets with no real prices
         FILTER yes_prob_pct > 1 AND yes_prob_pct < 99
+        FILTER market.liquidity > 0
 
         SORT {sort_field} {sort_dir}
         LIMIT {limit}
@@ -180,19 +188,27 @@ def get_polymarket_markets(
             market.unique_traders != null ? market.unique_traders : 0
         )
 
+        // Get outcome names if available (for sports, multiple choice)
+        LET outcome_yes = LENGTH(market.outcomes) >= 1 ? market.outcomes[0] : "Yes"
+        LET outcome_no = LENGTH(market.outcomes) >= 2 ? market.outcomes[1] : "No"
+
         RETURN {{
             id: market._key,
             market_id: market.market_id,
             condition_id: market.condition_id,
             question: market.question,
             yes_prob: ROUND(yes_prob_pct),
-            no_prob: ROUND(100 - yes_prob_pct),
+            no_prob: ROUND(no_prob_pct),
+            outcome_yes: outcome_yes,
+            outcome_no: outcome_no,
             volume_24h: market.volume_24h,
             liquidity: market.liquidity,
             category: market.category,
             end_date: market.end_date,
             description: market.description,
-            traders: trader_count
+            traders: trader_count,
+            outcomes: market.outcomes,
+            outcome_prices: market.outcome_prices
         }}
     """
 

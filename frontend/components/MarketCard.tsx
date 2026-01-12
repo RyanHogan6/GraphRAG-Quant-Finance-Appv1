@@ -101,12 +101,12 @@ export default function MarketCard({ market, onClick }: MarketCardProps) {
         <div className="grid grid-cols-2 gap-2 mb-4">
           <button className="bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 hover:border-green-500/50 rounded-lg py-3 px-4 transition-all">
             <div className="text-center">
-              <div className="text-sm font-medium text-green-400">Yes</div>
+              <div className="text-sm font-medium text-green-400">{market.outcome_yes || 'Yes'}</div>
             </div>
           </button>
           <button className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 hover:border-red-500/50 rounded-lg py-3 px-4 transition-all">
             <div className="text-center">
-              <div className="text-sm font-medium text-red-400">No</div>
+              <div className="text-sm font-medium text-red-400">{market.outcome_no || 'No'}</div>
             </div>
           </button>
         </div>
