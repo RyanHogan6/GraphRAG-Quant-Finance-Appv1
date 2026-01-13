@@ -188,16 +188,16 @@ def get_polymarket_markets(
             market.unique_traders != null ? market.unique_traders : 0
         )
 
-        // Parse outcomes if it's a JSON string
+        // Parse outcomes if it's a JSON string (use JSON_PARSE in ArangoDB)
         LET outcomes_array = (
-            IS_STRING(market.outcomes) ? TO_ARRAY(PARSE_JSON(market.outcomes)) :
+            IS_STRING(market.outcomes) ? JSON_PARSE(market.outcomes) :
             IS_ARRAY(market.outcomes) ? market.outcomes :
             []
         )
 
         // Parse outcome_prices if it's a JSON string
         LET outcome_prices_array = (
-            IS_STRING(market.outcome_prices) ? TO_ARRAY(PARSE_JSON(market.outcome_prices)) :
+            IS_STRING(market.outcome_prices) ? JSON_PARSE(market.outcome_prices) :
             IS_ARRAY(market.outcome_prices) ? market.outcome_prices :
             []
         )
