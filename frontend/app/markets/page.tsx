@@ -17,6 +17,7 @@ export default function MarketsPage() {
   const [error, setError] = useState<string | null>(null)
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null)
   const [displayLimit, setDisplayLimit] = useState(100)
+  const [hasMore, setHasMore] = useState(true)
 
   // Fetch markets and categories on mount
   useEffect(() => {
@@ -24,7 +25,7 @@ export default function MarketsPage() {
       try {
         setLoading(true)
         const [marketsData, categoriesData] = await Promise.all([
-          api.getMarkets({ limit: displayLimit }),
+          api.getMarkets({ limit: 100 }),
           api.getCategories()
         ])
 
@@ -47,6 +48,7 @@ export default function MarketsPage() {
 
         setMarkets(formattedMarkets)
         setCategories(categoriesData)
+        setHasMore(marketsData.length >= 100)
         setError(null)
       } catch (err) {
         console.error('Failed to fetch markets:', err)
@@ -57,7 +59,7 @@ export default function MarketsPage() {
     }
 
     fetchData()
-  }, [displayLimit])
+  }, [])
 
   // Load more markets
   const handleLoadMore = async () => {
@@ -84,6 +86,8 @@ export default function MarketsPage() {
 
       setMarkets(formattedMarkets)
       setDisplayLimit(newLimit)
+      // If we got fewer markets than requested, we've reached the end
+      setHasMore(marketsData.length >= newLimit)
     } catch (err) {
       console.error('Failed to load more markets:', err)
     } finally {
@@ -264,7 +268,7 @@ export default function MarketsPage() {
       )}
 
       {/* Load More */}
-      {filteredMarkets.length > 0 && markets.length >= displayLimit && (
+      {!loading && hasMore && (
         <div className="text-center">
           <button
             onClick={handleLoadMore}

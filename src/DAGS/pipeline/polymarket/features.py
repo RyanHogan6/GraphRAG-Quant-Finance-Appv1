@@ -181,22 +181,13 @@ def engineer_market_features(markets_df: pd.DataFrame) -> pd.DataFrame:
     df = markets_df.copy()
 
     # --------------------------------------------------
-    # Step 0: Intelligent categorization (only for missing/empty categories)
+    # Step 0: Category validation (preserve existing categories)
     # --------------------------------------------------
-    print("  [1/9] Applying intelligent categorization for missing categories...")
+    print("  [1/9] Validating categories...")
 
-    # Only categorize if category is missing, null, or 'Other'
-    def smart_categorize(row):
-        existing = row.get('category', '')
-        if pd.isna(existing) or existing == '' or existing == 'Other':
-            return categorize_market(row)
-        return existing
-
-    df['category'] = df.apply(smart_categorize, axis=1)
-
-    # Show category distribution
+    # Show category distribution from database
     category_counts = df['category'].value_counts()
-    print(f"  [OK] Categories assigned:")
+    print(f"  [OK] Categories from database:")
     for cat, count in category_counts.head(10).items():
         print(f"    - {cat}: {count:,} markets ({count/len(df)*100:.1f}%)")
     if len(category_counts) > 10:

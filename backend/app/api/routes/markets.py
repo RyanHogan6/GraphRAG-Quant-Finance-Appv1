@@ -180,12 +180,11 @@ def get_polymarket_markets(
         SORT {sort_field} {sort_dir}
         LIMIT {limit}
 
-        // Get trader count from any available field
-        LET trader_count = (
-            market.num_traders != null ? market.num_traders :
-            market.trader_count != null ? market.trader_count :
-            market.traders != null ? market.traders :
-            market.unique_traders != null ? market.unique_traders : 0
+        // Count unique traders via graph traversal: market <- position <- trader
+        LET trader_count = LENGTH(
+            FOR position IN INBOUND market position_in_market
+                FOR trader IN INBOUND position trader_has_position
+                    RETURN DISTINCT trader._key
         )
 
         // Parse outcomes if it's a JSON string (use JSON_PARSE in ArangoDB)
