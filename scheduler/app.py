@@ -27,6 +27,19 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+# Debug: Show paths before importing
+logger.info(f"Current working directory: {os.getcwd()}")
+logger.info(f"Scheduler file location: {__file__}")
+logger.info(f"Pipeline directory: {PIPELINE_DIR}")
+logger.info(f"Pipeline directory exists: {os.path.exists(PIPELINE_DIR)}")
+if os.path.exists(PIPELINE_DIR):
+    logger.info(f"Pipeline directory contents: {os.listdir(PIPELINE_DIR)}")
+else:
+    logger.error(f"❌ Pipeline directory NOT FOUND at: {PIPELINE_DIR}")
+    # Try to find where it actually is
+    cwd_contents = os.listdir(os.getcwd())
+    logger.info(f"Current directory contents: {cwd_contents}")
+
 # Import pipeline modules
 try:
     from polymarket.downloader import fetch_all_markets

@@ -1,0 +1,11 @@
+# Railway configuration for scheduler service
+# Deploy from repo root to access all directories
+
+[build]
+builder = "nixpacks"
+
+[deploy]
+# Don't use cd - run directly with relative paths
+startCommand = "python -m pip install --upgrade pip && python -m pip install -r scheduler/requirements.txt && python scheduler/app.py"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
