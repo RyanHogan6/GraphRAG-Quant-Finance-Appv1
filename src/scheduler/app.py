@@ -83,7 +83,8 @@ def run_pipeline():
         minute = start_time.minute
 
         # Every 6 hours at :00 (0:00, 6:00, 12:00, 18:00)
-        should_fetch_traders = (minute == 0 and hour % 6 == 0)
+        # TEMPORARY: Force traders to fetch on every run for testing
+        should_fetch_traders = True  # CHANGE BACK TO: (minute == 0 and hour % 6 == 0)
         should_build_edges = should_fetch_traders
 
         # Daily at midnight
@@ -216,7 +217,7 @@ def main():
     logger.info("POLYMARKET PIPELINE SCHEDULER - STARTING")
     logger.info("="*80)
     logger.info(f"Start time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    logger.info(f"Schedule: Every 10 minutes")
+    logger.info(f"Schedule: Every 12 hours")
     logger.info(f"Environment: Railway")
     logger.info("="*80 + "\n")
 
@@ -242,10 +243,10 @@ def main():
     # Set up scheduler
     scheduler = BlockingScheduler(timezone='UTC')
 
-    # Main pipeline job - every 10 minutes
+    # Main pipeline job - every 12 hours
     scheduler.add_job(
         run_pipeline,
-        trigger=IntervalTrigger(minutes=10),
+        trigger=IntervalTrigger(hours=12),
         id='pipeline_job',
         name='Polymarket ETL Pipeline',
         replace_existing=True
@@ -261,7 +262,7 @@ def main():
     )
 
     logger.info("\n✓ Scheduler configured:")
-    logger.info("  - Pipeline: Every 10 minutes")
+    logger.info("  - Pipeline: Every 12 hours")
     logger.info("  - Health check: Every 1 minute")
     logger.info("\n→ Scheduler starting (Ctrl+C to stop)...\n")
 
