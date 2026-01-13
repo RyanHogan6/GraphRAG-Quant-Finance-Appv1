@@ -13,8 +13,10 @@ export default function MarketsPage() {
   const [markets, setMarkets] = useState<Market[]>([])
   const [categories, setCategories] = useState<Array<{category: string, count: number}>>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null)
+  const [displayLimit, setDisplayLimit] = useState(100)
 
   // Fetch markets and categories on mount
   useEffect(() => {
@@ -22,7 +24,7 @@ export default function MarketsPage() {
       try {
         setLoading(true)
         const [marketsData, categoriesData] = await Promise.all([
-          api.getMarkets({ limit: 100 }),
+          api.getMarkets({ limit: displayLimit }),
           api.getCategories()
         ])
 
@@ -38,6 +40,9 @@ export default function MarketsPage() {
           liquidity: m.liquidity || 0,
           end_date: m.end_date || '',
           traders: m.traders || 0,
+          outcome_yes: m.outcome_yes,
+          outcome_no: m.outcome_no,
+          outcomes: m.outcomes,
         }))
 
         setMarkets(formattedMarkets)
@@ -52,7 +57,39 @@ export default function MarketsPage() {
     }
 
     fetchData()
-  }, [])
+  }, [displayLimit])
+
+  // Load more markets
+  const handleLoadMore = async () => {
+    try {
+      setLoadingMore(true)
+      const newLimit = displayLimit + 100
+      const marketsData = await api.getMarkets({ limit: newLimit })
+
+      const formattedMarkets = marketsData.map((m: any) => ({
+        id: m.id || m._key,
+        question: m.question,
+        icon: '',
+        category: m.category || 'Other',
+        yes_prob: m.yes_prob,
+        no_prob: m.no_prob,
+        volume_24h: m.volume_24h,
+        liquidity: m.liquidity || 0,
+        end_date: m.end_date || '',
+        traders: m.traders || 0,
+        outcome_yes: m.outcome_yes,
+        outcome_no: m.outcome_no,
+        outcomes: m.outcomes,
+      }))
+
+      setMarkets(formattedMarkets)
+      setDisplayLimit(newLimit)
+    } catch (err) {
+      console.error('Failed to load more markets:', err)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   // Filter and sort markets
   const filteredMarkets = useMemo(() => {
@@ -227,10 +264,14 @@ export default function MarketsPage() {
       )}
 
       {/* Load More */}
-      {filteredMarkets.length > 0 && (
+      {filteredMarkets.length > 0 && markets.length >= displayLimit && (
         <div className="text-center">
-          <button className="px-8 py-3 bg-gold/10 border border-gold/30 rounded-lg text-gold hover:bg-gold/20 hover:border-gold/50 transition-all">
-            Load More Markets
+          <button
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+            className="px-8 py-3 bg-gold/10 border border-gold/30 rounded-lg text-gold hover:bg-gold/20 hover:border-gold/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loadingMore ? 'Loading...' : `Load More Markets (${markets.length} loaded)`}
           </button>
         </div>
       )}
