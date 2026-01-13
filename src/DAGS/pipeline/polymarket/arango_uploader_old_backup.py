@@ -1,0 +1,472 @@
+"""
+Polymarket ArangoDB Uploader Module
+Handles database connections and upsert operations (NOT truncate!)
+Implements incremental updates to preserve historical data
+"""
+
+import pandas as pd
+import json
+from arango import ArangoClient
+from datetime import datetime
+from typing import Tuple
+
+from .config import (
+    DB_NAME,
+    USERNAME,
+    PASSWORD,
+    ARANGO_HOST,
+    GRAPH_NAME,
+    COMPANY_COL,
+    MARKET_COL,
+    TRADER_COL,
+    POSITION_COL,
+    EDGE_DIRECT,
+    EDGE_SECTOR,
+    EDGE_MACRO,
+    EDGE_TRADER_POSITION,
+    EDGE_POSITION_MARKET,
+    INSERT_BATCH_SIZE
+)
+
+# ============================================================================
+# DATABASE CONNECTION
+# ============================================================================
+
+_db_connection = None  # Cached connection
+
+def get_arango_connection():
+    """
+    Get cached connection to ArangoDB.
+    Creates collections and graph definitions if missing.
+
+    Returns:
+        ArangoDB database handle
+    """
+    global _db_connection
+
+    if _db_connection is not None:
+        return _db_connection
+
+    print("\n[UPLOADER] Connecting to ArangoDB...")
+    print("-" * 80)
+
+    try:
+        client = ArangoClient(hosts=ARANGO_HOST)
+        db = client.db(DB_NAME, username=USERNAME, password=PASSWORD)
+
+        print(f"  [OK] Connected to database: {DB_NAME}")
+
+        # Create collections if missing
+        create_collections_if_missing(db)
+
+        _db_connection = db
+        return db
+
+    except Exception as e:
+        print(f"  [X] Database connection failed: {e}")
+        raise
+
+
+# ============================================================================
+# COLLECTION CREATION
+# ============================================================================
+
+def create_collections_if_missing(db):
+    """
+    Create document and edge collections if they don't exist.
+    Adds edge definitions to graph.
+    """
+
+    print("\n  Creating/verifying collections...")
+
+    # Document collections
+    doc_collections = [MARKET_COL, TRADER_COL, POSITION_COL]
+    for col in doc_collections:
+        if not db.has_collection(col):
+            db.create_collection(col)
+            print(f"    [OK] Created: {col}")
+        else:
+            print(f"    [i] Exists: {col}")
+
+    # Edge collections
+    edge_collections = [
+        EDGE_DIRECT,
+        EDGE_SECTOR,
+        EDGE_MACRO,
+        EDGE_TRADER_POSITION,
+        EDGE_POSITION_MARKET
+    ]
+    for edge_col in edge_collections:
+        if not db.has_collection(edge_col):
+            db.create_collection(edge_col, edge=True)
+            print(f"    [OK] Created edge: {edge_col}")
+        else:
+            print(f"    [i] Edge exists: {edge_col}")
+
+    # Add to graph (if graph exists)
+    if db.has_graph(GRAPH_NAME):
+        graph = db.graph(GRAPH_NAME)
+        existing_edges = [ed['edge_collection'] for ed in graph.edge_definitions()]
+
+        edge_definitions = [
+            (EDGE_DIRECT, [MARKET_COL], [COMPANY_COL]),
+            (EDGE_SECTOR, [MARKET_COL], [COMPANY_COL]),
+            (EDGE_MACRO, [MARKET_COL], [COMPANY_COL]),
+            (EDGE_TRADER_POSITION, [TRADER_COL], [POSITION_COL]),
+            (EDGE_POSITION_MARKET, [POSITION_COL], [MARKET_COL]),
+        ]
+
+        for edge_col, from_cols, to_cols in edge_definitions:
+            if edge_col not in existing_edges:
+                try:
+                    graph.create_edge_definition(
+                        edge_collection=edge_col,
+                        from_vertex_collections=from_cols,
+                        to_vertex_collections=to_cols
+                    )
+                    print(f"    [OK] Added {edge_col} to graph")
+                except Exception as e:
+                    print(f"    ⚠ Could not add {edge_col} to graph: {e}")
+
+
+# ============================================================================
+# MARKET UPSERT (INCREMENTAL UPDATES)
+# ============================================================================
+
+def upsert_markets(db, markets_df: pd.DataFrame) -> Tuple[int, int, int]:
+    """
+    Upsert markets into ArangoDB using merge strategy.
+
+    CRITICAL: Uses merge=True to preserve historical data and enable
+    change detection (probability movements, volume trends).
+
+    Args:
+        db: ArangoDB database handle
+        markets_df: DataFrame with market data
+
+    Returns:
+        Tuple of (inserted_count, updated_count, error_count)
+    """
+
+    print("\n[UPLOADER] Upserting markets into ArangoDB...")
+    print("-" * 80)
+
+    if len(markets_df) == 0:
+        print("  [WARN] No markets to upsert")
+        return 0, 0, 0
+
+    collection = db.collection(MARKET_COL)
+
+    inserted = 0
+    updated = 0
+    errors = 0
+
+    for idx, row in markets_df.iterrows():
+        try:
+            # Extract and clean outcome prices
+            yes_prob = row.get('yes_probability')
+            no_prob = row.get('no_probability')
+
+            # Create document
+            doc = {
+                '_key': str(row['market_id']),
+                'condition_id': str(row['condition_id']) if pd.notna(row['condition_id']) else None,
+                'question': str(row['question']) if pd.notna(row['question']) else '',
+                'description': str(row['description']) if pd.notna(row['description']) else '',
+                'market_slug': str(row['market_slug']) if pd.notna(row['market_slug']) else '',
+                'end_date': str(row['end_date']) if pd.notna(row['end_date']) else None,
+                'volume': float(row['volume']) if pd.notna(row['volume']) else 0.0,
+                'volume_24h': float(row['volume_24h']) if pd.notna(row['volume_24h']) else 0.0,
+                'liquidity': float(row['liquidity']) if pd.notna(row['liquidity']) else 0.0,
+                'closed': bool(row['closed']) if pd.notna(row['closed']) else False,
+                'category': str(row['category']) if pd.notna(row['category']) else 'Other',
+                'yes_probability': yes_prob if pd.notna(yes_prob) else None,
+                'no_probability': no_prob if pd.notna(no_prob) else None,
+                'fetched_at': str(row['fetched_at']) if pd.notna(row['fetched_at']) else None,
+                'updated_at': datetime.now().isoformat(),
+            }
+
+            # Add engineered features if present
+            feature_cols = [
+                'days_until_end', 'volume_per_day', 'liquidity_score',
+                'activity_score', 'category_encoded', 'outcome_count',
+                'market_age_days', 'probability_confidence'
+            ]
+            for col in feature_cols:
+                if col in row and pd.notna(row[col]):
+                    doc[col] = float(row[col]) if isinstance(row[col], (int, float)) else row[col]
+
+            # Upsert logic: check if exists, then insert or update
+            if collection.has(doc['_key']):
+                collection.update(doc, merge=True)  # Merge with existing
+                updated += 1
+            else:
+                collection.insert(doc)
+                inserted += 1
+
+            # Progress indicator every 100 docs
+            if (idx + 1) % 100 == 0:
+                print(f"  Processing: {idx+1}/{len(markets_df)} markets...", end='\r')
+
+        except Exception as e:
+            errors += 1
+            print(f"\n  [WARN] Error upserting market {row.get('market_id')}: {e}")
+
+    print(f"\n  [OK] Inserted: {inserted:,} new markets")
+    print(f"  [OK] Updated: {updated:,} existing markets")
+    if errors > 0:
+        print(f"  [WARN] Errors: {errors}")
+
+    return inserted, updated, errors
+
+
+# ============================================================================
+# TRADER & POSITION UPSERT
+# ============================================================================
+
+def upsert_traders(db, traders_df: pd.DataFrame, positions_df: pd.DataFrame) -> Tuple[int, int]:
+    """
+    Upsert traders and their positions into ArangoDB.
+
+    Args:
+        db: ArangoDB database handle
+        traders_df: DataFrame with trader data
+        positions_df: DataFrame with position data
+
+    Returns:
+        Tuple of (traders_count, positions_count)
+    """
+
+    print("\n[UPLOADER] Upserting traders and positions...")
+    print("-" * 80)
+
+    traders_coll = db.collection(TRADER_COL)
+    positions_coll = db.collection(POSITION_COL)
+
+    traders_count = 0
+    positions_count = 0
+
+    # Upsert traders
+    if len(traders_df) > 0:
+        for idx, row in traders_df.iterrows():
+            try:
+                doc = {
+                    '_key': row['trader_key'],
+                    'address': row['address'],
+                    'total_volume': float(row['total_volume']),
+                    'total_trades': int(row['total_trades']),
+                    'total_profit': float(row['total_profit']),
+                    'is_whale': bool(row['is_whale']),
+                    'fetched_at': row['fetched_at'],
+                    'updated_at': datetime.now().isoformat(),
+                }
+
+                # Add engineered features if present
+                feature_cols = [
+                    'volume_rank', 'avg_position_size', 'activity_level',
+                    'profit_ratio', 'is_profitable'
+                ]
+                for col in feature_cols:
+                    if col in row and pd.notna(row[col]):
+                        doc[col] = row[col] if not isinstance(row[col], (int, float)) else float(row[col])
+
+                # Upsert
+                if traders_coll.has(doc['_key']):
+                    traders_coll.update(doc, merge=True)
+                else:
+                    traders_coll.insert(doc)
+
+                traders_count += 1
+
+            except Exception as e:
+                print(f"  [WARN] Error upserting trader {row.get('trader_key')}: {e}")
+
+        print(f"  [OK] Upserted {traders_count:,} traders")
+
+    # Upsert positions
+    if len(positions_df) > 0:
+        for idx, row in positions_df.iterrows():
+            try:
+                doc = {
+                    '_key': row['position_key'],
+                    'position_id': row.get('position_id'),
+                    'trader_address': row['trader_address'],
+                    'trader_key': row['trader_key'],
+                    'market_condition_id': row['market_condition_id'],
+                    'market_key': row['market_key'],
+                    'market_question': row.get('market_question', ''),
+                    'outcome_index': int(row['outcome_index']) if pd.notna(row.get('outcome_index')) else None,
+                    'size': float(row['size']),
+                    'average_price': float(row['average_price']),
+                    'realized_profit': float(row['realized_profit']),
+                    'unrealized_profit': float(row.get('unrealizedProfit', 0)),
+                    'fetched_at': row['fetched_at'],
+                    'updated_at': datetime.now().isoformat(),
+                }
+
+                # Upsert
+                if positions_coll.has(doc['_key']):
+                    positions_coll.update(doc, merge=True)
+                else:
+                    positions_coll.insert(doc)
+
+                positions_count += 1
+
+            except Exception as e:
+                print(f"  [WARN] Error upserting position {row.get('position_key')}: {e}")
+
+        print(f"  [OK] Upserted {positions_count:,} positions")
+
+    return traders_count, positions_count
+
+
+# ============================================================================
+# TRADER EDGE CREATION
+# ============================================================================
+
+def create_trader_edges(db, positions_df: pd.DataFrame) -> Tuple[int, int]:
+    """
+    Create trader → position → market edges.
+
+    Args:
+        db: ArangoDB database handle
+        positions_df: DataFrame with position data
+
+    Returns:
+        Tuple of (trader_edges_count, position_edges_count)
+    """
+
+    print("\n[UPLOADER] Creating trader edges...")
+    print("-" * 80)
+
+    if len(positions_df) == 0:
+        print("  [WARN] No positions to create edges for")
+        return 0, 0
+
+    edge_trader_pos = db.collection(EDGE_TRADER_POSITION)
+    edge_pos_market = db.collection(EDGE_POSITION_MARKET)
+
+    # Clear existing edges (edges are regenerated each time)
+    edge_trader_pos.truncate()
+    edge_pos_market.truncate()
+
+    trader_edges = 0
+    position_edges = 0
+
+    for idx, row in positions_df.iterrows():
+        try:
+            trader_key = row['trader_key']
+            position_key = row['position_key']
+            market_key = row['market_key']
+
+            # Trader → Position edge
+            edge_trader_pos.insert({
+                '_from': f"{TRADER_COL}/{trader_key}",
+                '_to': f"{POSITION_COL}/{position_key}",
+                'size': float(row['size']),
+                'avg_price': float(row['average_price']),
+                'created_at': datetime.now().isoformat()
+            }, silent=True)
+            trader_edges += 1
+
+            # Position → Market edge
+            edge_pos_market.insert({
+                '_from': f"{POSITION_COL}/{position_key}",
+                '_to': f"{MARKET_COL}/{market_key}",
+                'size': float(row['size']),
+                'created_at': datetime.now().isoformat()
+            }, silent=True)
+            position_edges += 1
+
+        except Exception as e:
+            print(f"  [WARN] Error creating edges for position {row.get('position_key')}: {e}")
+
+    print(f"  [OK] Created {trader_edges:,} trader → position edges")
+    print(f"  [OK] Created {position_edges:,} position → market edges")
+
+    return trader_edges, position_edges
+
+
+# ============================================================================
+# CONVENIENCE FUNCTION
+# ============================================================================
+
+def upload_all_data(
+    markets_df: pd.DataFrame,
+    traders_df: pd.DataFrame = None,
+    positions_df: pd.DataFrame = None
+) -> dict:
+    """
+    Convenience function to upload all data to ArangoDB.
+
+    Args:
+        markets_df: Market data
+        traders_df: Trader data (optional)
+        positions_df: Position data (optional)
+
+    Returns:
+        Dict with upload statistics
+    """
+
+    print("\n" + "="*80)
+    print("ARANGODB UPLOAD")
+    print("="*80)
+
+    db = get_arango_connection()
+
+    # Upload markets
+    inserted, updated, errors = upsert_markets(db, markets_df)
+
+    # Upload traders and positions
+    traders_count = 0
+    positions_count = 0
+    trader_edges = 0
+    position_edges = 0
+
+    if traders_df is not None and len(traders_df) > 0:
+        traders_count, positions_count = upsert_traders(db, traders_df, positions_df)
+
+        if positions_df is not None and len(positions_df) > 0:
+            trader_edges, position_edges = create_trader_edges(db, positions_df)
+
+    print("\n" + "="*80)
+    print("[OK] UPLOAD COMPLETE")
+    print("="*80)
+    print(f"  Markets inserted: {inserted:,}")
+    print(f"  Markets updated: {updated:,}")
+    print(f"  Traders: {traders_count:,}")
+    print(f"  Positions: {positions_count:,}")
+    print(f"  Trader edges: {trader_edges:,}")
+    print(f"  Position edges: {position_edges:,}")
+    print("="*80 + "\n")
+
+    return {
+        'markets_inserted': inserted,
+        'markets_updated': updated,
+        'markets_errors': errors,
+        'traders': traders_count,
+        'positions': positions_count,
+        'trader_edges': trader_edges,
+        'position_edges': position_edges
+    }
+
+
+# ============================================================================
+# STANDALONE TESTING
+# ============================================================================
+
+if __name__ == "__main__":
+    print("Testing ArangoDB connection...")
+
+    try:
+        db = get_arango_connection()
+        print(f"\n[OK] Successfully connected to {DB_NAME}")
+
+        # Test collections exist
+        print(f"\nCollections:")
+        print(f"  - {MARKET_COL}: {db.collection(MARKET_COL).count():,} documents")
+        print(f"  - {TRADER_COL}: {db.collection(TRADER_COL).count():,} documents")
+        print(f"  - {POSITION_COL}: {db.collection(POSITION_COL).count():,} documents")
+
+    except Exception as e:
+        print(f"\n[X] Connection test failed: {e}")
