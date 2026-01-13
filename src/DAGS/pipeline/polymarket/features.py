@@ -45,30 +45,46 @@ def categorize_market(row) -> str:
     # Combine text for analysis
     text = f"{question} {description} {tags_str}"
 
+    # PRIORITY 1: World Events (check first - most specific)
+    world_keywords = [
+        'russia', 'ukraine', 'china', 'war', 'conflict', 'military', 'nato',
+        'peace', 'treaty', 'sanctions', 'israel', 'palestine', 'iran',
+        'north korea', 'taiwan', 'middle east', 'europe', 'asia', 'strike',
+        'invasion', 'ceasefire', 'troops', 'attack', 'weapon', 'nuclear',
+        'missile', 'army', 'navy', 'defense', 'offensive', 'combat'
+    ]
+    if any(kw in text for kw in world_keywords):
+        return 'World Events'
+
+    # PRIORITY 2: Politics (check second)
+    politics_keywords = [
+        'trump', 'biden', 'harris', 'election', 'president', 'senate', 'congress',
+        'democrat', 'republican', 'gop', 'vote', 'political', 'governor', 'mayor',
+        'legislation', 'bill', 'law', 'policy', 'white house', 'cabinet',
+        'impeachment', 'nomination', 'campaign', 'primary', 'ballot', 'deport',
+        'immigration', 'executive order', 'veto', 'supreme court', 'scotus'
+    ]
+    if any(kw in text for kw in politics_keywords):
+        return 'Politics'
+
     # Sports keywords
     sports_keywords = [
         'nba', 'nfl', 'nhl', 'mlb', 'mls', 'ufc', 'boxing', 'soccer', 'football',
         'basketball', 'baseball', 'hockey', 'tennis', 'golf', 'championship',
         'super bowl', 'world cup', 'playoffs', 'finals', 'game', 'match',
-        'lakers', 'celtics', 'warriors', 'knicks', 'bulls', 'heat',
-        'eagles', 'cowboys', 'chiefs', 'patriots', '49ers', 'packers',
+        'lakers', 'celtics', 'warriors', 'knicks', 'bulls', 'heat', 'nets',
+        'eagles', 'cowboys', 'chiefs', 'patriots', '49ers', 'packers', 'steelers',
         ' vs ', ' @ ', 'defeat', 'win the', 'score', 'points', 'team',
-        'player', 'mvp', 'rookie', 'draft', 'season', 'league'
-    ]
-
-    # Politics keywords
-    politics_keywords = [
-        'trump', 'biden', 'harris', 'election', 'president', 'senate', 'congress',
-        'democrat', 'republican', 'gop', 'vote', 'political', 'governor', 'mayor',
-        'legislation', 'bill', 'law', 'policy', 'white house', 'cabinet',
-        'impeachment', 'nomination', 'campaign', 'primary', 'ballot'
+        'player', 'mvp', 'rookie', 'draft', 'season', 'league', 'tournament',
+        'premier league', 'la liga', 'champions league', 'euros', 'world series'
     ]
 
     # Crypto keywords
     crypto_keywords = [
-        'bitcoin', 'btc', 'ethereum', 'eth', 'crypto', 'cryptocurrency',
+        'bitcoin', 'btc', 'ethereum', 'eth', 'cryptocurrency',
         'blockchain', 'defi', 'nft', 'dogecoin', 'solana', 'cardano',
-        'binance', 'coinbase', 'wallet', 'token', 'altcoin', 'satoshi'
+        'binance', 'coinbase', 'wallet', 'token', 'altcoin', 'satoshi',
+        'web3', 'memecoin', 'stablecoin', 'mining'
     ]
 
     # Entertainment keywords
@@ -76,7 +92,8 @@ def categorize_market(row) -> str:
         'movie', 'film', 'box office', 'oscar', 'emmy', 'grammy', 'award',
         'actor', 'actress', 'director', 'celebrity', 'taylor swift', 'drake',
         'netflix', 'disney', 'marvel', 'star wars', 'streaming', 'album',
-        'concert', 'tour', 'billboard', 'spotify', 'youtube'
+        'concert', 'tour', 'billboard', 'spotify', 'youtube', 'tiktok',
+        'influencer', 'podcast', 'series', 'episode', 'premiere', 'sequel'
     ]
 
     # Business keywords
@@ -84,50 +101,42 @@ def categorize_market(row) -> str:
         'stock', 'market cap', 'earnings', 'revenue', 'ipo', 'acquisition',
         'merger', 'ceo', 'company', 'corporation', 'shares', 'investor',
         'tesla', 'apple', 'amazon', 'google', 'microsoft', 'meta',
-        'nvidia', 'dow', 's&p', 'nasdaq', 'wall street'
+        'nvidia', 'dow', 's&p', 'nasdaq', 'wall street', 'startup',
+        'unicorn', 'valuation', 'quarterly', 'profit', 'loss'
     ]
 
     # Climate keywords
     climate_keywords = [
         'temperature', 'climate', 'weather', 'hottest', 'coldest', 'hurricane',
         'tornado', 'flood', 'drought', 'global warming', 'celsius', 'fahrenheit',
-        'ice', 'arctic', 'antarctic', 'sea level', 'carbon', 'emissions'
+        'ice', 'arctic', 'antarctic', 'sea level', 'carbon', 'emissions',
+        'wildfire', 'storm', 'el niño', 'la niña', 'precipitation'
     ]
 
     # Science keywords
     science_keywords = [
         'nasa', 'space', 'rocket', 'satellite', 'mars', 'moon', 'asteroid',
         'spacex', 'blue origin', 'telescope', 'research', 'study', 'discovery',
-        'nobel', 'scientist', 'laboratory', 'experiment', 'breakthrough'
+        'nobel', 'scientist', 'laboratory', 'experiment', 'breakthrough',
+        'vaccine', 'cure', 'disease', 'pandemic', 'covid', 'ai', 'artificial intelligence'
     ]
 
-    # World Events keywords
-    world_keywords = [
-        'russia', 'ukraine', 'china', 'war', 'conflict', 'military', 'nato',
-        'peace', 'treaty', 'sanctions', 'israel', 'palestine', 'iran',
-        'north korea', 'taiwan', 'middle east', 'europe', 'asia'
-    ]
-
-    # Count keyword matches
+    # Count keyword matches for remaining categories
     sports_count = sum(1 for kw in sports_keywords if kw in text)
-    politics_count = sum(1 for kw in politics_keywords if kw in text)
     crypto_count = sum(1 for kw in crypto_keywords if kw in text)
     entertainment_count = sum(1 for kw in entertainment_keywords if kw in text)
     business_count = sum(1 for kw in business_keywords if kw in text)
     climate_count = sum(1 for kw in climate_keywords if kw in text)
     science_count = sum(1 for kw in science_keywords if kw in text)
-    world_count = sum(1 for kw in world_keywords if kw in text)
 
     # Determine category based on highest match count
     counts = {
         'Sports': sports_count,
-        'Politics': politics_count,
         'Crypto': crypto_count,
         'Entertainment': entertainment_count,
         'Business': business_count,
         'Climate': climate_count,
         'Science': science_count,
-        'World Events': world_count
     }
 
     max_count = max(counts.values())
@@ -172,14 +181,22 @@ def engineer_market_features(markets_df: pd.DataFrame) -> pd.DataFrame:
     df = markets_df.copy()
 
     # --------------------------------------------------
-    # Step 0: Intelligent categorization (override API category)
+    # Step 0: Intelligent categorization (only for missing/empty categories)
     # --------------------------------------------------
-    print("  [1/9] Applying intelligent categorization...")
-    df['category'] = df.apply(categorize_market, axis=1)
+    print("  [1/9] Applying intelligent categorization for missing categories...")
+
+    # Only categorize if category is missing, null, or 'Other'
+    def smart_categorize(row):
+        existing = row.get('category', '')
+        if pd.isna(existing) or existing == '' or existing == 'Other':
+            return categorize_market(row)
+        return existing
+
+    df['category'] = df.apply(smart_categorize, axis=1)
 
     # Show category distribution
     category_counts = df['category'].value_counts()
-    print(f"  [OK] Assigned {len(category_counts)} unique categories:")
+    print(f"  [OK] Categories assigned:")
     for cat, count in category_counts.head(10).items():
         print(f"    - {cat}: {count:,} markets ({count/len(df)*100:.1f}%)")
     if len(category_counts) > 10:
