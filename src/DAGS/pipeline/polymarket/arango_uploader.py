@@ -238,12 +238,14 @@ def upsert_markets(db, markets_df: pd.DataFrame, batch_size: int = 1000) -> Tupl
 
         try:
             # Use AQL UPSERT - much faster than individual operations
-            # Note: UPSERT doesn't return whether it inserted or updated, so we just count the batch
+            # Preserve existing category if new one is 'Other' (from API with no category)
             query = f"""
             FOR doc IN @documents
                 UPSERT {{ _key: doc._key }}
                 INSERT doc
-                UPDATE doc
+                UPDATE MERGE(OLD, doc, {{
+                    category: (doc.category != 'Other' ? doc.category : OLD.category)
+                }})
                 IN {MARKET_COL}
                 OPTIONS {{ ignoreErrors: false }}
             """
