@@ -220,9 +220,13 @@ def main():
     logger.info(f"Environment: Railway")
     logger.info("="*80 + "\n")
 
-    # Verify environment variables
-    required_vars = ['ARANGO_HOST', 'ARANGO_DATABASE', 'ARANGO_USERNAME', 'ARANGO_PASSWORD']
+    # Verify environment variables (support both ARANGO_HOST and ARANGO_URL)
+    required_vars = ['ARANGO_DATABASE', 'ARANGO_USERNAME', 'ARANGO_PASSWORD']
     missing_vars = [var for var in required_vars if not os.getenv(var)]
+
+    # Check for either ARANGO_HOST or ARANGO_URL
+    if not (os.getenv('ARANGO_URL') or os.getenv('ARANGO_HOST')):
+        missing_vars.append('ARANGO_URL or ARANGO_HOST')
 
     if missing_vars:
         logger.error(f"Missing required environment variables: {', '.join(missing_vars)}")

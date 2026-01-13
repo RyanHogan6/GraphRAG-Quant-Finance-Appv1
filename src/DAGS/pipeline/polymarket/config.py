@@ -40,7 +40,8 @@ if not PASSWORD:
         "Or set the environment variable in your system."
     )
 
-ARANGO_HOST = os.getenv('ARANGO_HOST')
+# Support both ARANGO_HOST and ARANGO_URL (Railway uses ARANGO_URL)
+ARANGO_HOST = os.getenv('ARANGO_URL') or os.getenv('ARANGO_HOST')
 GRAPH_NAME = os.getenv('ARANGO_GRAPH_NAME', 'QUANT_v3_FinanceGraph')
 
 # ============================================================================
