@@ -97,16 +97,18 @@ export default function MarketCard({ market, onClick }: MarketCardProps) {
           )}
         </div>
       ) : (
-        /* Binary: Simple Yes/No buttons without percentages */
+        /* Binary: Team names with probabilities (like Polymarket) */
         <div className="grid grid-cols-2 gap-2 mb-4">
           <button className="bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 hover:border-green-500/50 rounded-lg py-3 px-4 transition-all">
             <div className="text-center">
-              <div className="text-sm font-medium text-green-400">{market.outcome_yes || 'Yes'}</div>
+              <div className="text-xs text-green-400/60 mb-1">{market.outcome_yes || 'Yes'}</div>
+              <div className="text-lg font-bold text-green-400">{market.yes_prob}%</div>
             </div>
           </button>
           <button className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 hover:border-red-500/50 rounded-lg py-3 px-4 transition-all">
             <div className="text-center">
-              <div className="text-sm font-medium text-red-400">{market.outcome_no || 'No'}</div>
+              <div className="text-xs text-red-400/60 mb-1">{market.outcome_no || 'No'}</div>
+              <div className="text-lg font-bold text-red-400">{market.no_prob}%</div>
             </div>
           </button>
         </div>

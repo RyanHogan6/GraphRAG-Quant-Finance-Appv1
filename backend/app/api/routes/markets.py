@@ -188,9 +188,16 @@ def get_polymarket_markets(
             market.unique_traders != null ? market.unique_traders : 0
         )
 
+        // Parse outcomes if it's a JSON string
+        LET outcomes_array = (
+            IS_STRING(market.outcomes) ? TO_ARRAY(PARSE_JSON(market.outcomes)) :
+            IS_ARRAY(market.outcomes) ? market.outcomes :
+            []
+        )
+
         // Get outcome names if available (for sports, multiple choice)
-        LET outcome_yes = LENGTH(market.outcomes) >= 1 ? market.outcomes[0] : "Yes"
-        LET outcome_no = LENGTH(market.outcomes) >= 2 ? market.outcomes[1] : "No"
+        LET outcome_yes = LENGTH(outcomes_array) >= 1 ? outcomes_array[0] : "Yes"
+        LET outcome_no = LENGTH(outcomes_array) >= 2 ? outcomes_array[1] : "No"
 
         RETURN {{
             id: market._key,
@@ -207,8 +214,8 @@ def get_polymarket_markets(
             end_date: market.end_date,
             description: market.description,
             traders: trader_count,
-            outcomes: market.outcomes,
-            outcome_prices: market.outcome_prices
+            outcomes: outcomes_array,
+            outcome_prices: outcome_prices_array
         }}
     """
 
