@@ -195,6 +195,13 @@ def get_polymarket_markets(
             []
         )
 
+        // Parse outcome_prices if it's a JSON string
+        LET outcome_prices_array = (
+            IS_STRING(market.outcome_prices) ? TO_ARRAY(PARSE_JSON(market.outcome_prices)) :
+            IS_ARRAY(market.outcome_prices) ? market.outcome_prices :
+            []
+        )
+
         // Get outcome names if available (for sports, multiple choice)
         LET outcome_yes = LENGTH(outcomes_array) >= 1 ? outcomes_array[0] : "Yes"
         LET outcome_no = LENGTH(outcomes_array) >= 2 ? outcomes_array[1] : "No"
