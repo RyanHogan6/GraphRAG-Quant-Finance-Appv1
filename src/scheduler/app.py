@@ -13,7 +13,8 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 # Add the pipeline directory to Python path
-PIPELINE_DIR = os.path.join(os.path.dirname(__file__), '..', 'src', 'DAGS', 'pipeline')
+# From src/scheduler/app.py -> go up to src/ -> into DAGS/pipeline/
+PIPELINE_DIR = os.path.join(os.path.dirname(__file__), '..', 'DAGS', 'pipeline')
 sys.path.insert(0, PIPELINE_DIR)
 
 # Configure logging

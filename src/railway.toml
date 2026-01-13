@@ -1,0 +1,12 @@
+# Railway configuration for scheduler service
+# Deploys from src/ directory (has both scheduler/ and DAGS/)
+
+[build]
+builder = "nixpacks"
+
+[deploy]
+# Railway root directory is set to: src
+# Scheduler and pipeline code are both available
+startCommand = "python -m pip install --upgrade pip && python -m pip install -r scheduler/requirements.txt && python scheduler/app.py"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
