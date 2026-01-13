@@ -9,6 +9,137 @@ import json
 from datetime import datetime
 
 # ============================================================================
+# INTELLIGENT CATEGORIZATION
+# ============================================================================
+
+def categorize_market(row) -> str:
+    """
+    Intelligently categorize a market based on question, tags, and outcomes.
+
+    Categories:
+    - Sports: NBA, NFL, NHL, MLB, soccer, MMA, boxing, tennis, etc.
+    - Politics: Elections, Trump, government, policy
+    - Crypto: Bitcoin, Ethereum, DeFi, crypto markets
+    - Entertainment: Movies, TV, music, celebrities, awards
+    - Business: Stocks, companies, earnings, IPOs
+    - Climate: Weather, temperature, climate change
+    - Science: Space, technology, research, discoveries
+    - World Events: International news, conflicts, geopolitics
+    - Other: Fallback category
+    """
+
+    question = str(row.get('question', '')).lower()
+    description = str(row.get('description', '')).lower()
+    tags = row.get('tags', '[]')
+
+    # Parse tags if it's a JSON string
+    try:
+        if isinstance(tags, str):
+            tags_list = json.loads(tags)
+        else:
+            tags_list = tags if isinstance(tags, list) else []
+        tags_str = ' '.join([str(t).lower() for t in tags_list])
+    except:
+        tags_str = ''
+
+    # Combine text for analysis
+    text = f"{question} {description} {tags_str}"
+
+    # Sports keywords
+    sports_keywords = [
+        'nba', 'nfl', 'nhl', 'mlb', 'mls', 'ufc', 'boxing', 'soccer', 'football',
+        'basketball', 'baseball', 'hockey', 'tennis', 'golf', 'championship',
+        'super bowl', 'world cup', 'playoffs', 'finals', 'game', 'match',
+        'lakers', 'celtics', 'warriors', 'knicks', 'bulls', 'heat',
+        'eagles', 'cowboys', 'chiefs', 'patriots', '49ers', 'packers',
+        ' vs ', ' @ ', 'defeat', 'win the', 'score', 'points', 'team',
+        'player', 'mvp', 'rookie', 'draft', 'season', 'league'
+    ]
+
+    # Politics keywords
+    politics_keywords = [
+        'trump', 'biden', 'harris', 'election', 'president', 'senate', 'congress',
+        'democrat', 'republican', 'gop', 'vote', 'political', 'governor', 'mayor',
+        'legislation', 'bill', 'law', 'policy', 'white house', 'cabinet',
+        'impeachment', 'nomination', 'campaign', 'primary', 'ballot'
+    ]
+
+    # Crypto keywords
+    crypto_keywords = [
+        'bitcoin', 'btc', 'ethereum', 'eth', 'crypto', 'cryptocurrency',
+        'blockchain', 'defi', 'nft', 'dogecoin', 'solana', 'cardano',
+        'binance', 'coinbase', 'wallet', 'token', 'altcoin', 'satoshi'
+    ]
+
+    # Entertainment keywords
+    entertainment_keywords = [
+        'movie', 'film', 'box office', 'oscar', 'emmy', 'grammy', 'award',
+        'actor', 'actress', 'director', 'celebrity', 'taylor swift', 'drake',
+        'netflix', 'disney', 'marvel', 'star wars', 'streaming', 'album',
+        'concert', 'tour', 'billboard', 'spotify', 'youtube'
+    ]
+
+    # Business keywords
+    business_keywords = [
+        'stock', 'market cap', 'earnings', 'revenue', 'ipo', 'acquisition',
+        'merger', 'ceo', 'company', 'corporation', 'shares', 'investor',
+        'tesla', 'apple', 'amazon', 'google', 'microsoft', 'meta',
+        'nvidia', 'dow', 's&p', 'nasdaq', 'wall street'
+    ]
+
+    # Climate keywords
+    climate_keywords = [
+        'temperature', 'climate', 'weather', 'hottest', 'coldest', 'hurricane',
+        'tornado', 'flood', 'drought', 'global warming', 'celsius', 'fahrenheit',
+        'ice', 'arctic', 'antarctic', 'sea level', 'carbon', 'emissions'
+    ]
+
+    # Science keywords
+    science_keywords = [
+        'nasa', 'space', 'rocket', 'satellite', 'mars', 'moon', 'asteroid',
+        'spacex', 'blue origin', 'telescope', 'research', 'study', 'discovery',
+        'nobel', 'scientist', 'laboratory', 'experiment', 'breakthrough'
+    ]
+
+    # World Events keywords
+    world_keywords = [
+        'russia', 'ukraine', 'china', 'war', 'conflict', 'military', 'nato',
+        'peace', 'treaty', 'sanctions', 'israel', 'palestine', 'iran',
+        'north korea', 'taiwan', 'middle east', 'europe', 'asia'
+    ]
+
+    # Count keyword matches
+    sports_count = sum(1 for kw in sports_keywords if kw in text)
+    politics_count = sum(1 for kw in politics_keywords if kw in text)
+    crypto_count = sum(1 for kw in crypto_keywords if kw in text)
+    entertainment_count = sum(1 for kw in entertainment_keywords if kw in text)
+    business_count = sum(1 for kw in business_keywords if kw in text)
+    climate_count = sum(1 for kw in climate_keywords if kw in text)
+    science_count = sum(1 for kw in science_keywords if kw in text)
+    world_count = sum(1 for kw in world_keywords if kw in text)
+
+    # Determine category based on highest match count
+    counts = {
+        'Sports': sports_count,
+        'Politics': politics_count,
+        'Crypto': crypto_count,
+        'Entertainment': entertainment_count,
+        'Business': business_count,
+        'Climate': climate_count,
+        'Science': science_count,
+        'World Events': world_count
+    }
+
+    max_count = max(counts.values())
+
+    # Require at least 1 match to assign a category
+    if max_count >= 1:
+        return max(counts, key=counts.get)
+    else:
+        return 'Other'
+
+
+# ============================================================================
 # MARKET-LEVEL FEATURES
 # ============================================================================
 
@@ -39,6 +170,20 @@ def engineer_market_features(markets_df: pd.DataFrame) -> pd.DataFrame:
         return markets_df
 
     df = markets_df.copy()
+
+    # --------------------------------------------------
+    # Step 0: Intelligent categorization (override API category)
+    # --------------------------------------------------
+    print("  [1/9] Applying intelligent categorization...")
+    df['category'] = df.apply(categorize_market, axis=1)
+
+    # Show category distribution
+    category_counts = df['category'].value_counts()
+    print(f"  [OK] Assigned {len(category_counts)} unique categories:")
+    for cat, count in category_counts.head(10).items():
+        print(f"    - {cat}: {count:,} markets ({count/len(df)*100:.1f}%)")
+    if len(category_counts) > 10:
+        print(f"    ... and {len(category_counts) - 10} more")
 
     # --------------------------------------------------
     # Feature 1: Days until expiry
@@ -141,7 +286,8 @@ def engineer_market_features(markets_df: pd.DataFrame) -> pd.DataFrame:
     else:
         df['probability_confidence'] = 0
 
-    print(f"  [OK] Engineered {8} market-level features")
+    print(f"  [OK] Engineered {9} market-level features")
+    print(f"    - intelligent_category (overriding API category)")
     print(f"    - days_until_end, volume_per_day, liquidity_score")
     print(f"    - activity_score, category_encoded, outcome_count")
     print(f"    - market_age_days, probability_confidence")
