@@ -150,13 +150,14 @@ def get_relevant_schema(question, intent):
             "sample_query": "FOR h IN polymarket_price_history FILTER h.market_id == @market_id SORT h.timestamp DESC LIMIT 100 RETURN h"
         },
         "prediction_markets_kalshi": {
-            "description": "Kalshi prediction market data (NO embeddings!)",
+            "description": "Kalshi prediction market data with semantic search",
             "key_fields": [
                 "title", "yes_price", "no_price", "volume",
-                "status", "category", "close_time"
+                "status", "category", "close_time",
+                "title_embedding (array[1536] - for semantic search!)"
             ],
-            "critical_notes": "❌ NO embeddings - use text search",
-            "sample_query": "FOR m IN prediction_markets_kalshi FILTER m.status == 'open' SORT m.volume DESC LIMIT 20 RETURN m"
+            "critical_notes": "✅ HAS title_embedding - use COSINE_SIMILARITY(doc.title_embedding, @query_vector) for semantic | Keyword: CONTAINS(LOWER(doc.title), 'keyword')",
+            "sample_query": "FOR m IN prediction_markets_kalshi FILTER m.status == 'active' SORT m.volume DESC LIMIT 20 RETURN m"
         },
         "commodity_positions": {
             "description": "CFTC Commitments of Traders data",
@@ -786,10 +787,9 @@ def validate_aql_syntax(aql_query: str, question: str = ""):
         raise ValueError("AQL does not support JOIN syntax. Use nested FOR loops to connect data.")
 
     # CRITICAL ERROR: Check for embeddings on wrong collections
-    # Award and prediction_markets_polymarket have embeddings
+    # Award, prediction_markets_polymarket, and prediction_markets_kalshi have embeddings
     collections_without_embeddings = [
         'sec_filings', 'sec_sections', 'sec_sentences',
-        'prediction_markets_kalshi',
         'Company', 'MarketData', 'EconomicData', 'commodity_positions',
         'polymarket_traders', 'polymarket_positions', 'polymarket_price_history',
         'trader_has_position', 'position_in_market',
