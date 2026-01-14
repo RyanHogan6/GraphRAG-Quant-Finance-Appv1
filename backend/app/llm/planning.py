@@ -570,8 +570,14 @@ def get_query_embedding(text: str):
 def analyze_results_with_llm(user_question: str, results: list, query_plan: dict):
     """Analyze query results and generate natural language response"""
 
+    print("\n" + "="*80)
+    print("[LLM ANALYSIS] Starting analysis")
+    print("="*80)
+    print(f"Question: {user_question}")
+    print(f"Result count: {len(results)}")
+
     if not results:
-        # Intelligent fallback when no results found
+        print("[LLM ANALYSIS] No results found, using fallback response")
         return generate_no_results_response(user_question, query_plan)
 
     # Limit results sample for LLM analysis (avoid token limits)
@@ -605,6 +611,11 @@ Do NOT mention technical details like query execution or database operations.
 
 Response:"""
 
+    print(f"\n[LLM ANALYSIS] Prompt length: {len(analysis_prompt)} chars")
+    print(f"[LLM ANALYSIS] Using model: {config.LLM_MODEL}")
+    print(f"[LLM ANALYSIS] OpenAI API key set: {bool(config.OPENAI_API_KEY)}")
+    print(f"[LLM ANALYSIS] Calling OpenAI...")
+
     try:
         response = openai.chat.completions.create(
             model=config.LLM_MODEL,
@@ -613,10 +624,23 @@ Response:"""
             temperature=0.3
         )
 
-        return response.choices[0].message.content.strip()
+        analysis_result = response.choices[0].message.content.strip()
+
+        print(f"\n[LLM ANALYSIS] ✓ OpenAI call successful!")
+        print(f"[LLM ANALYSIS] Response length: {len(analysis_result)} chars")
+        print(f"[LLM ANALYSIS] Response preview (first 200 chars):")
+        print(f"  {analysis_result[:200]}...")
+        print(f"[LLM ANALYSIS] Contains table markers: {'|' in analysis_result}")
+        print("="*80 + "\n")
+
+        return analysis_result
 
     except Exception as e:
-        print(f"Analysis error: {str(e)}")
+        print(f"\n[LLM ANALYSIS] ✗ ERROR calling OpenAI!")
+        print(f"[LLM ANALYSIS] Error type: {type(e).__name__}")
+        print(f"[LLM ANALYSIS] Error message: {str(e)}")
+        print(f"[LLM ANALYSIS] Falling back to simple JSON formatting")
+        print("="*80 + "\n")
         # Fallback to simple formatting
         return f"Found {result_count} results. Here's a summary:\n\n" + "\n".join([f"- {json.dumps(r)[:100]}..." for r in results_sample[:5]])
 
