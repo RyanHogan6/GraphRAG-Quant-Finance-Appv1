@@ -14,7 +14,8 @@ tenacity==8.2.3
 python-dotenv==1.0.0
 
 # OpenAI for embeddings (NEW - required for polymarket pipeline)
-openai==1.54.3
+openai==1.58.1
+httpx==0.27.0
 
 # Additional pipeline dependencies
 tqdm==4.65.0

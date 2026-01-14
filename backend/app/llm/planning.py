@@ -20,7 +20,26 @@ def get_openai_client():
     """Get or create OpenAI client"""
     if not config.OPENAI_API_KEY:
         raise ValueError("OPENAI_API_KEY not configured")
-    return OpenAI(api_key=config.OPENAI_API_KEY)
+
+    # Temporarily remove proxy environment variables to avoid httpx conflicts
+    old_http_proxy = os.environ.pop('HTTP_PROXY', None)
+    old_https_proxy = os.environ.pop('HTTPS_PROXY', None)
+    old_http_proxy_lower = os.environ.pop('http_proxy', None)
+    old_https_proxy_lower = os.environ.pop('https_proxy', None)
+
+    try:
+        client = OpenAI(api_key=config.OPENAI_API_KEY)
+        return client
+    finally:
+        # Restore proxy settings
+        if old_http_proxy:
+            os.environ['HTTP_PROXY'] = old_http_proxy
+        if old_https_proxy:
+            os.environ['HTTPS_PROXY'] = old_https_proxy
+        if old_http_proxy_lower:
+            os.environ['http_proxy'] = old_http_proxy_lower
+        if old_https_proxy_lower:
+            os.environ['https_proxy'] = old_https_proxy_lower
 
 # Query cache for similarity checking (in-memory for now)
 # In production, consider Redis or proper caching layer
