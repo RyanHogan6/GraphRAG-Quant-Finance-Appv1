@@ -227,6 +227,18 @@ def upsert_markets(db, markets_df: pd.DataFrame, batch_size: int = 250) -> Tuple
                 if col in row and pd.notna(row[col]):
                     doc[col] = float(row[col]) if isinstance(row[col], (int, float)) else row[col]
 
+            # Add embedding if present (for semantic search)
+            if 'question_embedding' in row and pd.notna(row['question_embedding']):
+                embedding = row['question_embedding']
+                # Handle both list and numpy array formats
+                if hasattr(embedding, 'tolist'):
+                    doc['question_embedding'] = embedding.tolist()
+                elif isinstance(embedding, list):
+                    doc['question_embedding'] = embedding
+                else:
+                    # Skip invalid embedding formats
+                    pass
+
             documents.append(doc)
 
         except Exception as e:

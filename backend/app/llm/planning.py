@@ -35,10 +35,10 @@ def get_relevant_schema(question, intent):
             "key_fields": [
                 "ticker", "award_amount_float", "start_date", "end_date",
                 "awarding_agency", "recipient_name", "description",
-                "description_embedding (ONLY collection with embeddings!)",
+                "description_embedding (for semantic search)",
                 "contract_year", "award_id"
             ],
-            "critical_notes": "✅ HAS embeddings - use COSINE_SIMILARITY for semantic search",
+            "critical_notes": "✅ HAS description_embedding - use COSINE_SIMILARITY for semantic search",
             "sample_query": "FOR doc IN Award FILTER doc.ticker == @ticker SORT doc.award_amount_float DESC LIMIT 20 RETURN doc"
         },
         "Company": {
@@ -101,16 +101,17 @@ def get_relevant_schema(question, intent):
             "sample_query": "FOR doc IN sec_sentences FILTER CONTAINS(LOWER(doc.text), @keyword) AND doc.finbert_score < -0.3 LIMIT 20 RETURN doc"
         },
         "prediction_markets_polymarket": {
-            "description": "Polymarket prediction market data (NO embeddings!) - ACTUAL DB FIELDS",
+            "description": "Polymarket prediction market data with semantic search - ACTUAL DB FIELDS",
             "key_fields": [
                 "_key (str)", "condition_id (str)", "question (str)", "description (str)",
                 "market_slug (str)", "end_date (str)", "category (str)",
                 "volume (float)", "volume_24h (int - NOTE: integer!)", "liquidity (float)",
                 "closed (bool)", "outcomes (list)", "outcome_prices (list)",
                 "yes_probability (float)", "no_probability (float)",
+                "question_embedding (array[1536] - for semantic search!)",
                 "fetched_at (str)"
             ],
-            "critical_notes": "❌ NO embeddings - use CONTAINS(LOWER(doc.question), 'keyword') | volume_24h is INT not float!",
+            "critical_notes": "✅ HAS question_embedding - use COSINE_SIMILARITY(doc.question_embedding, @query_vector) for semantic | Keyword search: CONTAINS(LOWER(doc.question), 'keyword') | volume_24h is INT not float!",
             "sample_query": "FOR m IN prediction_markets_polymarket FILTER m.closed == false AND m.category == @category SORT m.volume_24h DESC LIMIT 20 RETURN m"
         },
         "polymarket_traders": {
@@ -197,6 +198,11 @@ def get_relevant_schema(question, intent):
         relevant_schemas.extend([s for s in ["sec_filings", "sec_sentences"] if s not in relevant_schemas])
 
     if any(word in question_lower for word in ['polymarket', 'prediction market', 'betting', 'odds', 'probability']):
+        if "prediction_markets_polymarket" not in relevant_schemas:
+            relevant_schemas.append("prediction_markets_polymarket")
+
+    # Semantic prediction market queries (concepts, not specific keywords)
+    if any(phrase in question_lower for phrase in ['markets about', 'predictions about', 'betting on', 'markets related to', 'markets concerning']):
         if "prediction_markets_polymarket" not in relevant_schemas:
             relevant_schemas.append("prediction_markets_polymarket")
 
@@ -780,10 +786,10 @@ def validate_aql_syntax(aql_query: str, question: str = ""):
         raise ValueError("AQL does not support JOIN syntax. Use nested FOR loops to connect data.")
 
     # CRITICAL ERROR: Check for embeddings on wrong collections
-    # ONLY Award collection has description_embedding field!
+    # Award and prediction_markets_polymarket have embeddings
     collections_without_embeddings = [
         'sec_filings', 'sec_sections', 'sec_sentences',
-        'prediction_markets_polymarket', 'prediction_markets_kalshi',
+        'prediction_markets_kalshi',
         'Company', 'MarketData', 'EconomicData', 'commodity_positions',
         'polymarket_traders', 'polymarket_positions', 'polymarket_price_history',
         'trader_has_position', 'position_in_market',
@@ -794,7 +800,7 @@ def validate_aql_syntax(aql_query: str, question: str = ""):
     for collection in collections_without_embeddings:
         if collection in aql_query and 'COSINE_SIMILARITY' in aql_query:
             errors.append(f"❌ CRITICAL: {collection} does NOT have embeddings!")
-            raise ValueError(f"Collection '{collection}' does not have embeddings. Only Award collection has description_embedding. Use CONTAINS(LOWER(doc.field), 'keyword') for text search.")
+            raise ValueError(f"Collection '{collection}' does not have embeddings. Only Award (description_embedding) and prediction_markets_polymarket (question_embedding) have embeddings. Use CONTAINS(LOWER(doc.field), 'keyword') for text search.")
 
     # Auto-fix: Collection name mistakes (with word boundaries to prevent double-replacement)
     replacements = {

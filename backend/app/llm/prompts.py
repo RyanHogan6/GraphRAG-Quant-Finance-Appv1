@@ -65,26 +65,32 @@ CRITICAL_AQL_RULES = """
    ❌ awards, companies, market_data
 
 5. CRITICAL FIELD NAMES:
-   Award: award_amount_float (for math), start_date, description_embedding (ONLY collection with embeddings!)
+   Award: award_amount_float (for math), start_date, description_embedding (for semantic search)
    Company: sharesOutstanding, marketCap, fullTimeEmployees (camelCase!)
    MarketData: sma_20, sma_50 (snake_case), targetMeanPrice (camelCase)
    EconomicData: sandp_500_index, federal_funds_rate
    SEC: finbert_score, avg_negative, avg_uncertainty (NO embeddings!)
-   Polymarket: question, description, yes_probability, volume_24h, closed (NO embeddings!)
+   Polymarket: question, description, yes_probability, volume_24h, closed, question_embedding (for semantic search!)
    Polymarket Traders: total_volume, total_profit, is_whale, activity_level (NO embeddings!)
    Polymarket Positions: market_question, size, average_price, realized_profit, unrealizedProfit
    Kalshi: title, yes_price, volume, status (NO embeddings!)
 
 6. SEMANTIC SEARCH - CRITICAL RULES:
-   ✅ Award ONLY: HAS description_embedding - use COSINE_SIMILARITY(doc.description_embedding, @query_vector)
-   ❌ ALL OTHER COLLECTIONS: NO embeddings - use CONTAINS(LOWER(field), 'keyword')
+   ✅ Award: HAS description_embedding - use COSINE_SIMILARITY(doc.description_embedding, @query_vector)
+   ✅ Polymarket: HAS question_embedding - use COSINE_SIMILARITY(doc.question_embedding, @query_vector)
+   ❌ OTHER COLLECTIONS: NO embeddings - use CONTAINS(LOWER(field), 'keyword')
 
    Examples:
    - Award semantic: LET sim = COSINE_SIMILARITY(doc.description_embedding, @query_vector) FILTER sim >= 0.7
-   - Polymarket text: FILTER CONTAINS(LOWER(doc.question), 'football') OR CONTAINS(LOWER(doc.description), 'super bowl')
+   - Polymarket semantic: LET sim = COSINE_SIMILARITY(doc.question_embedding, @query_vector) FILTER sim >= 0.65
    - SEC text: FILTER CONTAINS(LOWER(doc.text), 'cybersecurity')
+   - Kalshi text: FILTER CONTAINS(LOWER(doc.title), 'football')
 
-   ❌ NEVER use embeddings on: SEC, Polymarket, Kalshi, Company, MarketData, EconomicData
+   ⚠️ Similarity thresholds:
+   - Award: >= 0.70 (longer descriptions, stricter matching)
+   - Polymarket: >= 0.65 (shorter questions, more lenient)
+
+   ❌ NEVER use embeddings on: SEC, Kalshi, Company, MarketData, EconomicData
 
 7. ALWAYS ADD LIMIT:
    Every query must have LIMIT to prevent timeout.
@@ -296,9 +302,11 @@ DOCUMENT COLLECTIONS:
    - outcome_prices (array): Current prices [yes_price, no_price]
    - yes_probability (float): Probability of "Yes" outcome (0-1)
    - no_probability (float): Probability of "No" outcome (0-1)
+   - question_embedding (array[1536]): Semantic embedding of question+description for similarity search
    - fetched_at (string): Data fetch timestamp
-   
+
    ⚠️ Use Case: Forward-looking sentiment, event probabilities, crowd predictions
+   ✅ HAS EMBEDDINGS: Use COSINE_SIMILARITY(doc.question_embedding, @query_vector) for semantic search
 
 7. prediction_markets_kalshi (Kalshi prediction market data)
    - _key (string): Unique market ID
@@ -834,6 +842,43 @@ FOR market IN prediction_markets_kalshi
   }
 Bind Variables: {}
 Requires Embedding: false
+
+---
+
+EXAMPLE 12c - Polymarket Semantic Search:
+Question: "Find prediction markets about artificial intelligence and technology"
+Intent: semantic_prediction_market_search
+Collections: ["prediction_markets_polymarket"]
+AQL:
+FOR market IN prediction_markets_polymarket
+  FILTER market.question_embedding != null
+  LET similarity = COSINE_SIMILARITY(market.question_embedding, @query_vector)
+  FILTER similarity >= 0.65
+  FILTER market.closed == false
+  SORT similarity DESC
+  LIMIT 10
+  RETURN {
+    question: market.question,
+    yes_probability: market.yes_probability,
+    volume_24h: market.volume_24h,
+    liquidity: market.liquidity,
+    similarity: similarity,
+    category: market.category
+  }
+Bind Variables: {"query_vector": [0.123, ...]}
+Requires Embedding: true
+Embedding Text: "artificial intelligence AI technology machine learning GPT robots automation software"
+
+💡 Strategy:
+- Use semantic search when user asks about concepts/topics (not specific keywords)
+- Threshold 0.65 for Polymarket (lower than Award's 0.70 because questions are shorter)
+- Filter out closed markets unless user explicitly wants historical data
+- Combine question + description embeddings for richer matching
+- Returns similarity score for transparency
+
+⚠️ When to use semantic vs keyword:
+- Semantic: "markets about AI", "predictions related to climate change", "markets similar to..."
+- Keyword: "markets mentioning Tesla", "Trump election markets" (specific entity names)
 
 ---
 

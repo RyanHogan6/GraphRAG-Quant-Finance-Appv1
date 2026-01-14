@@ -7,6 +7,13 @@ import pandas as pd
 import numpy as np
 import json
 from datetime import datetime
+import openai
+import os
+from dotenv import load_dotenv
+
+# Load environment variables for OpenAI API key
+load_dotenv()
+openai.api_key = os.getenv('OPENAI_API_KEY')
 
 # ============================================================================
 # INTELLIGENT CATEGORIZATION
@@ -149,6 +156,105 @@ def categorize_market(row) -> str:
 
 
 # ============================================================================
+# EMBEDDING GENERATION
+# ============================================================================
+
+def generate_market_embeddings(markets_df: pd.DataFrame, batch_size=100) -> pd.DataFrame:
+    """
+    Generate embeddings for market questions using OpenAI API.
+
+    Combines question + description for richer semantic search.
+    Processes in batches for efficiency (up to 2048 texts per call).
+
+    Args:
+        markets_df: DataFrame with 'question' and 'description' columns
+        batch_size: Number of texts to embed per API call (default 100)
+
+    Returns:
+        DataFrame with 'question_embedding' column added
+    """
+
+    print("\n  [EMBEDDINGS] Generating question embeddings...")
+    print("  " + "-" * 76)
+
+    if len(markets_df) == 0:
+        print("  [WARN] No markets to generate embeddings for")
+        return markets_df
+
+    df = markets_df.copy()
+
+    # Check if embeddings already exist (for incremental updates)
+    if 'question_embedding' in df.columns:
+        needs_embedding = df['question_embedding'].isna() | (df['question_embedding'] == None)
+        to_embed_count = needs_embedding.sum()
+
+        if to_embed_count == 0:
+            print(f"  [SKIP] All {len(df):,} markets already have embeddings")
+            return df
+        else:
+            print(f"  [INFO] {to_embed_count:,}/{len(df):,} markets need embeddings")
+            df_to_embed = df[needs_embedding].copy()
+            df_to_embed_indices = df[needs_embedding].index
+    else:
+        print(f"  [INFO] Generating embeddings for all {len(df):,} markets (first run)")
+        df_to_embed = df.copy()
+        df_to_embed_indices = df.index
+        df['question_embedding'] = None
+
+    # Prepare texts (combine question + description for richer semantics)
+    texts_to_embed = []
+    for idx, row in df_to_embed.iterrows():
+        question = str(row.get('question', '')).strip()
+        description = str(row.get('description', '')).strip()
+
+        # Combine with smart truncation (OpenAI has 8k token limit, ~2k safe)
+        combined_text = question
+        if description and description != 'nan' and description != 'None':
+            # Add first 500 chars of description (roughly 125 tokens)
+            desc_snippet = description[:500]
+            combined_text = f"{question} {desc_snippet}"
+
+        texts_to_embed.append(combined_text)
+
+    # Generate embeddings in batches
+    all_embeddings = []
+    total_batches = (len(texts_to_embed) - 1) // batch_size + 1
+
+    for i in range(0, len(texts_to_embed), batch_size):
+        batch = texts_to_embed[i:i+batch_size]
+        batch_num = i // batch_size + 1
+
+        print(f"  [BATCH {batch_num}/{total_batches}] Embedding {len(batch)} markets...", end=' ')
+
+        try:
+            response = openai.embeddings.create(
+                input=batch,
+                model="text-embedding-3-small"
+            )
+
+            # Extract embeddings
+            batch_embeddings = [item.embedding for item in response.data]
+            all_embeddings.extend(batch_embeddings)
+
+            print(f"✓ Success")
+
+        except Exception as e:
+            print(f"✗ Error: {str(e)}")
+            # On error, add None embeddings to maintain alignment
+            all_embeddings.extend([None] * len(batch))
+
+    # Assign embeddings back to dataframe
+    df.loc[df_to_embed_indices, 'question_embedding'] = all_embeddings
+
+    # Count successful embeddings
+    success_count = df['question_embedding'].notna().sum()
+    print(f"\n  [OK] Generated {success_count:,}/{len(df):,} embeddings successfully")
+    print("  " + "-" * 76)
+
+    return df
+
+
+# ============================================================================
 # MARKET-LEVEL FEATURES
 # ============================================================================
 
@@ -183,7 +289,7 @@ def engineer_market_features(markets_df: pd.DataFrame) -> pd.DataFrame:
     # --------------------------------------------------
     # Step 0: Intelligent Categorization (OPTIMIZED - only categorize 'Other' markets)
     # --------------------------------------------------
-    print("  [1/9] Applying intelligent categorization...")
+    print("  [1/10] Applying intelligent categorization...")
 
     # Show category distribution from API/database BEFORE categorization
     category_counts_before = df['category'].value_counts()
@@ -313,11 +419,27 @@ def engineer_market_features(markets_df: pd.DataFrame) -> pd.DataFrame:
     else:
         df['probability_confidence'] = 0
 
-    print(f"  [OK] Engineered {9} market-level features")
+    # --------------------------------------------------
+    # Feature 9: Question Embeddings for Semantic Search
+    # --------------------------------------------------
+    print("  [10/10] Generating question embeddings for semantic search...")
+
+    try:
+        df = generate_market_embeddings(df, batch_size=100)
+        print("  [OK] Embeddings generated successfully")
+    except Exception as e:
+        print(f"  [ERROR] Embedding generation failed: {str(e)}")
+        print("  [WARN] Continuing without embeddings - semantic search will not be available")
+        # Add None column so pipeline doesn't fail
+        if 'question_embedding' not in df.columns:
+            df['question_embedding'] = None
+
+    print(f"\n  [OK] Engineered {10} market-level features")
     print(f"    - category (intelligently classified from question/description)")
     print(f"    - days_until_end, volume_per_day, liquidity_score")
     print(f"    - activity_score, category_encoded, outcome_count")
     print(f"    - market_age_days, probability_confidence")
+    print(f"    - question_embedding (for semantic search)")
 
     return df
 
