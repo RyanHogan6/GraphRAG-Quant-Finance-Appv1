@@ -1,10 +1,17 @@
 # This file tells Railway/Nixpacks this is a Python project
-# Actual requirements are in scheduler/requirements.txt
+# Root requirements.txt used by Railway build
 
 # Core dependencies for the scheduler
 apscheduler==3.10.4
 python-arango==7.7.0
 pandas==2.1.4
+numpy==1.24.0
 requests==2.31.0
 tenacity==8.2.3
 python-dotenv==1.0.0
+
+# OpenAI for embeddings (NEW - required for polymarket pipeline)
+openai==1.54.3
+
+# Additional pipeline dependencies
+tqdm==4.65.0
