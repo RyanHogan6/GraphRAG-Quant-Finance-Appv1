@@ -13,7 +13,13 @@ from dotenv import load_dotenv
 
 # Load environment variables for OpenAI API key
 load_dotenv()
-openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+
+def get_openai_client():
+    """Get or create OpenAI client lazily"""
+    api_key = os.getenv('OPENAI_API_KEY')
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY environment variable not set")
+    return OpenAI(api_key=api_key)
 
 # ============================================================================
 # INTELLIGENT CATEGORIZATION
@@ -227,7 +233,8 @@ def generate_market_embeddings(markets_df: pd.DataFrame, batch_size=100) -> pd.D
         print(f"  [BATCH {batch_num}/{total_batches}] Embedding {len(batch)} markets...", end=' ')
 
         try:
-            response = openai_client.embeddings.create(
+            client = get_openai_client()
+            response = client.embeddings.create(
                 input=batch,
                 model="text-embedding-3-small"
             )

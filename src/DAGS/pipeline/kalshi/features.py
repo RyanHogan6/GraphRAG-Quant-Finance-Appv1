@@ -5,7 +5,13 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
-openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+
+def get_openai_client():
+    """Get or create OpenAI client lazily"""
+    api_key = os.getenv('OPENAI_API_KEY')
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY environment variable not set")
+    return OpenAI(api_key=api_key)
 
 def generate_title_embeddings(markets_df: pd.DataFrame, batch_size=100) -> pd.DataFrame:
     """Generate embeddings for Kalshi market titles"""
@@ -38,7 +44,8 @@ def generate_title_embeddings(markets_df: pd.DataFrame, batch_size=100) -> pd.Da
         print(f"[BATCH {i//batch_size + 1}] Embedding {len(batch)} markets...")
 
         try:
-            response = openai_client.embeddings.create(
+            client = get_openai_client()
+            response = client.embeddings.create(
                 input=batch,
                 model="text-embedding-3-small"
             )
