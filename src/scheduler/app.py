@@ -125,20 +125,20 @@ def run_pipeline():
         else:
             logger.info("\n[2/7] Skipping trader fetch (not 6-hour cycle)")
 
-        # Step 3: Engineer features
-        logger.info("\n[3/7] Engineering features...")
-        markets_df = engineer_market_features(markets_df)
+        # Step 3: Connect to database (EARLY - needed for incremental embedding saves)
+        logger.info("\n[3/7] Connecting to ArangoDB...")
+        db = get_arango_connection()
+        logger.info("✓ Connected to database")
+
+        # Step 4: Engineer features (with db connection for crash recovery)
+        logger.info("\n[4/7] Engineering features...")
+        markets_df = engineer_market_features(markets_df, db=db)
         logger.info(f"✓ Engineered features for {len(markets_df):,} markets")
 
         if traders_df is not None and len(traders_df) > 0:
             from polymarket.features import engineer_trader_features
             traders_df = engineer_trader_features(traders_df)
             logger.info(f"✓ Engineered features for {len(traders_df):,} traders")
-
-        # Step 4: Connect to database
-        logger.info("\n[4/7] Connecting to ArangoDB...")
-        db = get_arango_connection()
-        logger.info("✓ Connected to database")
 
         # Step 5: Upload markets
         logger.info("\n[5/7] Uploading markets to ArangoDB...")

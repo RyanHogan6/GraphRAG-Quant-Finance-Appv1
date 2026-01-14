@@ -184,7 +184,7 @@ def categorize_market(row) -> str:
 # EMBEDDING GENERATION
 # ============================================================================
 
-def generate_market_embeddings(markets_df: pd.DataFrame, batch_size=100) -> pd.DataFrame:
+def generate_market_embeddings(markets_df: pd.DataFrame, batch_size=100, db=None) -> pd.DataFrame:
     """
     Generate embeddings for market questions using OpenAI API.
 
@@ -207,6 +207,29 @@ def generate_market_embeddings(markets_df: pd.DataFrame, batch_size=100) -> pd.D
         return markets_df
 
     df = markets_df.copy()
+
+    # Load existing embeddings from database if available (crash recovery)
+    if db is not None:
+        try:
+            print("  [INFO] Loading existing embeddings from database...")
+            existing_embeddings = {}
+            cursor = db.aql.execute(
+                "FOR m IN prediction_markets_polymarket FILTER m.question_embedding != null RETURN {_key: m._key, emb: m.question_embedding}"
+            )
+            for doc in cursor:
+                existing_embeddings[doc['_key']] = doc['emb']
+
+            if existing_embeddings:
+                print(f"  [INFO] Found {len(existing_embeddings):,} markets with existing embeddings in DB")
+                # Pre-populate dataframe with existing embeddings
+                if 'question_embedding' not in df.columns:
+                    df['question_embedding'] = None
+                for idx, row in df.iterrows():
+                    market_id = str(row['market_id'])
+                    if market_id in existing_embeddings:
+                        df.at[idx, 'question_embedding'] = existing_embeddings[market_id]
+        except Exception as e:
+            print(f"  [WARN] Could not load existing embeddings: {e}")
 
     # Check if embeddings already exist (for incremental updates)
     if 'question_embedding' in df.columns:
@@ -262,7 +285,25 @@ def generate_market_embeddings(markets_df: pd.DataFrame, batch_size=100) -> pd.D
             batch_embeddings = [item.embedding for item in response.data]
             all_embeddings.extend(batch_embeddings)
 
-            print(f"✓ Success")
+            # Save to database immediately if db connection provided (crash recovery)
+            if db is not None:
+                try:
+                    batch_start_idx = i
+                    batch_end_idx = min(i + batch_size, len(df_to_embed_indices))
+                    batch_indices = df_to_embed_indices[batch_start_idx:batch_end_idx]
+
+                    # Update these specific markets with embeddings
+                    for idx, embedding in zip(batch_indices, batch_embeddings):
+                        market_id = df.loc[idx, 'market_id']
+                        db.aql.execute(
+                            "UPDATE {_key: @key} WITH {question_embedding: @emb} IN prediction_markets_polymarket",
+                            bind_vars={'key': str(market_id), 'emb': embedding}
+                        )
+                    print(f"✓ Success (saved to DB)")
+                except Exception as db_error:
+                    print(f"✓ Success (DB save failed: {db_error})")
+            else:
+                print(f"✓ Success")
 
         except Exception as e:
             print(f"✗ Error: {str(e)}")
@@ -284,7 +325,7 @@ def generate_market_embeddings(markets_df: pd.DataFrame, batch_size=100) -> pd.D
 # MARKET-LEVEL FEATURES
 # ============================================================================
 
-def engineer_market_features(markets_df: pd.DataFrame) -> pd.DataFrame:
+def engineer_market_features(markets_df: pd.DataFrame, db=None) -> pd.DataFrame:
     """
     Engineer features for prediction markets.
 
@@ -451,7 +492,7 @@ def engineer_market_features(markets_df: pd.DataFrame) -> pd.DataFrame:
     print("  [10/10] Generating question embeddings for semantic search...")
 
     try:
-        df = generate_market_embeddings(df, batch_size=100)
+        df = generate_market_embeddings(df, batch_size=100, db=db)
         print("  [OK] Embeddings generated successfully")
     except Exception as e:
         print(f"  [ERROR] Embedding generation failed: {str(e)}")

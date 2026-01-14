@@ -319,9 +319,8 @@ DOCUMENT COLLECTIONS:
    - volume (float): Total trading volume ($)
    - volume_24h (float): 24-hour trading volume ($)
    - open_interest (float): Current open interest ($)
-   - yes_price (float): Current "Yes" price (0-1, equivalent to probability)
-   - no_price (float): Current "No" price (0-1)
-   - last_price (float): Most recent trade price
+   - yes_probability (float): Current "Yes" probability (0-1)
+   - no_probability (float): Current "No" probability (0-1)
    - previous_yes_price (float): Previous yes price for comparison
    - previous_no_price (float): Previous no price
    - strike_date (string): Event date/strike date
