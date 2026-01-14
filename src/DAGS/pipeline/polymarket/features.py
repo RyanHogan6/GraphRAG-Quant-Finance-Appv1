@@ -181,17 +181,30 @@ def engineer_market_features(markets_df: pd.DataFrame) -> pd.DataFrame:
     df = markets_df.copy()
 
     # --------------------------------------------------
-    # Step 0: Category validation (preserve existing categories)
+    # Step 0: Intelligent Categorization (override API's 'Other' with smart classification)
     # --------------------------------------------------
-    print("  [1/9] Validating categories...")
+    print("  [1/9] Applying intelligent categorization...")
 
-    # Show category distribution from database
-    category_counts = df['category'].value_counts()
-    print(f"  [OK] Categories from database:")
-    for cat, count in category_counts.head(10).items():
+    # Show category distribution from API/database BEFORE categorization
+    category_counts_before = df['category'].value_counts()
+    other_count_before = category_counts_before.get('Other', 0)
+    print(f"  [INFO] Before categorization: {other_count_before:,} 'Other' markets ({other_count_before/len(df)*100:.1f}%)")
+
+    # Apply intelligent categorization to all markets
+    # This will override API's 'Other' with keyword-based classification
+    df['category'] = df.apply(categorize_market, axis=1)
+
+    # Show category distribution AFTER categorization
+    category_counts_after = df['category'].value_counts()
+    other_count_after = category_counts_after.get('Other', 0)
+    print(f"  [OK] After categorization: {other_count_after:,} 'Other' markets ({other_count_after/len(df)*100:.1f}%)")
+    print(f"  [OK] Improved categorization for {other_count_before - other_count_after:,} markets")
+
+    print(f"  [OK] Category distribution:")
+    for cat, count in category_counts_after.head(10).items():
         print(f"    - {cat}: {count:,} markets ({count/len(df)*100:.1f}%)")
-    if len(category_counts) > 10:
-        print(f"    ... and {len(category_counts) - 10} more")
+    if len(category_counts_after) > 10:
+        print(f"    ... and {len(category_counts_after) - 10} more")
 
     # --------------------------------------------------
     # Feature 1: Days until expiry
@@ -295,7 +308,7 @@ def engineer_market_features(markets_df: pd.DataFrame) -> pd.DataFrame:
         df['probability_confidence'] = 0
 
     print(f"  [OK] Engineered {9} market-level features")
-    print(f"    - intelligent_category (overriding API category)")
+    print(f"    - category (intelligently classified from question/description)")
     print(f"    - days_until_end, volume_per_day, liquidity_score")
     print(f"    - activity_score, category_encoded, outcome_count")
     print(f"    - market_age_days, probability_confidence")
