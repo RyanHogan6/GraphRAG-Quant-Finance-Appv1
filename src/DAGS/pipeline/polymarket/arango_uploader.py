@@ -485,16 +485,17 @@ def create_trader_edges(db, positions_df: pd.DataFrame) -> Tuple[int, int]:
         print("  [WARN] No positions to create edges for")
         return 0, 0
 
-    edge_trader_pos = db.collection(EDGE_TRADER_POSITION)
-    edge_pos_market = db.collection(EDGE_POSITION_MARKET)
-
     # Clear existing edges (edges are regenerated each time)
-    edge_trader_pos.truncate()
-    edge_pos_market.truncate()
+    print("  Clearing old edges...")
+    db.collection(EDGE_TRADER_POSITION).truncate()
+    db.collection(EDGE_POSITION_MARKET).truncate()
 
-    trader_edges = 0
-    position_edges = 0
+    # Prepare edge documents in batches
+    trader_position_edges = []
+    position_market_edges = []
+    timestamp = datetime.now().isoformat()
 
+    print(f"  Preparing {len(positions_df):,} edge pairs...")
     for idx, row in positions_df.iterrows():
         try:
             trader_key = row['trader_key']
@@ -502,31 +503,38 @@ def create_trader_edges(db, positions_df: pd.DataFrame) -> Tuple[int, int]:
             market_key = row['market_key']
 
             # Trader → Position edge
-            edge_trader_pos.insert({
+            trader_position_edges.append({
                 '_from': f"{TRADER_COL}/{trader_key}",
                 '_to': f"{POSITION_COL}/{position_key}",
                 'size': float(row['size']),
                 'avg_price': float(row['average_price']),
-                'created_at': datetime.now().isoformat()
-            }, silent=True)
-            trader_edges += 1
+                'created_at': timestamp
+            })
 
             # Position → Market edge
-            edge_pos_market.insert({
+            position_market_edges.append({
                 '_from': f"{POSITION_COL}/{position_key}",
                 '_to': f"{MARKET_COL}/{market_key}",
                 'size': float(row['size']),
-                'created_at': datetime.now().isoformat()
-            }, silent=True)
-            position_edges += 1
+                'created_at': timestamp
+            })
 
         except Exception as e:
-            print(f"  [WARN] Error creating edges for position {row.get('position_key')}: {e}")
+            print(f"  [WARN] Error preparing edges for position {row.get('position_key')}: {e}")
 
-    print(f"  [OK] Created {trader_edges:,} trader → position edges")
-    print(f"  [OK] Created {position_edges:,} position → market edges")
+    # Batch insert edges (much faster than individual inserts)
+    print(f"  Inserting {len(trader_position_edges):,} trader→position edges...")
+    if trader_position_edges:
+        db.collection(EDGE_TRADER_POSITION).insert_many(trader_position_edges, silent=True)
 
-    return trader_edges, position_edges
+    print(f"  Inserting {len(position_market_edges):,} position→market edges...")
+    if position_market_edges:
+        db.collection(EDGE_POSITION_MARKET).insert_many(position_market_edges, silent=True)
+
+    print(f"  [OK] Created {len(trader_position_edges):,} trader → position edges")
+    print(f"  [OK] Created {len(position_market_edges):,} position → market edges")
+
+    return len(trader_position_edges), len(position_market_edges)
 
 
 # ============================================================================
