@@ -126,6 +126,143 @@ def get_market_detail(market_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/polymarket/featured")
+def get_featured_markets(
+    limit: int = QueryParam(100)
+):
+    """
+    Get diverse, high-quality featured markets (Polymarket-style curation).
+
+    Strategy:
+    - Category diversity (max 15 per category)
+    - Quality filtering (min liquidity, volume, engagement)
+    - Smart mixing of politics, sports, crypto, entertainment
+    """
+
+    query = f"""
+    // Get top markets from each category for diversity
+    LET categorized_markets = (
+        FOR market IN prediction_markets_polymarket
+            FILTER market.closed == false
+            FILTER market.volume_24h > 500  // Min $500 volume for quality
+            FILTER market.liquidity > 100   // Min liquidity
+            FILTER market.category != null AND market.category != "Other"
+
+            // Extract probabilities
+            LET yes_prob_value = (
+                LENGTH(market.outcome_prices) >= 1 ? market.outcome_prices[0] :
+                market.yes_probability != null ? market.yes_probability : 0.5
+            )
+            LET yes_prob_pct = yes_prob_value <= 1 ? (yes_prob_value * 100) : yes_prob_value
+
+            // Filter out resolved/obvious outcomes
+            FILTER yes_prob_pct > 5 AND yes_prob_pct < 95
+
+            // Quality score: volume * liquidity factor
+            LET quality_score = market.volume_24h * (market.liquidity / 1000)
+
+            COLLECT category = market.category INTO markets_in_category = {{
+                market: market,
+                quality_score: quality_score,
+                yes_prob_pct: yes_prob_pct
+            }}
+
+            // Take top 15 from each category
+            LET top_category_markets = (
+                FOR m IN markets_in_category
+                    SORT m.quality_score DESC
+                    LIMIT 15
+                    RETURN m
+            )
+
+            RETURN {{
+                category: category,
+                markets: top_category_markets
+            }}
+    )
+
+    // Get "Other" category markets (high quality only, max 10)
+    LET other_markets = (
+        FOR market IN prediction_markets_polymarket
+            FILTER market.closed == false
+            FILTER market.category == "Other"
+            FILTER market.volume_24h > 2000  // Higher threshold for Other
+            FILTER market.liquidity > 500
+
+            LET yes_prob_value = (
+                LENGTH(market.outcome_prices) >= 1 ? market.outcome_prices[0] :
+                market.yes_probability != null ? market.yes_probability : 0.5
+            )
+            LET yes_prob_pct = yes_prob_value <= 1 ? (yes_prob_value * 100) : yes_prob_value
+
+            FILTER yes_prob_pct > 5 AND yes_prob_pct < 95
+
+            LET quality_score = market.volume_24h * (market.liquidity / 1000)
+
+            SORT quality_score DESC
+            LIMIT 10
+
+            RETURN {{
+                market: market,
+                quality_score: quality_score,
+                yes_prob_pct: yes_prob_pct
+            }}
+    )
+
+    // Flatten all markets from all categories
+    LET all_markets = FLATTEN(
+        APPEND(
+            (FOR cat IN categorized_markets RETURN cat.markets),
+            [other_markets]
+        )
+    )
+
+    // Sort by quality and take top N
+    FOR m IN all_markets
+        SORT m.quality_score DESC
+        LIMIT {limit}
+
+        LET market = m.market
+        LET yes_prob_pct = m.yes_prob_pct
+
+        LET no_prob_value = (
+            LENGTH(market.outcome_prices) >= 2 ? market.outcome_prices[1] :
+            (1 - (market.yes_probability != null ? market.yes_probability : 0.5))
+        )
+        LET no_prob_pct = no_prob_value <= 1 ? (no_prob_value * 100) : no_prob_value
+
+        LET outcomes_array = (
+            IS_STRING(market.outcomes) ? JSON_PARSE(market.outcomes) :
+            IS_ARRAY(market.outcomes) ? market.outcomes : []
+        )
+
+        LET outcome_yes = LENGTH(outcomes_array) >= 1 ? outcomes_array[0] : "Yes"
+        LET outcome_no = LENGTH(outcomes_array) >= 2 ? outcomes_array[1] : "No"
+
+        RETURN {{
+            id: market._key,
+            question: market.question,
+            yes_prob: ROUND(yes_prob_pct),
+            no_prob: ROUND(no_prob_pct),
+            outcome_yes: outcome_yes,
+            outcome_no: outcome_no,
+            volume_24h: market.volume_24h,
+            liquidity: market.liquidity,
+            category: market.category,
+            end_date: market.end_date,
+            traders: 0
+        }}
+    """
+
+    try:
+        results, error = execute_aql(query)
+        if error:
+            raise HTTPException(status_code=500, detail=error)
+        return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/polymarket/markets")
 def get_polymarket_markets(
     category: Optional[str] = QueryParam(None),
@@ -133,7 +270,7 @@ def get_polymarket_markets(
     sort_by: str = QueryParam("volume_desc"),
     limit: int = QueryParam(20)
 ):
-    """Get Polymarket markets with filtering"""
+    """Get Polymarket markets with filtering (legacy endpoint - use /featured for main page)"""
 
     # Build filters
     category_filter = f"FILTER market.category == '{category}'" if category else ""

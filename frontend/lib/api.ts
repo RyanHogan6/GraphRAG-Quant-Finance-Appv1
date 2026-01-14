@@ -23,6 +23,12 @@ export const api = {
   },
 
   // Markets endpoints
+  async getFeaturedMarkets(limit: number = 100) {
+    const res = await fetch(`${API_BASE_URL}/api/markets/polymarket/featured?limit=${limit}`);
+    if (!res.ok) throw new Error('Failed to fetch featured markets');
+    return res.json();
+  },
+
   async getMarkets(params: {
     category?: string;
     min_volume?: number;

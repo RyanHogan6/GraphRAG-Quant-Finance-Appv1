@@ -1,11 +1,15 @@
 'use client'
 
 import { useState } from 'react'
+import MarkdownRenderer from '@/components/MarkdownRenderer'
+import ResultsTable from '@/components/ResultsTable'
 
 interface Message {
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
+  results?: any[]
+  useMarkdown?: boolean
 }
 
 export default function HomePage() {
@@ -40,28 +44,19 @@ export default function HomePage() {
 
       const response = await api.executeQuery(currentInput)
 
-      // Use AI-generated analysis instead of raw JSON
-      let resultText = `Found ${response.count} results in ${response.execution_time.toFixed(2)}s.\n\n`
+      // Build analysis message with metadata header
+      let resultText = `**Query Results:** ${response.count} results in ${response.execution_time.toFixed(2)}s\n\n`
 
-      // Display AI analysis
+      // Use AI-generated analysis (should include markdown tables)
       if (response.analysis) {
         resultText += response.analysis
-      } else if (response.results && response.results.length > 0) {
-        // Fallback to raw results if no analysis
-        resultText += '**Results:**\n'
-        response.results.slice(0, 5).forEach((result: any, idx: number) => {
-          resultText += `${idx + 1}. ${JSON.stringify(result).substring(0, 200)}...\n`
-        })
-
-        if (response.results.length > 5) {
-          resultText += `\n...and ${response.results.length - 5} more results`
-        }
       }
 
+      // Add follow-up questions
       if (response.follow_up_questions && response.follow_up_questions.length > 0) {
         resultText += '\n\n**Follow-up questions:**\n'
         response.follow_up_questions.forEach((q: string) => {
-          resultText += `• ${q}\n`
+          resultText += `- ${q}\n`
         })
       }
 
@@ -69,6 +64,8 @@ export default function HomePage() {
         role: 'assistant',
         content: resultText,
         timestamp: new Date(),
+        results: response.results,
+        useMarkdown: true,
       }
       setMessages((prev) => [...prev, assistantMessage])
     } catch (error) {
@@ -121,7 +118,23 @@ export default function HomePage() {
                     {message.role === 'user' ? 'You' : 'AI'}
                   </div>
                   <div className="flex-1">
-                    <div className="text-sm mb-2 leading-relaxed">{message.content}</div>
+                    <div className="text-sm mb-2 leading-relaxed">
+                      {message.useMarkdown ? (
+                        <MarkdownRenderer content={message.content} />
+                      ) : (
+                        message.content
+                      )}
+                    </div>
+                    {message.results && message.results.length > 0 && !message.content.includes('|') && (
+                      <details className="mt-3">
+                        <summary className="cursor-pointer text-xs text-gold hover:text-gold/80 font-semibold">
+                          View raw data table ({message.results.length} rows)
+                        </summary>
+                        <div className="mt-2">
+                          <ResultsTable data={message.results} maxRows={20} />
+                        </div>
+                      </details>
+                    )}
                     <div className="text-xs text-gray-600">
                       {message.timestamp.toLocaleTimeString()}
                     </div>

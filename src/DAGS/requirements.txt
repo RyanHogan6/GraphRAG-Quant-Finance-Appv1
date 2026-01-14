@@ -1,0 +1,12 @@
+yfinance
+ta
+pandas
+scikit-learn
+fredapi
+sec-edgar-downloader
+
+# Polymarket pipeline dependencies
+python-arango>=7.7.0
+requests>=2.31.0
+tenacity>=8.2.0
+tqdm>=4.65.0

@@ -181,7 +181,7 @@ def engineer_market_features(markets_df: pd.DataFrame) -> pd.DataFrame:
     df = markets_df.copy()
 
     # --------------------------------------------------
-    # Step 0: Intelligent Categorization (override API's 'Other' with smart classification)
+    # Step 0: Intelligent Categorization (OPTIMIZED - only categorize 'Other' markets)
     # --------------------------------------------------
     print("  [1/9] Applying intelligent categorization...")
 
@@ -190,9 +190,15 @@ def engineer_market_features(markets_df: pd.DataFrame) -> pd.DataFrame:
     other_count_before = category_counts_before.get('Other', 0)
     print(f"  [INFO] Before categorization: {other_count_before:,} 'Other' markets ({other_count_before/len(df)*100:.1f}%)")
 
-    # Apply intelligent categorization to all markets
-    # This will override API's 'Other' with keyword-based classification
-    df['category'] = df.apply(categorize_market, axis=1)
+    # OPTIMIZATION: Only re-categorize markets that have 'Other' category
+    # This saves time on subsequent runs when most markets already have good categories
+    if other_count_before > 0:
+        print(f"  [INFO] Re-categorizing {other_count_before:,} 'Other' markets...")
+        needs_categorization = df['category'] == 'Other'
+        df.loc[needs_categorization, 'category'] = df[needs_categorization].apply(categorize_market, axis=1)
+        print(f"  [OK] Categorization complete for 'Other' markets")
+    else:
+        print(f"  [OK] No 'Other' markets to categorize - all markets already categorized!")
 
     # Show category distribution AFTER categorization
     category_counts_after = df['category'].value_counts()

@@ -302,7 +302,13 @@ def upsert_markets(db, markets_df: pd.DataFrame, batch_size: int = 250) -> Tuple
 
 def upsert_traders(db, traders_df: pd.DataFrame, positions_df: pd.DataFrame) -> Tuple[int, int]:
     """
-    Upsert traders and their positions into ArangoDB.
+    Upsert traders and their positions into ArangoDB using BATCH operations.
+
+    PERFORMANCE OPTIMIZED:
+    - Uses batch AQL UPSERT (not individual operations)
+    - Batch size: 250 (cloud-optimized)
+    - Retry logic with exponential backoff
+    - Significantly faster than individual inserts
 
     Args:
         db: ArangoDB database handle
@@ -313,85 +319,133 @@ def upsert_traders(db, traders_df: pd.DataFrame, positions_df: pd.DataFrame) -> 
         Tuple of (traders_count, positions_count)
     """
 
-    print("\n[UPLOADER] Upserting traders and positions...")
+    print("\n[UPLOADER] Upserting traders and positions (BATCH MODE)...")
     print("-" * 80)
-
-    traders_coll = db.collection(TRADER_COL)
-    positions_coll = db.collection(POSITION_COL)
 
     traders_count = 0
     positions_count = 0
 
-    # Upsert traders
+    batch_size = 250  # Cloud-optimized
+    max_retries = 3
+    retry_delay = 2
+
+    # ========== UPSERT TRADERS (BATCH) ==========
     if len(traders_df) > 0:
+        print(f"  Upserting {len(traders_df):,} traders in batches of {batch_size}...")
+
+        # Prepare documents
+        traders_docs = []
         for idx, row in traders_df.iterrows():
-            try:
-                doc = {
-                    '_key': row['trader_key'],
-                    'address': row['address'],
-                    'total_volume': float(row['total_volume']),
-                    'total_trades': int(row['total_trades']),
-                    'total_profit': float(row['total_profit']),
-                    'is_whale': bool(row['is_whale']),
-                    'fetched_at': row['fetched_at'],
-                    'updated_at': datetime.now().isoformat(),
-                }
+            doc = {
+                '_key': row['trader_key'],
+                'address': row['address'],
+                'total_volume': float(row['total_volume']),
+                'total_trades': int(row['total_trades']),
+                'total_profit': float(row['total_profit']),
+                'is_whale': bool(row['is_whale']),
+                'fetched_at': row['fetched_at'],
+                'updated_at': datetime.now().isoformat(),
+            }
 
-                # Add engineered features if present
-                feature_cols = [
-                    'volume_rank', 'avg_position_size', 'activity_level',
-                    'profit_ratio', 'is_profitable'
-                ]
-                for col in feature_cols:
-                    if col in row and pd.notna(row[col]):
-                        doc[col] = row[col] if not isinstance(row[col], (int, float)) else float(row[col])
+            # Add engineered features if present
+            feature_cols = [
+                'volume_rank', 'avg_position_size', 'activity_level',
+                'profit_ratio', 'is_profitable'
+            ]
+            for col in feature_cols:
+                if col in row and pd.notna(row[col]):
+                    doc[col] = row[col] if not isinstance(row[col], (int, float)) else float(row[col])
 
-                # Upsert
-                if traders_coll.has(doc['_key']):
-                    traders_coll.update(doc, merge=True)
-                else:
-                    traders_coll.insert(doc)
+            traders_docs.append(doc)
 
-                traders_count += 1
+        # Batch upsert
+        query = f"""
+        FOR doc IN @documents
+            UPSERT {{ _key: doc._key }}
+            INSERT doc
+            UPDATE doc
+            IN {TRADER_COL}
+        """
 
-            except Exception as e:
-                print(f"  [WARN] Error upserting trader {row.get('trader_key')}: {e}")
+        total_batches = (len(traders_docs) + batch_size - 1) // batch_size
 
-        print(f"  [OK] Upserted {traders_count:,} traders")
+        for batch_num in range(0, len(traders_docs), batch_size):
+            batch = traders_docs[batch_num:batch_num + batch_size]
+            current_batch_num = (batch_num // batch_size) + 1
 
-    # Upsert positions
+            # Retry logic
+            for attempt in range(max_retries):
+                try:
+                    db.aql.execute(query, bind_vars={'documents': batch}, max_runtime=60.0)
+                    traders_count += len(batch)
+                    print(f"    Batch {current_batch_num}/{total_batches}: {len(batch)} traders ✓", end='\r')
+                    break
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        wait_time = retry_delay * (attempt + 1)
+                        print(f"\n    [WARN] Batch {current_batch_num} failed (attempt {attempt+1}/{max_retries}), retrying in {wait_time}s...")
+                        time.sleep(wait_time)
+                    else:
+                        print(f"\n    [ERROR] Batch {current_batch_num} failed after {max_retries} attempts: {e}")
+
+        print(f"\n  [OK] Upserted {traders_count:,} traders")
+
+    # ========== UPSERT POSITIONS (BATCH) ==========
     if len(positions_df) > 0:
+        print(f"  Upserting {len(positions_df):,} positions in batches of {batch_size}...")
+
+        # Prepare documents
+        positions_docs = []
         for idx, row in positions_df.iterrows():
-            try:
-                doc = {
-                    '_key': row['position_key'],
-                    'position_id': row.get('position_id'),
-                    'trader_address': row['trader_address'],
-                    'trader_key': row['trader_key'],
-                    'market_condition_id': row['market_condition_id'],
-                    'market_key': row['market_key'],
-                    'market_question': row.get('market_question', ''),
-                    'outcome_index': int(row['outcome_index']) if pd.notna(row.get('outcome_index')) else None,
-                    'size': float(row['size']),
-                    'average_price': float(row['average_price']),
-                    'realized_profit': float(row['realized_profit']),
-                    'unrealized_profit': float(row.get('unrealizedProfit', 0)),
-                    'fetched_at': row['fetched_at'],
-                    'updated_at': datetime.now().isoformat(),
-                }
+            doc = {
+                '_key': row['position_key'],
+                'position_id': row.get('position_id'),
+                'trader_address': row['trader_address'],
+                'trader_key': row['trader_key'],
+                'market_condition_id': row['market_condition_id'],
+                'market_key': row['market_key'],
+                'market_question': row.get('market_question', ''),
+                'outcome_index': int(row['outcome_index']) if pd.notna(row.get('outcome_index')) else None,
+                'size': float(row['size']),
+                'average_price': float(row['average_price']),
+                'realized_profit': float(row['realized_profit']),
+                'unrealized_profit': float(row.get('unrealizedProfit', 0)),
+                'fetched_at': row['fetched_at'],
+                'updated_at': datetime.now().isoformat(),
+            }
+            positions_docs.append(doc)
 
-                # Upsert
-                if positions_coll.has(doc['_key']):
-                    positions_coll.update(doc, merge=True)
-                else:
-                    positions_coll.insert(doc)
+        # Batch upsert
+        query = f"""
+        FOR doc IN @documents
+            UPSERT {{ _key: doc._key }}
+            INSERT doc
+            UPDATE doc
+            IN {POSITION_COL}
+        """
 
-                positions_count += 1
+        total_batches = (len(positions_docs) + batch_size - 1) // batch_size
 
-            except Exception as e:
-                print(f"  [WARN] Error upserting position {row.get('position_key')}: {e}")
+        for batch_num in range(0, len(positions_docs), batch_size):
+            batch = positions_docs[batch_num:batch_num + batch_size]
+            current_batch_num = (batch_num // batch_size) + 1
 
-        print(f"  [OK] Upserted {positions_count:,} positions")
+            # Retry logic
+            for attempt in range(max_retries):
+                try:
+                    db.aql.execute(query, bind_vars={'documents': batch}, max_runtime=60.0)
+                    positions_count += len(batch)
+                    print(f"    Batch {current_batch_num}/{total_batches}: {len(batch)} positions ✓", end='\r')
+                    break
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        wait_time = retry_delay * (attempt + 1)
+                        print(f"\n    [WARN] Batch {current_batch_num} failed (attempt {attempt+1}/{max_retries}), retrying in {wait_time}s...")
+                        time.sleep(wait_time)
+                    else:
+                        print(f"\n    [ERROR] Batch {current_batch_num} failed after {max_retries} attempts: {e}")
+
+        print(f"\n  [OK] Upserted {positions_count:,} positions")
 
     return traders_count, positions_count
 

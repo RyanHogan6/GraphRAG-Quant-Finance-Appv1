@@ -24,8 +24,9 @@ export default function MarketsPage() {
     const fetchData = async () => {
       try {
         setLoading(true)
+        // Use FEATURED endpoint for diverse, curated markets (Polymarket-style)
         const [marketsData, categoriesData] = await Promise.all([
-          api.getMarkets({ limit: 100 }),
+          api.getFeaturedMarkets(100),
           api.getCategories()
         ])
 
@@ -61,12 +62,13 @@ export default function MarketsPage() {
     fetchData()
   }, [])
 
-  // Load more markets
+  // Load more markets - continues using featured endpoint for diversity
   const handleLoadMore = async () => {
     try {
       setLoadingMore(true)
       const newLimit = displayLimit + 100
-      const marketsData = await api.getMarkets({ limit: newLimit })
+      // Continue using featured endpoint to maintain category diversity
+      const marketsData = await api.getFeaturedMarkets(newLimit)
 
       const formattedMarkets = marketsData.map((m: any) => ({
         id: m.id || m._key,
