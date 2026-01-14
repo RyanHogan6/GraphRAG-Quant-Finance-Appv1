@@ -9,6 +9,8 @@ export interface Market {
   liquidity: number
   end_date: string
   outcomes?: Array<{ name: string; prob: number }>
+  outcome_yes?: string
+  outcome_no?: string
   description?: string
   traders: number
 }
