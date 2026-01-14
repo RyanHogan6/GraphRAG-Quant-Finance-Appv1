@@ -84,6 +84,14 @@ MIN_TRADER_VOLUME = 1000  # $1k minimum volume for trader tracking
 TOP_MARKETS_LIMIT = 200   # Only fetch prices for top N markets by volume
 WHALE_THRESHOLD = 50000   # $50k+ volume = whale status
 
+# Smart position fetching (prioritizes high-value traders)
+POSITION_FETCH_STRATEGIES = {
+    'whale_only': False,          # Only fetch positions for whales (>$50k)
+    'min_volume_for_positions': 5000,  # Min volume to fetch positions ($5k)
+    'prioritize_profitable': True,     # Prioritize traders with positive PnL
+    'max_traders_with_positions': 500  # Max traders to fetch positions for (up from 100)
+}
+
 # Rate limiting
 RATE_LIMIT_DELAY = 0.3    # Seconds between API calls
 API_TIMEOUT = 30          # Seconds to wait for API response

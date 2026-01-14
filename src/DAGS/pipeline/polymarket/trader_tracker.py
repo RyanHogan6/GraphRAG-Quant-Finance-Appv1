@@ -16,7 +16,8 @@ from .config import (
     MIN_TRADER_VOLUME,
     WHALE_THRESHOLD,
     API_TIMEOUT,
-    RATE_LIMIT_DELAY
+    RATE_LIMIT_DELAY,
+    POSITION_FETCH_STRATEGIES
 )
 
 # ============================================================================
@@ -171,35 +172,103 @@ def parse_trader_positions(
     traders_raw: List[Dict],
     market_condition_map: Dict[str, str],
     fetch_positions: bool = True,
-    max_traders_for_positions: int = 100
+    max_traders_for_positions: int = None
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Parse leaderboard trader data into normalized DataFrames.
 
-    Optionally fetches position data for traders (makes additional API calls).
+    Optionally fetches position data for traders using SMART FILTERING:
+    - Prioritizes high-volume traders (whales)
+    - Filters out low-volume/inactive traders
+    - Focuses on profitable traders when enabled
+    - Fetches more positions overall by being selective
 
     Args:
         traders_raw: Raw trader data from leaderboard API
         market_condition_map: Mapping of condition_id → market _id from ArangoDB
         fetch_positions: Whether to fetch position data for traders (default: True)
-        max_traders_for_positions: Max number of traders to fetch positions for (default: 100)
+        max_traders_for_positions: Max traders to fetch positions for (uses config default if None)
 
     Returns:
         Tuple of (traders_df, positions_df)
     """
 
-    print("\n[TRADER TRACKER] Parsing trader data...")
+    print("\n[TRADER TRACKER] Parsing trader data with SMART FILTERING...")
     print("-" * 80)
 
     if not traders_raw:
         print("  [WARN] No traders to parse")
         return pd.DataFrame(), pd.DataFrame()
 
+    # Get smart filtering config
+    if max_traders_for_positions is None:
+        max_traders_for_positions = POSITION_FETCH_STRATEGIES['max_traders_with_positions']
+
+    min_volume_for_positions = POSITION_FETCH_STRATEGIES['min_volume_for_positions']
+    whale_only = POSITION_FETCH_STRATEGIES['whale_only']
+    prioritize_profitable = POSITION_FETCH_STRATEGIES['prioritize_profitable']
+
     traders_data = []
     positions_data = []
 
-    # Limit position fetching to avoid too many API calls
-    traders_to_fetch = traders_raw[:max_traders_for_positions] if fetch_positions else []
+    # SMART FILTERING: Select which traders to fetch positions for
+    traders_to_fetch = []
+    if fetch_positions:
+        print(f"\n  Applying smart filters:")
+        print(f"    - Min volume for positions: ${min_volume_for_positions:,}")
+        print(f"    - Whale only mode: {whale_only}")
+        print(f"    - Prioritize profitable: {prioritize_profitable}")
+        print(f"    - Max traders with positions: {max_traders_for_positions}")
+
+        # Filter traders based on criteria
+        filtered_traders = []
+        for trader in traders_raw:
+            volume = float(trader.get('vol', 0))
+            pnl = float(trader.get('pnl', 0))
+            is_whale = volume > WHALE_THRESHOLD
+
+            # Apply filters
+            if whale_only and not is_whale:
+                continue  # Skip non-whales if whale_only mode
+
+            if volume < min_volume_for_positions:
+                continue  # Skip low-volume traders
+
+            # Calculate priority score
+            priority_score = volume  # Base priority = volume
+
+            if prioritize_profitable and pnl > 0:
+                priority_score += volume * 0.5  # Boost profitable traders by 50%
+
+            if is_whale:
+                priority_score += volume * 0.3  # Boost whales by 30%
+
+            filtered_traders.append({
+                'trader': trader,
+                'volume': volume,
+                'pnl': pnl,
+                'is_whale': is_whale,
+                'priority': priority_score
+            })
+
+        # Sort by priority (highest first) and take top N
+        filtered_traders.sort(key=lambda x: x['priority'], reverse=True)
+        traders_to_fetch = [t['trader'] for t in filtered_traders[:max_traders_for_positions]]
+
+        # Statistics
+        total_traders = len(traders_raw)
+        filtered_count = len(filtered_traders)
+        fetching_count = len(traders_to_fetch)
+        whales_fetching = sum(1 for t in filtered_traders[:fetching_count] if t['is_whale'])
+
+        print(f"\n  Filter results:")
+        print(f"    - Total traders: {total_traders:,}")
+        print(f"    - Passed filters: {filtered_count:,} ({filtered_count/total_traders*100:.1f}%)")
+        print(f"    - Fetching positions: {fetching_count:,} ({fetching_count/total_traders*100:.1f}%)")
+        print(f"    - Whales in fetch list: {whales_fetching} ({whales_fetching/fetching_count*100:.1f}%)")
+        print()
+    else:
+        print("  [NOTE] Position fetching disabled")
 
     for idx, trader in enumerate(traders_raw):
         try:
@@ -237,8 +306,8 @@ def parse_trader_positions(
 
             traders_data.append(trader_doc)
 
-            # Fetch positions for top traders only
-            if fetch_positions and idx < max_traders_for_positions:
+            # Fetch positions only for traders in our smart-filtered list
+            if fetch_positions and trader in traders_to_fetch:
                 positions = fetch_positions_for_trader(trader_address, limit=20)
 
                 for position in positions:
@@ -283,9 +352,10 @@ def parse_trader_positions(
                 # Rate limiting - small delay between requests
                 time.sleep(RATE_LIMIT_DELAY)
 
-                # Progress indicator
-                if (idx + 1) % 10 == 0:
-                    print(f"    Fetched positions for {idx+1}/{max_traders_for_positions} traders...", end='\r')
+                # Progress indicator (only show for traders we're actually fetching)
+                current_fetch_count = sum(1 for t in traders_data if t['address'] in [tf.get('proxyWallet', '') for tf in traders_to_fetch])
+                if current_fetch_count % 10 == 0 and current_fetch_count > 0:
+                    print(f"    Fetched positions for {current_fetch_count}/{len(traders_to_fetch)} traders...", end='\r')
 
         except Exception as e:
             print(f"  [WARN] Error parsing trader {trader.get('proxyWallet')}: {e}")
@@ -298,8 +368,17 @@ def parse_trader_positions(
     print(f"\n  [OK] Parsed {len(traders_df)} traders")
 
     if fetch_positions:
-        print(f"  [OK] Fetched positions for top {min(len(traders_raw), max_traders_for_positions)} traders")
-        print(f"  [OK] Found {len(positions_df)} positions")
+        traders_with_positions = len(traders_to_fetch)
+        positions_per_trader = len(positions_df) / traders_with_positions if traders_with_positions > 0 else 0
+        print(f"  [OK] Fetched positions for {traders_with_positions} smart-filtered traders")
+        print(f"  [OK] Found {len(positions_df)} total positions")
+        print(f"  [OK] Average positions per trader: {positions_per_trader:.1f}")
+
+        # Show unique markets covered
+        if len(positions_df) > 0:
+            unique_markets = positions_df['market_key'].nunique()
+            market_coverage = (unique_markets / len(market_condition_map) * 100) if len(market_condition_map) > 0 else 0
+            print(f"  [OK] Unique markets with positions: {unique_markets:,} ({market_coverage:.1f}% coverage)")
     else:
         print(f"  [NOTE] Position fetching disabled")
 
