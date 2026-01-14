@@ -4,6 +4,10 @@
 [build]
 builder = "nixpacks"
 
+[build.nixpacks]
+# Force Python 3.11 to avoid distutils issues in Python 3.12
+pythonVersion = "3.11"
+
 [deploy]
 # Railway root directory is set to: src
 # Nixpacks auto-installs from requirements.txt at build time
