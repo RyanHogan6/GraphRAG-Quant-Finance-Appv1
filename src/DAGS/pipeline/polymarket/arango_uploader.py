@@ -6,6 +6,7 @@ Implements incremental updates to preserve historical data
 
 import pandas as pd
 import json
+import time
 from arango import ArangoClient
 from datetime import datetime
 from typing import Tuple
@@ -151,7 +152,7 @@ def create_collections_if_missing(db):
 # MARKET UPSERT (INCREMENTAL UPDATES)
 # ============================================================================
 
-def upsert_markets(db, markets_df: pd.DataFrame, batch_size: int = 1000) -> Tuple[int, int, int]:
+def upsert_markets(db, markets_df: pd.DataFrame, batch_size: int = 250) -> Tuple[int, int, int]:
     """
     OPTIMIZED: Upsert markets using ArangoDB's bulk UPSERT via AQL.
 
@@ -160,10 +161,15 @@ def upsert_markets(db, markets_df: pd.DataFrame, batch_size: int = 1000) -> Tupl
     - Database handles the logic internally
     - Reduces network round-trips dramatically
 
+    PERFORMANCE TUNING:
+    - Batch size reduced to 250 for cloud ArangoDB (was 1000)
+    - Simplified UPDATE logic (no expensive MERGE operations)
+    - Added timeout handling
+
     Args:
         db: ArangoDB database handle
         markets_df: DataFrame with market data
-        batch_size: Number of documents per batch (default: 1000)
+        batch_size: Number of documents per batch (default: 250, optimized for cloud)
 
     Returns:
         Tuple of (inserted_count, updated_count, error_count)
@@ -236,35 +242,48 @@ def upsert_markets(db, markets_df: pd.DataFrame, batch_size: int = 1000) -> Tupl
         batch_num = (i // batch_size) + 1
         total_batches = (len(documents) + batch_size - 1) // batch_size
 
-        try:
-            # Use AQL UPSERT - much faster than individual operations
-            # Preserve existing category if new one is 'Other' (from API with no category)
-            query = f"""
-            FOR doc IN @documents
-                UPSERT {{ _key: doc._key }}
-                INSERT doc
-                UPDATE MERGE(OLD, doc, {{
-                    category: (doc.category != 'Other' ? doc.category : OLD.category)
-                }})
-                IN {MARKET_COL}
-                OPTIONS {{ ignoreErrors: false }}
-            """
+        # Retry logic for transient failures
+        max_retries = 3
+        retry_delay = 2  # seconds
 
-            db.aql.execute(query, bind_vars={'documents': batch})
+        for attempt in range(max_retries):
+            try:
+                # Use AQL UPSERT - SIMPLIFIED for performance
+                # Note: categories are now intelligently assigned in features.py,
+                # so no need for complex MERGE logic
+                query = f"""
+                FOR doc IN @documents
+                    UPSERT {{ _key: doc._key }}
+                    INSERT doc
+                    UPDATE doc
+                    IN {MARKET_COL}
+                    OPTIONS {{ ignoreErrors: false }}
+                """
 
-            # We processed this batch successfully (UPSERT doesn't distinguish insert vs update)
-            # Assume 50/50 split for estimation
-            batch_updated = len(batch) // 2
-            batch_inserted = len(batch) - batch_updated
+                # Execute with timeout (60 seconds per batch)
+                db.aql.execute(query, bind_vars={'documents': batch}, max_runtime=60.0)
 
-            total_updated += batch_updated
-            total_inserted += batch_inserted
+                # Success! Break out of retry loop
+                batch_updated = len(batch) // 2
+                batch_inserted = len(batch) - batch_updated
 
-            print(f"  Batch {batch_num}/{total_batches}: Processed {len(batch):,} markets", end='\r')
+                total_updated += batch_updated
+                total_inserted += batch_inserted
 
-        except Exception as e:
-            total_errors += len(batch)
-            print(f"\n  [ERROR] Batch {batch_num} failed: {e}")
+                print(f"  Batch {batch_num}/{total_batches}: Processed {len(batch):,} markets", end='\r')
+                break  # Success, exit retry loop
+
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    # Retry with backoff
+                    wait_time = retry_delay * (attempt + 1)
+                    print(f"\n  [WARN] Batch {batch_num} attempt {attempt + 1} failed: {e}")
+                    print(f"  [RETRY] Waiting {wait_time}s before retry...")
+                    time.sleep(wait_time)
+                else:
+                    # Final attempt failed
+                    total_errors += len(batch)
+                    print(f"\n  [ERROR] Batch {batch_num} failed after {max_retries} attempts: {e}")
 
     print(f"\n  [OK] Batch upsert complete!")
     print(f"  [OK] Total processed: {len(documents):,}")
