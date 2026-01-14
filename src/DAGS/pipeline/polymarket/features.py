@@ -325,7 +325,7 @@ def generate_market_embeddings(markets_df: pd.DataFrame, batch_size=100, db=None
 # MARKET-LEVEL FEATURES
 # ============================================================================
 
-def engineer_market_features(markets_df: pd.DataFrame, db=None) -> pd.DataFrame:
+def engineer_market_features(markets_df: pd.DataFrame, db=None, skip_embeddings=False) -> pd.DataFrame:
     """
     Engineer features for prediction markets.
 
@@ -489,15 +489,20 @@ def engineer_market_features(markets_df: pd.DataFrame, db=None) -> pd.DataFrame:
     # --------------------------------------------------
     # Feature 9: Question Embeddings for Semantic Search
     # --------------------------------------------------
-    print("  [10/10] Generating question embeddings for semantic search...")
+    if skip_embeddings:
+        print("  [10/10] SKIPPING embedding generation (run standalone script)")
+        if 'question_embedding' not in df.columns:
+            df['question_embedding'] = None
+    else:
+        print("  [10/10] Generating question embeddings for semantic search...")
 
-    try:
-        df = generate_market_embeddings(df, batch_size=100, db=db)
-        print("  [OK] Embeddings generated successfully")
-    except Exception as e:
-        print(f"  [ERROR] Embedding generation failed: {str(e)}")
-        print("  [WARN] Continuing without embeddings - semantic search will not be available")
-        # Add None column so pipeline doesn't fail
+        try:
+            df = generate_market_embeddings(df, batch_size=100, db=db)
+            print("  [OK] Embeddings generated successfully")
+        except Exception as e:
+            print(f"  [ERROR] Embedding generation failed: {str(e)}")
+            print("  [WARN] Continuing without embeddings - semantic search will not be available")
+            # Add None column so pipeline doesn't fail
         if 'question_embedding' not in df.columns:
             df['question_embedding'] = None
 

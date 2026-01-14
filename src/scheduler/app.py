@@ -58,14 +58,49 @@ except Exception as e:
     sys.exit(1)
 
 
-def run_pipeline():
+def run_yahoo_pipeline():
+    """Execute Yahoo MarketData ETL pipeline"""
+    logger.info("\n" + "="*80)
+    logger.info("YAHOO MARKETDATA PIPELINE")
+    logger.info("="*80)
+
+    try:
+        # TODO: Implement Yahoo pipeline
+        # For now, just a placeholder
+        logger.info("⏭️  Yahoo pipeline not yet implemented in scheduler")
+        return True
+    except Exception as e:
+        logger.error(f"✗ Yahoo pipeline failed: {e}")
+        return False
+
+
+def run_kalshi_pipeline():
+    """Execute Kalshi ETL pipeline"""
+    logger.info("\n" + "="*80)
+    logger.info("KALSHI PIPELINE")
+    logger.info("="*80)
+
+    try:
+        # TODO: Implement Kalshi pipeline
+        # For now, just a placeholder
+        logger.info("⏭️  Kalshi pipeline not yet implemented in scheduler")
+        return True
+    except Exception as e:
+        logger.error(f"✗ Kalshi pipeline failed: {e}")
+        return False
+
+
+def run_polymarket_pipeline(skip_embeddings=False):
     """
-    Execute the full Polymarket ETL pipeline
+    Execute the Polymarket ETL pipeline
+
+    Args:
+        skip_embeddings: If True, skips embedding generation (run separately via standalone script)
 
     This runs:
     1. Fetch markets (always)
     2. Fetch traders (every 6 hours)
-    3. Engineer features (always)
+    3. Engineer features (conditionally skip embeddings)
     4. Upload to ArangoDB (always)
     5. Save price snapshots (always)
     6. Build graph edges (every 6 hours)
@@ -73,9 +108,12 @@ def run_pipeline():
     """
 
     start_time = datetime.now()
+    logger.info("\n" + "="*80)
+    logger.info(f"POLYMARKET PIPELINE STARTED: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("="*80)
-    logger.info(f"PIPELINE EXECUTION STARTED: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-    logger.info("="*80)
+
+    if skip_embeddings:
+        logger.info("⚠️  EMBEDDINGS SKIPPED - Run generate_embeddings_standalone.py locally")
 
     try:
         # Determine what to run based on time
@@ -132,7 +170,7 @@ def run_pipeline():
 
         # Step 4: Engineer features (with db connection for crash recovery)
         logger.info("\n[4/7] Engineering features...")
-        markets_df = engineer_market_features(markets_df, db=db)
+        markets_df = engineer_market_features(markets_df, db=db, skip_embeddings=skip_embeddings)
         logger.info(f"✓ Engineered features for {len(markets_df):,} markets")
 
         if traders_df is not None and len(traders_df) > 0:
@@ -202,6 +240,58 @@ def run_pipeline():
         import traceback
         traceback.print_exc()
         return False
+
+
+def run_pipeline():
+    """
+    Master pipeline orchestrator - runs all pipelines in sequence
+    Order: Yahoo → Kalshi → Polymarket (skip embeddings)
+
+    Embeddings are generated separately via standalone script to avoid Railway timeouts
+    """
+    start_time = datetime.now()
+    logger.info("\n" + "="*80)
+    logger.info(f"MASTER PIPELINE STARTED: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info("="*80)
+    logger.info("Execution order: Yahoo → Kalshi → Polymarket (no embeddings)")
+    logger.info("="*80 + "\n")
+
+    results = {
+        'yahoo': False,
+        'kalshi': False,
+        'polymarket': False
+    }
+
+    # Pipeline 1: Yahoo MarketData
+    try:
+        results['yahoo'] = run_yahoo_pipeline()
+    except Exception as e:
+        logger.error(f"Yahoo pipeline crashed: {e}")
+
+    # Pipeline 2: Kalshi
+    try:
+        results['kalshi'] = run_kalshi_pipeline()
+    except Exception as e:
+        logger.error(f"Kalshi pipeline crashed: {e}")
+
+    # Pipeline 3: Polymarket (skip embeddings - use standalone script)
+    try:
+        results['polymarket'] = run_polymarket_pipeline(skip_embeddings=True)
+    except Exception as e:
+        logger.error(f"Polymarket pipeline crashed: {e}")
+
+    # Summary
+    end_time = datetime.now()
+    duration = (end_time - start_time).total_seconds()
+
+    logger.info("\n" + "="*80)
+    logger.info("MASTER PIPELINE COMPLETE")
+    logger.info("="*80)
+    logger.info(f"Yahoo: {'✓ SUCCESS' if results['yahoo'] else '✗ FAILED'}")
+    logger.info(f"Kalshi: {'✓ SUCCESS' if results['kalshi'] else '✗ FAILED'}")
+    logger.info(f"Polymarket: {'✓ SUCCESS' if results['polymarket'] else '✗ FAILED'}")
+    logger.info(f"Duration: {duration:.1f}s ({duration/60:.1f}min)")
+    logger.info("="*80)
 
 
 def health_check():
