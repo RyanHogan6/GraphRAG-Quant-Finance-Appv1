@@ -2,7 +2,7 @@
 LLM query planning for FastAPI
 Ported from Streamlit llm.py
 """
-import openai
+from openai import OpenAI
 import json
 import re
 from datetime import datetime
@@ -15,8 +15,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 import config
 from app.llm.prompts import CRITICAL_AQL_RULES
 
-# Set OpenAI API key
-openai.api_key = config.OPENAI_API_KEY
+# Initialize OpenAI client
+openai_client = OpenAI(api_key=config.OPENAI_API_KEY)
 
 # Query cache for similarity checking (in-memory for now)
 # In production, consider Redis or proper caching layer
@@ -434,7 +434,7 @@ Return JSON: {{"type": "ticker", "value": "CMI"}} or {{"type": "concept", "value
 """
 
     try:
-        response = openai.chat.completions.create(
+        response = openai_client.chat.completions.create(
             model=config.LLM_MODEL,
             messages=[{"role": "user", "content": check_prompt}],
             max_tokens=100,
@@ -526,7 +526,7 @@ Return ONLY valid JSON.
 Response:"""
 
     try:
-        response = openai.chat.completions.create(
+        response = openai_client.chat.completions.create(
             model=config.LLM_MODEL,
             messages=[{"role": "user", "content": planning_prompt}],
             max_tokens=config.MAX_TOKENS,
@@ -624,7 +624,7 @@ Response:"""
     print(f"[LLM ANALYSIS] Calling OpenAI...")
 
     try:
-        response = openai.chat.completions.create(
+        response = openai_client.chat.completions.create(
             model=config.LLM_MODEL,
             messages=[{"role": "user", "content": analysis_prompt}],
             max_tokens=1500,  # Increased for table generation
@@ -730,7 +730,7 @@ Keep it conversational, helpful, and professional. Use markdown formatting with 
 Response:"""
 
     try:
-        response = openai.chat.completions.create(
+        response = openai_client.chat.completions.create(
             model=config.LLM_MODEL,
             messages=[{"role": "user", "content": fallback_prompt}],
             max_tokens=1000,

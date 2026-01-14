@@ -7,13 +7,13 @@ import pandas as pd
 import numpy as np
 import json
 from datetime import datetime
-import openai
+from openai import OpenAI
 import os
 from dotenv import load_dotenv
 
 # Load environment variables for OpenAI API key
 load_dotenv()
-openai.api_key = os.getenv('OPENAI_API_KEY')
+openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 # ============================================================================
 # INTELLIGENT CATEGORIZATION
@@ -227,7 +227,7 @@ def generate_market_embeddings(markets_df: pd.DataFrame, batch_size=100) -> pd.D
         print(f"  [BATCH {batch_num}/{total_batches}] Embedding {len(batch)} markets...", end=' ')
 
         try:
-            response = openai.embeddings.create(
+            response = openai_client.embeddings.create(
                 input=batch,
                 model="text-embedding-3-small"
             )

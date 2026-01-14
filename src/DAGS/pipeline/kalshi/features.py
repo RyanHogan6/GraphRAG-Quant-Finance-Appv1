@@ -1,11 +1,11 @@
 """Kalshi feature engineering with embeddings"""
 import pandas as pd
-import openai
+from openai import OpenAI
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
-openai.api_key = os.getenv('OPENAI_API_KEY')
+openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 def generate_title_embeddings(markets_df: pd.DataFrame, batch_size=100) -> pd.DataFrame:
     """Generate embeddings for Kalshi market titles"""
@@ -38,7 +38,7 @@ def generate_title_embeddings(markets_df: pd.DataFrame, batch_size=100) -> pd.Da
         print(f"[BATCH {i//batch_size + 1}] Embedding {len(batch)} markets...")
 
         try:
-            response = openai.embeddings.create(
+            response = openai_client.embeddings.create(
                 input=batch,
                 model="text-embedding-3-small"
             )
