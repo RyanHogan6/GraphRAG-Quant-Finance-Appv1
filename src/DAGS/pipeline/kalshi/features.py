@@ -74,7 +74,11 @@ def generate_title_embeddings(markets_df: pd.DataFrame, batch_size=100) -> pd.Da
             print(f"✗ Error: {e}")
             all_embeddings.extend([None] * len(batch))
 
-    df.loc[df_to_embed.index, 'title_embedding'] = all_embeddings
+    # Assign embeddings back to dataframe
+    for i, idx in enumerate(df_to_embed.index):
+        if i < len(all_embeddings):
+            df.at[idx, 'title_embedding'] = all_embeddings[i]
+
     print(f"[OK] Generated {df['title_embedding'].notna().sum()}/{len(df)} embeddings")
     return df
 
