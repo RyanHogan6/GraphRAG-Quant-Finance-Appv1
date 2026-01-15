@@ -17,6 +17,9 @@ PASSWORD = os.getenv("ARANGO_PASSWORD", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 LLM_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+
+# Perplexity Configuration (for web search/current events)
+PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY", "")
 EMBEDDING_DIMENSIONS = 1536
 MAX_TOKENS = int(os.getenv("MAX_TOKENS", "1500"))
 TEMPERATURE = float(os.getenv("TEMPERATURE", "0.1"))
