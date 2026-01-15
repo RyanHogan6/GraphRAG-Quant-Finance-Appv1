@@ -105,8 +105,15 @@ const collectionData = {
   },
 }
 
+// Define the data type for custom nodes
+interface CustomNodeData {
+  label: string
+  count: string
+  isCenter: boolean
+}
+
 // Custom node component with click handler
-function CustomNode({ data }: NodeProps) {
+function CustomNode({ data }: NodeProps<CustomNodeData>) {
   return (
     <div
       className="px-6 py-4 rounded-lg border-2 shadow-lg cursor-pointer transition-all hover:scale-105 hover:shadow-xl"
