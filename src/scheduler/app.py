@@ -64,9 +64,56 @@ def run_yahoo_pipeline():
     logger.info("YAHOO MARKETDATA PIPELINE")
     logger.info("="*80)
 
-    # Yahoo pipeline module doesn't exist yet - skip for now
-    logger.info("⏭️  Yahoo pipeline not implemented (module missing)")
-    return True
+    try:
+        from yahoo.constituents import get_sp500_tickers
+        from yahoo.downloader import download_stock_data
+        from yahoo.features import engineer_technical_features
+
+        # Step 1: Get tickers
+        logger.info("[1/4] Fetching S&P 500 tickers...")
+        tickers = get_sp500_tickers()
+        logger.info(f"✓ Fetched {len(tickers)} tickers")
+
+        # Step 2: Download data
+        logger.info("[2/4] Downloading stock data (30 days)...")
+        data_df = download_stock_data(tickers, period='1mo')
+        logger.info(f"✓ Downloaded {len(data_df)} rows")
+
+        # Step 3: Engineer features
+        logger.info("[3/4] Engineering technical indicators...")
+        featured_df = engineer_technical_features(data_df)
+        logger.info(f"✓ Engineered {len(featured_df)} rows")
+
+        # Step 4: Upload to ArangoDB
+        logger.info("[4/4] Uploading to MarketData collection...")
+        db = get_arango_connection()
+
+        docs = []
+        for _, row in featured_df.iterrows():
+            doc = {
+                '_key': f"{row['ticker']}_{row['date']}",
+                'ticker': row['ticker'],
+                'date': row['date'],
+                **{k: v for k, v in row.to_dict().items() if k not in ['ticker', 'date']}
+            }
+            docs.append(doc)
+
+        # Batch upsert
+        for i in range(0, len(docs), 250):
+            batch = docs[i:i+250]
+            db.aql.execute(
+                "FOR doc IN @docs UPSERT {_key: doc._key} INSERT doc UPDATE doc IN MarketData",
+                bind_vars={'docs': batch}
+            )
+
+        logger.info(f"✓ Uploaded {len(docs)} records")
+        return True
+
+    except Exception as e:
+        logger.error(f"✗ Yahoo pipeline failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 
 def run_kalshi_pipeline():

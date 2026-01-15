@@ -589,7 +589,8 @@ Response:"""
 def get_query_embedding(text: str):
     """Generate embedding vector for semantic search"""
     try:
-        response = openai.embeddings.create(
+        client = get_openai_client()
+        response = client.embeddings.create(
             model=config.EMBEDDING_MODEL,
             input=text
         )
