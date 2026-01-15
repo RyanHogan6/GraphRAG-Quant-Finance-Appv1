@@ -5,10 +5,9 @@ from datetime import datetime
 from .config import KALSHI_API_URL
 
 def fetch_all_markets():
-    """Fetch active markets from Kalshi"""
+    """Fetch all markets from Kalshi"""
     url = f"{KALSHI_API_URL}/markets"
     params = {
-        'status': 'active',
         'limit': 1000
     }
 
