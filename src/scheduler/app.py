@@ -86,6 +86,11 @@ def run_yahoo_pipeline():
         data_df = download_stock_data(tickers, period='1mo')
         logger.info(f"✓ Downloaded {len(data_df)} rows")
 
+        # Check if download succeeded
+        if data_df.empty or len(data_df) == 0:
+            logger.error("✗ No data downloaded - skipping feature engineering and upload")
+            return False
+
         # Step 3: Engineer features
         logger.info("[3/4] Engineering technical indicators...")
         featured_df = engineer_technical_features(data_df)

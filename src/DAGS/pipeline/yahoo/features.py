@@ -213,9 +213,14 @@ def engineer_technical_features(df):
     Input: DataFrame with columns [date, ticker, open, high, low, close, volume]
     Output: DataFrame with 60+ engineered features
     """
+    # Check for empty DataFrame or missing ticker column
+    if df.empty or 'ticker' not in df.columns:
+        print(f"  Warning: Empty DataFrame or missing ticker column")
+        return df
+
     print(f"[FEATURES] Engineering features for {df['ticker'].nunique()} tickers...")
 
-    if df.empty or len(df) < 200:
+    if len(df) < 200:
         print(f"  Warning: Insufficient data ({len(df)} rows)")
         return df
 
