@@ -114,21 +114,51 @@ def search_web_context(question: str, focus_areas: list = None) -> dict:
             }
         ],
         temperature=0.2,
-        max_tokens=1000
+        max_tokens=1000,
+        return_citations=True  # Explicitly request citations
     )
 
+    content = response.choices[0].message.content
+
+    # Extract citations from Perplexity response
+    # Perplexity returns citations in the 'citations' field (list of URLs)
+    citations = []
+    if hasattr(response, 'citations') and response.citations:
+        citations = response.citations
+    elif hasattr(response.choices[0].message, 'citations') and response.choices[0].message.citations:
+        citations = response.choices[0].message.citations
+
+    # Try to get from response metadata if not in message
+    if not citations and hasattr(response, 'usage') and hasattr(response, 'model'):
+        # Check if citations are in the response object itself
+        try:
+            # Perplexity may include citations in different locations
+            if hasattr(response, '__dict__') and 'citations' in response.__dict__:
+                citations = response.__dict__['citations']
+        except:
+            pass
+
     result = {
-        'summary': response.choices[0].message.content,
-        'sources': [],
-        'citations': []
+        'summary': content,
+        'sources': citations if citations else [],
+        'citations': []  # Will be populated below with [number] -> URL mapping
     }
 
-    # Extract citations if available (Perplexity includes them in response)
-    # Note: Perplexity's citation format may vary, adjust as needed
-    if hasattr(response, 'citations'):
-        result['sources'] = response.citations
+    # Create citation mapping [1] -> URL, [2] -> URL, etc.
+    if citations:
+        # Parse citation numbers from content like [1], [2]
+        import re
+        citation_numbers = re.findall(r'\[(\d+)\]', content)
 
-    print(f"[WEB SEARCH] Retrieved {len(result['summary'])} chars")
+        # Create list of dicts with number and URL
+        for i, url in enumerate(citations, 1):
+            result['citations'].append({
+                'number': i,
+                'url': url,
+                'referenced': str(i) in citation_numbers
+            })
+
+    print(f"[WEB SEARCH] Retrieved {len(content)} chars with {len(citations)} sources")
 
     return result
 
@@ -190,10 +220,16 @@ Provide a clear, insightful answer:"""
 
     synthesized = response.choices[0].message.content
 
-    # Append sources
-    if web_context.get('sources'):
+    # Append formatted sources with numbers matching the content citations
+    if web_context.get('citations'):
         synthesized += "\n\n**Sources:**\n"
-        for source in web_context['sources'][:5]:
-            synthesized += f"- {source}\n"
+        for citation in web_context['citations'][:10]:
+            # Show both the citation number and clickable URL
+            synthesized += f"[{citation['number']}] {citation['url']}\n"
+    elif web_context.get('sources'):
+        # Fallback if citations aren't structured
+        synthesized += "\n\n**Sources:**\n"
+        for i, source in enumerate(web_context['sources'][:5], 1):
+            synthesized += f"[{i}] {source}\n"
 
     return synthesized
