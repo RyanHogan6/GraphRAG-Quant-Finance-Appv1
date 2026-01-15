@@ -103,6 +103,11 @@ const collectionData = {
     keyFields: ['summary', 'sources', 'citations'],
     edges: ['Augments all queries with real-time data'],
     exampleQuery: 'Parallel execution: DB query + Web search → Hybrid synthesis',
+    sampleData: {
+      summary: 'Recent news context...',
+      sources: ['https://example.com'],
+      citations: [{ number: 1, url: 'https://example.com' }],
+    },
     highlight: 'Always runs in parallel with database queries',
   },
 }
