@@ -329,12 +329,11 @@ def run_pipeline():
         'polymarket': False
     }
 
-    # Pipeline 1: Yahoo MarketData (DISABLED - yfinance bulk download issues)
-    # try:
-    #     results['yahoo'] = run_yahoo_pipeline()
-    # except Exception as e:
-    #     logger.error(f"Yahoo pipeline crashed: {e}")
-    logger.info("Yahoo pipeline skipped (disabled due to yfinance rate limiting)")
+    # Pipeline 1: Yahoo MarketData
+    try:
+        results['yahoo'] = run_yahoo_pipeline()
+    except Exception as e:
+        logger.error(f"Yahoo pipeline crashed: {e}")
 
     # Pipeline 2: Kalshi
     try:
