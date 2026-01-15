@@ -9,6 +9,41 @@ def fetch_sp500_tickers():
     df = pd.read_html(url)[0]
     return df['Symbol'].str.replace('.', '-', regex=False).tolist()
 
+def download_stock_data(tickers, period='1mo'):
+    """Download stock data for given tickers - simplified for scheduler"""
+    if period == '1mo':
+        start_date = datetime.today().date() - timedelta(days=30)
+    elif period == '1y':
+        start_date = datetime.today().date() - timedelta(days=365)
+    else:
+        start_date = datetime.today().date() - timedelta(days=365)
+
+    end_date = datetime.today().date()
+
+    data = yf.download(tickers, start=start_date, end=end_date,
+                       auto_adjust=True, group_by='ticker', threads=True, progress=False)
+
+    # Convert to long format DataFrame
+    records = []
+    for ticker in tickers:
+        try:
+            if isinstance(data.columns, pd.MultiIndex):
+                df = data[ticker].copy()
+            else:
+                df = data.copy()
+
+            df = df.reset_index()
+            df.columns = [col.lower() if isinstance(col, str) else col for col in df.columns]
+            df['ticker'] = ticker
+            df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d')
+            records.append(df)
+        except Exception as e:
+            print(f"Error processing {ticker}: {e}")
+
+    if records:
+        return pd.concat(records, ignore_index=True)
+    return pd.DataFrame()
+
 def download_yahoo_data(start_date=None, end_date=None, tickers=None):
     os.makedirs(DATA_RAW_PATH, exist_ok=True)
     if not tickers:
