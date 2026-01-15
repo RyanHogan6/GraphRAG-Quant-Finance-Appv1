@@ -334,11 +334,17 @@ def run_pipeline():
         'polymarket': False
     }
 
-    # Pipeline 1: Yahoo MarketData
-    try:
-        results['yahoo'] = run_yahoo_pipeline()
-    except Exception as e:
-        logger.error(f"Yahoo pipeline crashed: {e}")
+    # Pipeline 1: Yahoo MarketData (DISABLED - yfinance rate limiting with 852 tickers)
+    # TODO: Fix by either:
+    #   1. Reduce to current S&P 500 only (~503 tickers)
+    #   2. Run Yahoo separately on longer schedule (weekly)
+    #   3. Add better retry logic and smaller batch sizes
+    # try:
+    #     results['yahoo'] = run_yahoo_pipeline()
+    # except Exception as e:
+    #     logger.error(f"Yahoo pipeline crashed: {e}")
+    logger.info("⚠️  Yahoo pipeline disabled (yfinance rate limiting with 852 tickers)")
+    results['yahoo'] = False
 
     # Pipeline 2: Kalshi
     try:

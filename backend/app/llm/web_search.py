@@ -106,7 +106,7 @@ def search_web_context(question: str, focus_areas: list = None) -> dict:
         messages=[
             {
                 "role": "system",
-                "content": "You are a financial research assistant. Provide factual, recent information with citations. Focus on events, news, and developments that could impact financial markets."
+                "content": "You are a financial research assistant. Provide factual, recent information with inline citations [1], [2], etc. Focus on events, news, and developments that could impact financial markets."
             },
             {
                 "role": "user",
@@ -114,8 +114,7 @@ def search_web_context(question: str, focus_areas: list = None) -> dict:
             }
         ],
         temperature=0.2,
-        max_tokens=1000,
-        return_citations=True  # Explicitly request citations
+        max_tokens=1000
     )
 
     content = response.choices[0].message.content
