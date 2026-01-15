@@ -204,11 +204,28 @@ def get_relevant_schema(question, intent):
         relevant_schemas.extend(["Company", "MarketData"])
         print(f"[SCHEMA SELECTION] Ticker query detected: {intent.get('value')}")
 
-    # Keyword-based detection
+    # Keyword-based detection for government contracts
     if any(word in question_lower for word in ['contract', 'award', 'government', 'federal', 'usaspending']):
         if "Award" not in relevant_schemas:
             relevant_schemas.append("Award")
-            print(f"[SCHEMA SELECTION] Award collection added - keyword detected in question")
+            print(f"[SCHEMA SELECTION] Award collection added - contract keyword detected")
+
+    # Geopolitical queries - search government contracts with semantic embeddings
+    geopolitical_keywords = [
+        'iran', 'china', 'russia', 'north korea', 'syria', 'ukraine', 'taiwan',
+        'conflict', 'war', 'military', 'defense', 'geopolitical', 'sanctions',
+        'bomb', 'strike', 'invasion', 'attack', 'troops', 'deployment'
+    ]
+    if any(word in question_lower for word in geopolitical_keywords):
+        if "Award" not in relevant_schemas:
+            relevant_schemas.append("Award")
+            print(f"[SCHEMA SELECTION] Award collection added - geopolitical keyword detected")
+        if "prediction_markets_polymarket" not in relevant_schemas:
+            relevant_schemas.append("prediction_markets_polymarket")
+            print(f"[SCHEMA SELECTION] Polymarket added - geopolitical topic detected")
+        if "sec_filings" not in relevant_schemas:
+            relevant_schemas.append("sec_filings")
+            print(f"[SCHEMA SELECTION] SEC filings added - defense contractors may mention topic")
 
     # Trader-specific queries
     if any(word in question_lower for word in ['trader', 'whale', 'position', 'top trader', 'biggest bet']):
@@ -952,8 +969,9 @@ Return JSON array of 3-4 questions:
 
     except Exception as e:
         print(f"[FOLLOW-UPS] Error generating questions: {e}")
-        # Return empty list on error - better than hardcoded fallback
+        print(f"[FOLLOW-UPS] Question: '{user_question}'")
+        print(f"[FOLLOW-UPS] Results count: {len(results)}")
+        import traceback
+        print(f"[FOLLOW-UPS] Traceback: {traceback.format_exc()}")
+        # Return empty list on error
         return []
-        follow_ups.append("⚖️ Compare the top 3 companies side-by-side")
-
-    return follow_ups[:4]  # Return top 4

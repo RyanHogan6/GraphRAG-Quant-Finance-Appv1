@@ -11,8 +11,10 @@ import config
 def get_perplexity_client():
     """Get Perplexity API client (uses OpenAI-compatible interface)"""
     if not config.PERPLEXITY_API_KEY:
+        print("[ERROR] PERPLEXITY_API_KEY not configured!")
         raise ValueError("PERPLEXITY_API_KEY not configured")
 
+    print(f"[PERPLEXITY] API key configured: {config.PERPLEXITY_API_KEY[:8]}...")
     return OpenAI(
         api_key=config.PERPLEXITY_API_KEY,
         base_url="https://api.perplexity.ai"
@@ -41,17 +43,26 @@ def classify_query_intent(question: str) -> dict:
    - "Show me defense contracts over $10M"
    - "What companies have golden crosses?"
 
-2. **web_only** - Question requires external/current information not in database (general knowledge, current events, company news)
+2. **web_only** - Question requires ONLY external information with NO database relevance (pure general knowledge, explanations, unrelated current events)
    Examples:
-   - "What happened at CES 2026?"
    - "Explain quantum computing"
-   - "What's the latest on AI regulation?"
+   - "What happened at CES 2026?"
+   - "How does photosynthesis work?"
 
-3. **hybrid** - Question needs BOTH database data AND current external context (Polymarket movements, stock price changes tied to news, predictions about real-world events)
+3. **hybrid** - Question needs BOTH database data AND current external context
+   **IMPORTANT: Choose HYBRID for geopolitical questions, conflicts, elections, policy changes**
+   These questions should search:
+   - Government contracts (semantic search for country/topic mentions)
+   - Prediction markets (Polymarket/Kalshi for event predictions)
+   - SEC filings (defense contractors, affected companies)
+   - Web search (current news context)
+
    Examples:
-   - "Why is the Trump prediction market spiking?"
-   - "What's driving NVDA's recent surge?"
-   - "Why are defense stocks up this week?"
+   - "When will the US bomb Iran?" → Search defense contracts + prediction markets + news
+   - "Why is the Trump prediction market spiking?" → Search Polymarket + stock impacts + news
+   - "What's driving NVDA's recent surge?" → Search stock data + SEC filings + news
+   - "Why are defense stocks up this week?" → Search MarketData + contracts + news
+   - "What do markets think about the election?" → Search prediction markets + stocks + news
 
 User Question: "{question}"
 

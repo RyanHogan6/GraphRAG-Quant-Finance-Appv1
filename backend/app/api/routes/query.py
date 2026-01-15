@@ -123,9 +123,14 @@ def execute_db_query(question: str):
 def execute_web_search(question: str):
     """Execute web search in parallel thread"""
     try:
-        return search_web_context(question), None
+        print(f"[WEB SEARCH] Starting web search for: '{question[:50]}...'")
+        result = search_web_context(question)
+        print(f"[WEB SEARCH] Completed. Sources: {len(result.get('sources', []))}, Citations: {len(result.get('citations', []))}")
+        return result, None
     except Exception as e:
         print(f"[WARNING] Web search failed: {e}")
+        import traceback
+        print(f"[WARNING] Web search traceback: {traceback.format_exc()}")
         return {
             'summary': f"Web search unavailable: {str(e)}",
             'sources': []
@@ -199,7 +204,13 @@ def execute_query(request: QueryRequest):
             analysis = "I couldn't retrieve information from either the database or web sources. Please try rephrasing your question."
 
         # Generate follow-up questions
+        print(f"[EXECUTE] Generating follow-ups for {len(results)} results")
         follow_ups = generate_follow_up_questions(request.question, results, query_plan)
+        print(f"[EXECUTE] Generated {len(follow_ups)} follow-up questions")
+
+        # Log web context status
+        has_sources = bool(web_context_data and (web_context_data.get('sources') or web_context_data.get('citations')))
+        print(f"[EXECUTE] Web context has sources: {has_sources}")
 
         return QueryExecuteResponse(
             results=results,
