@@ -69,8 +69,17 @@ def build_sp500_constituents_history():
 
 def get_sp500_tickers():
     """Get current S&P 500 tickers from Wikipedia"""
+    import urllib.request
+
     WIKI_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-    tables = pd.read_html(WIKI_URL, header=[0, 1])
+
+    # Add user agent to avoid 403 Forbidden
+    req = urllib.request.Request(WIKI_URL)
+    req.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
+
+    with urllib.request.urlopen(req) as response:
+        tables = pd.read_html(response.read(), header=[0, 1])
+
     constituents = tables[0]
     constituents.columns = [col[0] if isinstance(col, tuple) else col for col in constituents.columns]
     tickers = constituents['Symbol'].str.replace('.', '-', regex=False).tolist()
