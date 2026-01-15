@@ -66,3 +66,12 @@ def build_sp500_constituents_history():
     os.makedirs(os.path.dirname(CONSTITUENTS_PATH), exist_ok=True)
     combined.to_csv(CONSTITUENTS_PATH, index=False)
     print(f"Saved full S&P 500 lifecycle to {CONSTITUENTS_PATH}")
+
+def get_sp500_tickers():
+    """Get current S&P 500 tickers from Wikipedia"""
+    WIKI_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+    tables = pd.read_html(WIKI_URL, header=[0, 1])
+    constituents = tables[0]
+    constituents.columns = [col[0] if isinstance(col, tuple) else col for col in constituents.columns]
+    tickers = constituents['Symbol'].str.replace('.', '-', regex=False).tolist()
+    return tickers
