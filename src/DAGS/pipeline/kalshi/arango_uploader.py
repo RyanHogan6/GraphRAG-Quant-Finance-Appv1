@@ -42,12 +42,14 @@ def upsert_markets(db, markets_df: pd.DataFrame):
         }
 
         # Add embedding if present
-        if 'title_embedding' in row and pd.notna(row['title_embedding']):
+        if 'title_embedding' in row.index:
             embedding = row['title_embedding']
-            if hasattr(embedding, 'tolist'):
-                doc['title_embedding'] = embedding.tolist()
-            elif isinstance(embedding, list):
-                doc['title_embedding'] = embedding
+            # Check if embedding is valid (list or array, not None/NaN)
+            if embedding is not None:
+                if hasattr(embedding, 'tolist'):
+                    doc['title_embedding'] = embedding.tolist()
+                elif isinstance(embedding, list) and len(embedding) > 0:
+                    doc['title_embedding'] = embedding
 
         docs.append(doc)
 
