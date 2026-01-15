@@ -65,12 +65,57 @@ def run_yahoo_pipeline():
     logger.info("="*80)
 
     try:
-        # TODO: Implement Yahoo pipeline
-        # For now, just a placeholder
-        logger.info("⏭️  Yahoo pipeline not yet implemented in scheduler")
+        # Import Yahoo pipeline functions
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'DAGS', 'pipeline'))
+        from yahoo.constituents import get_sp500_tickers
+        from yahoo.downloader import download_stock_data
+        from yahoo.features import engineer_technical_features
+
+        # Step 1: Get tickers
+        logger.info("[1/4] Fetching S&P 500 tickers...")
+        tickers = get_sp500_tickers()
+        logger.info(f"✓ Fetched {len(tickers)} tickers")
+
+        # Step 2: Download data
+        logger.info("[2/4] Downloading stock data (30 days)...")
+        data_df = download_stock_data(tickers, period='1mo')
+        logger.info(f"✓ Downloaded {len(data_df)} rows")
+
+        # Step 3: Engineer features
+        logger.info("[3/4] Engineering technical indicators...")
+        featured_df = engineer_technical_features(data_df)
+        logger.info(f"✓ Engineered {len(featured_df)} rows")
+
+        # Step 4: Upload to ArangoDB
+        logger.info("[4/4] Uploading to MarketData collection...")
+        db = get_arango_connection()
+        collection = db.collection('MarketData')
+
+        docs = []
+        for _, row in featured_df.iterrows():
+            doc = {
+                '_key': f"{row['ticker']}_{row['date']}",
+                'ticker': row['ticker'],
+                'date': row['date'],
+                **{k: v for k, v in row.to_dict().items() if k not in ['ticker', 'date']}
+            }
+            docs.append(doc)
+
+        # Batch upsert
+        for i in range(0, len(docs), 250):
+            batch = docs[i:i+250]
+            db.aql.execute(
+                "FOR doc IN @docs UPSERT {_key: doc._key} INSERT doc UPDATE doc IN MarketData",
+                bind_vars={'docs': batch}
+            )
+
+        logger.info(f"✓ Uploaded {len(docs)} records")
         return True
+
     except Exception as e:
         logger.error(f"✗ Yahoo pipeline failed: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
@@ -81,12 +126,35 @@ def run_kalshi_pipeline():
     logger.info("="*80)
 
     try:
-        # TODO: Implement Kalshi pipeline
-        # For now, just a placeholder
-        logger.info("⏭️  Kalshi pipeline not yet implemented in scheduler")
+        # Import Kalshi pipeline functions
+        from kalshi.downloader import fetch_all_markets
+        from kalshi.features import engineer_market_features
+        from kalshi.arango_uploader import upsert_markets
+
+        # Step 1: Fetch markets
+        logger.info("[1/3] Fetching Kalshi markets...")
+        markets_df = fetch_all_markets()
+        logger.info(f"✓ Fetched {len(markets_df)} markets")
+
+        # Step 2: Engineer features + embeddings (skip embeddings - use standalone)
+        logger.info("[2/3] Engineering features (skipping embeddings)...")
+        # Note: engineer_market_features will call generate_title_embeddings
+        # but it skips if embeddings already exist
+        markets_df = engineer_market_features(markets_df)
+        logger.info(f"✓ Engineered {len(markets_df)} markets")
+
+        # Step 3: Upload to ArangoDB
+        logger.info("[3/3] Uploading to ArangoDB...")
+        db = get_arango_connection()
+        inserted, updated, errors = upsert_markets(db, markets_df)
+        logger.info(f"✓ Inserted: {inserted}, Updated: {updated}")
+
         return True
+
     except Exception as e:
         logger.error(f"✗ Kalshi pipeline failed: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 

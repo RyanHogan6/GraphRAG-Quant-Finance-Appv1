@@ -177,7 +177,7 @@ def build_sector_edges(db, markets: List[Dict], companies: List[Dict]) -> int:
                 """
 
                 try:
-                    sector_companies = list(db.aql.execute(sector_query))
+                    sector_companies = list(db.aql.execute(sector_query, max_runtime=300.0))
 
                     for company_id in sector_companies:
                         edge = {
@@ -276,7 +276,7 @@ def build_macro_edges(db, markets: List[Dict], companies: List[Dict]) -> int:
                 """
 
                 try:
-                    affected = list(db.aql.execute(macro_query, bind_vars={'sectors': event_config['sectors']}))
+                    affected = list(db.aql.execute(macro_query, bind_vars={'sectors': event_config['sectors']}, max_runtime=300.0))
 
                     for company_id in affected:
                         edge = {
