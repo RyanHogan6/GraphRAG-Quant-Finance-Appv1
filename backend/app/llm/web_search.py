@@ -162,9 +162,40 @@ def search_web_context(question: str, focus_areas: list = None) -> dict:
 
     return result
 
+def extract_requested_fields(question: str) -> list:
+    """Extract specific fields user requested (e.g., 'show me market cap, ebitda')"""
+    import re
+
+    # Common field patterns in user questions
+    field_patterns = {
+        'market_cap|marketcap|market cap': 'marketCap',
+        'shares outstanding|outstanding shares': 'sharesOutstanding',
+        'employees|employee count': 'fullTimeEmployees',
+        'ebitda': 'ebitda',
+        'revenue': 'revenue',
+        'pe ratio|p/e': 'trailingPE',
+        'forward pe': 'forwardPE',
+        'dividend': 'dividendYield',
+        'eps': 'trailingEps',
+        'price': 'close',
+        'volume': 'volume',
+        'sma|moving average': 'sma_50',
+        'rsi': 'rsi_14',
+    }
+
+    requested = []
+    question_lower = question.lower()
+
+    for pattern, field in field_patterns.items():
+        if re.search(pattern, question_lower):
+            requested.append(field)
+
+    return requested
+
+
 def synthesize_hybrid_response(question: str, db_results: dict, web_context: dict) -> str:
     """
-    Synthesize answer combining database results and web context
+    Synthesize answer combining database results and web context WITH TABLES
 
     Args:
         question: Original user question
@@ -172,27 +203,35 @@ def synthesize_hybrid_response(question: str, db_results: dict, web_context: dic
         web_context: Results from web search
 
     Returns:
-        Comprehensive answer combining both sources
+        Comprehensive answer combining both sources with markdown tables
     """
     from app.llm.planning import get_openai_client
+    import json
 
     client = get_openai_client()
 
-    # Format DB results
+    # Extract specific fields user requested
+    requested_fields = extract_requested_fields(question)
+
+    # Format DB results with full data for table generation
     db_summary = "### Database Results:\n"
-    if db_results.get('data'):
-        db_summary += f"Found {len(db_results['data'])} records\n"
-        db_summary += f"```json\n{db_results['data'][:3]}\n```"  # Show sample
+    if db_results.get('data') and len(db_results['data']) > 0:
+        results_sample = db_results['data'][:10]  # Top 10 for table
+        db_summary += f"Found {db_results.get('count', len(db_results['data']))} records\n\n"
+        db_summary += f"Sample data:\n```json\n{json.dumps(results_sample, indent=2)}\n```"
     else:
         db_summary += "No relevant data found in database"
 
     # Format web context
-    web_summary = "### Web Context:\n"
+    web_summary = "### Current Events & News:\n"
     web_summary += web_context.get('summary', 'No web context available')
-    if web_context.get('sources'):
-        web_summary += f"\n\nSources: {', '.join(web_context['sources'][:3])}"
 
-    prompt = f"""You are analyzing a financial question that requires both historical data and current context.
+    # Build priority fields instruction
+    field_instruction = ""
+    if requested_fields:
+        field_instruction = f"\n**User specifically requested these fields: {', '.join(requested_fields)}**\nMake sure to include these in your table."
+
+    prompt = f"""You are a financial data analyst combining database results with current web context.
 
 User Question: "{question}"
 
@@ -201,21 +240,36 @@ User Question: "{question}"
 {web_summary}
 
 Instructions:
-1. Synthesize a comprehensive answer combining BOTH database insights and current web context
-2. Explain HOW the current events (web) relate to the data patterns (database)
-3. For Polymarket questions: explain market movements in context of real-world events
-4. For stock questions: connect price/fundamental data to recent news
-5. Be specific with numbers from database
-6. Cite recent events from web context
-7. Keep answer concise (2-3 paragraphs max)
+**CRITICAL: You MUST present database results in a markdown table format if data exists.**
 
-Provide a clear, insightful answer:"""
+1. **Start with a markdown table** showing the database results:
+   - Include top 10 rows (or all if less than 10)
+   - Choose most relevant columns (max 6-7 columns)
+   - Exclude internal fields (_id, _key, _rev)
+   - Format numbers with proper units ($, %, dates)
+   {field_instruction}
+
+2. **After the table**, provide analysis that:
+   - Connects the database patterns to current events from web context
+   - Explains HOW recent news impacts the data trends
+   - For stocks: connect price/fundamentals to recent developments
+   - For prediction markets: explain movements in context of real events
+   - Be specific with numbers and cite web sources
+
+3. Keep total response under 3 paragraphs after table
+
+Markdown table format:
+| Column 1 | Column 2 | Column 3 |
+|----------|----------|----------|
+| Value 1  | Value 2  | Value 3  |
+
+Response:"""
 
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.3,
-        max_tokens=800
+        max_tokens=1500  # Increased for table + analysis
     )
 
     synthesized = response.choices[0].message.content
@@ -224,10 +278,8 @@ Provide a clear, insightful answer:"""
     if web_context.get('citations'):
         synthesized += "\n\n**Sources:**\n"
         for citation in web_context['citations'][:10]:
-            # Show both the citation number and clickable URL
             synthesized += f"[{citation['number']}] {citation['url']}\n"
     elif web_context.get('sources'):
-        # Fallback if citations aren't structured
         synthesized += "\n\n**Sources:**\n"
         for i, source in enumerate(web_context['sources'][:5], 1):
             synthesized += f"[{i}] {source}\n"
