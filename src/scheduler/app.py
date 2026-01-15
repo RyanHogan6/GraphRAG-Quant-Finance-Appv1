@@ -43,6 +43,7 @@ else:
 
 # Import pipeline modules
 try:
+    # Polymarket
     from polymarket.downloader import fetch_all_markets
     from polymarket.features import engineer_market_features
     from polymarket.arango_uploader import get_arango_connection, upsert_markets
@@ -51,6 +52,16 @@ try:
     from polymarket.arango_uploader import upsert_traders, create_trader_edges
     from polymarket.edge_builder import build_all_edges
     from polymarket.price_history import cleanup_old_snapshots
+
+    # Yahoo
+    from yahoo.constituents import get_sp500_tickers
+    from yahoo.downloader import download_stock_data
+    from yahoo.features import engineer_technical_features
+
+    # Kalshi
+    from kalshi.downloader import fetch_all_markets as fetch_kalshi_markets
+    from kalshi.features import engineer_market_features as engineer_kalshi_features
+    from kalshi.arango_uploader import upsert_markets as upsert_kalshi_markets
 
     logger.info("✓ Successfully imported all pipeline modules")
 except Exception as e:
@@ -65,10 +76,6 @@ def run_yahoo_pipeline():
     logger.info("="*80)
 
     try:
-        from yahoo.constituents import get_sp500_tickers
-        from yahoo.downloader import download_stock_data
-        from yahoo.features import engineer_technical_features
-
         # Step 1: Get tickers
         logger.info("[1/4] Fetching S&P 500 tickers...")
         tickers = get_sp500_tickers()
@@ -123,27 +130,22 @@ def run_kalshi_pipeline():
     logger.info("="*80)
 
     try:
-        # Import Kalshi pipeline functions
-        from kalshi.downloader import fetch_all_markets
-        from kalshi.features import engineer_market_features
-        from kalshi.arango_uploader import upsert_markets
-
         # Step 1: Fetch markets
         logger.info("[1/3] Fetching Kalshi markets...")
-        markets_df = fetch_all_markets()
+        markets_df = fetch_kalshi_markets()
         logger.info(f"✓ Fetched {len(markets_df)} markets")
 
         # Step 2: Engineer features + embeddings (skip embeddings - use standalone)
         logger.info("[2/3] Engineering features (skipping embeddings)...")
         # Note: engineer_market_features will call generate_title_embeddings
         # but it skips if embeddings already exist
-        markets_df = engineer_market_features(markets_df)
+        markets_df = engineer_kalshi_features(markets_df)
         logger.info(f"✓ Engineered {len(markets_df)} markets")
 
         # Step 3: Upload to ArangoDB
         logger.info("[3/3] Uploading to ArangoDB...")
         db = get_arango_connection()
-        inserted, updated, errors = upsert_markets(db, markets_df)
+        inserted, updated, errors = upsert_kalshi_markets(db, markets_df)
         logger.info(f"✓ Inserted: {inserted}, Updated: {updated}")
 
         return True
