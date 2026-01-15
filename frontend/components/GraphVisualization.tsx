@@ -105,29 +105,26 @@ const collectionData = {
   },
 }
 
-// Define the data type for custom nodes
-interface CustomNodeData {
-  label: string
-  count: string
-  isCenter: boolean
-}
-
 // Custom node component with click handler
-function CustomNode({ data }: NodeProps<CustomNodeData>) {
+function CustomNode({ data }: NodeProps) {
+  const label = data.label as string
+  const count = data.count as string
+  const isCenter = data.isCenter as boolean
+
   return (
     <div
       className="px-6 py-4 rounded-lg border-2 shadow-lg cursor-pointer transition-all hover:scale-105 hover:shadow-xl"
       style={{
-        background: data.isCenter ? '#D4AF37' : '#2a2a2a',
-        color: data.isCenter ? '#1a1a1a' : '#D4AF37',
-        borderColor: data.isCenter ? '#D4AF37' : 'rgba(212, 175, 55, 0.4)',
-        minWidth: data.isCenter ? '180px' : '160px',
+        background: isCenter ? '#D4AF37' : '#2a2a2a',
+        color: isCenter ? '#1a1a1a' : '#D4AF37',
+        borderColor: isCenter ? '#D4AF37' : 'rgba(212, 175, 55, 0.4)',
+        minWidth: isCenter ? '180px' : '160px',
       }}
     >
       <Handle type="target" position={Position.Top} style={{ background: '#D4AF37' }} />
       <div className="text-center">
-        <div className="font-bold text-base mb-1">{data.label}</div>
-        <div className="text-xs opacity-70">{data.count}</div>
+        <div className="font-bold text-base mb-1">{label}</div>
+        <div className="text-xs opacity-70">{count}</div>
       </div>
       <Handle type="source" position={Position.Bottom} style={{ background: '#D4AF37' }} />
     </div>
