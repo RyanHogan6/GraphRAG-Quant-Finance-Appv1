@@ -68,19 +68,19 @@ def build_sp500_constituents_history():
     print(f"Saved full S&P 500 lifecycle to {CONSTITUENTS_PATH}")
 
 def get_sp500_tickers():
-    """Get current S&P 500 tickers from Wikipedia"""
-    import urllib.request
+    """Get current S&P 500 tickers from CSV file"""
+    import os
 
-    WIKI_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+    # Use the CSV file in DAGS directory (relative to pipeline/yahoo/)
+    csv_path = os.path.join(os.path.dirname(__file__), '..', '..', 'SP500_constituents_with_history.csv')
 
-    # Add user agent to avoid 403 Forbidden
-    req = urllib.request.Request(WIKI_URL)
-    req.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
+    if not os.path.exists(csv_path):
+        raise FileNotFoundError(f"SP500 CSV not found at: {csv_path}")
 
-    with urllib.request.urlopen(req) as response:
-        tables = pd.read_html(response.read(), header=[0, 1])
+    df = pd.read_csv(csv_path)
 
-    constituents = tables[0]
-    constituents.columns = [col[0] if isinstance(col, tuple) else col for col in constituents.columns]
-    tickers = constituents['Symbol'].str.replace('.', '-', regex=False).tolist()
+    # Get tickers, remove NaN values
+    tickers = df['ticker'].dropna().unique().tolist()
+
+    print(f"Loaded {len(tickers)} tickers from SP500 CSV")
     return tickers
