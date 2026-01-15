@@ -30,6 +30,7 @@ const collectionData = {
       sector: 'Technology',
       marketCap: 3450000000000,
     },
+    highlight: 'Central hub connecting all data sources',
   },
   marketdata: {
     name: 'MarketData',
@@ -46,6 +47,7 @@ const collectionData = {
       sma_50: 182.15,
       rsi_14: 62.3,
     },
+    highlight: '40+ technical and fundamental indicators per day',
   },
   awards: {
     name: 'Award',
