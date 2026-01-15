@@ -200,13 +200,15 @@ def get_relevant_schema(question, intent):
 
     # Intent-based selection
     if intent and intent.get("type") == "ticker":
-        # For ticker queries, include Company + MarketData + Award by default
-        relevant_schemas.extend(["Company", "MarketData", "Award"])
+        # For ticker queries, include Company + MarketData (NOT Award unless explicitly mentioned)
+        relevant_schemas.extend(["Company", "MarketData"])
+        print(f"[SCHEMA SELECTION] Ticker query detected: {intent.get('value')}")
 
     # Keyword-based detection
     if any(word in question_lower for word in ['contract', 'award', 'government', 'federal', 'usaspending']):
         if "Award" not in relevant_schemas:
             relevant_schemas.append("Award")
+            print(f"[SCHEMA SELECTION] Award collection added - keyword detected in question")
 
     # Trader-specific queries
     if any(word in question_lower for word in ['trader', 'whale', 'position', 'top trader', 'biggest bet']):
@@ -242,9 +244,10 @@ def get_relevant_schema(question, intent):
         if "EconomicData" not in relevant_schemas:
             relevant_schemas.append("EconomicData")
 
-    # If no matches, return core collections
+    # If no matches, return MINIMAL core collections (no Award fallback!)
     if not relevant_schemas:
-        relevant_schemas = ["Company", "MarketData", "Award"]
+        relevant_schemas = ["Company", "MarketData"]
+        print("[SCHEMA SELECTION] No keywords matched, using minimal default: Company + MarketData")
 
     # Format schema output
     schema_text = "RELEVANT COLLECTIONS:\n\n"
@@ -582,8 +585,23 @@ Response:"""
         return plan
 
     except Exception as e:
-        print(f"Query planning error: {str(e)}")
-        return None
+        print(f"\n{'='*80}")
+        print("[ERROR] LLM QUERY PLANNING FAILED!")
+        print(f"{'='*80}")
+        print(f"  Error type: {type(e).__name__}")
+        print(f"  Error message: {str(e)}")
+        print(f"  Question: '{question}'")
+        print(f"  Intent hint: {intent_hint}")
+        print(f"{'='*80}\n")
+
+        # Return structured error - let API layer handle user-facing message
+        return {
+            "error": True,
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "question": question,
+            "suggestion": "Try rephrasing your question or being more specific about what data you want"
+        }
 
 
 def get_query_embedding(text: str):
@@ -862,55 +880,80 @@ def validate_aql_syntax(aql_query: str, question: str = ""):
 
 def generate_follow_up_questions(user_question: str, results: list, query_plan: dict):
     """
-    Generate contextual follow-up questions based on results.
-    ENHANCED from working Streamlit version with 7 patterns!
+    Generate dynamic, contextual follow-up questions using LLM.
+    Like ChatGPT/Perplexity - relevant to what was just shown.
     """
-    intent = query_plan.get('intent', '')
+    # Skip if no results
+    if not results or len(results) == 0:
+        return []
+
     collections = query_plan.get('collections', [])
-    follow_ups = []
 
-    # Pattern 1: Temporal expansion
-    if 'date' in str(results).lower() or any(c in collections for c in ['MarketData', 'EconomicData']):
-        follow_ups.append("📈 How has this changed over the past year?")
-        follow_ups.append("📊 Show me the trend for the last 5 years")
+    # Prepare context for LLM
+    result_summary = f"{len(results)} results from {', '.join(collections)}"
 
-    # Pattern 2: Entity expansion (if tickers found)
-    if results and isinstance(results[0], dict) and 'ticker' in results[0]:
-        tickers = [r.get('ticker') for r in results[:3] if r.get('ticker')]
-        if tickers:
-            follow_ups.append(f"💼 Compare {', '.join(tickers[:3])} financial metrics")
-            follow_ups.append(f"🔍 What are the biggest risks for {tickers[0]}?")
+    # Sample of results (first 3 to avoid token limits)
+    result_sample = results[:3]
 
-    # Pattern 3: Cross-collection expansion
-    if 'Award' in collections:
-        follow_ups.append("📉 What's the stock performance for these companies?")
-        follow_ups.append("🔮 What do prediction markets say about these companies?")
+    # Get field names from results
+    available_fields = []
+    if results and isinstance(results[0], dict):
+        available_fields = list(results[0].keys())[:10]  # First 10 fields
 
-    if any(c in collections for c in ['sec_filings', 'sec_sentences']):
-        follow_ups.append("💰 Show me government contracts for these companies")
-        follow_ups.append("📊 What are their financial metrics?")
+    prompt = f"""You are a financial data analyst helping users explore data.
 
-    if 'MarketData' in collections:
-        follow_ups.append("🏛️ Have these companies received government contracts?")
-        follow_ups.append("⚠️ What risks do they mention in SEC filings?")
+User just asked: "{user_question}"
 
-    # Pattern 4: Prediction markets (NEW)
-    if any(c in collections for c in ['prediction_markets_polymarket', 'prediction_markets_kalshi']):
-        follow_ups.append("📈 How does this compare to their stock performance?")
-        follow_ups.append("📦 Do they have commodity exposure?")
+Results returned: {result_summary}
+Available data fields: {', '.join(available_fields)}
+Sample data: {json.dumps(result_sample, indent=2)[:500]}
 
-    # Pattern 5: Commodity positions (NEW)
-    if 'commodity_positions' in collections:
-        follow_ups.append("📊 How does this correlate with commodity prices?")
-        follow_ups.append("💼 Show me their recent financial performance")
+Generate 3-4 natural follow-up questions that:
+1. **Deepen the analysis** (e.g., "How does this compare to industry average?")
+2. **Expand time range** (e.g., "Show me this over the past year")
+3. **Compare entities** (e.g., "Compare AAPL with MSFT and GOOGL")
+4. **Cross-reference data** (e.g., "What do prediction markets say about this?")
 
-    # Pattern 6: Depth expansion
-    if len(results) > 5:
-        follow_ups.append("🎯 Show me only the top 3 results with more detail")
-        follow_ups.append("📋 Export this data to CSV")
+Rules:
+- Be specific (use actual tickers/entities from results)
+- Be actionable (user can directly ask your suggestion)
+- Be relevant (based on what data is available)
+- NO generic questions like "Tell me more"
+- NO emojis
+- Each question should be 8-15 words
 
-    # Pattern 7: Comparative analysis
-    if len(results) >= 2:
+Return JSON array of 3-4 questions:
+["question 1", "question 2", "question 3"]
+"""
+
+    try:
+        client = get_openai_client()
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",  # Fast model for follow-ups
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=300,
+            temperature=0.7,
+            response_format={"type": "json_object"}
+        )
+
+        result = json.loads(response.choices[0].message.content)
+
+        # Extract questions from various possible response formats
+        if 'questions' in result:
+            follow_ups = result['questions'][:4]
+        elif isinstance(result, list):
+            follow_ups = result[:4]
+        else:
+            # Fallback if response format is unexpected
+            follow_ups = list(result.values())[:4] if result else []
+
+        print(f"[FOLLOW-UPS] Generated {len(follow_ups)} contextual questions")
+        return follow_ups
+
+    except Exception as e:
+        print(f"[FOLLOW-UPS] Error generating questions: {e}")
+        # Return empty list on error - better than hardcoded fallback
+        return []
         follow_ups.append("⚖️ Compare the top 3 companies side-by-side")
 
     return follow_ups[:4]  # Return top 4

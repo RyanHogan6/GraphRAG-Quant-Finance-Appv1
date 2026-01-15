@@ -86,6 +86,12 @@ def execute_db_query(question: str):
         if not query_plan:
             return None, None, "Failed to generate query plan"
 
+        # Check if planning returned an error
+        if query_plan.get('error'):
+            error_detail = f"{query_plan.get('error_type')}: {query_plan.get('error_message')}"
+            print(f"[DB QUERY ERROR] {error_detail}")
+            return None, None, error_detail
+
         aql_query = query_plan.get("aql_query")
         bind_vars = query_plan.get("bind_vars", {})
 
