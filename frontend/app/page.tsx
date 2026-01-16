@@ -241,9 +241,11 @@ export default function HomePage() {
       try {
         const { api } = await import('@/lib/api')
         const response = await api.browseCollection(selectedCollection, 100)
-        // Handle both response formats: {data: [...]} or [...]
-        const data = Array.isArray(response) ? response : (response.data || [])
-        console.log('Collection data received:', data.length, 'items')
+        // Handle multiple response formats: {documents: [...]}, {data: [...]}, or [...]
+        const data = Array.isArray(response)
+          ? response
+          : (response.documents || response.data || [])
+        console.log('Collection data received:', data.length, 'items', 'Response format:', response)
         setCollectionData(data)
       } catch (error) {
         console.error('Failed to fetch collection data:', error)

@@ -25,7 +25,7 @@ export default function RootLayout({
       <body className={`${ibmPlexMono.variable} font-mono`}>
         <NeuralBackground />
         <Navigation />
-        <main className="snap-y snap-mandatory overflow-y-auto h-screen">
+        <main className="snap-y snap-proximity overflow-y-auto h-screen scroll-smooth">
           {children}
         </main>
       </body>

@@ -7,10 +7,18 @@ export default function NeuralBackground() {
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas) return
+    if (!canvas) {
+      console.log('NeuralBackground: Canvas ref not available')
+      return
+    }
 
     const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    if (!ctx) {
+      console.log('NeuralBackground: Could not get 2D context')
+      return
+    }
+
+    console.log('NeuralBackground: Initialized successfully')
 
     // Set canvas size
     const setCanvasSize = () => {
