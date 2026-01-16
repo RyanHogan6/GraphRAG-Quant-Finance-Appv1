@@ -3,6 +3,9 @@ import { IBM_Plex_Mono } from 'next/font/google'
 import './globals.css'
 import Navigation from '@/components/Navigation'
 import NeuralBackground from '@/components/NeuralBackground'
+import Footer from '@/components/Footer'
+import DisclaimerBanner from '@/components/DisclaimerBanner'
+import CookieConsent from '@/components/CookieConsent'
 
 const ibmPlexMono = IBM_Plex_Mono({
   weight: ['400', '500', '600', '700'],
@@ -22,12 +25,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${ibmPlexMono.variable} font-mono`}>
+      <body className={`${ibmPlexMono.variable} font-mono flex flex-col min-h-screen`}>
         <NeuralBackground />
+        <DisclaimerBanner />
         <Navigation />
-        <main className="snap-y snap-proximity overflow-y-auto h-screen scroll-smooth">
+        <main className="snap-y snap-proximity overflow-y-auto flex-1 scroll-smooth">
           {children}
         </main>
+        <Footer />
+        <CookieConsent />
       </body>
     </html>
   )

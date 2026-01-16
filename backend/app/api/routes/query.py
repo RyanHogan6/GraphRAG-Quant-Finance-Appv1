@@ -1,21 +1,48 @@
 """
 Query API routes - Natural language to AQL query planning and execution
 """
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Depends, Request
+from pydantic import BaseModel, validator, constr
 from typing import Optional, Dict, List, Any
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.database.connection import get_db, execute_aql, fix_aql_query
 from app.llm.planning import plan_query_with_llm, quick_intent_check, get_query_embedding, generate_follow_up_questions, analyze_results_with_llm
 from app.llm.web_search import classify_query_intent, search_web_context, synthesize_hybrid_response
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 
 class QueryRequest(BaseModel):
-    question: str
+    question: constr(min_length=1, max_length=1000)  # Limit query length
+
+    @validator('question')
+    def sanitize_question(cls, v):
+        """Prevent AQL injection and malicious queries"""
+        v = v.strip()
+
+        # Forbidden patterns that could be AQL injection
+        forbidden = [
+            'DROP', 'DELETE', 'REMOVE', 'INSERT', 'UPDATE', 'REPLACE',
+            'CREATE', 'RENAME', 'TRUNCATE', '/*', '*/', '--'
+        ]
+
+        # Check for forbidden keywords
+        upper_query = v.upper()
+        for forbidden_word in forbidden:
+            if forbidden_word in upper_query:
+                raise ValueError(f'Query contains forbidden keyword: {forbidden_word}')
+
+        # Check for excessive special characters (potential injection)
+        special_chars = sum(c in v for c in [';', '{', '}', '[', ']'])
+        if special_chars > 5:
+            raise ValueError('Query contains too many special characters')
+
+        return v
 
 
 class QueryPlanResponse(BaseModel):
@@ -38,7 +65,8 @@ class QueryExecuteResponse(BaseModel):
 
 
 @router.post("/intent")
-def check_intent(request: QueryRequest):
+@limiter.limit("60/minute")
+def check_intent(http_request: Request, request: QueryRequest):
     """Classify query intent (ticker vs concept)"""
     try:
         intent = quick_intent_check(request.question)
@@ -48,7 +76,8 @@ def check_intent(request: QueryRequest):
 
 
 @router.post("/plan", response_model=QueryPlanResponse)
-def plan_query(request: QueryRequest):
+@limiter.limit("30/minute")
+def plan_query(http_request: Request, request: QueryRequest):
     """Generate AQL query from natural language"""
     start_time = time.time()
 
@@ -138,7 +167,8 @@ def execute_web_search(question: str):
 
 
 @router.post("/execute", response_model=QueryExecuteResponse)
-def execute_query(request: QueryRequest):
+@limiter.limit("20/minute")  # Stricter limit for expensive operations
+def execute_query(http_request: Request, request: QueryRequest):
     """
     Execute natural language query with PARALLEL DB + Web search
 

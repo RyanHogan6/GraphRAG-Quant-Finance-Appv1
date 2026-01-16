@@ -1,13 +1,16 @@
 """
 Markets API routes - Polymarket and Kalshi prediction markets
 """
-from fastapi import APIRouter, HTTPException, Query as QueryParam
+from fastapi import APIRouter, HTTPException, Query as QueryParam, Request
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.database.connection import get_db, execute_aql
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 
 class MarketResponse(BaseModel):
@@ -50,7 +53,8 @@ def get_sample_market():
 
 
 @router.get("/polymarket/categories")
-def get_polymarket_categories():
+@limiter.limit("30/minute")
+def get_polymarket_categories(request: Request):
     """Get all Polymarket categories with counts"""
     db = get_db()
 
@@ -127,17 +131,21 @@ def get_market_detail(market_id: str):
 
 
 @router.get("/polymarket/featured")
+@limiter.limit("30/minute")
 def get_featured_markets(
+    request: Request,
     limit: int = QueryParam(100)
 ):
     """
-    Get high-quality featured markets - OPTIMIZED FOR SPEED
+    Get high-quality featured markets - OPTIMIZED FOR SPEED v2.0
 
     Simplified query to avoid timeouts:
     - Direct filter and sort (no complex aggregations)
     - Min quality thresholds
     - Fast indexes on volume_24h and liquidity
     """
+
+    print(f"🚀 OPTIMIZED QUERY v2.0 - Fetching {limit} markets (NEW CODE RUNNING)")
 
     query = f"""
     FOR market IN prediction_markets_polymarket
