@@ -188,7 +188,12 @@ export default function HomePage() {
       const { api } = await import('@/lib/api')
       const response = await api.executeQuery(currentInput)
 
-      let resultText = `**Query Results:** ${response.count} results in ${response.execution_time.toFixed(2)}s\n\n`
+      let resultText = ''
+
+      // Only show query results header if we found something
+      if (response.count > 0) {
+        resultText = `**Query Results:** ${response.count} results in ${response.execution_time.toFixed(2)}s\n\n`
+      }
 
       if (response.analysis) {
         resultText += response.analysis
