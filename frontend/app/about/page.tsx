@@ -11,7 +11,7 @@ export default function About() {
           {/* Problem Statement */}
           <section>
             <h2 className="text-3xl font-semibold text-gold mb-6 flex items-center">
-              <span className="text-4xl mr-3">🎯</span>
+              <span className="text-4xl mr-3">📊</span>
               The Problem
             </h2>
             <div className="bg-dark-800 border border-gold/20 rounded-lg p-8">
@@ -33,7 +33,7 @@ export default function About() {
           {/* Solution */}
           <section>
             <h2 className="text-3xl font-semibold text-gold mb-6 flex items-center">
-              <span className="text-4xl mr-3">💡</span>
+              <span className="text-4xl mr-3">⚡</span>
               The Solution: GraphRAG
             </h2>
             <div className="space-y-6">
@@ -72,7 +72,7 @@ export default function About() {
           {/* Architecture Diagram */}
           <section>
             <h2 className="text-3xl font-semibold text-gold mb-6 flex items-center">
-              <span className="text-4xl mr-3">🏗️</span>
+              <span className="text-4xl mr-3">🔧</span>
               System Architecture
             </h2>
 
@@ -142,7 +142,7 @@ export default function About() {
             <div className="grid md:grid-cols-2 gap-6">
               {/* Stock Market Data */}
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-green-400 mb-4">📈 Stock Market Data</h3>
+                <h3 className="text-xl font-semibold text-green-400 mb-4">📊 Stock Market Data</h3>
                 <ul className="space-y-2 text-gray-400 text-sm">
                   <li className="flex items-start">
                     <span className="text-gold mr-2">•</span>
@@ -165,7 +165,7 @@ export default function About() {
 
               {/* Government Contracts */}
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-blue-400 mb-4">🏛️ Government Contracts</h3>
+                <h3 className="text-xl font-semibold text-blue-400 mb-4">📋 Government Contracts</h3>
                 <ul className="space-y-2 text-gray-400 text-sm">
                   <li className="flex items-start">
                     <span className="text-gold mr-2">•</span>
@@ -188,7 +188,7 @@ export default function About() {
 
               {/* Prediction Markets */}
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-purple-400 mb-4">🔮 Prediction Markets</h3>
+                <h3 className="text-xl font-semibold text-purple-400 mb-4">📈 Prediction Markets</h3>
                 <ul className="space-y-2 text-gray-400 text-sm">
                   <li className="flex items-start">
                     <span className="text-gold mr-2">•</span>
@@ -211,7 +211,7 @@ export default function About() {
 
               {/* SEC Filings */}
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-orange-400 mb-4">📄 SEC Filings</h3>
+                <h3 className="text-xl font-semibold text-orange-400 mb-4">📋 SEC Filings</h3>
                 <ul className="space-y-2 text-gray-400 text-sm">
                   <li className="flex items-start">
                     <span className="text-gold mr-2">•</span>
@@ -234,7 +234,7 @@ export default function About() {
 
               {/* Economic Indicators */}
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-cyan-400 mb-4">📉 Economic Indicators</h3>
+                <h3 className="text-xl font-semibold text-cyan-400 mb-4">📊 Economic Indicators</h3>
                 <ul className="space-y-2 text-gray-400 text-sm">
                   <li className="flex items-start">
                     <span className="text-gold mr-2">•</span>
@@ -253,7 +253,7 @@ export default function About() {
 
               {/* Commodity Positions */}
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-yellow-400 mb-4">🌾 Commodity Positions</h3>
+                <h3 className="text-xl font-semibold text-yellow-400 mb-4">📊 Commodity Positions</h3>
                 <ul className="space-y-2 text-gray-400 text-sm">
                   <li className="flex items-start">
                     <span className="text-gold mr-2">•</span>
@@ -275,7 +275,7 @@ export default function About() {
           {/* Graph Structure */}
           <section>
             <h2 className="text-3xl font-semibold text-gold mb-6 flex items-center">
-              <span className="text-4xl mr-3">🕸️</span>
+              <span className="text-4xl mr-3">🔗</span>
               Knowledge Graph Structure
             </h2>
 
@@ -416,7 +416,7 @@ export default function About() {
           {/* Technical Stack */}
           <section>
             <h2 className="text-3xl font-semibold text-gold mb-6 flex items-center">
-              <span className="text-4xl mr-3">⚙️</span>
+              <span className="text-4xl mr-3">🔧</span>
               Technology Stack
             </h2>
 
@@ -531,13 +531,13 @@ export default function About() {
           {/* Future Roadmap */}
           <section>
             <h2 className="text-3xl font-semibold text-gold mb-6 flex items-center">
-              <span className="text-4xl mr-3">🚀</span>
+              <span className="text-4xl mr-3">📈</span>
               Future Enhancements
             </h2>
 
             <div className="grid md:grid-cols-2 gap-6">
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-6">
-                <h4 className="font-semibold text-gold mb-3">🔄 Real-time Data</h4>
+                <h4 className="font-semibold text-gold mb-3">⚡ Real-time Data</h4>
                 <p className="text-gray-400 text-sm">
                   WebSocket connections for live market data updates, streaming prediction
                   market probability changes as they happen.
@@ -545,7 +545,7 @@ export default function About() {
               </div>
 
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-6">
-                <h4 className="font-semibold text-gold mb-3">📱 Portfolio Tracking</h4>
+                <h4 className="font-semibold text-gold mb-3">📊 Portfolio Tracking</h4>
                 <p className="text-gray-400 text-sm">
                   User accounts to track favorite companies, save queries, and set up alerts
                   for specific market conditions.
@@ -553,7 +553,7 @@ export default function About() {
               </div>
 
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-6">
-                <h4 className="font-semibold text-gold mb-3">🧠 Advanced ML Models</h4>
+                <h4 className="font-semibold text-gold mb-3">🤖 Advanced ML Models</h4>
                 <p className="text-gray-400 text-sm">
                   Time-series forecasting with LSTM, anomaly detection for unusual trading
                   patterns, correlation discovery between data sources.
@@ -561,7 +561,7 @@ export default function About() {
               </div>
 
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-6">
-                <h4 className="font-semibold text-gold mb-3">🌐 More Data Sources</h4>
+                <h4 className="font-semibold text-gold mb-3">📊 More Data Sources</h4>
                 <p className="text-gray-400 text-sm">
                   Twitter sentiment, Reddit discussions, earnings call transcripts, patent
                   filings, and international market data.
@@ -577,7 +577,7 @@ export default function About() {
               </div>
 
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-6">
-                <h4 className="font-semibold text-gold mb-3">🔌 API Access</h4>
+                <h4 className="font-semibold text-gold mb-3">🔗 API Access</h4>
                 <p className="text-gray-400 text-sm">
                   Public API with authentication for programmatic access to GraphRAG
                   capabilities, enabling integrations with trading platforms.
@@ -589,7 +589,7 @@ export default function About() {
           {/* Open Source */}
           <section className="bg-gradient-to-r from-gold/10 to-gold/5 border-2 border-gold/30 rounded-lg p-8">
             <h2 className="text-3xl font-semibold text-gold mb-4 flex items-center">
-              <span className="text-4xl mr-3">💻</span>
+              <span className="text-4xl mr-3">🔓</span>
               Open Source & Contributions
             </h2>
             <p className="text-gray-300 text-lg leading-relaxed mb-4">
