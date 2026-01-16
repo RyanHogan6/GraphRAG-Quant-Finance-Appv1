@@ -21,7 +21,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${ibmPlexMono.variable} font-mono`}>
+      <body className={`${ibmPlexMono.variable} font-mono snap-y snap-mandatory overflow-y-scroll h-screen`}>
         <Navigation />
         <main className="min-h-screen">
           {children}

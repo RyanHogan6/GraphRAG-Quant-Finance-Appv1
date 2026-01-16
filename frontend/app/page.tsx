@@ -175,7 +175,10 @@ export default function HomePage() {
       try {
         const { api } = await import('@/lib/api')
         const response = await api.browseCollection(selectedCollection, 100)
-        setCollectionData(response.data || [])
+        // Handle both response formats: {data: [...]} or [...]
+        const data = Array.isArray(response) ? response : (response.data || [])
+        console.log('Collection data received:', data.length, 'items')
+        setCollectionData(data)
       } catch (error) {
         console.error('Failed to fetch collection data:', error)
         setCollectionData([])
@@ -204,6 +207,18 @@ export default function HomePage() {
         setSelectedCategory('All')
         setSearchQuery('')
         const { api } = await import('@/lib/api')
+
+        // Check if Kalshi is selected but not implemented yet
+        if (selectedPlatform === 'kalshi') {
+          setMarkets([])
+          setCategories([])
+          setDisplayLimit(12)
+          setHasMore(false)
+          setMarketError('Kalshi integration is currently in development. Please select Polymarket.')
+          setLoadingMarkets(false)
+          return
+        }
+
         const [marketsData, categoriesData] = await Promise.all([
           api.getFeaturedMarkets(200, selectedPlatform),
           api.getCategories(selectedPlatform)
@@ -301,7 +316,7 @@ export default function HomePage() {
       <motion.section
         ref={heroRef}
         style={{ opacity, scale }}
-        className="min-h-screen flex flex-col items-center justify-center px-6 relative overflow-hidden"
+        className="min-h-screen snap-start flex flex-col items-center justify-center px-6 relative overflow-hidden"
       >
         {/* Animated background grid */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
@@ -347,12 +362,14 @@ export default function HomePage() {
       </motion.section>
 
       {/* Section Divider */}
-      <div className="w-full border-t border-gold/10" />
+      <div className="w-full flex items-center justify-center py-8">
+        <div className="w-[70%] border-t-2 border-dashed border-gold/10"></div>
+      </div>
 
       {/* Why Graphs Section */}
       <section
         ref={whyGraphsRef}
-        className="min-h-screen flex flex-col items-center justify-center px-6 py-12 relative overflow-hidden"
+        className="min-h-screen snap-start flex flex-col items-center justify-center px-6 py-12 relative overflow-hidden"
       >
         {/* Animated background grid */}
         <motion.div
@@ -422,10 +439,12 @@ export default function HomePage() {
       </section>
 
       {/* Section Divider */}
-      <div className="w-full border-t border-gold/10" />
+      <div className="w-full flex items-center justify-center py-8">
+        <div className="w-[70%] border-t-2 border-dashed border-gold/10"></div>
+      </div>
 
       {/* Chat Interface Section */}
-      <section id="query" className="min-h-screen flex items-center justify-center px-6 py-12 relative overflow-hidden">
+      <section id="query" className="min-h-screen snap-start flex items-center justify-center px-6 py-12 relative overflow-hidden">
         {/* Animated background grid */}
         <motion.div
           className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
@@ -564,12 +583,14 @@ export default function HomePage() {
       </section>
 
       {/* Section Divider */}
-      <div className="w-full border-t border-gold/10" />
+      <div className="w-full flex items-center justify-center py-8">
+        <div className="w-[70%] border-t-2 border-dashed border-gold/10"></div>
+      </div>
 
       {/* Graph Architecture Visualization */}
       <section
         ref={graphVizRef}
-        className="min-h-screen flex flex-col items-center justify-center px-6 py-12 relative overflow-hidden"
+        className="min-h-screen snap-start flex flex-col items-center justify-center px-6 py-12 relative overflow-hidden"
       >
         {/* Animated background grid */}
         <motion.div
@@ -613,12 +634,14 @@ export default function HomePage() {
       </section>
 
       {/* Section Divider */}
-      <div className="w-full border-t border-gold/10" />
+      <div className="w-full flex items-center justify-center py-8">
+        <div className="w-[70%] border-t-2 border-dashed border-gold/10"></div>
+      </div>
 
       {/* Prediction Markets Section */}
       <section
         id="markets"
-        className="min-h-screen flex flex-col justify-center px-6 py-12 relative overflow-hidden"
+        className="min-h-screen snap-start flex flex-col justify-center px-6 py-12 relative overflow-hidden"
       >
         {/* Animated background grid */}
         <motion.div
@@ -830,13 +853,15 @@ export default function HomePage() {
       </section>
 
       {/* Section Divider */}
-      <div className="w-full border-t border-gold/10" />
+      <div className="w-full flex items-center justify-center py-8">
+        <div className="w-[70%] border-t-2 border-dashed border-gold/10"></div>
+      </div>
 
       {/* Data Universe - Collections Browser */}
       <section
         id="database"
         ref={statsRef}
-        className="min-h-screen flex flex-col justify-center px-6 py-12 relative overflow-hidden"
+        className="min-h-screen snap-start flex flex-col justify-center px-6 py-12 relative overflow-hidden"
       >
         {/* Animated background grid */}
         <motion.div
@@ -1055,12 +1080,14 @@ export default function HomePage() {
       </section>
 
       {/* Section Divider */}
-      <div className="w-full border-t border-gold/10" />
+      <div className="w-full flex items-center justify-center py-8">
+        <div className="w-[70%] border-t-2 border-dashed border-gold/10"></div>
+      </div>
 
       {/* About Section */}
       <section
         id="about"
-        className="min-h-screen flex flex-col justify-center px-6 py-12 relative overflow-hidden"
+        className="min-h-screen snap-start flex flex-col justify-center px-6 py-12 relative overflow-hidden"
       >
         <div className="max-w-4xl mx-auto w-full relative z-10">
           <motion.div

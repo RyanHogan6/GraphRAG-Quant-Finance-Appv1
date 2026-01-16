@@ -80,10 +80,10 @@ const collectionData = {
     },
     highlight: 'Hierarchical: Filings → Sections → Sentences',
   },
-  polymarket: {
-    name: 'Polymarket',
-    count: '10K+',
-    description: 'Prediction market data with trader positions',
+  predictionmarkets: {
+    name: 'Prediction Markets (Polymarket/Kalshi)',
+    count: '18K+',
+    description: 'Polymarket & Kalshi prediction market data with trader positions',
     keyFields: ['market_slug', 'question', 'outcome_yes', 'outcome_no', 'volume', 'liquidity'],
     edges: ['market_mentions_company_polymarket → Company', 'market_related_to_sector_polymarket → Company'],
     exampleQuery: 'FOR m IN prediction_markets_polymarket FILTER m.question =~ "Trump" SORT m.volume DESC LIMIT 10 RETURN m',
@@ -95,6 +95,38 @@ const collectionData = {
       liquidity: 2500000,
     },
     highlight: 'Connected to companies via semantic edges',
+  },
+  fred: {
+    name: 'Federal Reserve',
+    count: '8.9K+',
+    description: 'Federal Reserve Economic Data (FRED) - macroeconomic indicators',
+    keyFields: ['series_id', 'date', 'value', 'frequency', 'units'],
+    edges: ['Affects Company valuations and market sentiment'],
+    exampleQuery: 'FOR f IN EconomicData FILTER f.series_id == "GDP" SORT f.date DESC LIMIT 10 RETURN f',
+    sampleData: {
+      series_id: 'UNRATE',
+      date: '2026-01-01',
+      value: 3.7,
+      frequency: 'Monthly',
+      units: 'Percent',
+    },
+    highlight: 'Macro indicators influencing market conditions',
+  },
+  cftc: {
+    name: 'Commodities & Futures',
+    count: 'CFTC Data',
+    description: 'Commodity Futures Trading Commission (CFTC) - institutional positioning data',
+    keyFields: ['commodity', 'report_date', 'long_positions', 'short_positions', 'net_positions'],
+    edges: ['Linked to companies via commodity exposure'],
+    exampleQuery: 'FOR c IN CFTC_Positions FILTER c.commodity == "CRUDE_OIL" SORT c.report_date DESC LIMIT 10 RETURN c',
+    sampleData: {
+      commodity: 'S&P_500',
+      report_date: '2026-01-10',
+      long_positions: 450000,
+      short_positions: 320000,
+      net_positions: 130000,
+    },
+    highlight: 'Institutional sentiment and positioning',
   },
   web: {
     name: 'Web Search',
@@ -175,7 +207,7 @@ export default function GraphVisualization() {
       id: 'predictionmarkets',
       type: 'custom',
       position: { x: 700, y: 550 },
-      data: { label: 'Prediction Markets', count: '18K+ markets', isCenter: false },
+      data: { label: 'Prediction Markets', count: '(Polymarket/Kalshi)', isCenter: false },
     },
     {
       id: 'web',
@@ -187,13 +219,13 @@ export default function GraphVisualization() {
       id: 'fred',
       type: 'custom',
       position: { x: 300, y: 550 },
-      data: { label: 'FRED Data', count: 'Economic indicators', isCenter: false },
+      data: { label: 'Federal Reserve', count: '(FRED Data)', isCenter: false },
     },
     {
       id: 'cftc',
       type: 'custom',
       position: { x: 900, y: 350 },
-      data: { label: 'CFTC Positions', count: 'Futures data', isCenter: false },
+      data: { label: 'CFTC Positions', count: '(Commodities & Futures)', isCenter: false },
     },
   ]
 
@@ -203,7 +235,7 @@ export default function GraphVisualization() {
       id: 'company-marketdata',
       source: 'company',
       target: 'marketdata',
-      label: 'daily prices & indicators',
+      label: 'price history',
       animated: true,
       style: { stroke: '#D4AF37', strokeWidth: 2 },
       labelStyle: { fill: '#D4AF37', fontSize: 10, fontWeight: 600 },
@@ -217,7 +249,7 @@ export default function GraphVisualization() {
       id: 'company-awards',
       source: 'company',
       target: 'awards',
-      label: 'government contracts',
+      label: 'received',
       animated: true,
       style: { stroke: '#D4AF37', strokeWidth: 2 },
       labelStyle: { fill: '#D4AF37', fontSize: 10, fontWeight: 600 },
@@ -231,7 +263,7 @@ export default function GraphVisualization() {
       id: 'company-sec',
       source: 'company',
       target: 'sec',
-      label: 'regulatory filings',
+      label: 'filed by',
       animated: true,
       style: { stroke: '#D4AF37', strokeWidth: 2 },
       labelStyle: { fill: '#D4AF37', fontSize: 10, fontWeight: 600 },
@@ -242,10 +274,38 @@ export default function GraphVisualization() {
       },
     },
     {
-      id: 'polymarket-company',
-      source: 'polymarket',
+      id: 'company-fred',
+      source: 'company',
+      target: 'fred',
+      label: 'affected by',
+      animated: true,
+      style: { stroke: '#D4AF37', strokeWidth: 2 },
+      labelStyle: { fill: '#D4AF37', fontSize: 10, fontWeight: 600 },
+      labelBgStyle: { fill: '#1a1a1a', fillOpacity: 0.8 },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: '#D4AF37',
+      },
+    },
+    {
+      id: 'company-cftc',
+      source: 'company',
+      target: 'cftc',
+      label: 'futures positions',
+      animated: true,
+      style: { stroke: '#D4AF37', strokeWidth: 2 },
+      labelStyle: { fill: '#D4AF37', fontSize: 10, fontWeight: 600 },
+      labelBgStyle: { fill: '#1a1a1a', fillOpacity: 0.8 },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: '#D4AF37',
+      },
+    },
+    {
+      id: 'predictionmarkets-company',
+      source: 'predictionmarkets',
       target: 'company',
-      label: 'mentions company',
+      label: 'mentioned on',
       animated: true,
       style: { stroke: '#D4AF37', strokeWidth: 2 },
       labelStyle: { fill: '#D4AF37', fontSize: 10, fontWeight: 600 },
@@ -259,7 +319,7 @@ export default function GraphVisualization() {
       id: 'web-company',
       source: 'web',
       target: 'company',
-      label: 'real-time context',
+      label: 'enriches',
       animated: true,
       style: { stroke: '#D4AF37', strokeWidth: 2, strokeDasharray: '5 5' },
       labelStyle: { fill: '#D4AF37', fontSize: 10, fontWeight: 600 },
@@ -282,7 +342,7 @@ export default function GraphVisualization() {
 
   return (
     <div className="relative">
-      <div className="h-[600px] w-full bg-dark-900 rounded-lg border border-gold/20">
+      <div className="h-[720px] w-full bg-dark-900 rounded-lg border border-gold/20">
         <ReactFlow
           nodes={initialNodes}
           edges={initialEdges}
