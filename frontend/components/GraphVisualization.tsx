@@ -361,73 +361,81 @@ export default function GraphVisualization() {
         </ReactFlow>
       </div>
 
-      {/* Tooltip Modal */}
+      {/* Node Details Modal */}
       {nodeInfo && (
-        <div className="mt-6 bg-dark-800 border border-gold/30 rounded-lg p-6 animate-in fade-in duration-300">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-2xl font-bold text-gold">{nodeInfo.name}</h3>
-              <p className="text-gray-400 text-sm mt-1">{nodeInfo.count} records</p>
-            </div>
-            <button
-              onClick={() => setSelectedNode(null)}
-              className="text-gray-500 hover:text-gold transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <h4 className="text-sm font-semibold text-gold mb-2">Description</h4>
-              <p className="text-gray-300 text-sm">{nodeInfo.description}</p>
-            </div>
-
-            {nodeInfo.highlight && (
-              <div className="bg-gold/10 border border-gold/30 rounded-lg p-3">
-                <p className="text-gold text-sm font-semibold">⚡ {nodeInfo.highlight}</p>
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedNode(null)}
+        >
+          <div
+            className="bg-dark-800 border border-gold/30 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-2xl font-bold text-gold">{nodeInfo.name}</h3>
+                  <p className="text-gray-400 text-sm mt-1">{nodeInfo.count} records</p>
+                </div>
+                <button
+                  onClick={() => setSelectedNode(null)}
+                  className="text-gray-500 hover:text-gold transition-colors text-2xl"
+                >
+                  ×
+                </button>
               </div>
-            )}
 
-            <div>
-              <h4 className="text-sm font-semibold text-gold mb-2">Key Fields</h4>
-              <div className="flex flex-wrap gap-2">
-                {nodeInfo.keyFields.map((field) => (
-                  <code key={field} className="text-xs bg-dark-700 text-gray-300 px-2 py-1 rounded border border-gold/20">
-                    {field}
-                  </code>
-                ))}
-              </div>
-            </div>
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-sm font-semibold text-gold mb-2">Description</h4>
+                  <p className="text-gray-300 text-sm">{nodeInfo.description}</p>
+                </div>
 
-            <div>
-              <h4 className="text-sm font-semibold text-gold mb-2">Graph Edges</h4>
-              <div className="space-y-1">
-                {nodeInfo.edges.map((edge) => (
-                  <div key={edge} className="text-xs text-gray-400 font-mono bg-dark-700 px-3 py-1 rounded">
-                    {edge}
+                {nodeInfo.highlight && (
+                  <div className="bg-gold/10 border border-gold/30 rounded-lg p-3">
+                    <p className="text-gold text-sm font-semibold">⚡ {nodeInfo.highlight}</p>
                   </div>
-                ))}
-              </div>
-            </div>
+                )}
 
-            <div>
-              <h4 className="text-sm font-semibold text-gold mb-2">Sample Data</h4>
-              <div className="bg-dark-700 rounded-lg p-3 overflow-x-auto">
-                <pre className="text-xs text-gray-300 font-mono">
-                  {JSON.stringify(nodeInfo.sampleData, null, 2)}
-                </pre>
-              </div>
-            </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-gold mb-2">Key Fields</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {nodeInfo.keyFields.map((field) => (
+                      <code key={field} className="text-xs bg-dark-700 text-gray-300 px-2 py-1 rounded border border-gold/20">
+                        {field}
+                      </code>
+                    ))}
+                  </div>
+                </div>
 
-            <div>
-              <h4 className="text-sm font-semibold text-gold mb-2">Example Query</h4>
-              <div className="bg-dark-700 rounded-lg p-3 overflow-x-auto">
-                <code className="text-xs text-green-400 font-mono whitespace-pre-wrap">
-                  {nodeInfo.exampleQuery}
-                </code>
+                <div>
+                  <h4 className="text-sm font-semibold text-gold mb-2">Graph Edges</h4>
+                  <div className="space-y-1">
+                    {nodeInfo.edges.map((edge) => (
+                      <div key={edge} className="text-xs text-gray-400 font-mono bg-dark-700 px-3 py-1 rounded">
+                        {edge}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-semibold text-gold mb-2">Sample Data</h4>
+                  <div className="bg-dark-700 rounded-lg p-3 overflow-x-auto">
+                    <pre className="text-xs text-gray-300 font-mono">
+                      {JSON.stringify(nodeInfo.sampleData, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-semibold text-gold mb-2">Example Query</h4>
+                  <div className="bg-dark-700 rounded-lg p-3 overflow-x-auto">
+                    <code className="text-xs text-green-400 font-mono whitespace-pre-wrap">
+                      {nodeInfo.exampleQuery}
+                    </code>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -438,7 +446,7 @@ export default function GraphVisualization() {
       {!selectedNode && (
         <div className="mt-4 text-center">
           <p className="text-gray-500 text-sm">
-            💡 Click any node to see collection details, schema, and sample queries
+            💡 Click any node to view collection details, schema, and sample queries
           </p>
         </div>
       )}

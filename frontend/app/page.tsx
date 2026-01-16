@@ -56,6 +56,68 @@ export default function HomePage() {
   const [collections, setCollections] = useState<Array<{name: string, count: number, description: string}>>([])
   const [loadingCollections, setLoadingCollections] = useState(true)
 
+  // Collection name translations
+  const collectionDisplayNames: Record<string, string> = {
+    'Company': 'S&P 500 Companies',
+    'MarketData': 'Stock Prices',
+    'Award': 'Government Contract Awards',
+    'EconomicData': 'FRED Economic Indicators',
+    'commodity_positions': 'Commodities & Futures',
+    'prediction_markets_polymarket': 'Polymarket',
+    'prediction_markets_kalshi': 'Kalshi',
+    'sec_filings': 'SEC Filings (10-K, 10-Q, 8-K)',
+    'sec_sentences': '10-K Sentiment Analysis',
+  }
+
+  // Collection icons mapping
+  const collectionIcons: Record<string, JSX.Element> = {
+    'Company': (
+      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+      </svg>
+    ),
+    'MarketData': (
+      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+      </svg>
+    ),
+    'Award': (
+      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+    'EconomicData': (
+      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+      </svg>
+    ),
+    'commodity_positions': (
+      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+    'prediction_markets_polymarket': (
+      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+      </svg>
+    ),
+    'prediction_markets_kalshi': (
+      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+      </svg>
+    ),
+    'sec_filings': (
+      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+      </svg>
+    ),
+    'sec_sentences': (
+      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  }
+
   // State for markets section
   const [selectedPlatform, setSelectedPlatform] = useState<'polymarket' | 'kalshi'>('polymarket')
   const [searchQuery, setSearchQuery] = useState('')
@@ -77,7 +139,11 @@ export default function HomePage() {
         setLoadingCollections(true)
         const { api } = await import('@/lib/api')
         const collectionsData = await api.getCollections()
-        setCollections(collectionsData)
+        // Filter out sec_sections and only show collections we want
+        const filteredCollections = collectionsData.filter((c: any) =>
+          c.name !== 'sec_sections' && collectionDisplayNames[c.name]
+        )
+        setCollections(filteredCollections)
       } catch (error) {
         console.error('Failed to fetch collections:', error)
         // Fallback to static data if API fails
@@ -198,6 +264,17 @@ export default function HomePage() {
       String(value).toLowerCase().includes(searchLower)
     )
   })
+
+  // Debug logging
+  useEffect(() => {
+    console.log('Collection data state:', {
+      collectionDataLength: collectionData.length,
+      filteredDataLength: filteredData.length,
+      selectedCollection,
+      isLoadingData,
+      firstItem: collectionData[0]
+    })
+  }, [collectionData, filteredData, selectedCollection, isLoadingData])
 
   // Fetch markets and categories when platform changes
   useEffect(() => {
@@ -881,7 +958,7 @@ export default function HomePage() {
             </p>
 
             {/* Top Stats */}
-            <div className="grid grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-3 gap-4 mb-8">
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-5">
                 <div className="text-gray-400 text-sm mb-1">Collections</div>
                 <div className="text-3xl font-bold text-gold">{collections.length}</div>
@@ -895,10 +972,6 @@ export default function HomePage() {
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-5">
                 <div className="text-gray-400 text-sm mb-1">Edge Collections</div>
                 <div className="text-3xl font-bold text-gold">15</div>
-              </div>
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-5">
-                <div className="text-gray-400 text-sm mb-1">Database</div>
-                <div className="text-xl font-bold text-gold">QUANT_v3</div>
               </div>
             </div>
           </motion.div>
@@ -926,12 +999,16 @@ export default function HomePage() {
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="w-10 h-10 rounded-lg bg-gold/10 border border-gold/30 flex items-center justify-center">
-                      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-                      </svg>
+                      {collectionIcons[collection.name] || (
+                        <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                        </svg>
+                      )}
                     </div>
                   </div>
-                  <div className="text-gold font-semibold mb-1 text-sm">{collection.name}</div>
+                  <div className="text-gold font-semibold mb-1 text-sm">
+                    {collectionDisplayNames[collection.name] || collection.name}
+                  </div>
                   <div className="text-xs text-gray-500 mb-2">
                     {collection.count.toLocaleString()} docs
                   </div>
@@ -951,7 +1028,9 @@ export default function HomePage() {
             >
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="text-2xl font-bold text-gold">{selectedCollection}</h3>
+                  <h3 className="text-2xl font-bold text-gold">
+                    {collectionDisplayNames[selectedCollection] || selectedCollection}
+                  </h3>
                   <p className="text-gray-400 text-sm mt-1">
                     {collections.find(c => c.name === selectedCollection)?.description}
                   </p>
@@ -1067,12 +1146,6 @@ export default function HomePage() {
                     {searchFilter ? 'No matching records found' : 'No data available'}
                   </div>
                 )}
-              </div>
-
-              <div className="mt-4 bg-dark-700 border border-gold/20 rounded-lg p-4">
-                <div className="text-sm text-gray-300">
-                  💡 Click on the <span className="text-gold font-semibold">{selectedCollection}</span> node in the Graph Architecture section above to see full schema details, sample data, and example AQL queries
-                </div>
               </div>
             </motion.div>
           )}
