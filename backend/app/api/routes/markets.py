@@ -131,113 +131,40 @@ def get_featured_markets(
     limit: int = QueryParam(100)
 ):
     """
-    Get diverse, high-quality featured markets (Polymarket-style curation).
+    Get high-quality featured markets - OPTIMIZED FOR SPEED
 
-    Strategy:
-    - Category diversity (max 15 per category)
-    - Quality filtering (min liquidity, volume, engagement)
-    - Smart mixing of politics, sports, crypto, entertainment
+    Simplified query to avoid timeouts:
+    - Direct filter and sort (no complex aggregations)
+    - Min quality thresholds
+    - Fast indexes on volume_24h and liquidity
     """
 
     query = f"""
-    // Get top markets from each category for diversity
-    LET categorized_markets = (
-        FOR market IN prediction_markets_polymarket
-            FILTER market.closed == false
-            FILTER market.volume_24h > 500  // Min $500 volume for quality
-            FILTER market.liquidity > 100   // Min liquidity
-            FILTER market.category != null AND market.category != "Other"
+    FOR market IN prediction_markets_polymarket
+        FILTER market.closed == false
+        FILTER market.volume_24h > 100
+        FILTER market.liquidity > 50
 
-            // Extract probabilities
-            LET yes_prob_value = (
-                LENGTH(market.outcome_prices) >= 1 ? market.outcome_prices[0] :
-                market.yes_probability != null ? market.yes_probability : 0.5
-            )
-            LET yes_prob_pct = yes_prob_value <= 1 ? (yes_prob_value * 100) : yes_prob_value
+        // Extract probabilities (simple, no nested logic)
+        LET yes_prob_value = market.outcome_prices[0] != null ? market.outcome_prices[0] :
+                             (market.yes_probability != null ? market.yes_probability : 0.5)
+        LET yes_prob_pct = yes_prob_value <= 1 ? (yes_prob_value * 100) : yes_prob_value
 
-            // Filter out resolved/obvious outcomes
-            FILTER yes_prob_pct > 5 AND yes_prob_pct < 95
+        // Filter out resolved markets
+        FILTER yes_prob_pct > 2 AND yes_prob_pct < 98
 
-            // Quality score: volume * liquidity factor
-            LET quality_score = market.volume_24h * (market.liquidity / 1000)
-
-            COLLECT category = market.category INTO markets_in_category = {{
-                market: market,
-                quality_score: quality_score,
-                yes_prob_pct: yes_prob_pct
-            }}
-
-            // Take top 15 from each category
-            LET top_category_markets = (
-                FOR m IN markets_in_category
-                    SORT m.quality_score DESC
-                    LIMIT 15
-                    RETURN m
-            )
-
-            RETURN {{
-                category: category,
-                markets: top_category_markets
-            }}
-    )
-
-    // Get "Other" category markets (high quality only, max 10)
-    LET other_markets = (
-        FOR market IN prediction_markets_polymarket
-            FILTER market.closed == false
-            FILTER market.category == "Other"
-            FILTER market.volume_24h > 2000  // Higher threshold for Other
-            FILTER market.liquidity > 500
-
-            LET yes_prob_value = (
-                LENGTH(market.outcome_prices) >= 1 ? market.outcome_prices[0] :
-                market.yes_probability != null ? market.yes_probability : 0.5
-            )
-            LET yes_prob_pct = yes_prob_value <= 1 ? (yes_prob_value * 100) : yes_prob_value
-
-            FILTER yes_prob_pct > 5 AND yes_prob_pct < 95
-
-            LET quality_score = market.volume_24h * (market.liquidity / 1000)
-
-            SORT quality_score DESC
-            LIMIT 10
-
-            RETURN {{
-                market: market,
-                quality_score: quality_score,
-                yes_prob_pct: yes_prob_pct
-            }}
-    )
-
-    // Flatten all markets from all categories
-    LET all_markets = FLATTEN(
-        APPEND(
-            (FOR cat IN categorized_markets RETURN cat.markets),
-            [other_markets]
-        )
-    )
-
-    // Sort by quality and take top N
-    FOR m IN all_markets
-        SORT m.quality_score DESC
+        // Sort by volume (most liquid markets first)
+        SORT market.volume_24h DESC
         LIMIT {limit}
 
-        LET market = m.market
-        LET yes_prob_pct = m.yes_prob_pct
-
-        LET no_prob_value = (
-            LENGTH(market.outcome_prices) >= 2 ? market.outcome_prices[1] :
-            (1 - (market.yes_probability != null ? market.yes_probability : 0.5))
-        )
+        // Calculate complementary values
+        LET no_prob_value = market.outcome_prices[1] != null ? market.outcome_prices[1] : (1 - yes_prob_value)
         LET no_prob_pct = no_prob_value <= 1 ? (no_prob_value * 100) : no_prob_value
 
-        LET outcomes_array = (
-            IS_STRING(market.outcomes) ? JSON_PARSE(market.outcomes) :
-            IS_ARRAY(market.outcomes) ? market.outcomes : []
-        )
-
-        LET outcome_yes = LENGTH(outcomes_array) >= 1 ? outcomes_array[0] : "Yes"
-        LET outcome_no = LENGTH(outcomes_array) >= 2 ? outcomes_array[1] : "No"
+        // Get outcomes (simplified)
+        LET outcomes_array = IS_ARRAY(market.outcomes) ? market.outcomes : []
+        LET outcome_yes = outcomes_array[0] != null ? outcomes_array[0] : "Yes"
+        LET outcome_no = outcomes_array[1] != null ? outcomes_array[1] : "No"
 
         RETURN {{
             id: market._key,
@@ -248,7 +175,7 @@ def get_featured_markets(
             outcome_no: outcome_no,
             volume_24h: market.volume_24h,
             liquidity: market.liquidity,
-            category: market.category,
+            category: market.category != null ? market.category : "Other",
             end_date: market.end_date,
             traders: 0
         }}

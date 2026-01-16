@@ -73,25 +73,59 @@ def get_collections_info():
     return stats
 
 
-def browse_collection(collection_name: str, limit: int = 50, filters: dict = None):
-    """Browse documents in a collection with optional filters"""
+def browse_collection(collection_name: str, limit: int = 50, search: str = None, filters: dict = None):
+    """Browse documents in a collection with optional filters and search"""
     db = get_db()
     try:
+        # Detect date field for sorting
+        date_fields = ['date', 'start_date', 'end_date', 'timestamp', 'filing_date', 'as_of_date']
+
+        # Build base query
+        filter_lines = []
+        bind_vars = {"limit": limit}
+
+        # Add search filter (searches across all fields)
+        if search:
+            filter_lines.append("FILTER CONTAINS(LOWER(TO_STRING(doc)), LOWER(@search))")
+            bind_vars["search"] = search
+
+        # Add specific field filters
         if filters and filters.get('field') and filters.get('value'):
-            aql = f"""
-            FOR doc IN {collection_name}
-                FILTER doc.{filters['field']} == @value
-                LIMIT @limit
-                RETURN doc
-            """
-            bind_vars = {"value": filters['value'], "limit": limit}
-        else:
-            aql = f"""
-            FOR doc IN {collection_name}
-                LIMIT @limit
-                RETURN doc
-            """
-            bind_vars = {"limit": limit}
+            filter_lines.append(f"FILTER doc.{filters['field']} == @value")
+            bind_vars["value"] = filters['value']
+
+        # Try to sort by date field (most recent first)
+        sort_clause = ""
+        for date_field in date_fields:
+            # We'll try each date field and if it exists, use it
+            sort_clause = f"SORT doc.{date_field} DESC"
+            # We can't easily check if field exists without a query, so we'll try the first common one
+            # MarketData -> date, Award -> start_date, etc.
+            if collection_name == "MarketData" or collection_name == "EconomicData":
+                sort_clause = "SORT doc.date DESC"
+                break
+            elif collection_name == "Award":
+                sort_clause = "SORT doc.start_date DESC"
+                break
+            elif collection_name == "sec_filings":
+                sort_clause = "SORT doc.filing_date DESC"
+                break
+            elif collection_name == "commodity_positions":
+                sort_clause = "SORT doc.as_of_date DESC"
+                break
+            elif collection_name == "prediction_markets_polymarket" or collection_name == "prediction_markets_kalshi":
+                sort_clause = "SORT doc.end_date DESC"
+                break
+
+        filter_clause = "\n".join(filter_lines)
+
+        aql = f"""
+        FOR doc IN {collection_name}
+            {filter_clause}
+            {sort_clause}
+            LIMIT @limit
+            RETURN doc
+        """
 
         cursor = db.aql.execute(aql, bind_vars=bind_vars)
         results = list(cursor)

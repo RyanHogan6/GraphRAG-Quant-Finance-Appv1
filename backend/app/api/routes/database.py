@@ -28,10 +28,10 @@ def get_collections():
 @router.get("/browse/{collection_name}")
 def browse(
     collection_name: str,
-    limit: int = QueryParam(50, le=100),
-    offset: int = QueryParam(0)
+    limit: int = QueryParam(100, le=500),
+    search: Optional[str] = QueryParam(None)
 ):
-    """Browse documents in a collection"""
+    """Browse documents in a collection with optional search"""
     try:
         # Validate collection name
         allowed_collections = [
@@ -43,7 +43,7 @@ def browse(
         if collection_name not in allowed_collections:
             raise HTTPException(status_code=400, detail="Invalid collection name")
 
-        results = browse_collection(collection_name, limit=limit)
+        results = browse_collection(collection_name, limit=limit, search=search)
         return {
             "collection": collection_name,
             "count": len(results),

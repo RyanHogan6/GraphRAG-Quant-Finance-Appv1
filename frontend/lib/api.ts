@@ -125,9 +125,11 @@ export const api = {
     return res.json();
   },
 
-  async browseCollection(collection: string, limit: number = 50) {
-    const res = await fetch(`${API_BASE_URL}/api/database/browse/${collection}?limit=${limit}`);
-    if (!res.ok) throw new Error('Failed to browse collection');
+  async browseCollection(collection: string, limit: number = 100, search?: string) {
+    const params = new URLSearchParams({ limit: limit.toString() })
+    if (search) params.append('search', search)
+
+    const res = await fetchWithRetry(`${API_BASE_URL}/api/database/browse/${collection}?${params}`);
     return res.json();
   },
 

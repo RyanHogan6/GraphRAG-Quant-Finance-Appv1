@@ -53,6 +53,7 @@ export default function HomePage() {
   const [collectionData, setCollectionData] = useState<any[]>([])
   const [isLoadingData, setIsLoadingData] = useState(false)
   const [searchFilter, setSearchFilter] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [collections, setCollections] = useState<Array<{name: string, count: number, description: string}>>([])
   const [loadingCollections, setLoadingCollections] = useState(true)
   const [sortColumn, setSortColumn] = useState<string | null>(null)
@@ -229,32 +230,44 @@ export default function HomePage() {
     'Show me companies with recent SEC filings mentioning recession',
   ]
 
-  // Fetch collection data when selected
+  // Debounce search input (500ms delay)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchFilter)
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [searchFilter])
+
+  // Fetch collection data when selected or search changes
   useEffect(() => {
     const fetchCollectionData = async () => {
       if (!selectedCollection) {
         setCollectionData([])
         setSearchFilter('')
+        setDebouncedSearch('')
         setSortColumn(null)
         setColumnFilters({})
         return
       }
 
-      // Reset search and filters when switching collections
-      setSearchFilter('')
-      setColumnFilters({})
       setIsLoadingData(true)
       try {
         const { api } = await import('@/lib/api')
-        const response = await api.browseCollection(selectedCollection, 100)
+        // Pass search to server for full database search
+        const response = await api.browseCollection(
+          selectedCollection,
+          100,
+          debouncedSearch || undefined
+        )
         // Handle multiple response formats: {documents: [...]}, {data: [...]}, or [...]
         const data = Array.isArray(response)
           ? response
           : (response.documents || response.data || [])
-        console.log('Collection data received:', data.length, 'items', 'Response format:', response)
+        console.log('Collection data received:', data.length, 'items', 'Search:', debouncedSearch)
 
-        // Auto-detect date column and set as default sort
-        if (data.length > 0) {
+        // Auto-detect date column and set as default sort (only on first load)
+        if (data.length > 0 && !debouncedSearch) {
           const firstItem = data[0]
           const dateColumns = Object.keys(firstItem).filter(key =>
             key.toLowerCase().includes('date') ||
@@ -282,23 +295,13 @@ export default function HomePage() {
     }
 
     fetchCollectionData()
-  }, [selectedCollection])
+  }, [selectedCollection, debouncedSearch])
 
-  // Filter and sort data
+  // Filter and sort data (search is now server-side, only column filters are client-side)
   const filteredData = useMemo(() => {
     let result = [...collectionData]
 
-    // Apply global search filter
-    if (searchFilter) {
-      const searchLower = searchFilter.toLowerCase()
-      result = result.filter((item) =>
-        Object.values(item).some((value) =>
-          String(value).toLowerCase().includes(searchLower)
-        )
-      )
-    }
-
-    // Apply column-specific filters
+    // Apply column-specific filters (client-side for quick refinement)
     Object.entries(columnFilters).forEach(([column, filterValue]) => {
       if (filterValue) {
         const filterLower = filterValue.toLowerCase()
@@ -308,7 +311,7 @@ export default function HomePage() {
       }
     })
 
-    // Apply sorting
+    // Apply sorting (client-side for instant feedback)
     if (sortColumn) {
       result.sort((a, b) => {
         const aVal = a[sortColumn]
@@ -342,7 +345,7 @@ export default function HomePage() {
     }
 
     return result
-  }, [collectionData, searchFilter, columnFilters, sortColumn, sortDirection])
+  }, [collectionData, columnFilters, sortColumn, sortDirection])
 
   // Debug logging
   useEffect(() => {
@@ -1185,16 +1188,20 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Search Filter */}
+              {/* Search Filter - Server-side full database search */}
               <div className="mb-4 relative">
                 <input
                   type="text"
-                  placeholder="Search across all fields..."
+                  placeholder="Search entire database (500ms debounced)..."
                   value={searchFilter}
                   onChange={(e) => setSearchFilter(e.target.value)}
                   className="w-full bg-dark-700 border border-gold/30 rounded-lg px-4 py-3 pr-10 text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold/60 focus:ring-2 focus:ring-gold/20"
                 />
-                {searchFilter && (
+                {isLoadingData && searchFilter ? (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gold"></div>
+                  </div>
+                ) : searchFilter ? (
                   <button
                     onClick={() => setSearchFilter('')}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gold transition-colors"
@@ -1203,8 +1210,13 @@ export default function HomePage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
-                )}
+                ) : null}
               </div>
+              {searchFilter && !isLoadingData && (
+                <div className="mb-4 text-sm text-gray-400">
+                  Searched entire database, showing {collectionData.length} results
+                </div>
+              )}
 
               {/* Data Table */}
               <div className="bg-dark-700 border border-gold/20 rounded-lg overflow-hidden">
@@ -1221,7 +1233,7 @@ export default function HomePage() {
                           {/* Column Headers - Sortable */}
                           <tr>
                             {Object.keys(filteredData[0])
-                              .filter(key => !key.startsWith('_') || key === '_key')
+                              .filter(key => !key.startsWith('_'))
                               .map((key) => (
                                 <th
                                   key={key}
@@ -1249,7 +1261,7 @@ export default function HomePage() {
                           {/* Column Filters */}
                           <tr>
                             {Object.keys(filteredData[0])
-                              .filter(key => !key.startsWith('_') || key === '_key')
+                              .filter(key => !key.startsWith('_'))
                               .map((key) => (
                                 <th key={key} className="px-2 py-2 border-b border-gold/10">
                                   <input
@@ -1273,7 +1285,7 @@ export default function HomePage() {
                           {filteredData.slice(0, 100).map((row, idx) => (
                             <tr key={idx} className="hover:bg-dark-800/50 transition-colors">
                               {Object.entries(row)
-                                .filter(([key]) => !key.startsWith('_') || key === '_key')
+                                .filter(([key]) => !key.startsWith('_'))
                                 .map(([key, value]) => (
                                   <td key={key} className="px-4 py-3 text-gray-300 whitespace-nowrap">
                                     {typeof value === 'object' && value !== null ? (
