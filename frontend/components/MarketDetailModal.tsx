@@ -20,7 +20,7 @@ export default function MarketDetailModal({ market, onClose }: MarketDetailModal
 
   useEffect(() => {
     // Fetch full market details when modal opens
-    async function fetchDetails() {
+    const fetchDetails = async () => {
       try {
         setLoading(true)
         const details = await api.getMarketDetail(market.id)
@@ -38,7 +38,7 @@ export default function MarketDetailModal({ market, onClose }: MarketDetailModal
   // Fetch top traders when toggle is enabled
   useEffect(() => {
     if (showTraders && isPolymarket) {
-      async function fetchTraders() {
+      const fetchTraders = async () => {
         try {
           setLoadingTraders(true)
           const traderData = await api.getWhales(20)
