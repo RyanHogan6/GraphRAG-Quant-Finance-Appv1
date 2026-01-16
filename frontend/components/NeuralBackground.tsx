@@ -39,9 +39,9 @@ export default function NeuralBackground() {
       constructor() {
         this.x = Math.random() * canvas!.width
         this.y = Math.random() * canvas!.height
-        this.vx = (Math.random() - 0.5) * 0.3
-        this.vy = (Math.random() - 0.5) * 0.3
-        this.radius = 2
+        this.vx = (Math.random() - 0.5) * 0.4
+        this.vy = (Math.random() - 0.5) * 0.4
+        this.radius = 2.5
       }
 
       update() {
@@ -58,14 +58,14 @@ export default function NeuralBackground() {
       draw(ctx: CanvasRenderingContext2D) {
         ctx.beginPath()
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2)
-        ctx.fillStyle = 'rgba(200, 200, 200, 0.15)'
+        ctx.fillStyle = 'rgba(212, 175, 55, 0.3)'
         ctx.fill()
       }
     }
 
-    // Create nodes
+    // Create nodes - increased density
     const nodes: Node[] = []
-    const nodeCount = Math.floor((canvas!.width * canvas!.height) / 15000) // Density based on screen size
+    const nodeCount = Math.floor((canvas!.width * canvas!.height) / 10000)
     for (let i = 0; i < nodeCount; i++) {
       nodes.push(new Node())
     }
@@ -80,8 +80,8 @@ export default function NeuralBackground() {
         node.draw(ctx!)
       })
 
-      // Draw connections
-      ctx!.strokeStyle = 'rgba(200, 200, 200, 0.08)'
+      // Draw connections - increased distance and opacity
+      ctx!.strokeStyle = 'rgba(212, 175, 55, 0.15)'
       ctx!.lineWidth = 1
 
       for (let i = 0; i < nodes.length; i++) {
@@ -91,9 +91,9 @@ export default function NeuralBackground() {
           const distance = Math.sqrt(dx * dx + dy * dy)
 
           // Only draw connection if nodes are close enough
-          if (distance < 150) {
-            const opacity = (1 - distance / 150) * 0.08
-            ctx!.strokeStyle = `rgba(200, 200, 200, ${opacity})`
+          if (distance < 180) {
+            const opacity = (1 - distance / 180) * 0.2
+            ctx!.strokeStyle = `rgba(212, 175, 55, ${opacity})`
             ctx!.beginPath()
             ctx!.moveTo(nodes[i].x, nodes[i].y)
             ctx!.lineTo(nodes[j].x, nodes[j].y)
@@ -116,7 +116,7 @@ export default function NeuralBackground() {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 pointer-events-none z-0"
-      style={{ opacity: 0.4 }}
+      style={{ opacity: 0.6 }}
     />
   )
 }
