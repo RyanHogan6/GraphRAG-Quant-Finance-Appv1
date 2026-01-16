@@ -660,7 +660,7 @@ export default function HomePage() {
             className="bg-dark-800 border border-gold/20 rounded-lg shadow-xl mb-6"
           >
             {/* Messages */}
-            <div className="h-[700px] overflow-y-auto p-6 space-y-4">
+            <div className="h-[400px] md:h-[500px] overflow-y-auto p-4 md:p-6 space-y-4">
               {messages.map((message, idx) => (
                 <div
                   key={idx}
@@ -733,8 +733,8 @@ export default function HomePage() {
                     }
                   }}
                   placeholder="Ask a question about markets, companies, or contracts..."
-                  rows={4}
-                  className="flex-1 bg-dark-700 border border-gold/30 rounded-lg px-3 py-2 md:px-4 md:py-3 text-sm md:text-base text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold/60 focus:ring-2 focus:ring-gold/20 resize-y min-h-[100px] max-h-[300px]"
+                  rows={3}
+                  className="flex-1 bg-dark-700 border border-gold/30 rounded-lg px-3 py-2 md:px-4 md:py-3 text-sm md:text-base text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold/60 focus:ring-2 focus:ring-gold/20 resize-y min-h-[80px] max-h-[200px]"
                   disabled={isLoading}
                 />
                 <button
@@ -1352,20 +1352,20 @@ export default function HomePage() {
           >
             <h2 className="text-3xl md:text-5xl font-bold text-gold mb-8 text-center font-mono tracking-tight">About GraphRAG Markets</h2>
 
-            <div className="space-y-8">
+            <div className="space-y-6 md:space-y-8">
               {/* Overview */}
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-8">
-                <p className="text-xl text-gray-300 leading-relaxed mb-4 font-light">
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-8">
+                <p className="text-lg md:text-xl text-gray-300 leading-relaxed mb-4 font-light">
                   GraphRAG Markets combines <span className="text-gold font-semibold">Knowledge Graphs</span>, <span className="text-gold font-semibold">Retrieval Augmented Generation</span>, and <span className="text-gold font-semibold">Semantic Search</span> to provide AI-powered financial intelligence.
                 </p>
-                <p className="text-lg text-gray-400 leading-relaxed font-light">
+                <p className="text-base md:text-lg text-gray-400 leading-relaxed font-light">
                   Ask questions in natural language, and GPT-4 generates precise database queries across interconnected financial data sources—no hallucinations, only real data.
                 </p>
               </div>
 
               {/* Key Features Grid */}
-              <div className="grid md:grid-cols-3 gap-6">
-                <div className="bg-dark-800 border border-gold/30 rounded-lg p-6 hover:border-gold/60 transition-all">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                <div className="bg-dark-800 border border-gold/30 rounded-lg p-4 md:p-6 hover:border-gold/60 transition-all">
                   <div className="text-3xl mb-3">📊</div>
                   <h3 className="text-lg font-semibold text-gold mb-2">Multi-Source Data</h3>
                   <p className="text-sm text-gray-400 font-light leading-relaxed">
@@ -1373,7 +1373,7 @@ export default function HomePage() {
                   </p>
                 </div>
 
-                <div className="bg-dark-800 border border-gold/30 rounded-lg p-6 hover:border-gold/60 transition-all">
+                <div className="bg-dark-800 border border-gold/30 rounded-lg p-4 md:p-6 hover:border-gold/60 transition-all">
                   <div className="text-3xl mb-3">🤖</div>
                   <h3 className="text-lg font-semibold text-gold mb-2">AI Query Generation</h3>
                   <p className="text-sm text-gray-400 font-light leading-relaxed">
@@ -1381,7 +1381,7 @@ export default function HomePage() {
                   </p>
                 </div>
 
-                <div className="bg-dark-800 border border-gold/30 rounded-lg p-6 hover:border-gold/60 transition-all">
+                <div className="bg-dark-800 border border-gold/30 rounded-lg p-4 md:p-6 hover:border-gold/60 transition-all">
                   <div className="text-3xl mb-3">⚡</div>
                   <h3 className="text-lg font-semibold text-gold mb-2">Blazing Fast</h3>
                   <p className="text-sm text-gray-400 font-light leading-relaxed">
@@ -1391,9 +1391,9 @@ export default function HomePage() {
               </div>
 
               {/* Architecture Preview */}
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-gold mb-4">How It Works</h3>
-                <div className="space-y-3 text-sm text-gray-400 font-light">
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
+                <h3 className="text-lg md:text-xl font-semibold text-gold mb-3 md:mb-4">How It Works</h3>
+                <div className="space-y-2 md:space-y-3 text-xs md:text-sm text-gray-400 font-light">
                   <div className="flex items-start">
                     <span className="text-green-400 font-semibold mr-3 mt-1">1.</span>
                     <div>
@@ -1425,7 +1425,7 @@ export default function HomePage() {
               <div className="text-center">
                 <a
                   href="/about"
-                  className="inline-block px-8 py-4 bg-gold/20 border-2 border-gold/40 rounded-lg text-gold font-semibold hover:bg-gold/30 hover:border-gold/60 transition-all text-lg"
+                  className="inline-block px-6 md:px-8 py-3 md:py-4 bg-gold/20 border-2 border-gold/40 rounded-lg text-gold font-semibold hover:bg-gold/30 hover:border-gold/60 transition-all text-base md:text-lg"
                 >
                   View Full Technical Deep-Dive →
                 </a>

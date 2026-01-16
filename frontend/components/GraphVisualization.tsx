@@ -177,54 +177,54 @@ const nodeTypes = {
 export default function GraphVisualization() {
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
 
-  // Define nodes
+  // Define nodes (more vertical layout for landscape screens)
   const initialNodes: Node[] = [
     {
       id: 'company',
       type: 'custom',
-      position: { x: 500, y: 350 },
+      position: { x: 400, y: 400 },
       data: { label: 'Company', count: '852 companies', isCenter: true },
+    },
+    {
+      id: 'web',
+      type: 'custom',
+      position: { x: 400, y: 50 },
+      data: { label: 'Web Search', count: 'Real-time', isCenter: false },
     },
     {
       id: 'marketdata',
       type: 'custom',
-      position: { x: 200, y: 150 },
+      position: { x: 200, y: 200 },
       data: { label: 'Market Data', count: '2M+ records', isCenter: false },
     },
     {
       id: 'awards',
       type: 'custom',
-      position: { x: 800, y: 150 },
+      position: { x: 600, y: 200 },
       data: { label: 'Gov Contracts', count: '500K+ awards', isCenter: false },
     },
     {
       id: 'sec',
       type: 'custom',
-      position: { x: 100, y: 550 },
+      position: { x: 200, y: 600 },
       data: { label: 'SEC Filings', count: '15K+ filings', isCenter: false },
-    },
-    {
-      id: 'predictionmarkets',
-      type: 'custom',
-      position: { x: 700, y: 550 },
-      data: { label: 'Prediction Markets', count: '(Polymarket/Kalshi)', isCenter: false },
-    },
-    {
-      id: 'web',
-      type: 'custom',
-      position: { x: 500, y: 50 },
-      data: { label: 'Web Search', count: 'Real-time', isCenter: false },
     },
     {
       id: 'fred',
       type: 'custom',
-      position: { x: 300, y: 550 },
+      position: { x: 400, y: 600 },
       data: { label: 'Federal Reserve', count: '(FRED Data)', isCenter: false },
+    },
+    {
+      id: 'predictionmarkets',
+      type: 'custom',
+      position: { x: 600, y: 600 },
+      data: { label: 'Prediction Markets', count: '(Polymarket/Kalshi)', isCenter: false },
     },
     {
       id: 'cftc',
       type: 'custom',
-      position: { x: 900, y: 350 },
+      position: { x: 400, y: 800 },
       data: { label: 'CFTC Positions', count: '(Commodities & Futures)', isCenter: false },
     },
   ]

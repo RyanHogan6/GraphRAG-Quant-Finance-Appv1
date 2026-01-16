@@ -53,7 +53,12 @@ export default function Navigation() {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center space-x-2">
-            <h1 className="text-lg md:text-xl font-bold text-gold font-mono">GraphRAG</h1>
+            <button
+              onClick={() => scrollToSection('query')}
+              className="text-lg md:text-xl font-bold text-gold font-mono hover:text-gold/80 transition-colors cursor-pointer"
+            >
+              GraphRAG
+            </button>
           </div>
 
           {/* Desktop Navigation */}
