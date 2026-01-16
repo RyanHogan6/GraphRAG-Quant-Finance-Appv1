@@ -350,14 +350,22 @@ export default function GraphVisualization() {
           onEdgesChange={onEdgesChange}
           onNodeClick={onNodeClick}
           nodeTypes={nodeTypes}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable={false}
+          panOnDrag={false}
+          panOnScroll={false}
+          zoomOnScroll={false}
+          zoomOnPinch={false}
+          zoomOnDoubleClick={false}
           fitView
+          fitViewOptions={{ padding: 0.2 }}
           attributionPosition="bottom-left"
           defaultEdgeOptions={{
             type: 'smoothstep',
           }}
         >
           <Background color="#D4AF37" gap={16} size={1} />
-          <Controls />
         </ReactFlow>
       </div>
 

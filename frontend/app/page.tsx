@@ -388,7 +388,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="relative">
+    <div className="relative z-10">
       {/* Hero Section */}
       <motion.section
         ref={heroRef}
