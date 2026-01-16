@@ -29,8 +29,8 @@ export default function NeuralBackground() {
       radius: number
 
       constructor() {
-        this.x = Math.random() * canvas.width
-        this.y = Math.random() * canvas.height
+        this.x = Math.random() * canvas!.width
+        this.y = Math.random() * canvas!.height
         this.vx = (Math.random() - 0.5) * 0.3
         this.vy = (Math.random() - 0.5) * 0.3
         this.radius = 2
@@ -41,10 +41,10 @@ export default function NeuralBackground() {
         this.y += this.vy
 
         // Wrap around edges
-        if (this.x < 0) this.x = canvas.width
-        if (this.x > canvas.width) this.x = 0
-        if (this.y < 0) this.y = canvas.height
-        if (this.y > canvas.height) this.y = 0
+        if (this.x < 0) this.x = canvas!.width
+        if (this.x > canvas!.width) this.x = 0
+        if (this.y < 0) this.y = canvas!.height
+        if (this.y > canvas!.height) this.y = 0
       }
 
       draw(ctx: CanvasRenderingContext2D) {
@@ -57,24 +57,24 @@ export default function NeuralBackground() {
 
     // Create nodes
     const nodes: Node[] = []
-    const nodeCount = Math.floor((canvas.width * canvas.height) / 15000) // Density based on screen size
+    const nodeCount = Math.floor((canvas!.width * canvas!.height) / 15000) // Density based on screen size
     for (let i = 0; i < nodeCount; i++) {
       nodes.push(new Node())
     }
 
     // Animation loop
     const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx!.clearRect(0, 0, canvas!.width, canvas!.height)
 
       // Update and draw nodes
       nodes.forEach(node => {
         node.update()
-        node.draw(ctx)
+        node.draw(ctx!)
       })
 
       // Draw connections
-      ctx.strokeStyle = 'rgba(200, 200, 200, 0.08)'
-      ctx.lineWidth = 1
+      ctx!.strokeStyle = 'rgba(200, 200, 200, 0.08)'
+      ctx!.lineWidth = 1
 
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
@@ -85,11 +85,11 @@ export default function NeuralBackground() {
           // Only draw connection if nodes are close enough
           if (distance < 150) {
             const opacity = (1 - distance / 150) * 0.08
-            ctx.strokeStyle = `rgba(200, 200, 200, ${opacity})`
-            ctx.beginPath()
-            ctx.moveTo(nodes[i].x, nodes[i].y)
-            ctx.lineTo(nodes[j].x, nodes[j].y)
-            ctx.stroke()
+            ctx!.strokeStyle = `rgba(200, 200, 200, ${opacity})`
+            ctx!.beginPath()
+            ctx!.moveTo(nodes[i].x, nodes[i].y)
+            ctx!.lineTo(nodes[j].x, nodes[j].y)
+            ctx!.stroke()
           }
         }
       }
