@@ -55,6 +55,9 @@ export default function HomePage() {
   const [searchFilter, setSearchFilter] = useState('')
   const [collections, setCollections] = useState<Array<{name: string, count: number, description: string}>>([])
   const [loadingCollections, setLoadingCollections] = useState(true)
+  const [sortColumn, setSortColumn] = useState<string | null>(null)
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({})
 
   // Collection name translations
   const collectionDisplayNames: Record<string, string> = {
@@ -232,11 +235,14 @@ export default function HomePage() {
       if (!selectedCollection) {
         setCollectionData([])
         setSearchFilter('')
+        setSortColumn(null)
+        setColumnFilters({})
         return
       }
 
-      // Reset search when switching collections
+      // Reset search and filters when switching collections
       setSearchFilter('')
+      setColumnFilters({})
       setIsLoadingData(true)
       try {
         const { api } = await import('@/lib/api')
@@ -246,6 +252,26 @@ export default function HomePage() {
           ? response
           : (response.documents || response.data || [])
         console.log('Collection data received:', data.length, 'items', 'Response format:', response)
+
+        // Auto-detect date column and set as default sort
+        if (data.length > 0) {
+          const firstItem = data[0]
+          const dateColumns = Object.keys(firstItem).filter(key =>
+            key.toLowerCase().includes('date') ||
+            key.toLowerCase().includes('time') ||
+            key === 'timestamp'
+          )
+
+          // Prefer 'date' column, otherwise use first date-like column
+          const defaultSortCol = dateColumns.find(col => col === 'date') || dateColumns[0]
+          if (defaultSortCol) {
+            setSortColumn(defaultSortCol)
+            setSortDirection('desc') // Most recent first
+          } else {
+            setSortColumn(null)
+          }
+        }
+
         setCollectionData(data)
       } catch (error) {
         console.error('Failed to fetch collection data:', error)
@@ -258,14 +284,65 @@ export default function HomePage() {
     fetchCollectionData()
   }, [selectedCollection])
 
-  // Filter data based on search
-  const filteredData = collectionData.filter((item) => {
-    if (!searchFilter) return true
-    const searchLower = searchFilter.toLowerCase()
-    return Object.values(item).some((value) =>
-      String(value).toLowerCase().includes(searchLower)
-    )
-  })
+  // Filter and sort data
+  const filteredData = useMemo(() => {
+    let result = [...collectionData]
+
+    // Apply global search filter
+    if (searchFilter) {
+      const searchLower = searchFilter.toLowerCase()
+      result = result.filter((item) =>
+        Object.values(item).some((value) =>
+          String(value).toLowerCase().includes(searchLower)
+        )
+      )
+    }
+
+    // Apply column-specific filters
+    Object.entries(columnFilters).forEach(([column, filterValue]) => {
+      if (filterValue) {
+        const filterLower = filterValue.toLowerCase()
+        result = result.filter((item) =>
+          String(item[column]).toLowerCase().includes(filterLower)
+        )
+      }
+    })
+
+    // Apply sorting
+    if (sortColumn) {
+      result.sort((a, b) => {
+        const aVal = a[sortColumn]
+        const bVal = b[sortColumn]
+
+        // Handle null/undefined
+        if (aVal == null && bVal == null) return 0
+        if (aVal == null) return 1
+        if (bVal == null) return -1
+
+        // Sort by type
+        if (typeof aVal === 'number' && typeof bVal === 'number') {
+          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal
+        }
+
+        // Date sorting
+        if (sortColumn.toLowerCase().includes('date') || sortColumn.toLowerCase().includes('time')) {
+          const dateA = new Date(aVal).getTime()
+          const dateB = new Date(bVal).getTime()
+          if (!isNaN(dateA) && !isNaN(dateB)) {
+            return sortDirection === 'asc' ? dateA - dateB : dateB - dateA
+          }
+        }
+
+        // String sorting
+        const strA = String(aVal).toLowerCase()
+        const strB = String(bVal).toLowerCase()
+        const comparison = strA.localeCompare(strB)
+        return sortDirection === 'asc' ? comparison : -comparison
+      })
+    }
+
+    return result
+  }, [collectionData, searchFilter, columnFilters, sortColumn, sortDirection])
 
   // Debug logging
   useEffect(() => {
@@ -277,6 +354,21 @@ export default function HomePage() {
       firstItem: collectionData[0]
     })
   }, [collectionData, filteredData, selectedCollection, isLoadingData])
+
+  // Prefetch markets on app load (background, both platforms)
+  useEffect(() => {
+    const prefetchMarkets = async () => {
+      try {
+        const { api } = await import('@/lib/api')
+        // Prefetch Polymarket in background (most common)
+        api.getFeaturedMarkets(200, 'polymarket').catch(() => {})
+        api.getCategories('polymarket').catch(() => {})
+      } catch (err) {
+        // Silent fail for prefetch
+      }
+    }
+    prefetchMarkets()
+  }, [])
 
   // Fetch markets and categories when platform changes
   useEffect(() => {
@@ -335,9 +427,16 @@ export default function HomePage() {
         setDisplayLimit(12)
         setHasMore(formattedMarkets.length > 12)
         setMarketError(null)
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to fetch markets:', err)
-        setMarketError('Failed to load markets. Please try again.')
+        const errorMsg = err?.message?.includes('500')
+          ? 'Server error loading markets. The data might be temporarily unavailable. Please try refreshing.'
+          : err?.message?.includes('timeout')
+          ? 'Request timed out. The server might be slow. Please try again.'
+          : 'Failed to load markets. Please try refreshing the page.'
+        setMarketError(errorMsg)
+        setMarkets([])
+        setCategories([])
       } finally {
         setLoadingMarkets(false)
       }
@@ -828,8 +927,23 @@ export default function HomePage() {
           {/* Error State */}
           {marketError && (
             <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6 mb-8">
-              <div className="text-red-400 font-semibold mb-2">Error</div>
-              <div className="text-red-300">{marketError}</div>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="text-red-400 font-semibold mb-2">Error Loading Markets</div>
+                  <div className="text-red-300 mb-4">{marketError}</div>
+                  <button
+                    onClick={() => {
+                      setMarketError(null)
+                      setLoadingMarkets(true)
+                      // Trigger refetch by toggling platform state
+                      setSelectedPlatform(prev => prev === 'polymarket' ? 'polymarket' : 'polymarket')
+                    }}
+                    className="px-4 py-2 bg-red-500/20 border border-red-500/40 rounded-lg text-red-300 hover:bg-red-500/30 hover:border-red-500/60 transition-all font-semibold"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -1100,52 +1214,97 @@ export default function HomePage() {
                     <p className="text-gray-400 mt-4">Loading data...</p>
                   </div>
                 ) : filteredData.length > 0 ? (
-                  <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-dark-800 sticky top-0">
-                        <tr>
-                          {Object.keys(filteredData[0])
-                            .filter(key => !key.startsWith('_') || key === '_key')
-                            .map((key) => (
-                              <th
-                                key={key}
-                                className="px-4 py-3 text-left text-xs font-semibold text-gold uppercase tracking-wider border-b border-gold/20"
-                              >
-                                {key}
-                              </th>
-                            ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gold/10">
-                        {filteredData.slice(0, 50).map((row, idx) => (
-                          <tr key={idx} className="hover:bg-dark-800/50 transition-colors">
-                            {Object.entries(row)
-                              .filter(([key]) => !key.startsWith('_') || key === '_key')
-                              .map(([key, value]) => (
-                                <td key={key} className="px-4 py-3 text-gray-300 whitespace-nowrap">
-                                  {typeof value === 'object' && value !== null ? (
-                                    <span className="text-xs text-gray-500 italic">
-                                      {Array.isArray(value) ? `Array[${value.length}]` : 'Object'}
-                                    </span>
-                                  ) : typeof value === 'number' ? (
-                                    <span className="text-gold">{value.toLocaleString()}</span>
-                                  ) : String(value).length > 50 ? (
-                                    <span className="text-xs" title={String(value)}>
-                                      {String(value).substring(0, 50)}...
-                                    </span>
-                                  ) : (
-                                    String(value)
-                                  )}
-                                </td>
+                  <>
+                    <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-dark-800 sticky top-0 z-10">
+                          {/* Column Headers - Sortable */}
+                          <tr>
+                            {Object.keys(filteredData[0])
+                              .filter(key => !key.startsWith('_') || key === '_key')
+                              .map((key) => (
+                                <th
+                                  key={key}
+                                  className="px-4 py-3 text-left text-xs font-semibold text-gold uppercase tracking-wider border-b border-gold/20 cursor-pointer hover:bg-dark-700 transition-colors"
+                                  onClick={() => {
+                                    if (sortColumn === key) {
+                                      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+                                    } else {
+                                      setSortColumn(key)
+                                      setSortDirection('desc')
+                                    }
+                                  }}
+                                >
+                                  <div className="flex items-center space-x-2">
+                                    <span>{key}</span>
+                                    {sortColumn === key && (
+                                      <span className="text-gold">
+                                        {sortDirection === 'asc' ? '↑' : '↓'}
+                                      </span>
+                                    )}
+                                  </div>
+                                </th>
                               ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                          {/* Column Filters */}
+                          <tr>
+                            {Object.keys(filteredData[0])
+                              .filter(key => !key.startsWith('_') || key === '_key')
+                              .map((key) => (
+                                <th key={key} className="px-2 py-2 border-b border-gold/10">
+                                  <input
+                                    type="text"
+                                    placeholder="Filter..."
+                                    value={columnFilters[key] || ''}
+                                    onChange={(e) => {
+                                      setColumnFilters(prev => ({
+                                        ...prev,
+                                        [key]: e.target.value
+                                      }))
+                                    }}
+                                    className="w-full bg-dark-900 border border-gold/20 rounded px-2 py-1 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-gold/40"
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                </th>
+                              ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gold/10">
+                          {filteredData.slice(0, 100).map((row, idx) => (
+                            <tr key={idx} className="hover:bg-dark-800/50 transition-colors">
+                              {Object.entries(row)
+                                .filter(([key]) => !key.startsWith('_') || key === '_key')
+                                .map(([key, value]) => (
+                                  <td key={key} className="px-4 py-3 text-gray-300 whitespace-nowrap">
+                                    {typeof value === 'object' && value !== null ? (
+                                      <span className="text-xs text-gray-500 italic">
+                                        {Array.isArray(value) ? `Array[${value.length}]` : 'Object'}
+                                      </span>
+                                    ) : typeof value === 'number' ? (
+                                      <span className="text-gold">{value.toLocaleString()}</span>
+                                    ) : String(value).length > 50 ? (
+                                      <span className="text-xs" title={String(value)}>
+                                        {String(value).substring(0, 50)}...
+                                      </span>
+                                    ) : (
+                                      String(value)
+                                    )}
+                                  </td>
+                                ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {filteredData.length > 100 && (
+                      <div className="bg-dark-800 border-t border-gold/20 px-4 py-3 text-center text-sm text-gray-400">
+                        Showing first 100 of {filteredData.length.toLocaleString()} results. Use filters to narrow down results.
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div className="p-8 text-center text-gray-400">
-                    {searchFilter ? 'No matching records found' : 'No data available'}
+                    {searchFilter || Object.values(columnFilters).some(v => v) ? 'No matching records found' : 'No data available'}
                   </div>
                 )}
               </div>

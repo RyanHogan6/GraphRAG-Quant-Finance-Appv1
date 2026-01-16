@@ -1,14 +1,41 @@
+import { marketCache } from './marketCache'
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+// Helper function for retry logic
+async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 2): Promise<Response> {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const res = await fetch(url, { ...options, signal: AbortSignal.timeout(30000) })
+      if (res.ok) return res
+
+      // Don't retry on 4xx errors (client errors)
+      if (res.status >= 400 && res.status < 500) {
+        throw new Error(`Request failed with status ${res.status}`)
+      }
+
+      // Retry on 5xx errors
+      if (i < retries) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)))
+        continue
+      }
+      throw new Error(`Request failed with status ${res.status}`)
+    } catch (err) {
+      if (i === retries) throw err
+      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)))
+    }
+  }
+  throw new Error('Max retries reached')
+}
 
 export const api = {
   // Query endpoints
   async executeQuery(question: string) {
-    const res = await fetch(`${API_BASE_URL}/api/query/execute`, {
+    const res = await fetchWithRetry(`${API_BASE_URL}/api/query/execute`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question }),
     });
-    if (!res.ok) throw new Error('Query failed');
     return res.json();
   },
 
@@ -24,9 +51,22 @@ export const api = {
 
   // Markets endpoints
   async getFeaturedMarkets(limit: number = 100, platform: 'polymarket' | 'kalshi' = 'polymarket') {
-    const res = await fetch(`${API_BASE_URL}/api/markets/${platform}/featured?limit=${limit}`);
-    if (!res.ok) throw new Error('Failed to fetch featured markets');
-    return res.json();
+    const cacheKey = `markets_${platform}_${limit}`
+
+    // Check cache first
+    const cached = marketCache.get<any[]>(cacheKey)
+    if (cached) {
+      console.log('Returning cached markets for', platform)
+      return cached
+    }
+
+    // Fetch from API with retry
+    const res = await fetchWithRetry(`${API_BASE_URL}/api/markets/${platform}/featured?limit=${limit}`);
+    const data = await res.json();
+
+    // Cache the result
+    marketCache.set(cacheKey, data)
+    return data;
   },
 
   async getMarkets(params: {
@@ -55,9 +95,21 @@ export const api = {
   },
 
   async getCategories(platform: 'polymarket' | 'kalshi' = 'polymarket') {
-    const res = await fetch(`${API_BASE_URL}/api/markets/${platform}/categories`);
-    if (!res.ok) throw new Error('Failed to fetch categories');
-    return res.json();
+    const cacheKey = `categories_${platform}`
+
+    // Check cache first
+    const cached = marketCache.get<any[]>(cacheKey)
+    if (cached) {
+      console.log('Returning cached categories for', platform)
+      return cached
+    }
+
+    const res = await fetchWithRetry(`${API_BASE_URL}/api/markets/${platform}/categories`);
+    const data = await res.json();
+
+    // Cache the result
+    marketCache.set(cacheKey, data)
+    return data;
   },
 
   async getMarketDetail(marketId: string) {
