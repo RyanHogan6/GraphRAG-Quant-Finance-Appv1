@@ -1343,19 +1343,93 @@ export default function HomePage() {
         id="about"
         className="min-h-screen snap-start flex flex-col justify-center px-6 py-12 relative overflow-hidden"
       >
-        <div className="max-w-4xl mx-auto w-full relative z-10">
+        <div className="max-w-5xl mx-auto w-full relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.8 }}
-            className="text-center"
           >
-            <h2 className="text-5xl font-bold text-gold mb-6">About GraphRAG</h2>
-            <div className="bg-dark-800 border border-gold/20 rounded-lg p-12">
-              <p className="text-xl text-gray-400 leading-relaxed">
-                Content coming soon...
-              </p>
+            <h2 className="text-5xl font-bold text-gold mb-8 text-center">About GraphRAG Markets</h2>
+
+            <div className="space-y-8">
+              {/* Overview */}
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-8">
+                <p className="text-xl text-gray-300 leading-relaxed mb-4">
+                  GraphRAG Markets combines <span className="text-gold font-semibold">Knowledge Graphs</span>, <span className="text-gold font-semibold">Retrieval Augmented Generation</span>, and <span className="text-gold font-semibold">Semantic Search</span> to provide AI-powered financial intelligence.
+                </p>
+                <p className="text-lg text-gray-400 leading-relaxed">
+                  Ask questions in natural language, and GPT-4 generates precise database queries across interconnected financial data sources—no hallucinations, only real data.
+                </p>
+              </div>
+
+              {/* Key Features Grid */}
+              <div className="grid md:grid-cols-3 gap-6">
+                <div className="bg-dark-800 border border-gold/30 rounded-lg p-6 hover:border-gold/60 transition-all">
+                  <div className="text-3xl mb-3">📊</div>
+                  <h3 className="text-lg font-semibold text-gold mb-2">Multi-Source Data</h3>
+                  <p className="text-sm text-gray-400">
+                    S&P 500 stocks, government contracts, prediction markets, SEC filings, economic indicators, and commodities—all in one graph.
+                  </p>
+                </div>
+
+                <div className="bg-dark-800 border border-gold/30 rounded-lg p-6 hover:border-gold/60 transition-all">
+                  <div className="text-3xl mb-3">🤖</div>
+                  <h3 className="text-lg font-semibold text-gold mb-2">AI Query Generation</h3>
+                  <p className="text-sm text-gray-400">
+                    GPT-4 converts your questions into optimized graph queries with semantic search, multi-hop traversals, and parallel execution.
+                  </p>
+                </div>
+
+                <div className="bg-dark-800 border border-gold/30 rounded-lg p-6 hover:border-gold/60 transition-all">
+                  <div className="text-3xl mb-3">⚡</div>
+                  <h3 className="text-lg font-semibold text-gold mb-2">Blazing Fast</h3>
+                  <p className="text-sm text-gray-400">
+                    Query 2M+ documents with 50ms graph traversals. Parallel DB + web search delivers results in under 3 seconds.
+                  </p>
+                </div>
+              </div>
+
+              {/* Architecture Preview */}
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-6">
+                <h3 className="text-xl font-semibold text-gold mb-4">How It Works</h3>
+                <div className="space-y-3 text-sm text-gray-400">
+                  <div className="flex items-start">
+                    <span className="text-green-400 font-semibold mr-3 mt-1">1.</span>
+                    <div>
+                      <strong className="text-gray-300">Intent Detection:</strong> GPT-4 classifies your query (ticker vs. concept)
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="text-blue-400 font-semibold mr-3 mt-1">2.</span>
+                    <div>
+                      <strong className="text-gray-300">Query Planning:</strong> AI generates optimized AQL with semantic embeddings
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="text-purple-400 font-semibold mr-3 mt-1">3.</span>
+                    <div>
+                      <strong className="text-gray-300">Parallel Execution:</strong> Database query + web search run simultaneously
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="text-orange-400 font-semibold mr-3 mt-1">4.</span>
+                    <div>
+                      <strong className="text-gray-300">Synthesis:</strong> GPT-4 combines results with analysis and insights
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* CTA */}
+              <div className="text-center">
+                <a
+                  href="/about"
+                  className="inline-block px-8 py-4 bg-gold/20 border-2 border-gold/40 rounded-lg text-gold font-semibold hover:bg-gold/30 hover:border-gold/60 transition-all text-lg"
+                >
+                  View Full Technical Deep-Dive →
+                </a>
+              </div>
             </div>
           </motion.div>
         </div>
