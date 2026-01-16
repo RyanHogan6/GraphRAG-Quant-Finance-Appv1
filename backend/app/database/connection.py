@@ -142,7 +142,9 @@ def execute_aql(aql_query: str, bind_vars: dict = None):
         cursor = db.aql.execute(
             aql_query,
             bind_vars=bind_vars or {},
-            ttl=config.QUERY_TIMEOUT
+            ttl=config.QUERY_TIMEOUT,
+            max_runtime=config.QUERY_TIMEOUT,  # Also set max runtime
+            batch_size=1000  # Stream results in batches for large datasets
         )
         results = list(cursor)
         return results, None
