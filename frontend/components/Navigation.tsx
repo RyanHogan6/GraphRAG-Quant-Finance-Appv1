@@ -53,20 +53,35 @@ export default function Navigation() {
             <h1 className="text-xl font-bold text-gold">GraphRAG</h1>
           </div>
 
-          <div className="flex space-x-1">
-            {links.map((link) => (
-              <button
-                key={link.id}
-                onClick={() => scrollToSection(link.id)}
-                className={`px-4 py-2 rounded-lg transition-all ${
-                  activeSection === link.id
-                    ? 'bg-gold/20 text-gold border border-gold/40'
-                    : 'text-gray-400 hover:text-gold hover:bg-gold/10'
-                }`}
-              >
-                {link.label}
-              </button>
-            ))}
+          <div className="flex-1 flex items-center justify-center">
+            <div className="flex space-x-1">
+              {links.slice(0, 3).map((link) => (
+                <button
+                  key={link.id}
+                  onClick={() => scrollToSection(link.id)}
+                  className={`px-4 py-2 rounded-lg transition-all ${
+                    activeSection === link.id
+                      ? 'bg-gold/20 text-gold border border-gold/40'
+                      : 'text-gray-400 hover:text-gold hover:bg-gold/10'
+                  }`}
+                >
+                  {link.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center">
+            <button
+              onClick={() => scrollToSection('about')}
+              className={`px-4 py-2 rounded-lg transition-all ${
+                activeSection === 'about'
+                  ? 'bg-gold/20 text-gold border border-gold/40'
+                  : 'text-gray-400 hover:text-gold hover:bg-gold/10'
+              }`}
+            >
+              About
+            </button>
           </div>
         </div>
       </div>

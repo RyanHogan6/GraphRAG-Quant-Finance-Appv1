@@ -11,6 +11,12 @@ interface MarketDetailModalProps {
 export default function MarketDetailModal({ market, onClose }: MarketDetailModalProps) {
   const [fullMarketData, setFullMarketData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [showTraders, setShowTraders] = useState(false)
+  const [traders, setTraders] = useState<any[]>([])
+  const [loadingTraders, setLoadingTraders] = useState(false)
+
+  // Check if this is a Polymarket market (has trader data available)
+  const isPolymarket = market.id && !market.id.toString().startsWith('kalshi')
 
   useEffect(() => {
     // Fetch full market details when modal opens
@@ -28,6 +34,26 @@ export default function MarketDetailModal({ market, onClose }: MarketDetailModal
     }
     fetchDetails()
   }, [market.id])
+
+  // Fetch top traders when toggle is enabled
+  useEffect(() => {
+    if (showTraders && isPolymarket) {
+      async function fetchTraders() {
+        try {
+          setLoadingTraders(true)
+          const traderData = await api.getWhales(20)
+          // Filter traders for this specific market (would need backend support)
+          setTraders(traderData.slice(0, 10))
+        } catch (error) {
+          console.error('Failed to fetch traders:', error)
+          setTraders([])
+        } finally {
+          setLoadingTraders(false)
+        }
+      }
+      fetchTraders()
+    }
+  }, [showTraders, isPolymarket])
 
   const formatVolume = (volume: number) => {
     if (volume >= 1000000) return `$${(volume / 1000000).toFixed(2)}M`
@@ -154,6 +180,64 @@ export default function MarketDetailModal({ market, onClose }: MarketDetailModal
               noProb={displayData.no_prob}
               marketData={displayData}
             />
+          </div>
+        )}
+
+        {/* Trader View Toggle (Polymarket only) */}
+        {!loading && isPolymarket && (
+          <div className="p-6 border-b border-gold/20">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-gold">TOP TRADERS</h3>
+              <button
+                onClick={() => setShowTraders(!showTraders)}
+                className={`px-4 py-2 rounded-lg border transition-all text-sm font-semibold ${
+                  showTraders
+                    ? 'bg-gold/20 text-gold border-gold/40'
+                    : 'bg-dark-700 text-gray-400 border-gold/20 hover:border-gold/40'
+                }`}
+              >
+                {showTraders ? 'Hide' : 'Show'} Traders
+              </button>
+            </div>
+
+            {showTraders && (
+              <div>
+                {loadingTraders ? (
+                  <div className="text-center text-gray-500 py-8">
+                    <div className="animate-pulse">Loading trader data...</div>
+                  </div>
+                ) : traders.length > 0 ? (
+                  <div className="space-y-2">
+                    {traders.map((trader, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between bg-dark-700 border border-gold/10 rounded-lg p-4 hover:border-gold/30 transition-all"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="text-gold font-semibold">#{idx + 1}</div>
+                          <div>
+                            <div className="text-sm text-gray-200">{trader.address?.slice(0, 6)}...{trader.address?.slice(-4)}</div>
+                            <div className="text-xs text-gray-500">
+                              {trader.markets_traded || 0} markets
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-semibold text-gold">
+                            ${(trader.total_volume / 1000000).toFixed(2)}M
+                          </div>
+                          <div className="text-xs text-gray-500">volume</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-500 py-8">
+                    No trader data available
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

@@ -23,25 +23,27 @@ export const api = {
   },
 
   // Markets endpoints
-  async getFeaturedMarkets(limit: number = 100) {
-    const res = await fetch(`${API_BASE_URL}/api/markets/polymarket/featured?limit=${limit}`);
+  async getFeaturedMarkets(limit: number = 100, platform: 'polymarket' | 'kalshi' = 'polymarket') {
+    const res = await fetch(`${API_BASE_URL}/api/markets/${platform}/featured?limit=${limit}`);
     if (!res.ok) throw new Error('Failed to fetch featured markets');
     return res.json();
   },
 
   async getMarkets(params: {
+    platform?: 'polymarket' | 'kalshi';
     category?: string;
     min_volume?: number;
     sort_by?: string;
     limit?: number;
   }) {
+    const platform = params.platform || 'polymarket';
     const queryParams = new URLSearchParams();
     if (params.category) queryParams.append('category', params.category);
     if (params.min_volume) queryParams.append('min_volume', params.min_volume.toString());
     if (params.sort_by) queryParams.append('sort_by', params.sort_by);
     if (params.limit) queryParams.append('limit', params.limit.toString());
 
-    const res = await fetch(`${API_BASE_URL}/api/markets/polymarket/markets?${queryParams}`);
+    const res = await fetch(`${API_BASE_URL}/api/markets/${platform}/markets?${queryParams}`);
     if (!res.ok) throw new Error('Failed to fetch markets');
     return res.json();
   },
@@ -52,8 +54,8 @@ export const api = {
     return res.json();
   },
 
-  async getCategories() {
-    const res = await fetch(`${API_BASE_URL}/api/markets/polymarket/categories`);
+  async getCategories(platform: 'polymarket' | 'kalshi' = 'polymarket') {
+    const res = await fetch(`${API_BASE_URL}/api/markets/${platform}/categories`);
     if (!res.ok) throw new Error('Failed to fetch categories');
     return res.json();
   },

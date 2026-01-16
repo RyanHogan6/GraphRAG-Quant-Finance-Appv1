@@ -53,8 +53,11 @@ export default function HomePage() {
   const [collectionData, setCollectionData] = useState<any[]>([])
   const [isLoadingData, setIsLoadingData] = useState(false)
   const [searchFilter, setSearchFilter] = useState('')
+  const [collections, setCollections] = useState<Array<{name: string, count: number, description: string}>>([])
+  const [loadingCollections, setLoadingCollections] = useState(true)
 
   // State for markets section
+  const [selectedPlatform, setSelectedPlatform] = useState<'polymarket' | 'kalshi'>('polymarket')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('All')
   const [sortBy, setSortBy] = useState<'volume' | 'probability' | 'traders'>('volume')
@@ -64,19 +67,37 @@ export default function HomePage() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [marketError, setMarketError] = useState<string | null>(null)
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null)
-  const [displayLimit, setDisplayLimit] = useState(100)
+  const [displayLimit, setDisplayLimit] = useState(12)
   const [hasMore, setHasMore] = useState(true)
 
-  const collections = [
-    { name: 'Company', count: 852, icon: '🏢', description: 'S&P 500 companies with fundamentals' },
-    { name: 'MarketData', count: 2100000, icon: '📊', description: 'Daily OHLCV + technical indicators' },
-    { name: 'Award', count: 500000, icon: '🏛️', description: 'Federal contracts with embeddings' },
-    { name: 'sec_filings', count: 15000, icon: '📄', description: 'SEC filings with sentiment' },
-    { name: 'sec_sentences', count: 890000, icon: '📝', description: 'Filing sentences with FinBERT scores' },
-    { name: 'prediction_markets_polymarket', count: 12968, icon: '🎲', description: 'Polymarket prediction data' },
-    { name: 'prediction_markets_kalshi', count: 5432, icon: '🎯', description: 'Kalshi event contracts' },
-    { name: 'EconomicData', count: 8900, icon: '💹', description: 'Macro indicators & rates' },
-  ]
+  // Fetch collections metadata on mount
+  useEffect(() => {
+    const fetchCollections = async () => {
+      try {
+        setLoadingCollections(true)
+        const { api } = await import('@/lib/api')
+        const collectionsData = await api.getCollections()
+        setCollections(collectionsData)
+      } catch (error) {
+        console.error('Failed to fetch collections:', error)
+        // Fallback to static data if API fails
+        setCollections([
+          { name: 'Company', count: 852, description: 'S&P 500 companies with fundamentals' },
+          { name: 'MarketData', count: 2100000, description: 'Daily OHLCV + technical indicators' },
+          { name: 'Award', count: 500000, description: 'Federal contracts with embeddings' },
+          { name: 'sec_filings', count: 15000, description: 'SEC filings with sentiment' },
+          { name: 'sec_sentences', count: 890000, description: 'Filing sentences with FinBERT scores' },
+          { name: 'prediction_markets_polymarket', count: 12968, description: 'Polymarket prediction data' },
+          { name: 'prediction_markets_kalshi', count: 5432, description: 'Kalshi event contracts' },
+          { name: 'EconomicData', count: 8900, description: 'Macro indicators & rates' },
+        ])
+      } finally {
+        setLoadingCollections(false)
+      }
+    }
+
+    fetchCollections()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -175,18 +196,31 @@ export default function HomePage() {
     )
   })
 
-  // Fetch markets and categories on mount
+  // Fetch markets and categories when platform changes
   useEffect(() => {
     const fetchMarketsData = async () => {
       try {
         setLoadingMarkets(true)
+        setSelectedCategory('All')
+        setSearchQuery('')
         const { api } = await import('@/lib/api')
         const [marketsData, categoriesData] = await Promise.all([
-          api.getFeaturedMarkets(100),
-          api.getCategories()
+          api.getFeaturedMarkets(200, selectedPlatform),
+          api.getCategories(selectedPlatform)
         ])
 
-        const formattedMarkets = marketsData.map((m: any) => ({
+        // Filter out markets with past end dates
+        const now = new Date()
+        const activeMarkets = marketsData.filter((m: any) => {
+          if (!m.end_date) return true
+          const endDate = new Date(m.end_date)
+          return endDate > now
+        })
+
+        // Sort by volume and take top markets
+        const sortedMarkets = activeMarkets.sort((a: any, b: any) => (b.volume_24h || 0) - (a.volume_24h || 0))
+
+        const formattedMarkets = sortedMarkets.map((m: any) => ({
           id: m.id || m._key,
           question: m.question,
           icon: '',
@@ -204,7 +238,8 @@ export default function HomePage() {
 
         setMarkets(formattedMarkets)
         setCategories(categoriesData)
-        setHasMore(marketsData.length >= 100)
+        setDisplayLimit(12)
+        setHasMore(formattedMarkets.length > 12)
         setMarketError(null)
       } catch (err) {
         console.error('Failed to fetch markets:', err)
@@ -215,40 +250,13 @@ export default function HomePage() {
     }
 
     fetchMarketsData()
-  }, [])
+  }, [selectedPlatform])
 
-  // Load more markets
-  const handleLoadMore = async () => {
-    try {
-      setLoadingMore(true)
-      const newLimit = displayLimit + 100
-      const { api } = await import('@/lib/api')
-      const marketsData = await api.getFeaturedMarkets(newLimit)
-
-      const formattedMarkets = marketsData.map((m: any) => ({
-        id: m.id || m._key,
-        question: m.question,
-        icon: '',
-        category: m.category || 'Other',
-        yes_prob: m.yes_prob,
-        no_prob: m.no_prob,
-        volume_24h: m.volume_24h,
-        liquidity: m.liquidity || 0,
-        end_date: m.end_date || '',
-        traders: m.traders || 0,
-        outcome_yes: m.outcome_yes,
-        outcome_no: m.outcome_no,
-        outcomes: m.outcomes,
-      }))
-
-      setMarkets(formattedMarkets)
-      setDisplayLimit(newLimit)
-      setHasMore(marketsData.length >= newLimit)
-    } catch (err) {
-      console.error('Failed to load more markets:', err)
-    } finally {
-      setLoadingMore(false)
-    }
+  // Load more markets - increase display limit
+  const handleLoadMore = () => {
+    const newLimit = Math.min(displayLimit + 12, 50)
+    setDisplayLimit(newLimit)
+    setHasMore(newLimit < Math.min(markets.length, 50))
   }
 
   // Filter and sort markets
@@ -298,6 +306,9 @@ export default function HomePage() {
         {/* Animated background grid */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
 
+        {/* Smooth gradient overlay at bottom for transition */}
+        <div className="absolute bottom-0 left-0 right-0 h-64 bg-gradient-to-b from-transparent via-dark-900/50 to-dark-900 pointer-events-none" />
+
         <motion.div
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
@@ -320,7 +331,7 @@ export default function HomePage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.5, duration: 1 }}
-          className="absolute bottom-10"
+          className="absolute bottom-10 z-10"
         >
           <div className="flex flex-col items-center">
             <p className="text-sm text-gray-500 mb-2">Scroll to explore</p>
@@ -334,6 +345,9 @@ export default function HomePage() {
           </div>
         </motion.div>
       </motion.section>
+
+      {/* Section Divider */}
+      <div className="w-full border-t border-gold/10" />
 
       {/* Why Graphs Section */}
       <section
@@ -364,16 +378,31 @@ export default function HomePage() {
                 title: 'Connected Data',
                 description: 'Every company links to market data, government contracts, SEC filings, and prediction markets',
                 delay: 0.2,
+                icon: (
+                  <svg className="w-12 h-12 text-gold mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                  </svg>
+                ),
               },
               {
                 title: 'Semantic Search',
                 description: 'Find contracts mentioning "Iran" or "cybersecurity" using AI embeddings, not just keywords',
                 delay: 0.4,
+                icon: (
+                  <svg className="w-12 h-12 text-gold mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                  </svg>
+                ),
               },
               {
                 title: 'Hybrid Intelligence',
                 description: 'Combine historical database queries with real-time web search for complete context',
                 delay: 0.6,
+                icon: (
+                  <svg className="w-12 h-12 text-gold mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                ),
               },
             ].map((item, idx) => (
               <motion.div
@@ -383,6 +412,7 @@ export default function HomePage() {
                 transition={{ duration: 0.8, delay: item.delay }}
                 className="bg-dark-800 border border-gold/20 rounded-lg p-8 hover:border-gold/40 transition-all"
               >
+                {item.icon}
                 <h3 className="text-2xl font-semibold text-gold mb-4">{item.title}</h3>
                 <p className="text-gray-400 leading-relaxed">{item.description}</p>
               </motion.div>
@@ -390,6 +420,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Section Divider */}
+      <div className="w-full border-t border-gold/10" />
 
       {/* Chat Interface Section */}
       <section id="query" className="min-h-screen flex items-center justify-center px-6 py-12 relative overflow-hidden">
@@ -419,7 +452,7 @@ export default function HomePage() {
             className="bg-dark-800 border border-gold/20 rounded-lg shadow-xl mb-6"
           >
             {/* Messages */}
-            <div className="h-[500px] overflow-y-auto p-6 space-y-4">
+            <div className="h-[700px] overflow-y-auto p-6 space-y-4">
               {messages.map((message, idx) => (
                 <div
                   key={idx}
@@ -437,7 +470,7 @@ export default function HomePage() {
                         {message.role === 'user' ? 'You' : 'AI'}
                       </div>
                       <div className="flex-1">
-                        <div className="text-sm mb-2 leading-relaxed">
+                        <div className="text-base mb-2 leading-relaxed">
                           {message.useMarkdown ? (
                             <MarkdownRenderer content={message.content} />
                           ) : (
@@ -530,6 +563,9 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Section Divider */}
+      <div className="w-full border-t border-gold/10" />
+
       {/* Graph Architecture Visualization */}
       <section
         ref={graphVizRef}
@@ -576,6 +612,9 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Section Divider */}
+      <div className="w-full border-t border-gold/10" />
+
       {/* Prediction Markets Section */}
       <section
         id="markets"
@@ -595,7 +634,33 @@ export default function HomePage() {
             className="mb-8"
           >
             <h2 className="text-5xl font-bold text-gold mb-2 text-center">Prediction Markets</h2>
-            <p className="text-gray-400 text-center mb-8">Live market data from Polymarket & Kalshi</p>
+            <p className="text-gray-400 text-center mb-6">Live market data from Polymarket & Kalshi</p>
+
+            {/* Platform Toggle */}
+            <div className="flex justify-center mb-8">
+              <div className="inline-flex bg-dark-800 border border-gold/30 rounded-lg p-1">
+                <button
+                  onClick={() => setSelectedPlatform('polymarket')}
+                  className={`px-6 py-2 rounded-lg transition-all font-semibold ${
+                    selectedPlatform === 'polymarket'
+                      ? 'bg-gold/20 text-gold border border-gold/40'
+                      : 'text-gray-400 hover:text-gold'
+                  }`}
+                >
+                  Polymarket
+                </button>
+                <button
+                  onClick={() => setSelectedPlatform('kalshi')}
+                  className={`px-6 py-2 rounded-lg transition-all font-semibold ${
+                    selectedPlatform === 'kalshi'
+                      ? 'bg-gold/20 text-gold border border-gold/40'
+                      : 'text-gray-400 hover:text-gold'
+                  }`}
+                >
+                  Kalshi
+                </button>
+              </div>
+            </div>
 
             {/* Metrics Cards */}
             <div className="grid grid-cols-4 gap-4 mb-8">
@@ -727,7 +792,7 @@ export default function HomePage() {
               transition={{ duration: 0.8 }}
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-12"
             >
-              {filteredMarkets.map((market) => (
+              {filteredMarkets.slice(0, displayLimit).map((market) => (
                 <MarketCard
                   key={market.id}
                   market={market}
@@ -743,14 +808,13 @@ export default function HomePage() {
           ) : null}
 
           {/* Load More */}
-          {!loadingMarkets && hasMore && (
+          {!loadingMarkets && hasMore && filteredMarkets.length > displayLimit && (
             <div className="text-center">
               <button
                 onClick={handleLoadMore}
-                disabled={loadingMore}
-                className="px-8 py-3 bg-gold/10 border border-gold/30 rounded-lg text-gold hover:bg-gold/20 hover:border-gold/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-8 py-3 bg-gold/10 border border-gold/30 rounded-lg text-gold hover:bg-gold/20 hover:border-gold/50 transition-all"
               >
-                {loadingMore ? 'Loading...' : `Load More Markets (${markets.length} loaded)`}
+                Load More Markets (showing {displayLimit} of {Math.min(filteredMarkets.length, 50)})
               </button>
             </div>
           )}
@@ -764,6 +828,9 @@ export default function HomePage() {
           />
         )}
       </section>
+
+      {/* Section Divider */}
+      <div className="w-full border-t border-gold/10" />
 
       {/* Data Universe - Collections Browser */}
       <section
@@ -832,7 +899,13 @@ export default function HomePage() {
                       : 'border-gold/20 hover:border-gold/40'
                   }`}
                 >
-                  <div className="text-3xl mb-2">{collection.icon}</div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-10 h-10 rounded-lg bg-gold/10 border border-gold/30 flex items-center justify-center">
+                      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                      </svg>
+                    </div>
+                  </div>
                   <div className="text-gold font-semibold mb-1 text-sm">{collection.name}</div>
                   <div className="text-xs text-gray-500 mb-2">
                     {collection.count.toLocaleString()} docs
@@ -978,6 +1051,32 @@ export default function HomePage() {
               </div>
             </motion.div>
           )}
+        </div>
+      </section>
+
+      {/* Section Divider */}
+      <div className="w-full border-t border-gold/10" />
+
+      {/* About Section */}
+      <section
+        id="about"
+        className="min-h-screen flex flex-col justify-center px-6 py-12 relative overflow-hidden"
+      >
+        <div className="max-w-4xl mx-auto w-full relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.8 }}
+            className="text-center"
+          >
+            <h2 className="text-5xl font-bold text-gold mb-6">About GraphRAG</h2>
+            <div className="bg-dark-800 border border-gold/20 rounded-lg p-12">
+              <p className="text-xl text-gray-400 leading-relaxed">
+                Content coming soon...
+              </p>
+            </div>
+          </motion.div>
         </div>
       </section>
 
