@@ -1,10 +1,14 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { motion, useScroll, useTransform, useInView } from 'framer-motion'
 import MarkdownRenderer from '@/components/MarkdownRenderer'
 import ResultsTable from '@/components/ResultsTable'
 import GraphVisualization from '@/components/GraphVisualization'
+import MarketCard from '@/components/MarketCard'
+import MarketDetailModal from '@/components/MarketDetailModal'
+import ScrollToTop from '@/components/ScrollToTop'
+import { Market } from '@/lib/mockData'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -49,6 +53,19 @@ export default function HomePage() {
   const [collectionData, setCollectionData] = useState<any[]>([])
   const [isLoadingData, setIsLoadingData] = useState(false)
   const [searchFilter, setSearchFilter] = useState('')
+
+  // State for markets section
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState<string>('All')
+  const [sortBy, setSortBy] = useState<'volume' | 'probability' | 'traders'>('volume')
+  const [markets, setMarkets] = useState<Market[]>([])
+  const [categories, setCategories] = useState<Array<{category: string, count: number}>>([])
+  const [loadingMarkets, setLoadingMarkets] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [marketError, setMarketError] = useState<string | null>(null)
+  const [selectedMarket, setSelectedMarket] = useState<Market | null>(null)
+  const [displayLimit, setDisplayLimit] = useState(100)
+  const [hasMore, setHasMore] = useState(true)
 
   const collections = [
     { name: 'Company', count: 852, icon: '🏢', description: 'S&P 500 companies with fundamentals' },
@@ -158,6 +175,118 @@ export default function HomePage() {
     )
   })
 
+  // Fetch markets and categories on mount
+  useEffect(() => {
+    const fetchMarketsData = async () => {
+      try {
+        setLoadingMarkets(true)
+        const { api } = await import('@/lib/api')
+        const [marketsData, categoriesData] = await Promise.all([
+          api.getFeaturedMarkets(100),
+          api.getCategories()
+        ])
+
+        const formattedMarkets = marketsData.map((m: any) => ({
+          id: m.id || m._key,
+          question: m.question,
+          icon: '',
+          category: m.category || 'Other',
+          yes_prob: m.yes_prob,
+          no_prob: m.no_prob,
+          volume_24h: m.volume_24h,
+          liquidity: m.liquidity || 0,
+          end_date: m.end_date || '',
+          traders: m.traders || 0,
+          outcome_yes: m.outcome_yes,
+          outcome_no: m.outcome_no,
+          outcomes: m.outcomes,
+        }))
+
+        setMarkets(formattedMarkets)
+        setCategories(categoriesData)
+        setHasMore(marketsData.length >= 100)
+        setMarketError(null)
+      } catch (err) {
+        console.error('Failed to fetch markets:', err)
+        setMarketError('Failed to load markets. Please try again.')
+      } finally {
+        setLoadingMarkets(false)
+      }
+    }
+
+    fetchMarketsData()
+  }, [])
+
+  // Load more markets
+  const handleLoadMore = async () => {
+    try {
+      setLoadingMore(true)
+      const newLimit = displayLimit + 100
+      const { api } = await import('@/lib/api')
+      const marketsData = await api.getFeaturedMarkets(newLimit)
+
+      const formattedMarkets = marketsData.map((m: any) => ({
+        id: m.id || m._key,
+        question: m.question,
+        icon: '',
+        category: m.category || 'Other',
+        yes_prob: m.yes_prob,
+        no_prob: m.no_prob,
+        volume_24h: m.volume_24h,
+        liquidity: m.liquidity || 0,
+        end_date: m.end_date || '',
+        traders: m.traders || 0,
+        outcome_yes: m.outcome_yes,
+        outcome_no: m.outcome_no,
+        outcomes: m.outcomes,
+      }))
+
+      setMarkets(formattedMarkets)
+      setDisplayLimit(newLimit)
+      setHasMore(marketsData.length >= newLimit)
+    } catch (err) {
+      console.error('Failed to load more markets:', err)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  // Filter and sort markets
+  const filteredMarkets = useMemo(() => {
+    let filtered = markets
+
+    if (selectedCategory !== 'All') {
+      filtered = filtered.filter(m => m.category === selectedCategory)
+    }
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(m =>
+        m.question.toLowerCase().includes(query) ||
+        m.category.toLowerCase().includes(query) ||
+        (m.description && m.description.toLowerCase().includes(query))
+      )
+    }
+
+    filtered = [...filtered].sort((a, b) => {
+      if (sortBy === 'volume') return b.volume_24h - a.volume_24h
+      if (sortBy === 'probability') return b.yes_prob - a.yes_prob
+      if (sortBy === 'traders') return b.traders - a.traders
+      return 0
+    })
+
+    return filtered
+  }, [markets, selectedCategory, searchQuery, sortBy])
+
+  const totalVolume = filteredMarkets.reduce((sum, m) => sum + m.volume_24h, 0)
+  const avgProbability = filteredMarkets.reduce((sum, m) => sum + m.yes_prob, 0) / (filteredMarkets.length || 1)
+
+  const formatVolume = (volume: number) => {
+    if (volume >= 1000000) return `$${(volume / 1000000).toFixed(2)}M`
+    if (volume >= 1000) return `$${(volume / 1000).toFixed(0)}k`
+    return `$${volume}`
+  }
+
   return (
     <div className="relative">
       {/* Hero Section */}
@@ -263,7 +392,7 @@ export default function HomePage() {
       </section>
 
       {/* Chat Interface Section */}
-      <section className="min-h-screen flex items-center justify-center px-6 py-12 relative overflow-hidden">
+      <section id="query" className="min-h-screen flex items-center justify-center px-6 py-12 relative overflow-hidden">
         {/* Animated background grid */}
         <motion.div
           className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
@@ -447,8 +576,198 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Prediction Markets Section */}
+      <section
+        id="markets"
+        className="min-h-screen flex flex-col justify-center px-6 py-12 relative overflow-hidden"
+      >
+        {/* Animated background grid */}
+        <motion.div
+          className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
+          style={{ opacity: gridOpacity3 }}
+        />
+        <div className="max-w-7xl mx-auto w-full relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.8 }}
+            className="mb-8"
+          >
+            <h2 className="text-5xl font-bold text-gold mb-2 text-center">Prediction Markets</h2>
+            <p className="text-gray-400 text-center mb-8">Live market data from Polymarket & Kalshi</p>
+
+            {/* Metrics Cards */}
+            <div className="grid grid-cols-4 gap-4 mb-8">
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-5 hover:border-gold/40 transition-all">
+                <div className="text-gray-400 text-sm mb-1">Active Markets</div>
+                <div className="text-3xl font-bold text-gold">{filteredMarkets.length}</div>
+              </div>
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-5 hover:border-gold/40 transition-all">
+                <div className="text-gray-400 text-sm mb-1">24h Volume</div>
+                <div className="text-3xl font-bold text-gold">{formatVolume(totalVolume)}</div>
+              </div>
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-5 hover:border-gold/40 transition-all">
+                <div className="text-gray-400 text-sm mb-1">Avg Probability</div>
+                <div className="text-3xl font-bold text-gold">{avgProbability.toFixed(0)}%</div>
+              </div>
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-5 hover:border-gold/40 transition-all">
+                <div className="text-gray-400 text-sm mb-1">Categories</div>
+                <div className="text-3xl font-bold text-gold">{categories.length}</div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Natural Language Search */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+            className="mb-6"
+          >
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search markets... (e.g., 'Trump', 'crypto', 'election')"
+                className="w-full bg-dark-800 border border-gold/30 rounded-lg px-4 py-3 text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold/60 focus:ring-2 focus:ring-gold/20"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gold transition-colors"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            {searchQuery && (
+              <div className="mt-2 text-sm text-gray-400">
+                Found <span className="text-gold font-semibold">{filteredMarkets.length}</span> markets matching "{searchQuery}"
+              </div>
+            )}
+          </motion.div>
+
+          {/* Loading State */}
+          {loadingMarkets && (
+            <div className="text-center py-16">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gold"></div>
+              <p className="text-gray-400 mt-4">Loading markets...</p>
+            </div>
+          )}
+
+          {/* Error State */}
+          {marketError && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6 mb-8">
+              <div className="text-red-400 font-semibold mb-2">Error</div>
+              <div className="text-red-300">{marketError}</div>
+            </div>
+          )}
+
+          {/* Filters */}
+          {!loadingMarkets && !marketError && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+              className="flex items-center justify-between mb-8"
+            >
+              {/* Category Filter */}
+              <div className="flex items-center space-x-2 overflow-x-auto pb-2">
+                <button
+                  onClick={() => setSelectedCategory('All')}
+                  className={`px-4 py-2 rounded-lg border transition-all whitespace-nowrap ${
+                    selectedCategory === 'All'
+                      ? 'bg-gold/20 text-gold border-gold/40'
+                      : 'bg-dark-800 text-gray-400 border-gold/20 hover:border-gold/40'
+                  }`}
+                >
+                  All ({markets.length})
+                </button>
+                {categories.map((cat) => (
+                  <button
+                    key={cat.category}
+                    onClick={() => setSelectedCategory(cat.category)}
+                    className={`px-4 py-2 rounded-lg border transition-all whitespace-nowrap ${
+                      selectedCategory === cat.category
+                        ? 'bg-gold/20 text-gold border-gold/40'
+                        : 'bg-dark-800 text-gray-400 border-gold/20 hover:border-gold/40'
+                    }`}
+                  >
+                    {cat.category} ({cat.count})
+                  </button>
+                ))}
+              </div>
+
+              {/* Sort */}
+              <div className="flex items-center space-x-2 ml-4">
+                <span className="text-gray-400 text-sm whitespace-nowrap">Sort by:</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="bg-dark-800 border border-gold/30 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-gold/60"
+                >
+                  <option value="volume">Volume</option>
+                  <option value="probability">Probability</option>
+                  <option value="traders">Traders</option>
+                </select>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Markets Grid */}
+          {!loadingMarkets && !marketError && filteredMarkets.length > 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-12"
+            >
+              {filteredMarkets.map((market) => (
+                <MarketCard
+                  key={market.id}
+                  market={market}
+                  onClick={() => setSelectedMarket(market)}
+                />
+              ))}
+            </motion.div>
+          ) : !loadingMarkets && !marketError ? (
+            <div className="text-center py-16 bg-dark-800 border border-gold/20 rounded-lg">
+              <div className="text-xl text-gray-400 mb-2">No markets found</div>
+              <div className="text-sm text-gray-500">Try adjusting your search or filters</div>
+            </div>
+          ) : null}
+
+          {/* Load More */}
+          {!loadingMarkets && hasMore && (
+            <div className="text-center">
+              <button
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="px-8 py-3 bg-gold/10 border border-gold/30 rounded-lg text-gold hover:bg-gold/20 hover:border-gold/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loadingMore ? 'Loading...' : `Load More Markets (${markets.length} loaded)`}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Market Detail Modal */}
+        {selectedMarket && (
+          <MarketDetailModal
+            market={selectedMarket}
+            onClose={() => setSelectedMarket(null)}
+          />
+        )}
+      </section>
+
       {/* Data Universe - Collections Browser */}
       <section
+        id="database"
         ref={statsRef}
         className="min-h-screen flex flex-col justify-center px-6 py-12 relative overflow-hidden"
       >
@@ -661,6 +980,9 @@ export default function HomePage() {
           )}
         </div>
       </section>
+
+      {/* Scroll to Top Button */}
+      <ScrollToTop />
     </div>
   )
 }
