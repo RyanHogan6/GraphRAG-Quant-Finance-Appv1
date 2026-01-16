@@ -150,38 +150,50 @@ export default function GraphVisualization() {
     {
       id: 'company',
       type: 'custom',
-      position: { x: 450, y: 300 },
+      position: { x: 500, y: 350 },
       data: { label: 'Company', count: '852 companies', isCenter: true },
     },
     {
       id: 'marketdata',
       type: 'custom',
-      position: { x: 150, y: 100 },
+      position: { x: 200, y: 150 },
       data: { label: 'Market Data', count: '2M+ records', isCenter: false },
     },
     {
       id: 'awards',
       type: 'custom',
-      position: { x: 750, y: 100 },
+      position: { x: 800, y: 150 },
       data: { label: 'Gov Contracts', count: '500K+ awards', isCenter: false },
     },
     {
       id: 'sec',
       type: 'custom',
-      position: { x: 150, y: 500 },
+      position: { x: 100, y: 550 },
       data: { label: 'SEC Filings', count: '15K+ filings', isCenter: false },
     },
     {
-      id: 'polymarket',
+      id: 'predictionmarkets',
       type: 'custom',
-      position: { x: 750, y: 500 },
-      data: { label: 'Polymarket', count: '10K+ markets', isCenter: false },
+      position: { x: 700, y: 550 },
+      data: { label: 'Prediction Markets', count: '18K+ markets', isCenter: false },
     },
     {
       id: 'web',
       type: 'custom',
-      position: { x: 450, y: 20 },
+      position: { x: 500, y: 50 },
       data: { label: 'Web Search', count: 'Real-time', isCenter: false },
+    },
+    {
+      id: 'fred',
+      type: 'custom',
+      position: { x: 300, y: 550 },
+      data: { label: 'FRED Data', count: 'Economic indicators', isCenter: false },
+    },
+    {
+      id: 'cftc',
+      type: 'custom',
+      position: { x: 900, y: 350 },
+      data: { label: 'CFTC Positions', count: 'Futures data', isCenter: false },
     },
   ]
 

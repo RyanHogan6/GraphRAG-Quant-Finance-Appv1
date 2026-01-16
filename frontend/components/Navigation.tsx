@@ -18,7 +18,7 @@ export default function Navigation() {
   // Track which section is currently in view
   useEffect(() => {
     const handleScroll = () => {
-      const sections = ['query', 'markets', 'database']
+      const sections = ['query', 'markets', 'database', 'about']
       const scrollPosition = window.scrollY + 100
 
       for (const sectionId of sections) {
@@ -42,6 +42,7 @@ export default function Navigation() {
     { id: 'query', label: 'Query' },
     { id: 'markets', label: 'Markets' },
     { id: 'database', label: 'Database' },
+    { id: 'about', label: 'About' },
   ]
 
   return (
@@ -66,10 +67,6 @@ export default function Navigation() {
                 {link.label}
               </button>
             ))}
-          </div>
-
-          <div className="flex items-center space-x-4">
-            <div className="text-sm text-gray-500">Status: <span className="text-green-400">Online</span></div>
           </div>
         </div>
       </div>
