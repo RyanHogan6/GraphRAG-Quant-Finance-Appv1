@@ -1,9 +1,9 @@
 export default function About() {
   return (
-    <div className="min-h-screen bg-dark-900 text-gray-200 py-16 px-6">
+    <div className="min-h-screen bg-dark-900 text-gray-200 py-16 px-6 antialiased">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-5xl font-bold text-gold mb-6">About GraphRAG Markets</h1>
-        <p className="text-xl text-gray-400 mb-12">
+        <h1 className="text-5xl font-bold text-gold mb-6 font-mono tracking-tight">About GraphRAG Markets</h1>
+        <p className="text-xl text-gray-400 mb-12 font-light">
           A technical deep-dive into AI-powered financial knowledge graphs
         </p>
 
@@ -15,12 +15,12 @@ export default function About() {
               The Problem
             </h2>
             <div className="bg-dark-800 border border-gold/20 rounded-lg p-8">
-              <p className="text-gray-300 mb-4 text-lg leading-relaxed">
+              <p className="text-gray-300 mb-4 text-lg leading-relaxed font-light">
                 Traditional financial data platforms store information in isolated silos. Stock prices live in one database,
                 government contracts in another, SEC filings in a third, and prediction markets somewhere else entirely.
               </p>
-              <p className="text-gray-300 mb-4 text-lg leading-relaxed">
-                When you want to answer questions like <em className="text-gold">"Which S&P 500 companies with significant
+              <p className="text-gray-300 mb-4 text-lg leading-relaxed font-light">
+                When you want to answer questions like <em className="text-gold font-normal">"Which S&P 500 companies with significant
                 government contracts are mentioned in prediction markets?"</em> - you'd need to manually query multiple
                 systems, export data, and perform complex joins in spreadsheets.
               </p>
