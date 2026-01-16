@@ -363,6 +363,9 @@ export default function HomePage() {
     const prefetchMarkets = async () => {
       try {
         const { api } = await import('@/lib/api')
+        const { marketCache } = await import('@/lib/marketCache')
+        // Clear cache on mount to ensure fresh data
+        marketCache.clear()
         // Prefetch Polymarket in background (most common)
         api.getFeaturedMarkets(200, 'polymarket').catch(() => {})
         api.getCategories('polymarket').catch(() => {})
