@@ -66,10 +66,10 @@ class QueryExecuteResponse(BaseModel):
 
 @router.post("/intent")
 @limiter.limit("60/minute")
-def check_intent(http_request: Request, request: QueryRequest):
+def check_intent(request: Request, body: QueryRequest):
     """Classify query intent (ticker vs concept)"""
     try:
-        intent = quick_intent_check(request.question)
+        intent = quick_intent_check(body.question)
         return {"intent": intent}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -77,16 +77,16 @@ def check_intent(http_request: Request, request: QueryRequest):
 
 @router.post("/plan", response_model=QueryPlanResponse)
 @limiter.limit("30/minute")
-def plan_query(http_request: Request, request: QueryRequest):
+def plan_query(request: Request, body: QueryRequest):
     """Generate AQL query from natural language"""
     start_time = time.time()
 
     try:
         # Check intent
-        intent = quick_intent_check(request.question)
+        intent = quick_intent_check(body.question)
 
         # Plan query
-        query_plan = plan_query_with_llm(request.question, intent_hint=intent)
+        query_plan = plan_query_with_llm(body.question, intent_hint=intent)
 
         if not query_plan:
             raise HTTPException(status_code=500, detail="Failed to generate query plan")
@@ -168,7 +168,7 @@ def execute_web_search(question: str):
 
 @router.post("/execute", response_model=QueryExecuteResponse)
 @limiter.limit("20/minute")  # Stricter limit for expensive operations
-def execute_query(http_request: Request, request: QueryRequest):
+def execute_query(request: Request, body: QueryRequest):
     """
     Execute natural language query with PARALLEL DB + Web search
 
@@ -188,9 +188,9 @@ def execute_query(http_request: Request, request: QueryRequest):
         # Run DB query, web search, and intent classification IN PARALLEL
         with ThreadPoolExecutor(max_workers=3) as executor:
             # Submit all tasks
-            db_future = executor.submit(execute_db_query, request.question)
-            web_future = executor.submit(execute_web_search, request.question)
-            intent_future = executor.submit(classify_query_intent, request.question)
+            db_future = executor.submit(execute_db_query, body.question)
+            web_future = executor.submit(execute_web_search, body.question)
+            intent_future = executor.submit(classify_query_intent, body.question)
 
             # Wait for all to complete
             results, query_plan, db_error = db_future.result()
@@ -219,7 +219,7 @@ def execute_query(http_request: Request, request: QueryRequest):
         if results and web_context_data.get('summary'):
             # Hybrid: combine both DB and web
             analysis = synthesize_hybrid_response(
-                question=request.question,
+                question=body.question,
                 db_results={'data': results, 'count': len(results)},
                 web_context=web_context_data
             )
@@ -228,14 +228,14 @@ def execute_query(http_request: Request, request: QueryRequest):
             analysis = web_context_data['summary']
         elif results:
             # DB-only (web failed)
-            analysis = analyze_results_with_llm(request.question, results, query_plan)
+            analysis = analyze_results_with_llm(body.question, results, query_plan)
         else:
             # Both failed
             analysis = "I couldn't retrieve information from either the database or web sources. Please try rephrasing your question."
 
         # Generate follow-up questions
         print(f"[EXECUTE] Generating follow-ups for {len(results)} results")
-        follow_ups = generate_follow_up_questions(request.question, results, query_plan)
+        follow_ups = generate_follow_up_questions(body.question, results, query_plan)
         print(f"[EXECUTE] Generated {len(follow_ups)} follow-up questions")
 
         # Log web context status
