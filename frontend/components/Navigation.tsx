@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 export default function Navigation() {
   const pathname = usePathname()
   const [activeSection, setActiveSection] = useState('query')
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   // Smooth scroll to section
   const scrollToSection = (sectionId: string) => {
@@ -13,6 +14,7 @@ export default function Navigation() {
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
+    setMobileMenuOpen(false) // Close menu after navigation
   }
 
   // Track which section is currently in view
@@ -47,13 +49,15 @@ export default function Navigation() {
 
   return (
     <nav className="border-b border-gold/20 bg-dark-800 sticky top-0 z-50">
-      <div className="container mx-auto px-6 py-4">
+      <div className="container mx-auto px-4 md:px-6 py-4">
         <div className="flex items-center justify-between">
+          {/* Logo */}
           <div className="flex items-center space-x-2">
-            <h1 className="text-xl font-bold text-gold font-mono">GraphRAG</h1>
+            <h1 className="text-lg md:text-xl font-bold text-gold font-mono">GraphRAG</h1>
           </div>
 
-          <div className="flex-1 flex items-center justify-center">
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex flex-1 items-center justify-center">
             <div className="flex space-x-1">
               {links.slice(0, 3).map((link) => (
                 <button
@@ -71,7 +75,7 @@ export default function Navigation() {
             </div>
           </div>
 
-          <div className="flex items-center">
+          <div className="hidden md:flex items-center">
             <button
               onClick={() => scrollToSection('about')}
               className={`px-4 py-2 rounded-lg transition-all ${
@@ -83,7 +87,43 @@ export default function Navigation() {
               About
             </button>
           </div>
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 text-gray-400 hover:text-gold transition-colors"
+            aria-label="Toggle menu"
+          >
+            {mobileMenuOpen ? (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
         </div>
+
+        {/* Mobile Menu Dropdown */}
+        {mobileMenuOpen && (
+          <div className="md:hidden mt-4 pb-4 space-y-2">
+            {links.map((link) => (
+              <button
+                key={link.id}
+                onClick={() => scrollToSection(link.id)}
+                className={`w-full text-left px-4 py-3 rounded-lg transition-all ${
+                  activeSection === link.id
+                    ? 'bg-gold/20 text-gold border border-gold/40'
+                    : 'text-gray-400 hover:text-gold hover:bg-gold/10'
+                }`}
+              >
+                {link.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </nav>
   )

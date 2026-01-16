@@ -572,7 +572,7 @@ export default function HomePage() {
             transition={{ duration: 0.8 }}
             className="text-center mb-16"
           >
-            <h2 className="text-5xl font-bold text-gold mb-6">Why Knowledge Graphs?</h2>
+            <h2 className="text-3xl md:text-5xl font-bold text-gold mb-6">Why Knowledge Graphs?</h2>
             <p className="text-xl text-gray-400 max-w-3xl mx-auto">
               Traditional databases see data in silos. Graphs see connections.
             </p>
@@ -647,7 +647,7 @@ export default function HomePage() {
             transition={{ duration: 0.8 }}
             className="mb-8 text-center"
           >
-            <h2 className="text-4xl font-bold text-gold mb-2">AI Query Interface</h2>
+            <h2 className="text-2xl md:text-4xl font-bold text-gold mb-2">AI Query Interface</h2>
             <p className="text-gray-500">Natural language queries over financial knowledge graph</p>
           </motion.div>
 
@@ -721,8 +721,8 @@ export default function HomePage() {
             </div>
 
             {/* Input */}
-            <div className="border-t border-gold/20 p-4">
-              <form onSubmit={handleSubmit} className="flex space-x-3">
+            <div className="border-t border-gold/20 p-3 md:p-4">
+              <form onSubmit={handleSubmit} className="flex flex-col md:flex-row md:space-x-3 space-y-3 md:space-y-0">
                 <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
@@ -732,15 +732,15 @@ export default function HomePage() {
                       handleSubmit(e)
                     }
                   }}
-                  placeholder="Ask a question about markets, companies, or contracts... (Shift+Enter for new line)"
+                  placeholder="Ask a question about markets, companies, or contracts..."
                   rows={4}
-                  className="flex-1 bg-dark-700 border border-gold/30 rounded-lg px-4 py-3 text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold/60 focus:ring-2 focus:ring-gold/20 resize-y min-h-[100px] max-h-[300px]"
+                  className="flex-1 bg-dark-700 border border-gold/30 rounded-lg px-3 py-2 md:px-4 md:py-3 text-sm md:text-base text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold/60 focus:ring-2 focus:ring-gold/20 resize-y min-h-[100px] max-h-[300px]"
                   disabled={isLoading}
                 />
                 <button
                   type="submit"
                   disabled={isLoading || !input.trim()}
-                  className="px-6 py-3 bg-gold/20 border border-gold/40 rounded-lg text-gold hover:bg-gold/30 hover:border-gold/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold self-end"
+                  className="w-full md:w-auto px-6 py-3 bg-gold/20 border border-gold/40 rounded-lg text-gold hover:bg-gold/30 hover:border-gold/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold md:self-end"
                 >
                   Send
                 </button>
@@ -755,13 +755,13 @@ export default function HomePage() {
             viewport={{ once: true }}
             transition={{ duration: 0.8, delay: 0.2 }}
           >
-            <h3 className="text-lg font-semibold text-gold mb-4">Suggested Questions</h3>
-            <div className="grid grid-cols-2 gap-3">
+            <h3 className="text-base md:text-lg font-semibold text-gold mb-4">Suggested Questions</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {suggestedQuestions.map((question, idx) => (
                 <button
                   key={idx}
                   onClick={() => setInput(question)}
-                  className="bg-dark-800 border border-gold/20 rounded-lg p-4 text-left text-sm text-gray-400 hover:border-gold/40 hover:text-gold transition-all"
+                  className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-4 text-left text-xs md:text-sm text-gray-400 hover:border-gold/40 hover:text-gold transition-all"
                 >
                   {question}
                 </button>
@@ -793,7 +793,7 @@ export default function HomePage() {
             transition={{ duration: 0.8 }}
             className="text-center mb-12"
           >
-            <h2 className="text-5xl font-bold text-gold mb-6">Graph Architecture</h2>
+            <h2 className="text-3xl md:text-5xl font-bold text-gold mb-6">Graph Architecture</h2>
             <p className="text-xl text-gray-400 max-w-3xl mx-auto mb-8">
               Everything connects to everything. Click nodes to explore how data flows through the knowledge graph.
             </p>
@@ -830,7 +830,7 @@ export default function HomePage() {
       {/* Prediction Markets Section */}
       <section
         id="markets"
-        className="min-h-screen snap-start flex flex-col justify-center px-6 py-12 relative overflow-hidden"
+        className="min-h-screen snap-start flex flex-col justify-center px-4 py-8 md:px-6 md:py-12 relative overflow-hidden"
       >
         {/* Animated background grid */}
         <motion.div
@@ -845,7 +845,7 @@ export default function HomePage() {
             transition={{ duration: 0.8 }}
             className="mb-8"
           >
-            <h2 className="text-5xl font-bold text-gold mb-2 text-center">Prediction Markets</h2>
+            <h2 className="text-3xl md:text-5xl font-bold text-gold mb-2 text-center">Prediction Markets</h2>
             <p className="text-gray-400 text-center mb-6">Live market data from Polymarket & Kalshi</p>
 
             {/* Platform Toggle */}
@@ -1065,7 +1065,7 @@ export default function HomePage() {
       <section
         id="database"
         ref={statsRef}
-        className="min-h-screen snap-start flex flex-col justify-center px-6 py-12 relative overflow-hidden"
+        className="min-h-screen snap-start flex flex-col justify-center px-4 py-8 md:px-6 md:py-12 relative overflow-hidden"
       >
         {/* Animated background grid */}
         <motion.div
@@ -1079,7 +1079,7 @@ export default function HomePage() {
             transition={{ duration: 0.8 }}
             className="text-center mb-12"
           >
-            <h2 className="text-5xl font-bold text-gold mb-6">Data Universe</h2>
+            <h2 className="text-3xl md:text-5xl font-bold text-gold mb-6">Data Universe</h2>
             <p className="text-xl text-gray-400 max-w-3xl mx-auto mb-8">
               Explore all database collections and their connections
             </p>
@@ -1341,24 +1341,24 @@ export default function HomePage() {
       {/* About Section */}
       <section
         id="about"
-        className="min-h-screen snap-start flex flex-col justify-center px-6 py-12 relative overflow-hidden"
+        className="min-h-screen snap-start flex flex-col justify-center px-4 py-8 md:px-6 md:py-12 relative overflow-hidden"
       >
-        <div className="max-w-5xl mx-auto w-full relative z-10">
+        <div className="max-w-5xl mx-auto w-full relative z-10 px-2 md:px-0">
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.8 }}
           >
-            <h2 className="text-5xl font-bold text-gold mb-8 text-center">About GraphRAG Markets</h2>
+            <h2 className="text-3xl md:text-5xl font-bold text-gold mb-8 text-center font-mono tracking-tight">About GraphRAG Markets</h2>
 
             <div className="space-y-8">
               {/* Overview */}
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-8">
-                <p className="text-xl text-gray-300 leading-relaxed mb-4">
+                <p className="text-xl text-gray-300 leading-relaxed mb-4 font-light">
                   GraphRAG Markets combines <span className="text-gold font-semibold">Knowledge Graphs</span>, <span className="text-gold font-semibold">Retrieval Augmented Generation</span>, and <span className="text-gold font-semibold">Semantic Search</span> to provide AI-powered financial intelligence.
                 </p>
-                <p className="text-lg text-gray-400 leading-relaxed">
+                <p className="text-lg text-gray-400 leading-relaxed font-light">
                   Ask questions in natural language, and GPT-4 generates precise database queries across interconnected financial data sources—no hallucinations, only real data.
                 </p>
               </div>
@@ -1368,7 +1368,7 @@ export default function HomePage() {
                 <div className="bg-dark-800 border border-gold/30 rounded-lg p-6 hover:border-gold/60 transition-all">
                   <div className="text-3xl mb-3">📊</div>
                   <h3 className="text-lg font-semibold text-gold mb-2">Multi-Source Data</h3>
-                  <p className="text-sm text-gray-400">
+                  <p className="text-sm text-gray-400 font-light leading-relaxed">
                     S&P 500 stocks, government contracts, prediction markets, SEC filings, economic indicators, and commodities—all in one graph.
                   </p>
                 </div>
@@ -1376,7 +1376,7 @@ export default function HomePage() {
                 <div className="bg-dark-800 border border-gold/30 rounded-lg p-6 hover:border-gold/60 transition-all">
                   <div className="text-3xl mb-3">🤖</div>
                   <h3 className="text-lg font-semibold text-gold mb-2">AI Query Generation</h3>
-                  <p className="text-sm text-gray-400">
+                  <p className="text-sm text-gray-400 font-light leading-relaxed">
                     GPT-4 converts your questions into optimized graph queries with semantic search, multi-hop traversals, and parallel execution.
                   </p>
                 </div>
@@ -1384,7 +1384,7 @@ export default function HomePage() {
                 <div className="bg-dark-800 border border-gold/30 rounded-lg p-6 hover:border-gold/60 transition-all">
                   <div className="text-3xl mb-3">⚡</div>
                   <h3 className="text-lg font-semibold text-gold mb-2">Blazing Fast</h3>
-                  <p className="text-sm text-gray-400">
+                  <p className="text-sm text-gray-400 font-light leading-relaxed">
                     Query 2M+ documents with 50ms graph traversals. Parallel DB + web search delivers results in under 3 seconds.
                   </p>
                 </div>
@@ -1393,7 +1393,7 @@ export default function HomePage() {
               {/* Architecture Preview */}
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-6">
                 <h3 className="text-xl font-semibold text-gold mb-4">How It Works</h3>
-                <div className="space-y-3 text-sm text-gray-400">
+                <div className="space-y-3 text-sm text-gray-400 font-light">
                   <div className="flex items-start">
                     <span className="text-green-400 font-semibold mr-3 mt-1">1.</span>
                     <div>
