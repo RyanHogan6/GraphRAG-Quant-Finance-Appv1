@@ -13,7 +13,7 @@ export default function AnimatedLogo() {
   }, [])
 
   return (
-    <div className="flex items-center justify-center gap-4 md:gap-8">
+    <div className="flex items-center justify-center gap-2 md:gap-3">
       {/* Snake slithers in from left with S-curve motion (Chamber of Secrets style) */}
       <motion.div
         initial={{ x: -400, opacity: 0, rotate: -10 }}
@@ -71,7 +71,8 @@ export default function AnimatedLogo() {
           <img
             src="/logo-snake.png"
             alt="KARGA Snake"
-            className="w-48 h-48 md:w-64 md:h-64 lg:w-80 lg:h-80 object-contain"
+            className="w-36 h-36 md:w-48 md:h-48 lg:w-60 lg:h-60 object-contain"
+            style={{ width: '144px', height: '144px' }}
           />
         </motion.div>
       </motion.div>
@@ -97,7 +98,8 @@ export default function AnimatedLogo() {
         <img
           src="/logo-bar.png"
           alt="KARGA Divider"
-          className="h-40 w-auto md:h-48 lg:h-56 object-contain"
+          className="h-32 w-auto md:h-40 lg:h-44 object-contain"
+          style={{ height: '120px' }}
         />
       </motion.div>
 
@@ -119,7 +121,8 @@ export default function AnimatedLogo() {
         <img
           src="/logo-name.png"
           alt="KARGA"
-          className="w-80 h-auto md:w-96 lg:w-[32rem] object-contain"
+          className="w-60 h-auto md:w-72 lg:w-96 object-contain"
+          style={{ width: '240px' }}
         />
       </motion.div>
     </div>
