@@ -15,6 +15,7 @@ from slowapi.util import get_remote_address
 from app.database.connection import get_db, execute_aql, fix_aql_query
 from app.llm.planning import plan_query_with_llm, quick_intent_check, get_query_embedding, generate_follow_up_questions, analyze_results_with_llm
 from app.llm.web_search import classify_query_intent, search_web_context, synthesize_hybrid_response
+from app.cache import query_cache
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -277,7 +278,43 @@ async def execute_query_stream(request: Request, body: QueryRequest):
         try:
             start_time = time.time()
 
-            # Step 1: Analyzing question
+            # Step 0: Check cache first
+            cached_result = query_cache.get(body.question)
+            if cached_result:
+                # Cache hit! Return immediately
+                yield f"data: {json.dumps({'type': 'progress', 'stage': 'cache_hit', 'message': '⚡ Retrieved from cache (instant!)'})}\n\n"
+                await asyncio.sleep(0.1)
+
+                # Stream cached analysis
+                yield f"data: {json.dumps({'type': 'content_start', 'message': 'Streaming cached analysis...'})}\n\n"
+
+                analysis = cached_result.get('analysis', '')
+                words = analysis.split(' ')
+                chunk_size = 8  # Faster streaming for cached results
+                for i in range(0, len(words), chunk_size):
+                    chunk = ' '.join(words[i:i+chunk_size])
+                    if i + chunk_size < len(words):
+                        chunk += ' '
+                    yield f"data: {json.dumps({'type': 'content_chunk', 'chunk': chunk})}\n\n"
+                    await asyncio.sleep(0.01)
+
+                # Send cached complete payload
+                final_payload = {
+                    'type': 'complete',
+                    'results': cached_result.get('results', [])[:100],
+                    'count': cached_result.get('count', 0),
+                    'execution_time': time.time() - start_time,
+                    'query_plan': cached_result.get('query_plan', {}),
+                    'follow_up_questions': cached_result.get('follow_up_questions', []),
+                    'query_intent': cached_result.get('query_intent', ''),
+                    'web_context': cached_result.get('web_context', {}),
+                    'from_cache': True
+                }
+                yield f"data: {json.dumps(final_payload)}\n\n"
+                yield "data: [DONE]\n\n"
+                return
+
+            # Step 1: Analyzing question (cache miss)
             yield f"data: {json.dumps({'type': 'progress', 'stage': 'analyzing', 'message': 'Understanding your question...'})}\n\n"
             await asyncio.sleep(0.1)  # Small delay for UX
 
@@ -318,17 +355,23 @@ async def execute_query_stream(request: Request, body: QueryRequest):
 
             # Generate analysis
             if results and web_context_data.get('summary'):
+                print(f"[ANALYSIS] Using hybrid synthesis (DB + Web)")
                 analysis = synthesize_hybrid_response(
                     question=body.question,
                     db_results={'data': results, 'count': len(results)},
                     web_context=web_context_data
                 )
             elif web_context_data.get('summary'):
+                print(f"[ANALYSIS] Using web-only summary")
                 analysis = web_context_data['summary']
             elif results:
+                print(f"[ANALYSIS] Using DB-only LLM analysis")
                 analysis = analyze_results_with_llm(body.question, results, query_plan)
             else:
+                print(f"[ANALYSIS] No results - using fallback message")
                 analysis = "I couldn't retrieve information from either the database or web sources. Please try rephrasing your question."
+
+            print(f"[ANALYSIS] Generated {len(analysis)} characters")
 
             # Step 4: Stream analysis content in chunks
             yield f"data: {json.dumps({'type': 'content_start', 'message': 'Streaming analysis...'})}\n\n"
@@ -344,8 +387,8 @@ async def execute_query_stream(request: Request, body: QueryRequest):
                 yield f"data: {json.dumps({'type': 'content_chunk', 'chunk': chunk})}\n\n"
                 await asyncio.sleep(0.02)  # Small delay for streaming effect
 
-            # Step 5: Generate follow-up questions
-            yield f"data: {json.dumps({'type': 'progress', 'stage': 'followup', 'message': 'Generating follow-up questions...'})}\n\n"
+            # Step 5: Generate follow-up questions (silently, don't send progress that overwrites content)
+            print(f"[STREAM] Generating follow-up questions...")
 
             follow_ups = []
             if results:
@@ -374,6 +417,21 @@ async def execute_query_stream(request: Request, body: QueryRequest):
                 }
             }
 
+            # Cache the complete result for future queries
+            cache_data = {
+                'results': results,
+                'count': len(results),
+                'query_plan': query_plan,
+                'analysis': analysis,
+                'follow_up_questions': follow_ups,
+                'query_intent': query_intent,
+                'web_context': {
+                    'sources': web_context_data.get('sources', []),
+                    'citations': web_context_data.get('citations', [])
+                }
+            }
+            query_cache.set(body.question, cache_data)
+
             yield f"data: {json.dumps(final_payload)}\n\n"
 
             # End stream
@@ -397,3 +455,16 @@ async def execute_query_stream(request: Request, body: QueryRequest):
             "X-Accel-Buffering": "no"  # Disable nginx buffering
         }
     )
+
+
+@router.get("/cache/stats")
+def get_cache_stats():
+    """Get query cache statistics"""
+    return query_cache.get_stats()
+
+
+@router.post("/cache/clear")
+def clear_cache():
+    """Clear query cache (admin only in production)"""
+    query_cache.clear()
+    return {"message": "Cache cleared successfully"}

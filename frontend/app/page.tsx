@@ -21,6 +21,19 @@ interface Message {
     sources?: string[]
     citations?: Array<{number: number, url: string, referenced: boolean}>
   }
+  metadata?: {
+    tickers?: string[]
+    companies?: string[]
+    collections?: string[]
+    queryIntent?: string
+    resultCount?: number
+  }
+  queryPlan?: {
+    aql_query?: string
+    bind_vars?: any
+    intent?: string
+    explanation?: string
+  }
 }
 
 export default function HomePage() {
@@ -33,6 +46,7 @@ export default function HomePage() {
   ])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [showAdvancedMode, setShowAdvancedMode] = useState(false)
 
   // Refs for scroll animations
   const heroRef = useRef(null)
@@ -203,7 +217,8 @@ export default function HomePage() {
       // Prepare conversation history (last 6 messages, excluding current)
       const conversationHistory = messages.slice(-6).map(msg => ({
         role: msg.role,
-        content: msg.content
+        content: msg.content,
+        metadata: msg.metadata  // Include extracted entities
       }))
 
       // Use streaming endpoint
@@ -272,16 +287,23 @@ export default function HomePage() {
               } else if (parsed.type === 'content_chunk') {
                 // Append content chunk
                 contentBuffer += parsed.chunk
+                console.log('[STREAM] Content chunk received, total length:', contentBuffer.length)
                 setMessages((prev) => {
                   const newMessages = [...prev]
                   newMessages[newMessages.length - 1].content = contentBuffer
                   return newMessages
                 })
               } else if (parsed.type === 'complete') {
-                // Add final data
+                // Add final data - PRESERVE EXISTING CONTENT
                 setMessages((prev) => {
                   const newMessages = [...prev]
                   const lastMsg = newMessages[newMessages.length - 1]
+
+                  // IMPORTANT: Preserve the content that was streamed
+                  // Only update if content is missing (shouldn't happen)
+                  if (!lastMsg.content || lastMsg.content.trim() === '') {
+                    lastMsg.content = contentBuffer || 'No analysis available'
+                  }
 
                   // Store follow-up questions separately (render as buttons)
                   if (parsed.follow_up_questions && parsed.follow_up_questions.length > 0) {
@@ -293,7 +315,33 @@ export default function HomePage() {
                     lastMsg.webContext = parsed.web_context
                   }
 
+                  // Store query plan for advanced mode
+                  if (parsed.query_plan) {
+                    lastMsg.queryPlan = parsed.query_plan
+                  }
+
+                  // Extract and store metadata from results
                   lastMsg.results = parsed.results
+                  if (parsed.results && parsed.results.length > 0) {
+                    const tickers = new Set<string>()
+                    const companies = new Set<string>()
+
+                    parsed.results.forEach((result: any) => {
+                      if (result.ticker) tickers.add(result.ticker)
+                      if (result.company) companies.add(result.company)
+                      if (result.recipient_name) companies.add(result.recipient_name)
+                      if (result.recipient) companies.add(result.recipient)
+                    })
+
+                    lastMsg.metadata = {
+                      tickers: Array.from(tickers),
+                      companies: Array.from(companies),
+                      collections: parsed.query_plan?.collections || [],
+                      queryIntent: parsed.query_intent,
+                      resultCount: parsed.count || parsed.results.length
+                    }
+                  }
+
                   return newMessages
                 })
                 setIsLoading(false)
@@ -781,6 +829,35 @@ export default function HomePage() {
                             message.content
                           )}
                         </div>
+                        {showAdvancedMode && message.queryPlan && message.queryPlan.aql_query && (
+                          <details className="mt-3 mb-3">
+                            <summary className="cursor-pointer text-xs text-purple-400 hover:text-purple-300 font-semibold">
+                              🔧 Query Plan (Advanced)
+                            </summary>
+                            <div className="mt-2 bg-dark-900 border border-purple-500/30 rounded p-3">
+                              <div className="text-xs text-gray-400 mb-2">
+                                <strong className="text-purple-400">Intent:</strong> {message.queryPlan.intent || 'N/A'}
+                                {message.queryPlan.explanation && (
+                                  <div className="mt-1">
+                                    <strong className="text-purple-400">Strategy:</strong> {message.queryPlan.explanation}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-xs text-gray-500 font-mono mb-1">AQL Query:</div>
+                              <pre className="text-xs bg-black/50 p-2 rounded overflow-x-auto text-green-400 border border-green-500/20">
+                                {message.queryPlan.aql_query}
+                              </pre>
+                              {message.queryPlan.bind_vars && Object.keys(message.queryPlan.bind_vars).length > 0 && (
+                                <div className="mt-2">
+                                  <div className="text-xs text-gray-500 font-mono mb-1">Bind Variables:</div>
+                                  <pre className="text-xs bg-black/50 p-2 rounded overflow-x-auto text-blue-400 border border-blue-500/20">
+                                    {JSON.stringify(message.queryPlan.bind_vars, null, 2)}
+                                  </pre>
+                                </div>
+                              )}
+                            </div>
+                          </details>
+                        )}
                         {message.results && message.results.length > 0 && !message.content.includes('|') && (
                           <details className="mt-3">
                             <summary className="cursor-pointer text-xs text-gold hover:text-gold/80 font-semibold">
@@ -870,6 +947,22 @@ export default function HomePage() {
 
             {/* Input */}
             <div className="border-t border-gold/20 p-3 md:p-4">
+              {/* Advanced Mode Toggle */}
+              <div className="flex items-center justify-end mb-3">
+                <label className="flex items-center cursor-pointer">
+                  <span className="text-xs text-gray-400 mr-2">Advanced Mode</span>
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={showAdvancedMode}
+                      onChange={(e) => setShowAdvancedMode(e.target.checked)}
+                      className="sr-only"
+                    />
+                    <div className={`block w-10 h-6 rounded-full transition ${showAdvancedMode ? 'bg-purple-500' : 'bg-gray-600'}`}></div>
+                    <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition ${showAdvancedMode ? 'transform translate-x-4' : ''}`}></div>
+                  </div>
+                </label>
+              </div>
               <form onSubmit={handleSubmit} className="flex flex-col md:flex-row md:space-x-3 space-y-3 md:space-y-0">
                 <textarea
                   value={input}

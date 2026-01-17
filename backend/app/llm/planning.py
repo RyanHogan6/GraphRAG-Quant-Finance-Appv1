@@ -517,8 +517,10 @@ def plan_query_with_llm(question: str, intent_hint=None, conversation_history: l
     # TRY 3: Full LLM planning (slowest - full query generation)
     current_date = datetime.now().strftime("%Y-%m-%d")
 
-    # Build conversation context
+    # Build conversation context with entity extraction
     history_context = ""
+    extracted_entities = {"tickers": [], "companies": [], "collections": []}
+
     if conversation_history and len(conversation_history) > 0:
         history_context = "\n\n**📜 CONVERSATION CONTEXT (Recent messages):**\n"
         # Take last 3 exchanges (6 messages) for context
@@ -527,17 +529,42 @@ def plan_query_with_llm(question: str, intent_hint=None, conversation_history: l
         for msg in recent_history:
             role = msg.get('role', 'user')
             content = msg.get('content', '')
+            metadata = msg.get('metadata', {})
+
+            # Collect entities from metadata
+            if metadata:
+                if metadata.get('tickers'):
+                    extracted_entities['tickers'].extend(metadata['tickers'])
+                if metadata.get('companies'):
+                    extracted_entities['companies'].extend(metadata['companies'])
+                if metadata.get('collections'):
+                    extracted_entities['collections'].extend(metadata['collections'])
 
             # Truncate long messages
             if len(content) > 300:
                 content = content[:300] + "..."
 
             history_context += f"- {role.upper()}: {content}\n"
+            if metadata.get('tickers'):
+                history_context += f"  └─ Tickers mentioned: {', '.join(metadata['tickers'][:5])}\n"
 
-        history_context += "\n⚠️ **IMPORTANT**: User may reference previous results using:\n"
-        history_context += "- 'that company', 'those stocks', 'them', 'it', 'same ticker'\n"
-        history_context += "- 'compare with...', 'show me more', 'what about...'\n"
-        history_context += "- Extract ticker/entity from context if not explicitly stated\n"
+        # Deduplicate entities
+        extracted_entities['tickers'] = list(set(extracted_entities['tickers']))
+        extracted_entities['companies'] = list(set(extracted_entities['companies']))
+        extracted_entities['collections'] = list(set(extracted_entities['collections']))
+
+        history_context += "\n⚠️ **ENTITY CONTEXT** (extracted from previous results):\n"
+        if extracted_entities['tickers']:
+            history_context += f"- Known tickers: {', '.join(extracted_entities['tickers'][:10])}\n"
+        if extracted_entities['companies']:
+            history_context += f"- Known companies: {', '.join(extracted_entities['companies'][:10])}\n"
+        if extracted_entities['collections']:
+            history_context += f"- Previously queried collections: {', '.join(extracted_entities['collections'])}\n"
+
+        history_context += "\n⚠️ **REFERENCE DETECTION**:\n"
+        history_context += "- If user says 'that company/ticker', 'them', 'it', 'same one' → use entities above\n"
+        history_context += "- If user says 'compare with X', use first ticker from previous results as base\n"
+        history_context += "- If user asks follow-up without entity → reuse previous ticker/company\n"
 
     # Add intent hint to prompt
     hint_text = ""
@@ -1022,6 +1049,67 @@ def validate_aql_syntax(aql_query: str, question: str = ""):
     return aql_query, errors, bind_params
 
 
+def generate_smart_suggestions(results: list, query_plan: dict, user_question: str) -> list:
+    """
+    Generate smart contextual suggestions based on query results
+    Analyzes collections, entities found, and suggests related queries
+    """
+    if not results or len(results) == 0:
+        return []
+
+    suggestions = []
+    collections = query_plan.get('collections', [])
+    bind_vars = query_plan.get('bind_vars', {})
+
+    # Extract entities from results
+    tickers = set()
+    companies = set()
+
+    for result in results[:10]:  # Check first 10 results
+        if result.get('ticker'):
+            tickers.add(result['ticker'])
+        if result.get('recipient_name'):
+            companies.add(result['recipient_name'])
+        if result.get('company'):
+            companies.add(result['company'])
+
+    tickers = list(tickers)[:3]  # Top 3 tickers
+    companies = list(companies)[:2]  # Top 2 companies
+
+    # Collection-based suggestions
+    if 'Award' in collections:
+        if tickers:
+            suggestions.append(f"Show prediction markets about {tickers[0]}")
+            suggestions.append(f"What's the stock performance of {tickers[0]}?")
+        suggestions.append("Find contracts related to cybersecurity")
+
+    if 'MarketData' in collections:
+        if tickers:
+            other_tickers = ['MSFT', 'GOOGL', 'AMZN']
+            for t in other_tickers:
+                if t not in tickers:
+                    suggestions.append(f"Compare with {t}")
+                    break
+            suggestions.append(f"Show government contracts for {tickers[0]}")
+
+    if 'prediction_markets_polymarket' in collections:
+        suggestions.append("What markets are whale traders betting on?")
+        if tickers:
+            suggestions.append(f"Show {tickers[0]} stock data")
+
+    if 'polymarket_traders' in collections or 'polymarket_positions' in collections:
+        suggestions.append("Show the most active Polymarket markets")
+        suggestions.append("Find prediction markets with high volume")
+
+    if 'sec_sentences' in collections or 'sec_filings' in collections:
+        if tickers:
+            suggestions.append(f"Show {tickers[0]} stock performance")
+        suggestions.append("Find companies with negative earnings sentiment")
+
+    # Trim to 3-4 suggestions
+    return suggestions[:4]
+
+
 def generate_follow_up_questions(user_question: str, results: list, query_plan: dict):
     """
     Generate dynamic, contextual follow-up questions using LLM.
@@ -1030,6 +1118,11 @@ def generate_follow_up_questions(user_question: str, results: list, query_plan: 
     # Skip if no results
     if not results or len(results) == 0:
         return []
+
+    # First try smart rule-based suggestions
+    smart_suggestions = generate_smart_suggestions(results, query_plan, user_question)
+    if smart_suggestions:
+        return smart_suggestions
 
     collections = query_plan.get('collections', [])
 
