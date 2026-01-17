@@ -9,7 +9,7 @@ export default function Footer() {
         <div className="grid md:grid-cols-4 gap-8">
           {/* About */}
           <div>
-            <h3 className="text-gold font-semibold text-lg mb-4">GraphRAG Markets</h3>
+            <h3 className="text-gold font-semibold text-lg mb-4">KARGA</h3>
             <p className="text-sm text-gray-400 leading-relaxed">
               AI-powered prediction markets and financial data explorer built on knowledge graphs.
             </p>
@@ -80,20 +80,20 @@ export default function Footer() {
             <ul className="space-y-3 text-sm">
               <li className="text-gray-400">
                 <strong className="text-gray-300">General:</strong><br />
-                <a href="mailto:contact@graphragmarkets.com" className="hover:text-gold transition-colors">
-                  contact@graphragmarkets.com
+                <a href="mailto:contact@karga.markets" className="hover:text-gold transition-colors">
+                  contact@karga.markets
                 </a>
               </li>
               <li className="text-gray-400">
                 <strong className="text-gray-300">Privacy:</strong><br />
-                <a href="mailto:privacy@graphragmarkets.com" className="hover:text-gold transition-colors">
-                  privacy@graphragmarkets.com
+                <a href="mailto:privacy@karga.markets" className="hover:text-gold transition-colors">
+                  privacy@karga.markets
                 </a>
               </li>
               <li className="text-gray-400">
                 <strong className="text-gray-300">Legal:</strong><br />
-                <a href="mailto:legal@graphragmarkets.com" className="hover:text-gold transition-colors">
-                  legal@graphragmarkets.com
+                <a href="mailto:legal@karga.markets" className="hover:text-gold transition-colors">
+                  legal@karga.markets
                 </a>
               </li>
             </ul>
@@ -104,7 +104,7 @@ export default function Footer() {
         <div className="border-t border-gold/10 mt-10 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <p className="text-sm text-gray-500 text-center md:text-left">
-              © {currentYear} GraphRAG Markets. All rights reserved.
+              © {currentYear} KARGA. All rights reserved.
             </p>
 
             <div className="flex flex-wrap justify-center gap-4 text-xs text-gray-500">

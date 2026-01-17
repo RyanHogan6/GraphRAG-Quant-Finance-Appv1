@@ -9,7 +9,7 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-2xl font-semibold text-gold mb-4">1. Introduction</h2>
             <p>
-              GraphRAG Markets ("we," "our," or "us") operates a financial data aggregation and
+              KARGA ("we," "our," or "us") operates a financial data aggregation and
               prediction market visualization platform. This Privacy Policy explains how we collect,
               use, and protect your information when you use our website.
             </p>

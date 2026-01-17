@@ -8,7 +8,7 @@ export default function Disclaimer() {
         <div className="bg-red-900/20 border-2 border-red-500/50 rounded-lg p-8 mb-8">
           <h2 className="text-3xl font-bold text-red-300 mb-4">⚠️ NOT FINANCIAL ADVICE</h2>
           <p className="text-xl font-semibold text-red-200">
-            The information provided on GraphRAG Markets is for informational and educational
+            The information provided on KARGA is for informational and educational
             purposes ONLY. Nothing on this website constitutes financial, investment, legal,
             or tax advice.
           </p>
@@ -18,7 +18,7 @@ export default function Disclaimer() {
           <section>
             <h2 className="text-2xl font-semibold text-gold mb-4">1. No Investment Advice</h2>
             <p className="mb-4">
-              GraphRAG Markets is NOT a registered investment advisor, broker-dealer, financial
+              KARGA is NOT a registered investment advisor, broker-dealer, financial
               planner, or any other type of financial services provider. We do not:
             </p>
             <ul className="list-disc pl-6 space-y-2">
@@ -180,7 +180,7 @@ export default function Disclaimer() {
 
           <div className="bg-gray-800 border border-gray-600 rounded-lg p-6 mt-8">
             <p className="text-center text-sm text-gray-400">
-              By using GraphRAG Markets, you acknowledge that you have read, understood, and
+              By using KARGA, you acknowledge that you have read, understood, and
               agree to this Disclaimer along with our Terms of Service and Privacy Policy.
             </p>
           </div>

@@ -8,6 +8,7 @@ import GraphVisualization from '@/components/GraphVisualization'
 import MarketCard from '@/components/MarketCard'
 import MarketDetailModal from '@/components/MarketDetailModal'
 import ScrollToTop from '@/components/ScrollToTop'
+import AnimatedLogo from '@/components/AnimatedLogo'
 import { Market } from '@/lib/mockData'
 
 interface Message {
@@ -40,7 +41,7 @@ export default function HomePage() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: 'Welcome to Krig Ask me anything about financial markets, SEC filings, prediction markets, or run complex queries across our knowledge graph.',
+      content: 'Welcome to KARGA. Ask me anything about financial markets, SEC filings, prediction markets, or run complex queries across our knowledge graph.',
       timestamp: new Date(),
     },
   ])
@@ -663,9 +664,10 @@ export default function HomePage() {
           transition={{ duration: 1, delay: 0.2 }}
           className="text-center z-10"
         >
-          <h1 className="text-6xl md:text-8xl font-bold text-gold mb-6 tracking-tight">
-            Krig
-          </h1>
+          {/* Animated KARGA Logo */}
+          <div className="mb-8">
+            <AnimatedLogo />
+          </div>
           <p className="text-2xl md:text-3xl text-gray-300 mb-4">
             Financial Intelligence Powered by Knowledge Graphs
           </p>
@@ -1591,13 +1593,13 @@ export default function HomePage() {
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.8 }}
           >
-            <h2 className="text-3xl md:text-5xl font-bold text-gold mb-8 text-center font-mono tracking-tight">About Krig Markets</h2>
+            <h2 className="text-3xl md:text-5xl font-bold text-gold mb-8 text-center font-mono tracking-tight">About KARGA</h2>
 
             <div className="space-y-6 md:space-y-8">
               {/* Overview */}
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-8">
                 <p className="text-lg md:text-xl text-gray-300 leading-relaxed mb-4 font-light">
-                  Krig Markets combines <span className="text-gold font-semibold">Knowledge Graphs</span>, <span className="text-gold font-semibold">Retrieval Augmented Generation</span>, and <span className="text-gold font-semibold">Semantic Search</span> to provide AI-powered financial intelligence.
+                  KARGA combines <span className="text-gold font-semibold">Knowledge Graphs</span>, <span className="text-gold font-semibold">Retrieval Augmented Generation</span>, and <span className="text-gold font-semibold">Semantic Search</span> to provide AI-powered financial intelligence.
                 </p>
                 <p className="text-base md:text-lg text-gray-400 leading-relaxed font-light">
                   Ask questions in natural language, and GPT-4 generates precise database queries across interconnected financial data sources—no hallucinations, only real data.

@@ -2,7 +2,7 @@ export default function About() {
   return (
     <div className="min-h-screen bg-dark-900 text-gray-200 py-8 md:py-16 px-4 md:px-6 antialiased">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl md:text-5xl font-bold text-gold mb-4 md:mb-6 font-mono tracking-tight">About GraphRAG Markets</h1>
+        <h1 className="text-3xl md:text-5xl font-bold text-gold mb-4 md:mb-6 font-mono tracking-tight">About KARGA Markets</h1>
         <p className="text-lg md:text-xl text-gray-400 mb-8 md:mb-12 font-light">
           A technical deep-dive into AI-powered financial knowledge graphs
         </p>
@@ -34,11 +34,11 @@ export default function About() {
           <section>
             <h2 className="text-2xl md:text-3xl font-semibold text-gold mb-4 md:mb-6 flex items-center">
               <span className="text-4xl mr-3">⚡</span>
-              The Solution: GraphRAG
+              The Solution: KARGA
             </h2>
             <div className="space-y-6">
               <p className="text-gray-300 text-base md:text-lg leading-relaxed">
-                GraphRAG Markets combines three powerful technologies:
+                KARGA Markets combines three powerful technologies:
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
@@ -579,7 +579,7 @@ export default function About() {
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
                 <h4 className="font-semibold text-gold mb-3">🔗 API Access</h4>
                 <p className="text-gray-400 text-sm">
-                  Public API with authentication for programmatic access to GraphRAG
+                  Public API with authentication for programmatic access to KARGA
                   capabilities, enabling integrations with trading platforms.
                 </p>
               </div>
@@ -593,7 +593,7 @@ export default function About() {
               Open Source & Contributions
             </h2>
             <p className="text-gray-300 text-lg leading-relaxed mb-4">
-              GraphRAG Markets is built with transparency in mind. While the core application is
+              KARGA Markets is built with transparency in mind. While the core application is
               proprietary, we're exploring open-sourcing components of the query planning system
               and graph schema to help others build similar systems.
             </p>

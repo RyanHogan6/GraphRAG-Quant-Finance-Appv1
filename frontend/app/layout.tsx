@@ -20,7 +20,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Krig Markets',
+  title: 'KARGA',
   description: 'AI-powered prediction markets and financial data explorer',
 }
 

@@ -9,7 +9,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-2xl font-semibold text-gold mb-4">1. Acceptance of Terms</h2>
             <p>
-              By accessing and using GraphRAG Markets ("Service"), you accept and agree to be
+              By accessing and using KARGA ("Service"), you accept and agree to be
               bound by these Terms of Service. If you do not agree, do not use the Service.
             </p>
           </section>
@@ -17,7 +17,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-2xl font-semibold text-gold mb-4">2. Description of Service</h2>
             <p>
-              GraphRAG Markets is a financial data aggregation and visualization platform that:
+              KARGA is a financial data aggregation and visualization platform that:
             </p>
             <ul className="list-disc pl-6 space-y-2 mt-4">
               <li>Aggregates publicly available market data from various sources</li>
@@ -86,7 +86,7 @@ export default function TermsOfService() {
             <h3 className="text-xl font-semibold text-gray-100 mt-4 mb-2">6.1 Our Rights</h3>
             <p>
               All content, features, and functionality of the Service (including but not limited to
-              text, graphics, logos, code, and software) are owned by GraphRAG Markets and protected
+              text, graphics, logos, code, and software) are owned by KARGA and protected
               by copyright, trademark, and other intellectual property laws.
             </p>
 
@@ -125,7 +125,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-2xl font-semibold text-gold mb-4">8. Indemnification</h2>
             <p>
-              You agree to indemnify and hold harmless GraphRAG Markets from any claims, damages,
+              You agree to indemnify and hold harmless KARGA from any claims, damages,
               losses, or expenses (including legal fees) arising from your use of the Service or
               violation of these Terms.
             </p>

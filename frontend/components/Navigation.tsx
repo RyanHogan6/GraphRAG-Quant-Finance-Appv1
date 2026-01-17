@@ -57,7 +57,7 @@ export default function Navigation() {
               onClick={() => scrollToSection('query')}
               className="text-lg md:text-xl font-bold text-gold font-mono hover:text-gold/80 transition-colors cursor-pointer"
             >
-              GraphRAG
+              KARGA
             </button>
           </div>
 
