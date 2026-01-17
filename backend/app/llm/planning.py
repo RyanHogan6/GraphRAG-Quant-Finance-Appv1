@@ -560,12 +560,88 @@ CRITICAL: AQL CLAUSE ORDER MUST BE:
 FOR → FILTER → SORT → LIMIT → RETURN
 ⚠️ LIMIT always comes BEFORE RETURN!
 
-EXAMPLE QUERIES (for reference):
-- Ticker query: FOR doc IN Award FILTER doc.ticker == @ticker SORT doc.award_amount_float DESC LIMIT 10 RETURN doc
-- Semantic query: FOR doc IN Award FILTER doc.description_embedding != null LET sim = COSINE_SIMILARITY(doc.description_embedding, @query_vector) FILTER sim >= 0.7 SORT sim DESC LIMIT 10 RETURN doc
-- SEC sentiment: FOR doc IN sec_sentences FILTER CONTAINS(LOWER(doc.text), @keyword) AND doc.finbert_score < -0.3 LIMIT 20 RETURN doc
-- Date range: FOR doc IN MarketData FILTER doc.ticker == @ticker AND doc.date >= DATE_SUBTRACT(DATE_NOW(), 180, "day") SORT doc.date DESC LIMIT 100 RETURN doc
-- Simple query: FOR doc IN EconomicData FILTER doc.federal_funds_rate != null LIMIT 1 RETURN doc
+PROVEN WORKING EXAMPLES (USE THESE PATTERNS):
+
+Example 1: "Show me the top 10 largest government contracts"
+FOR doc IN Award
+  FILTER doc.award_amount_float != null
+  SORT doc.award_amount_float DESC
+  LIMIT 10
+  RETURN {{
+    recipient: doc.recipient_name,
+    amount: doc.award_amount_float,
+    agency: doc.awarding_agency,
+    description: SUBSTRING(doc.description, 0, 200)
+  }}
+
+Example 2: "What are the most active Polymarket prediction markets?"
+FOR market IN prediction_markets_polymarket
+  FILTER market.volume_24h > 0
+  FILTER market.closed == false
+  SORT market.volume_24h DESC
+  LIMIT 10
+  RETURN {{
+    question: market.question,
+    volume_24h: market.volume_24h,
+    yes_probability: market.yes_probability,
+    liquidity: market.liquidity
+  }}
+
+Example 3: "Find contracts related to artificial intelligence"
+(REQUIRES EMBEDDING - set requires_embedding: true)
+FOR doc IN Award
+  FILTER doc.description_embedding != null
+  LET similarity = COSINE_SIMILARITY(doc.description_embedding, @query_vector)
+  FILTER similarity >= 0.70
+  SORT similarity DESC
+  LIMIT 10
+  RETURN {{
+    recipient: doc.recipient_name,
+    amount: doc.award_amount_float,
+    description: SUBSTRING(doc.description, 0, 300),
+    similarity: similarity
+  }}
+
+Example 4: "What markets are whale traders betting on?"
+FOR trader IN polymarket_traders
+  FILTER trader.is_whale == true
+  FOR position IN OUTBOUND trader trader_has_position
+    FILTER position.size > 100
+    FOR market IN OUTBOUND position position_in_market
+      FILTER market.closed == false
+      SORT position.size DESC
+      LIMIT 20
+      RETURN DISTINCT {{
+        market_question: market.question,
+        yes_probability: market.yes_probability,
+        position_size: position.size,
+        trader_volume: trader.total_volume
+      }}
+
+Example 5: "Show me Apple stock data for the last 30 days"
+FOR doc IN MarketData
+  FILTER doc.ticker == @ticker
+  FILTER doc.date >= DATE_SUBTRACT(DATE_NOW(), 30, "day")
+  SORT doc.date DESC
+  LIMIT 30
+  RETURN {{
+    date: doc.date,
+    close: doc.close,
+    volume: doc.volume,
+    sma_20: doc.sma_20
+  }}
+
+Example 6: "Find SEC filings with negative sentiment about cybersecurity"
+FOR doc IN sec_sentences
+  FILTER CONTAINS(LOWER(doc.text), "cybersecurity")
+  FILTER doc.finbert_score < -0.3
+  SORT doc.finbert_score ASC
+  LIMIT 20
+  RETURN {{
+    text: SUBSTRING(doc.text, 0, 400),
+    sentiment: doc.finbert_score,
+    negative_per_1k: doc.negative_per_1k
+  }}
 
 {history_context}
 
@@ -573,24 +649,36 @@ USER QUESTION: "{question}"{hint_text}
 
 Current Date: {current_date}
 
+**INSTRUCTIONS:**
+1. Match the user question to the closest example above
+2. Adapt that example's pattern for the user's specific needs
+3. Keep the same structure: FOR → FILTER → SORT → LIMIT → RETURN
+4. Use EXACT field names from examples (award_amount_float, volume_24h, etc.)
+5. For ticker queries, use bind variable: @ticker
+6. For semantic search, MUST set requires_embedding: true
+
 Generate a JSON response with:
-- "intent": classification (e.g., "ticker_awards", "semantic_awards", "sec_sentiment", "market_data")
-- "collections": array of collection names
-- "requires_embedding": boolean (true ONLY for Award semantic search)
-- "embedding_text": text to embed (if semantic search)
-- "aql_query": valid AQL query
-- "bind_vars": object with bind variables
+- "intent": classification (e.g., "top_contracts", "active_markets", "semantic_awards", "whale_positions", "stock_data", "sec_sentiment")
+- "collections": array of collection names used
+- "requires_embedding": boolean (true ONLY if doing semantic/similarity search on Award or Polymarket)
+- "embedding_text": text to embed (if requires_embedding is true)
+- "aql_query": valid AQL query (MUST follow proven examples above)
+- "bind_vars": object with bind variables (e.g., {{"ticker": "AAPL"}})
 - "explanation": brief strategy explanation
 
-CRITICAL CHECKLIST:
-✅ Collection names: Award (not awards), sec_filings (not SEC_Filings)
-✅ Field names: award_amount_float, sharesOutstanding, sandp_500_index
-✅ Date functions: DATE_SUBTRACT(DATE_NOW(), N, "day")
-✅ Order: FOR → FILTER → SORT → LIMIT → RETURN
-✅ Embeddings: Only Award collection has description_embedding
-✅ Always include LIMIT
+CRITICAL VALIDATION CHECKLIST:
+✅ Collection names EXACT: Award, prediction_markets_polymarket, polymarket_traders, MarketData, sec_sentences
+✅ Field names EXACT: award_amount_float, volume_24h, yes_probability, finbert_score, closed
+✅ NEVER use: award_amount (wrong), market.volume (wrong), markets (wrong)
+✅ Date functions: DATE_SUBTRACT(DATE_NOW(), 30, "day") - NOT DATE_SUB()
+✅ Boolean filters: market.closed == false (NOT market.closed = false)
+✅ Text search: CONTAINS(LOWER(doc.text), "keyword") - always LOWER()
+✅ Order MUST be: FOR → FILTER → SORT → LIMIT → RETURN
+✅ LIMIT is REQUIRED and comes BEFORE RETURN
+✅ For ticker queries, use @ticker bind variable
+✅ Semantic search: requires_embedding: true, similarity >= 0.70 for Award
 
-Return ONLY valid JSON.
+Return ONLY valid JSON, no markdown formatting.
 
 Response:"""
 
@@ -889,6 +977,20 @@ def validate_aql_syntax(aql_query: str, question: str = ""):
         if collection in aql_query and 'COSINE_SIMILARITY' in aql_query:
             errors.append(f"❌ CRITICAL: {collection} does NOT have embeddings!")
             raise ValueError(f"Collection '{collection}' does not have embeddings. Only Award (description_embedding) and prediction_markets_polymarket (question_embedding) have embeddings. Use CONTAINS(LOWER(doc.field), 'keyword') for text search.")
+
+    # Auto-fix: Common field name mistakes
+    field_fixes = {
+        r'\.award_amount\b(?!_float)': '.award_amount_float',  # award_amount → award_amount_float
+        r'\.volume\b(?!_24h)': '.volume_24h',  # volume → volume_24h (for markets)
+        r'market\.closed\s*=\s*false': 'market.closed == false',  # = → ==
+        r'doc\.closed\s*=\s*false': 'doc.closed == false',  # = → ==
+        r'DATE_SUB\(': 'DATE_SUBTRACT(',  # DATE_SUB → DATE_SUBTRACT
+    }
+
+    for wrong_pattern, correct in field_fixes.items():
+        if re.search(wrong_pattern, aql_query):
+            aql_query = re.sub(wrong_pattern, correct, aql_query)
+            errors.append(f"✅ Auto-fixed field/syntax: {wrong_pattern} → {correct}")
 
     # Auto-fix: Collection name mistakes (with word boundaries to prevent double-replacement)
     replacements = {

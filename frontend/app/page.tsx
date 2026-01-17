@@ -17,6 +17,10 @@ interface Message {
   results?: any[]
   useMarkdown?: boolean
   followUpQuestions?: string[]
+  webContext?: {
+    sources?: string[]
+    citations?: Array<{number: number, url: string, referenced: boolean}>
+  }
 }
 
 export default function HomePage() {
@@ -284,6 +288,11 @@ export default function HomePage() {
                     lastMsg.followUpQuestions = parsed.follow_up_questions
                   }
 
+                  // Store web context (sources and citations)
+                  if (parsed.web_context) {
+                    lastMsg.webContext = parsed.web_context
+                  }
+
                   lastMsg.results = parsed.results
                   return newMessages
                 })
@@ -314,12 +323,12 @@ export default function HomePage() {
   }
 
   const suggestedQuestions = [
-    'What do prediction markets say about the 2024 election outcome?',
-    'Show me defense contracts related to AI and cybersecurity',
-    'Which tech stocks have the highest institutional ownership?',
-    'Find government contracts mentioning China or Taiwan',
-    'What are the biggest bets on Polymarket right now?',
-    'Show me companies with recent SEC filings mentioning recession',
+    'Show me the top 10 largest government contracts',
+    'What are the most active Polymarket prediction markets?',
+    'Find contracts related to artificial intelligence',
+    'What markets are whale traders betting on?',
+    'Show me Apple stock data for the last 30 days',
+    'Find SEC filings with negative sentiment about cybersecurity',
   ]
 
   // Debounce search input (500ms delay)
@@ -781,6 +790,42 @@ export default function HomePage() {
                               <ResultsTable data={message.results} maxRows={20} />
                             </div>
                           </details>
+                        )}
+                        {message.webContext && (message.webContext.citations?.length || message.webContext.sources?.length) && (
+                          <div className="mt-4 pt-3 border-t border-gold/20">
+                            <div className="text-xs font-semibold text-gold mb-2">Sources:</div>
+                            <div className="space-y-1">
+                              {message.webContext.citations && message.webContext.citations.length > 0 ? (
+                                message.webContext.citations.map((citation) => (
+                                  <div key={citation.number} className="text-xs text-gray-400">
+                                    <span className="text-gold font-mono">[{citation.number}]</span>{' '}
+                                    <a
+                                      href={citation.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-400 hover:text-blue-300 hover:underline break-all"
+                                    >
+                                      {citation.url}
+                                    </a>
+                                  </div>
+                                ))
+                              ) : (
+                                message.webContext.sources?.map((source, sIdx) => (
+                                  <div key={sIdx} className="text-xs text-gray-400">
+                                    <span className="text-gold font-mono">[{sIdx + 1}]</span>{' '}
+                                    <a
+                                      href={source}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-400 hover:text-blue-300 hover:underline break-all"
+                                    >
+                                      {source}
+                                    </a>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
                         )}
                         {message.followUpQuestions && message.followUpQuestions.length > 0 && (
                           <div className="mt-4">
