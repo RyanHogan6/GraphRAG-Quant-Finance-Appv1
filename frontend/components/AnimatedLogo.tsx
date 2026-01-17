@@ -42,22 +42,36 @@ export default function AnimatedLogo() {
         className="relative"
       >
         <motion.div
-          // Add subtle vertical oscillation during horizontal movement (slithering effect)
+          // Add serpentine undulation - snake waves side to side as it moves
           animate={!hasAnimated ? {
             y: [0, -8, 0, 8, 0],
+            rotateZ: [0, -3, 0, 3, 0, -2, 0],
+            skewY: [0, 2, 0, -2, 0, 1, 0],
+            scaleX: [1, 1.02, 1, 0.98, 1, 1.01, 1],
           } : {
-            y: 0
+            y: 0,
+            rotateZ: 0,
+            skewY: 0,
+            scaleX: 1
           }}
           transition={{
             duration: 2,
-            times: [0, 0.25, 0.5, 0.75, 1],
-            ease: "easeInOut"
+            times: [0, 0.15, 0.3, 0.5, 0.65, 0.85, 1],
+            ease: "easeInOut",
+            rotateZ: {
+              duration: 2,
+              ease: [0.45, 0.05, 0.55, 0.95] // Smooth sine wave
+            },
+            skewY: {
+              duration: 2,
+              ease: "easeInOut"
+            }
           }}
         >
           <img
             src="/logo-snake.png"
             alt="KARGA Snake"
-            className="w-32 h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 object-contain"
+            className="w-48 h-48 md:w-64 md:h-64 lg:w-80 lg:h-80 object-contain"
           />
         </motion.div>
       </motion.div>
@@ -83,7 +97,7 @@ export default function AnimatedLogo() {
         <img
           src="/logo-bar.png"
           alt="KARGA Divider"
-          className="h-28 w-auto md:h-32 lg:h-36 object-contain"
+          className="h-40 w-auto md:h-48 lg:h-56 object-contain"
         />
       </motion.div>
 
@@ -105,7 +119,7 @@ export default function AnimatedLogo() {
         <img
           src="/logo-name.png"
           alt="KARGA"
-          className="w-64 h-auto md:w-80 lg:w-96 object-contain"
+          className="w-80 h-auto md:w-96 lg:w-[32rem] object-contain"
         />
       </motion.div>
     </div>
