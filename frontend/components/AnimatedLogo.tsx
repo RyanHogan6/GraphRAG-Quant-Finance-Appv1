@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import Image from 'next/image'
 
 export default function AnimatedLogo() {
   const [hasAnimated, setHasAnimated] = useState(false)
@@ -14,7 +13,7 @@ export default function AnimatedLogo() {
   }, [])
 
   return (
-    <div className="flex items-center justify-center gap-4 md:gap-6">
+    <div className="flex items-center justify-center gap-4 md:gap-8">
       {/* Snake slithers in from left with S-curve motion (Chamber of Secrets style) */}
       <motion.div
         initial={{ x: -400, opacity: 0, rotate: -10 }}
@@ -55,13 +54,10 @@ export default function AnimatedLogo() {
             ease: "easeInOut"
           }}
         >
-          <Image
+          <img
             src="/logo-snake.png"
             alt="KARGA Snake"
-            width={200}
-            height={200}
-            className="w-24 h-24 md:w-32 md:h-32 lg:w-40 lg:h-40"
-            priority
+            className="w-32 h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 object-contain"
           />
         </motion.div>
       </motion.div>
@@ -84,13 +80,10 @@ export default function AnimatedLogo() {
         className="relative"
         style={{ transformOrigin: 'top' }}
       >
-        <Image
+        <img
           src="/logo-bar.png"
           alt="KARGA Divider"
-          width={20}
-          height={120}
-          className="h-20 w-auto md:h-24 lg:h-28"
-          priority
+          className="h-28 w-auto md:h-32 lg:h-36 object-contain"
         />
       </motion.div>
 
@@ -109,13 +102,10 @@ export default function AnimatedLogo() {
         }}
         className="relative"
       >
-        <Image
+        <img
           src="/logo-name.png"
           alt="KARGA"
-          width={400}
-          height={120}
-          className="w-48 h-auto md:w-64 lg:w-80"
-          priority
+          className="w-64 h-auto md:w-80 lg:w-96 object-contain"
         />
       </motion.div>
     </div>
