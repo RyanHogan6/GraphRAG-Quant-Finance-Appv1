@@ -783,7 +783,7 @@ export default function HomePage() {
           className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
           style={{ opacity: gridOpacity2 }}
         />
-        <div className="container mx-auto max-w-6xl relative z-10">
+        <div className="container mx-auto max-w-7xl relative z-10">
           <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
@@ -804,7 +804,7 @@ export default function HomePage() {
             className="bg-dark-800 border border-gold/20 rounded-lg shadow-xl mb-6"
           >
             {/* Messages */}
-            <div className="h-[400px] md:h-[500px] overflow-y-auto p-4 md:p-6 space-y-4">
+            <div className="h-[500px] md:h-[700px] overflow-y-auto p-4 md:p-6 space-y-4">
               {messages.map((message, idx) => (
                 <div
                   key={idx}
