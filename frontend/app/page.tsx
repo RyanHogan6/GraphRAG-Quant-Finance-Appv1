@@ -16,6 +16,7 @@ interface Message {
   timestamp: Date
   results?: any[]
   useMarkdown?: boolean
+  followUpQuestions?: string[]
 }
 
 export default function HomePage() {
@@ -184,44 +185,130 @@ export default function HomePage() {
     setInput('')
     setIsLoading(true)
 
+    // Create placeholder for streaming assistant message
+    const assistantMessage: Message = {
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+      useMarkdown: true,
+      results: []
+    }
+    setMessages((prev) => [...prev, assistantMessage])
+
     try {
-      const { api } = await import('@/lib/api')
-      const response = await api.executeQuery(currentInput)
+      // Prepare conversation history (last 6 messages, excluding current)
+      const conversationHistory = messages.slice(-6).map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }))
 
-      let resultText = ''
+      // Use streaming endpoint
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const response = await fetch(`${API_BASE_URL}/api/query/execute-stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          question: currentInput,
+          conversation_history: conversationHistory
+        }),
+      })
 
-      // Only show query results header if we found something
-      if (response.count > 0) {
-        resultText = `**Query Results:** ${response.count} results in ${response.execution_time.toFixed(2)}s\n\n`
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
 
-      if (response.analysis) {
-        resultText += response.analysis
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+
+      if (!reader) {
+        throw new Error('No response body')
       }
 
-      if (response.follow_up_questions && response.follow_up_questions.length > 0) {
-        resultText += '\n\n**Follow-up questions:**\n'
-        response.follow_up_questions.forEach((q: string) => {
-          resultText += `- ${q}\n`
-        })
-      }
+      let buffer = ''
+      let contentBuffer = ''
 
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: resultText,
-        timestamp: new Date(),
-        results: response.results,
-        useMarkdown: true,
+      while (true) {
+        const { done, value } = await reader.read()
+
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6)
+
+            if (data === '[DONE]') {
+              setIsLoading(false)
+              break
+            }
+
+            try {
+              const parsed = JSON.parse(data)
+
+              if (parsed.type === 'progress') {
+                // Update with progress message
+                setMessages((prev) => {
+                  const newMessages = [...prev]
+                  newMessages[newMessages.length - 1].content = `*${parsed.message}*${parsed.details ? ` (${parsed.details})` : ''}`
+                  return newMessages
+                })
+              } else if (parsed.type === 'content_start') {
+                // Clear progress, start content
+                contentBuffer = ''
+                setMessages((prev) => {
+                  const newMessages = [...prev]
+                  newMessages[newMessages.length - 1].content = ''
+                  return newMessages
+                })
+              } else if (parsed.type === 'content_chunk') {
+                // Append content chunk
+                contentBuffer += parsed.chunk
+                setMessages((prev) => {
+                  const newMessages = [...prev]
+                  newMessages[newMessages.length - 1].content = contentBuffer
+                  return newMessages
+                })
+              } else if (parsed.type === 'complete') {
+                // Add final data
+                setMessages((prev) => {
+                  const newMessages = [...prev]
+                  const lastMsg = newMessages[newMessages.length - 1]
+
+                  // Store follow-up questions separately (render as buttons)
+                  if (parsed.follow_up_questions && parsed.follow_up_questions.length > 0) {
+                    lastMsg.followUpQuestions = parsed.follow_up_questions
+                  }
+
+                  lastMsg.results = parsed.results
+                  return newMessages
+                })
+                setIsLoading(false)
+              } else if (parsed.type === 'error') {
+                // Handle error
+                setMessages((prev) => {
+                  const newMessages = [...prev]
+                  newMessages[newMessages.length - 1].content = `❌ Error: ${parsed.message}`
+                  return newMessages
+                })
+                setIsLoading(false)
+              }
+            } catch (parseError) {
+              console.error('Failed to parse SSE data:', data, parseError)
+            }
+          }
+        }
       }
-      setMessages((prev) => [...prev, assistantMessage])
     } catch (error) {
-      const errorMessage: Message = {
-        role: 'assistant',
-        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
-        timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, errorMessage])
-    } finally {
+      setMessages((prev) => {
+        const newMessages = [...prev]
+        newMessages[newMessages.length - 1].content = `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`
+        return newMessages
+      })
       setIsLoading(false)
     }
   }
@@ -695,7 +782,23 @@ export default function HomePage() {
                             </div>
                           </details>
                         )}
-                        <div className="text-xs text-gray-600">
+                        {message.followUpQuestions && message.followUpQuestions.length > 0 && (
+                          <div className="mt-4">
+                            <div className="text-xs font-semibold text-gold mb-2">Follow-up questions:</div>
+                            <div className="flex flex-col gap-2">
+                              {message.followUpQuestions.map((question, qIdx) => (
+                                <button
+                                  key={qIdx}
+                                  onClick={() => setInput(question)}
+                                  className="text-left text-xs bg-dark-800 border border-gold/30 rounded px-3 py-2 text-gray-300 hover:border-gold/60 hover:bg-dark-700 hover:text-gold transition-all"
+                                >
+                                  {question}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div className="text-xs text-gray-600 mt-2">
                           {message.timestamp.toLocaleTimeString()}
                         </div>
                       </div>

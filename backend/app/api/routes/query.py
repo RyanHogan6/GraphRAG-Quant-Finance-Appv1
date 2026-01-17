@@ -2,9 +2,12 @@
 Query API routes - Natural language to AQL query planning and execution
 """
 from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, validator, constr
 from typing import Optional, Dict, List, Any
 import time
+import json
+import asyncio
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -19,6 +22,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 class QueryRequest(BaseModel):
     question: constr(min_length=1, max_length=1000)  # Limit query length
+    conversation_history: Optional[List[Dict[str, Any]]] = []  # Conversation context
 
     @validator('question')
     def sanitize_question(cls, v):
@@ -105,12 +109,12 @@ def plan_query(request: Request, body: QueryRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def execute_db_query(question: str):
+def execute_db_query(question: str, conversation_history: list = None):
     """Execute database query in parallel thread"""
     try:
         db = get_db()
         intent = quick_intent_check(question)
-        query_plan = plan_query_with_llm(question, intent_hint=intent)
+        query_plan = plan_query_with_llm(question, intent_hint=intent, conversation_history=conversation_history)
 
         if not query_plan:
             return None, None, "Failed to generate query plan"
@@ -187,8 +191,8 @@ def execute_query(request: Request, body: QueryRequest):
     try:
         # Run DB query, web search, and intent classification IN PARALLEL
         with ThreadPoolExecutor(max_workers=3) as executor:
-            # Submit all tasks
-            db_future = executor.submit(execute_db_query, body.question)
+            # Submit all tasks with conversation history
+            db_future = executor.submit(execute_db_query, body.question, body.conversation_history)
             web_future = executor.submit(execute_web_search, body.question)
             intent_future = executor.submit(classify_query_intent, body.question)
 
@@ -255,3 +259,141 @@ def execute_query(request: Request, body: QueryRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/execute-stream")
+@limiter.limit("20/minute")
+async def execute_query_stream(request: Request, body: QueryRequest):
+    """
+    STREAMING version: Execute query with real-time progress updates
+
+    Sends Server-Sent Events (SSE) with:
+    - Progress updates (searching DB, web, analyzing)
+    - Streamed analysis content (token by token)
+    - Final results payload
+    """
+
+    async def generate():
+        try:
+            start_time = time.time()
+
+            # Step 1: Analyzing question
+            yield f"data: {json.dumps({'type': 'progress', 'stage': 'analyzing', 'message': 'Understanding your question...'})}\n\n"
+            await asyncio.sleep(0.1)  # Small delay for UX
+
+            # Step 2: Execute parallel searches
+            yield f"data: {json.dumps({'type': 'progress', 'stage': 'searching', 'message': 'Searching database and web...', 'details': 'Running 3 parallel tasks'})}\n\n"
+
+            # Run in thread pool (FastAPI handles async/sync mixing)
+            loop = asyncio.get_event_loop()
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                db_future = loop.run_in_executor(executor, execute_db_query, body.question, body.conversation_history)
+                web_future = loop.run_in_executor(executor, execute_web_search, body.question)
+                intent_future = loop.run_in_executor(executor, classify_query_intent, body.question)
+
+                # Wait for all
+                results, query_plan, db_error = await db_future
+                web_context_data, web_error = await web_future
+                intent_classification = await intent_future
+
+            query_intent = intent_classification.get('intent', 'hybrid')
+
+            # Handle errors
+            if db_error:
+                print(f"[STREAM WARNING] DB query failed: {db_error}")
+                results = []
+                query_plan = {}
+
+            if results is None:
+                results = []
+            if query_plan is None:
+                query_plan = {}
+            if web_context_data is None:
+                web_context_data = {'summary': 'No web context available', 'sources': []}
+
+            execution_time = time.time() - start_time
+
+            # Step 3: Synthesizing response
+            yield f"data: {json.dumps({'type': 'progress', 'stage': 'synthesizing', 'message': 'Generating analysis...', 'details': f'Found {len(results)} results'})}\n\n"
+
+            # Generate analysis
+            if results and web_context_data.get('summary'):
+                analysis = synthesize_hybrid_response(
+                    question=body.question,
+                    db_results={'data': results, 'count': len(results)},
+                    web_context=web_context_data
+                )
+            elif web_context_data.get('summary'):
+                analysis = web_context_data['summary']
+            elif results:
+                analysis = analyze_results_with_llm(body.question, results, query_plan)
+            else:
+                analysis = "I couldn't retrieve information from either the database or web sources. Please try rephrasing your question."
+
+            # Step 4: Stream analysis content in chunks
+            yield f"data: {json.dumps({'type': 'content_start', 'message': 'Streaming analysis...'})}\n\n"
+
+            # Stream in word chunks for smooth effect
+            words = analysis.split(' ')
+            chunk_size = 5  # 5 words at a time
+            for i in range(0, len(words), chunk_size):
+                chunk = ' '.join(words[i:i+chunk_size])
+                if i + chunk_size < len(words):
+                    chunk += ' '  # Add space between chunks
+
+                yield f"data: {json.dumps({'type': 'content_chunk', 'chunk': chunk})}\n\n"
+                await asyncio.sleep(0.02)  # Small delay for streaming effect
+
+            # Step 5: Generate follow-up questions
+            yield f"data: {json.dumps({'type': 'progress', 'stage': 'followup', 'message': 'Generating follow-up questions...'})}\n\n"
+
+            follow_ups = []
+            if results:
+                loop = asyncio.get_event_loop()
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    follow_ups = await loop.run_in_executor(
+                        executor,
+                        generate_follow_up_questions,
+                        body.question,
+                        results,
+                        query_plan
+                    )
+
+            # Step 6: Send complete payload
+            final_payload = {
+                'type': 'complete',
+                'results': results[:100],  # Limit results in stream for performance
+                'count': len(results),
+                'execution_time': execution_time,
+                'query_plan': query_plan,
+                'follow_up_questions': follow_ups,
+                'query_intent': query_intent,
+                'web_context': {
+                    'sources': web_context_data.get('sources', []),
+                    'citations': web_context_data.get('citations', [])
+                }
+            }
+
+            yield f"data: {json.dumps(final_payload)}\n\n"
+
+            # End stream
+            yield "data: [DONE]\n\n"
+
+        except Exception as e:
+            error_payload = {
+                'type': 'error',
+                'message': f'Error: {str(e)}',
+                'details': str(e)
+            }
+            yield f"data: {json.dumps(error_payload)}\n\n"
+            yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # Disable nginx buffering
+        }
+    )

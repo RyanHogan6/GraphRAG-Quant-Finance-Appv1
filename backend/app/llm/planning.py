@@ -491,7 +491,7 @@ Return JSON: {{"type": "ticker", "value": "CMI"}} or {{"type": "concept", "value
         return {"type": "unknown"}
 
 
-def plan_query_with_llm(question: str, intent_hint=None):
+def plan_query_with_llm(question: str, intent_hint=None, conversation_history: list = None):
     """
     Generate query plan from natural language question.
     RESTORED from working Streamlit version with full optimizations:
@@ -499,6 +499,7 @@ def plan_query_with_llm(question: str, intent_hint=None):
     - Query similarity caching
     - Full schema context
     - Comprehensive validation
+    - Conversation history context (NEW)
     """
     # TRY 1: Rule-based preprocessing (fastest - no LLM call)
     rule_result = preprocess_query(question)
@@ -515,6 +516,28 @@ def plan_query_with_llm(question: str, intent_hint=None):
 
     # TRY 3: Full LLM planning (slowest - full query generation)
     current_date = datetime.now().strftime("%Y-%m-%d")
+
+    # Build conversation context
+    history_context = ""
+    if conversation_history and len(conversation_history) > 0:
+        history_context = "\n\n**📜 CONVERSATION CONTEXT (Recent messages):**\n"
+        # Take last 3 exchanges (6 messages) for context
+        recent_history = conversation_history[-6:]
+
+        for msg in recent_history:
+            role = msg.get('role', 'user')
+            content = msg.get('content', '')
+
+            # Truncate long messages
+            if len(content) > 300:
+                content = content[:300] + "..."
+
+            history_context += f"- {role.upper()}: {content}\n"
+
+        history_context += "\n⚠️ **IMPORTANT**: User may reference previous results using:\n"
+        history_context += "- 'that company', 'those stocks', 'them', 'it', 'same ticker'\n"
+        history_context += "- 'compare with...', 'show me more', 'what about...'\n"
+        history_context += "- Extract ticker/entity from context if not explicitly stated\n"
 
     # Add intent hint to prompt
     hint_text = ""
@@ -543,6 +566,8 @@ EXAMPLE QUERIES (for reference):
 - SEC sentiment: FOR doc IN sec_sentences FILTER CONTAINS(LOWER(doc.text), @keyword) AND doc.finbert_score < -0.3 LIMIT 20 RETURN doc
 - Date range: FOR doc IN MarketData FILTER doc.ticker == @ticker AND doc.date >= DATE_SUBTRACT(DATE_NOW(), 180, "day") SORT doc.date DESC LIMIT 100 RETURN doc
 - Simple query: FOR doc IN EconomicData FILTER doc.federal_funds_rate != null LIMIT 1 RETURN doc
+
+{history_context}
 
 USER QUESTION: "{question}"{hint_text}
 
