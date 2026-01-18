@@ -81,9 +81,10 @@ def run_yahoo_pipeline():
         tickers = get_sp500_tickers(current_only=True)
         logger.info(f"✓ Fetched {len(tickers)} tickers")
 
-        # Step 2: Download data with conservative rate limiting
+        # Step 2: Download data ONE TICKER AT A TIME to avoid rate limiting
         logger.info("[2/4] Downloading stock data (30 days)...")
-        data_df = download_stock_data(tickers, period='1mo', batch_size=30, sleep_between_batches=2.0)
+        logger.info(f"  Downloading one ticker at a time with 0.5s delay (~{len(tickers) * 0.5 / 60:.1f} min)")
+        data_df = download_stock_data(tickers, period='1mo', sleep_between_tickers=0.5)
         logger.info(f"✓ Downloaded {len(data_df)} rows")
 
         # Check if download succeeded
@@ -337,9 +338,10 @@ def run_pipeline():
     # Pipeline 1: Yahoo MarketData (RUNS FIRST)
     # Fixes applied:
     #   ✓ Reduced to current S&P 500 only (~503 tickers, not 852 historical)
-    #   ✓ Conservative batch size (30 tickers/batch, down from 50)
-    #   ✓ Increased sleep between batches (2s, up from 1s)
+    #   ✓ Download ONE TICKER AT A TIME (avoids batch rate limiting)
+    #   ✓ 0.5s delay between tickers with random jitter
     #   ✓ Skip fundamentals to avoid extra API calls
+    #   ⏱ Estimated runtime: ~4-5 minutes for 503 tickers
     try:
         results['yahoo'] = run_yahoo_pipeline()
     except Exception as e:
