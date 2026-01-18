@@ -10,7 +10,7 @@ import MarketDetailModal from '@/components/MarketDetailModal'
 import ScrollToTop from '@/components/ScrollToTop'
 import AnimatedLogo from '@/components/AnimatedLogo'
 import WhaleTracker from '@/components/WhaleTracker'
-import { Market } from '@/lib/mockData'
+import { Market } from '@/lib/types'
 
 interface Message {
   role: 'user' | 'assistant'

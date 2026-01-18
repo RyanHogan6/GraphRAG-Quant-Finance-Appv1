@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react'
 import MarketCard from '@/components/MarketCard'
 import MarketDetailModal from '@/components/MarketDetailModal'
 import WhaleTracker from '@/components/WhaleTracker'
-import { Market } from '@/lib/mockData'
+import { Market } from '@/lib/types'
 import { api } from '@/lib/api'
 
 export default function MarketsPage() {

@@ -1,4 +1,4 @@
-import { Market } from '@/lib/mockData'
+import { Market } from '@/lib/types'
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import ProbabilityChart from './ProbabilityChart'

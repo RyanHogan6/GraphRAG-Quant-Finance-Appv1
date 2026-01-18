@@ -1,4 +1,4 @@
-import { Market } from '@/lib/mockData'
+import { Market } from '@/lib/types'
 
 interface MarketCardProps {
   market: Market
