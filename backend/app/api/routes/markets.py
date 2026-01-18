@@ -52,24 +52,58 @@ def get_sample_market():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/polymarket/fast")
+def get_fast_markets():
+    """EMERGENCY FAST endpoint - no filters, just grab ANY 50 markets"""
+    db = get_db()
+
+    print(f"⚡ ULTRA-FAST v1.0 - No filters, just grab 50 markets")
+
+    query = """
+    FOR market IN prediction_markets_polymarket
+        LIMIT 50
+        RETURN {
+            id: market._key,
+            question: market.question,
+            yes_prob: 50,
+            no_prob: 50,
+            outcome_yes: "Yes",
+            outcome_no: "No",
+            volume_24h: market.volume_24h != null ? market.volume_24h : 0,
+            liquidity: market.liquidity != null ? market.liquidity : 0,
+            category: market.category != null ? market.category : "Other",
+            end_date: market.end_date,
+            traders: 0
+        }
+    """
+
+    try:
+        results, error = execute_aql(query)
+        if error:
+            raise HTTPException(status_code=500, detail=error)
+        return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/polymarket/categories")
 @limiter.limit("30/minute")
 def get_polymarket_categories(request: Request):
     """Get all Polymarket categories with counts - OPTIMIZED"""
     db = get_db()
 
-    print(f"🏷️ OPTIMIZED CATEGORIES v2.0 - Limiting scan to high-volume markets")
+    print(f"🏷️ OPTIMIZED CATEGORIES v3.0 - Using liquidity sort (200 sample)")
 
     query = """
     FOR m IN prediction_markets_polymarket
-        // Only scan high-quality markets (use index)
+        // Only filter closed and null category (60k total markets)
         FILTER m.closed == false
-        FILTER m.volume_24h > 50
         FILTER m.category != null
+        FILTER m.liquidity != null
 
-        // Sample top 1000 markets by volume
-        SORT m.volume_24h DESC
-        LIMIT 1000
+        // Sample top 200 markets by liquidity for category diversity
+        SORT m.liquidity DESC
+        LIMIT 200
 
         // NOW collect categories (much smaller dataset)
         COLLECT category = m.category WITH COUNT INTO count
@@ -145,7 +179,7 @@ def get_market_detail(market_id: str):
 @limiter.limit("30/minute")
 def get_featured_markets(
     request: Request,
-    limit: int = QueryParam(100)
+    limit: int = QueryParam(100, le=100)  # Max 100 markets
 ):
     """
     Get high-quality featured markets - OPTIMIZED FOR SPEED v2.0
@@ -156,17 +190,16 @@ def get_featured_markets(
     - Fast indexes on volume_24h and liquidity
     """
 
-    print(f"🚀 OPTIMIZED QUERY v3.0 - Fetching {limit} markets (SORT+LIMIT BEFORE calculations)")
+    print(f"🚀 OPTIMIZED QUERY v4.0 - Fetching {limit} markets (RELAXED FILTERS)")
 
     query = f"""
     FOR market IN prediction_markets_polymarket
-        // Basic filters first (fast, uses indexes)
+        // Only filter closed markets - volume_24h is often 0 for valid markets
         FILTER market.closed == false
-        FILTER market.volume_24h > 100
-        FILTER market.liquidity > 50
+        FILTER market.liquidity != null
 
-        // CRITICAL: Sort and limit BEFORE expensive calculations
-        SORT market.volume_24h DESC
+        // Sort by liquidity (more stable than volume_24h which is often 0)
+        SORT market.liquidity DESC
         LIMIT {limit}
 
         // NOW do calculations on smaller dataset

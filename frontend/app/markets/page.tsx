@@ -20,14 +20,14 @@ export default function MarketsPage() {
   const [error, setError] = useState<string | null>(null)
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null)
   const [displayLimit, setDisplayLimit] = useState(100)
-  const [hasMore, setHasMore] = useState(true)
+  const [hasMore, setHasMore] = useState(false)  // No pagination - just show 100
 
   // Fetch markets and categories when platform changes
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true)
-        // Use FEATURED endpoint for diverse, curated markets
+        // Use FEATURED endpoint for diverse, curated markets (100 max for performance)
         const [marketsData, categoriesData] = await Promise.all([
           api.getFeaturedMarkets(100, platform),
           api.getCategories(platform)
@@ -52,7 +52,7 @@ export default function MarketsPage() {
 
         setMarkets(formattedMarkets)
         setCategories(categoriesData)
-        setHasMore(marketsData.length >= 100)
+        setHasMore(false)  // No pagination - 100 markets max for performance
         setError(null)
       } catch (err) {
         console.error('Failed to fetch markets:', err)
@@ -69,9 +69,9 @@ export default function MarketsPage() {
   const handleLoadMore = async () => {
     try {
       setLoadingMore(true)
-      const newLimit = displayLimit + 100
+      const newLimit = Math.min(displayLimit + 50, 100)  // Cap at 100 total for performance
       // Continue using featured endpoint to maintain category diversity
-      const marketsData = await api.getFeaturedMarkets(newLimit)
+      const marketsData = await api.getFeaturedMarkets(newLimit, platform)
 
       const formattedMarkets = marketsData.map((m: any) => ({
         id: m.id || m._key,
