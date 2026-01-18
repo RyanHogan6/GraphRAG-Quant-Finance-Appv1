@@ -76,14 +76,14 @@ def run_yahoo_pipeline():
     logger.info("="*80)
 
     try:
-        # Step 1: Get tickers
-        logger.info("[1/4] Fetching S&P 500 tickers...")
-        tickers = get_sp500_tickers()
+        # Step 1: Get current S&P 500 tickers only (not historical)
+        logger.info("[1/4] Fetching current S&P 500 tickers...")
+        tickers = get_sp500_tickers(current_only=True)
         logger.info(f"✓ Fetched {len(tickers)} tickers")
 
-        # Step 2: Download data
+        # Step 2: Download data with conservative rate limiting
         logger.info("[2/4] Downloading stock data (30 days)...")
-        data_df = download_stock_data(tickers, period='1mo')
+        data_df = download_stock_data(tickers, period='1mo', batch_size=30, sleep_between_batches=2.0)
         logger.info(f"✓ Downloaded {len(data_df)} rows")
 
         # Check if download succeeded
@@ -91,9 +91,9 @@ def run_yahoo_pipeline():
             logger.error("✗ No data downloaded - skipping feature engineering and upload")
             return False
 
-        # Step 3: Engineer features
+        # Step 3: Engineer features (without fundamentals to avoid extra API calls)
         logger.info("[3/4] Engineering technical indicators...")
-        featured_df = engineer_technical_features(data_df)
+        featured_df = engineer_technical_features(data_df, include_fundamentals=False)
         logger.info(f"✓ Engineered {len(featured_df)} rows")
 
         # Step 4: Upload to ArangoDB
@@ -135,9 +135,9 @@ def run_kalshi_pipeline():
     logger.info("="*80)
 
     try:
-        # Step 1: Fetch markets
-        logger.info("[1/3] Fetching Kalshi markets...")
-        markets_df = fetch_kalshi_markets()
+        # Step 1: Fetch markets (only open/active ones for scheduler)
+        logger.info("[1/3] Fetching Kalshi markets (open only)...")
+        markets_df = fetch_kalshi_markets(status_filter='open', limit=2000)
         logger.info(f"✓ Fetched {len(markets_df)} markets")
 
         # Step 2: Engineer features + embeddings (skip embeddings - use standalone)
@@ -147,10 +147,10 @@ def run_kalshi_pipeline():
         markets_df = engineer_kalshi_features(markets_df)
         logger.info(f"✓ Engineered {len(markets_df)} markets")
 
-        # Step 3: Upload to ArangoDB
+        # Step 3: Upload to ArangoDB (don't truncate - update existing)
         logger.info("[3/3] Uploading to ArangoDB...")
         db = get_arango_connection()
-        inserted, updated, errors = upsert_kalshi_markets(db, markets_df)
+        inserted, updated, errors = upsert_kalshi_markets(db, markets_df, truncate_first=False)
         logger.info(f"✓ Inserted: {inserted}, Updated: {updated}")
 
         return True
@@ -325,7 +325,7 @@ def run_pipeline():
     logger.info("\n" + "="*80)
     logger.info(f"MASTER PIPELINE STARTED: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("="*80)
-    logger.info("Execution order: Kalshi → Polymarket → Yahoo (no embeddings)")
+    logger.info("Execution order: Yahoo → Kalshi → Polymarket (no embeddings)")
     logger.info("="*80 + "\n")
 
     results = {
@@ -334,29 +334,36 @@ def run_pipeline():
         'polymarket': False
     }
 
-    # Pipeline 1: Kalshi (RUNS FIRST)
+    # Pipeline 1: Yahoo MarketData (RUNS FIRST)
+    # Fixes applied:
+    #   ✓ Reduced to current S&P 500 only (~503 tickers, not 852 historical)
+    #   ✓ Conservative batch size (30 tickers/batch, down from 50)
+    #   ✓ Increased sleep between batches (2s, up from 1s)
+    #   ✓ Skip fundamentals to avoid extra API calls
+    try:
+        results['yahoo'] = run_yahoo_pipeline()
+    except Exception as e:
+        logger.error(f"Yahoo pipeline crashed: {e}")
+        results['yahoo'] = False
+
+    # Pipeline 2: Kalshi
+    # Memory fixes applied:
+    #   ✓ Reduced batch size from 250 → 100 (handles 102k records)
+    #   ✓ Process dataframe in chunks instead of building full docs list
+    #   ✓ Progress logging every 10k records
+    #   ✓ Memory cleanup between batches
     try:
         results['kalshi'] = run_kalshi_pipeline()
     except Exception as e:
         logger.error(f"Kalshi pipeline crashed: {e}")
+        results['kalshi'] = False
 
-    # Pipeline 2: Polymarket (skip embeddings - use standalone script)
+    # Pipeline 3: Polymarket (skip embeddings - use standalone script)
     try:
         results['polymarket'] = run_polymarket_pipeline(skip_embeddings=True)
     except Exception as e:
         logger.error(f"Polymarket pipeline crashed: {e}")
-
-    # Pipeline 3: Yahoo MarketData (DISABLED - yfinance rate limiting with 852 tickers)
-    # TODO: Fix by either:
-    #   1. Reduce to current S&P 500 only (~503 tickers)
-    #   2. Run Yahoo separately on longer schedule (weekly)
-    #   3. Add better retry logic and smaller batch sizes
-    # try:
-    #     results['yahoo'] = run_yahoo_pipeline()
-    # except Exception as e:
-    #     logger.error(f"Yahoo pipeline crashed: {e}")
-    logger.info("⚠️  Yahoo pipeline disabled (yfinance rate limiting with 852 tickers)")
-    results['yahoo'] = False
+        results['polymarket'] = False
 
     # Summary
     end_time = datetime.now()
@@ -365,9 +372,9 @@ def run_pipeline():
     logger.info("\n" + "="*80)
     logger.info("MASTER PIPELINE COMPLETE")
     logger.info("="*80)
+    logger.info(f"Yahoo: {'✓ SUCCESS' if results['yahoo'] else '✗ FAILED'}")
     logger.info(f"Kalshi: {'✓ SUCCESS' if results['kalshi'] else '✗ FAILED'}")
     logger.info(f"Polymarket: {'✓ SUCCESS' if results['polymarket'] else '✗ FAILED'}")
-    logger.info(f"Yahoo: {'✓ SUCCESS' if results['yahoo'] else '✗ FAILED (disabled)'}")
     logger.info(f"Duration: {duration:.1f}s ({duration/60:.1f}min)")
     logger.info("="*80)
 

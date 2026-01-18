@@ -206,12 +206,16 @@ def fetch_fundamental_data(ticker):
         print(f"  Warning: Could not fetch fundamentals for {ticker}: {e}")
         return {}
 
-def engineer_technical_features(df):
+def engineer_technical_features(df, include_fundamentals=False):
     """
     Engineer all technical and fundamental features for Yahoo MarketData
 
     Input: DataFrame with columns [date, ticker, open, high, low, close, volume]
     Output: DataFrame with 60+ engineered features
+
+    Args:
+        include_fundamentals: If True, fetch fundamental data (adds extra API calls)
+                             If False, only calculate technical indicators (faster, avoids rate limits)
     """
     # Check for empty DataFrame or missing ticker column
     if df.empty or 'ticker' not in df.columns:
@@ -219,6 +223,8 @@ def engineer_technical_features(df):
         return df
 
     print(f"[FEATURES] Engineering features for {df['ticker'].nunique()} tickers...")
+    if not include_fundamentals:
+        print("  Skipping fundamentals (technical indicators only)")
 
     if len(df) < 200:
         print(f"  Warning: Insufficient data ({len(df)} rows)")
@@ -230,8 +236,11 @@ def engineer_technical_features(df):
     for ticker, group in df.groupby('ticker'):
         group = group.sort_values('date').copy()
 
-        # Fetch fundamentals (once per ticker)
-        fundamentals = fetch_fundamental_data(ticker)
+        # Fetch fundamentals (once per ticker) - optional to avoid rate limiting
+        if include_fundamentals:
+            fundamentals = fetch_fundamental_data(ticker)
+        else:
+            fundamentals = {}
 
         # Technical indicators
         group = calculate_sma(group)
