@@ -179,7 +179,7 @@ def get_market_detail(market_id: str):
 @limiter.limit("30/minute")
 def get_featured_markets(
     request: Request,
-    limit: int = QueryParam(default=100, le=100)  # Max 100 markets
+    limit: int = 100  # Default 100 markets
 ):
     """
     Get high-quality featured markets - OPTIMIZED FOR SPEED v2.0
