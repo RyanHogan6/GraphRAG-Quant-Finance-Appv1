@@ -1303,14 +1303,16 @@ export default function HomePage() {
               transition={{ duration: 0.8 }}
               className="bg-dark-700 border border-gold/20 rounded-lg overflow-hidden mb-12"
             >
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              <div className="overflow-x-auto -mx-2 md:mx-0">
+                <div className="inline-block min-w-full align-middle">
+                  <div className="overflow-hidden">
+                    <table className="min-w-full divide-y divide-gold/10">
                   <thead className="bg-dark-800 border-b border-gold/20">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Question</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Category</th>
+                      <th className="px-2 md:px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider min-w-[200px]">Question</th>
+                      <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Category</th>
                       <th
-                        className="px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gold transition-colors"
+                        className="px-2 md:px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gold transition-colors whitespace-nowrap"
                         onClick={() => {
                           if (sortBy === 'probability') {
                             setSortBy('volume')
@@ -1321,21 +1323,16 @@ export default function HomePage() {
                       >
                         Yes {sortBy === 'probability' && '↓'}
                       </th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">No</th>
+                      <th className="px-2 md:px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">No</th>
                       <th
-                        className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gold transition-colors"
+                        className="px-2 md:px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gold transition-colors whitespace-nowrap"
                         onClick={() => setSortBy('volume')}
                       >
-                        Volume 24h {sortBy === 'volume' && '↓'}
+                        Vol {sortBy === 'volume' && '↓'}
                       </th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Liquidity</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Confidence</th>
-                      <th
-                        className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gold transition-colors"
-                        onClick={() => setSortBy('traders')}
-                      >
-                        Days Left {sortBy === 'traders' && '↓'}
-                      </th>
+                      <th className="hidden lg:table-cell px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Liquidity</th>
+                      <th className="hidden lg:table-cell px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Confidence</th>
+                      <th className="hidden md:table-cell px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Days</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gold/10">
@@ -1347,33 +1344,33 @@ export default function HomePage() {
                         }`}
                         onClick={() => setSelectedMarket(market)}
                       >
-                        <td className="px-4 py-3 text-sm text-gray-200 max-w-md">
+                        <td className="px-2 md:px-4 py-3 text-xs md:text-sm text-gray-200 max-w-[200px] md:max-w-md">
                           <div className="line-clamp-2">{market.question}</div>
                         </td>
-                        <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                        <td className="hidden md:table-cell px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
                           {market.category}
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="text-sm font-semibold text-green-400">{market.yes_prob}%</span>
+                        <td className="px-2 md:px-4 py-3 text-center">
+                          <span className="text-xs md:text-sm font-semibold text-green-400">{market.yes_prob}%</span>
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="text-sm font-semibold text-red-400">{market.no_prob}%</span>
+                        <td className="px-2 md:px-4 py-3 text-center">
+                          <span className="text-xs md:text-sm font-semibold text-red-400">{market.no_prob}%</span>
                         </td>
-                        <td className="px-4 py-3 text-right text-sm text-gold font-medium">
+                        <td className="px-2 md:px-4 py-3 text-right text-xs md:text-sm text-gold font-medium whitespace-nowrap">
                           {market.volume_24h >= 1000000
                             ? `$${(market.volume_24h / 1000000).toFixed(1)}M`
                             : market.volume_24h >= 1000
                             ? `$${(market.volume_24h / 1000).toFixed(0)}k`
                             : `$${market.volume_24h}`}
                         </td>
-                        <td className="px-4 py-3 text-right text-sm text-gray-300">
+                        <td className="hidden lg:table-cell px-4 py-3 text-right text-sm text-gray-300 whitespace-nowrap">
                           {market.liquidity >= 1000000
                             ? `$${(market.liquidity / 1000000).toFixed(1)}M`
                             : market.liquidity >= 1000
                             ? `$${(market.liquidity / 1000).toFixed(0)}k`
                             : `$${Math.round(market.liquidity)}`}
                         </td>
-                        <td className="px-4 py-3 text-right text-sm">
+                        <td className="hidden lg:table-cell px-4 py-3 text-right text-sm whitespace-nowrap">
                           {market.probability_confidence != null && market.probability_confidence > 0 ? (
                             <span className={`${
                               market.probability_confidence > 0.3 ? 'text-green-400' :
@@ -1386,13 +1383,15 @@ export default function HomePage() {
                             <span className="text-gray-600 text-xs">N/A</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-right text-xs text-gray-400">
+                        <td className="hidden md:table-cell px-4 py-3 text-right text-xs text-gray-400 whitespace-nowrap">
                           {market.days_until_end || Math.ceil((new Date(market.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))}d
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                  </div>
+                </div>
               </div>
             </motion.div>
           ) : !loadingMarkets && !marketError ? (

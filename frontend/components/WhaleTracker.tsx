@@ -170,19 +170,21 @@ export default function WhaleTracker() {
 
       {/* Whale Table */}
       <div className="bg-dark-700 border border-gold/20 rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-dark-800 border-b border-gold/20">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Rank</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Trader</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Total Volume</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Profit</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">ROI %</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Trades</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Activity</th>
-              </tr>
-            </thead>
+        <div className="overflow-x-auto -mx-2 md:mx-0">
+          <div className="inline-block min-w-full align-middle">
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-gold/10">
+                <thead className="bg-dark-800 border-b border-gold/20">
+                  <tr>
+                    <th className="px-2 md:px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Rank</th>
+                    <th className="px-2 md:px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Trader</th>
+                    <th className="px-2 md:px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Volume</th>
+                    <th className="hidden md:table-cell px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Profit</th>
+                    <th className="hidden lg:table-cell px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">ROI %</th>
+                    <th className="hidden lg:table-cell px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Trades</th>
+                    <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Activity</th>
+                  </tr>
+                </thead>
             <tbody className="divide-y divide-gold/10">
               {filteredWhales.slice(0, displayLimit).map((whale, index) => (
               <tr
@@ -192,9 +194,9 @@ export default function WhaleTracker() {
                 }`}
               >
                 {/* Rank */}
-                <td className="px-4 py-3">
-                  <div className="flex items-center space-x-2">
-                    <span className={`text-lg font-bold ${
+                <td className="px-2 md:px-4 py-3">
+                  <div className="flex items-center space-x-1 md:space-x-2">
+                    <span className={`text-sm md:text-lg font-bold ${
                       index === 0 ? 'text-yellow-400' :
                       index === 1 ? 'text-gray-400' :
                       index === 2 ? 'text-orange-600' :
@@ -203,7 +205,7 @@ export default function WhaleTracker() {
                       #{index + 1}
                     </span>
                     {index < 3 && (
-                      <span className="text-lg">
+                      <span className="text-base md:text-lg">
                         {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
                       </span>
                     )}
@@ -211,25 +213,25 @@ export default function WhaleTracker() {
                 </td>
 
                 {/* Trader Address */}
-                <td className="px-4 py-3">
-                  <div className="font-mono text-gold font-semibold text-sm">
+                <td className="px-2 md:px-4 py-3">
+                  <div className="font-mono text-gold font-semibold text-xs md:text-sm">
                     {shortenAddress(whale.address)}
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    {whale.activity || 'Unknown'} activity
+                  <div className="text-xs text-gray-500 mt-1 md:hidden">
+                    {formatVolume(whale.volume)}
                   </div>
                 </td>
 
                 {/* Volume */}
-                <td className="px-4 py-3 text-right">
-                  <div className="text-sm text-white font-semibold">
+                <td className="hidden md:table-cell px-2 md:px-4 py-3 text-right">
+                  <div className="text-xs md:text-sm text-white font-semibold whitespace-nowrap">
                     {formatVolume(whale.volume)}
                   </div>
                 </td>
 
                 {/* Profit */}
-                <td className="px-4 py-3 text-right">
-                  <div className={`text-sm font-semibold ${
+                <td className="hidden md:table-cell px-4 py-3 text-right">
+                  <div className={`text-xs md:text-sm font-semibold whitespace-nowrap ${
                     whale.profit >= 0 ? 'text-green-400' : 'text-red-400'
                   }`}>
                     {formatProfit(whale.profit)}
@@ -237,8 +239,8 @@ export default function WhaleTracker() {
                 </td>
 
                 {/* Profit Ratio */}
-                <td className="px-4 py-3 text-right">
-                  <div className={`text-sm font-semibold ${
+                <td className="hidden lg:table-cell px-4 py-3 text-right">
+                  <div className={`text-xs md:text-sm font-semibold whitespace-nowrap ${
                     whale.profit_ratio >= 0 ? 'text-green-400' : 'text-red-400'
                   }`}>
                     {(whale.profit_ratio * 100).toFixed(2)}%
@@ -246,28 +248,30 @@ export default function WhaleTracker() {
                 </td>
 
                 {/* Trades */}
-                <td className="px-4 py-3 text-right">
-                  <div className="text-sm text-white font-semibold">
+                <td className="hidden lg:table-cell px-4 py-3 text-right">
+                  <div className="text-xs md:text-sm text-white font-semibold whitespace-nowrap">
                     {whale.trades.toLocaleString()}
                   </div>
                 </td>
 
                 {/* Activity */}
-                <td className="px-4 py-3">
-                  <span className={`text-xs px-2 py-1 rounded ${
+                <td className="hidden md:table-cell px-4 py-3">
+                  <span className={`text-xs px-2 py-1 rounded whitespace-nowrap ${
                     whale.activity === 'high' || whale.activity === 'High' ? 'bg-green-500/20 text-green-400' :
                     whale.activity === 'medium' || whale.activity === 'Medium' ? 'bg-yellow-500/20 text-yellow-400' :
                     'bg-gray-500/20 text-gray-400'
                   }`}>
-                    {whale.activity || 'Unknown'}
+                    {whale.activity && whale.activity !== 'nan' ? whale.activity : 'Unknown'}
                   </span>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
 
     {/* Load More */}
     {filteredWhales.length > displayLimit && (
