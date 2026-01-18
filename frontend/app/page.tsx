@@ -1160,22 +1160,22 @@ export default function HomePage() {
             /* Markets View */
             <>
           {/* Metrics Cards */}
-          <div className="grid grid-cols-4 gap-4 mb-8">
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-5 hover:border-gold/40 transition-all">
-                <div className="text-gray-400 text-sm mb-1">Active Markets</div>
-                <div className="text-3xl font-bold text-gold">{filteredMarkets.length}</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all">
+                <div className="text-gray-400 text-xs md:text-sm mb-1">Active Markets</div>
+                <div className="text-xl md:text-3xl font-bold text-gold">{filteredMarkets.length}</div>
               </div>
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-5 hover:border-gold/40 transition-all">
-                <div className="text-gray-400 text-sm mb-1">24h Volume</div>
-                <div className="text-3xl font-bold text-gold">{formatVolume(totalVolume)}</div>
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all">
+                <div className="text-gray-400 text-xs md:text-sm mb-1">24h Volume</div>
+                <div className="text-xl md:text-3xl font-bold text-gold">{formatVolume(totalVolume)}</div>
               </div>
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-5 hover:border-gold/40 transition-all">
-                <div className="text-gray-400 text-sm mb-1">Avg Probability</div>
-                <div className="text-3xl font-bold text-gold">{avgProbability.toFixed(0)}%</div>
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all">
+                <div className="text-gray-400 text-xs md:text-sm mb-1">Avg Probability</div>
+                <div className="text-xl md:text-3xl font-bold text-gold">{avgProbability.toFixed(0)}%</div>
               </div>
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-5 hover:border-gold/40 transition-all">
-                <div className="text-gray-400 text-sm mb-1">Categories</div>
-                <div className="text-3xl font-bold text-gold">{actualCategories.length}</div>
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all">
+                <div className="text-gray-400 text-xs md:text-sm mb-1">Categories</div>
+                <div className="text-xl md:text-3xl font-bold text-gold">{actualCategories.length}</div>
               </div>
             </div>
 
@@ -1303,37 +1303,38 @@ export default function HomePage() {
               transition={{ duration: 0.8 }}
               className="mb-12"
             >
-              {/* Mobile Card View */}
-              <div className="md:hidden space-y-3">
+              {/* Card View - 2 cols mobile, 4 cols desktop */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 md:hidden mb-8">
                 {filteredMarkets.slice(0, displayLimit).map((market, index) => (
                   <div
                     key={market.id}
                     onClick={() => setSelectedMarket(market)}
-                    className="bg-dark-800 border border-gold/20 rounded-lg p-4 hover:border-gold/40 transition-all cursor-pointer"
+                    className="bg-gradient-to-br from-amber-900/10 to-yellow-900/5 border border-gold/30 rounded-lg p-3 hover:border-gold/50 hover:from-amber-900/15 hover:to-yellow-900/10 transition-all cursor-pointer"
                   >
                     {/* Category Badge */}
-                    <div className="text-xs text-gray-400 uppercase mb-2">{market.category}</div>
+                    <div className="text-xs text-amber-300/70 uppercase mb-2 font-semibold">{market.category}</div>
 
                     {/* Question */}
-                    <h3 className="text-sm font-semibold text-gray-100 mb-3 line-clamp-2">
+                    <h3 className="text-xs font-semibold text-amber-100 mb-3 line-clamp-3 leading-tight">
                       {market.question}
                     </h3>
 
                     {/* Yes/No Probabilities */}
-                    <div className="grid grid-cols-2 gap-2 mb-3">
-                      <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 text-center">
-                        <div className="text-xs text-green-400 mb-1">YES</div>
-                        <div className="text-lg font-bold text-green-400">{market.yes_prob}%</div>
+                    <div className="grid grid-cols-2 gap-1.5 mb-2">
+                      <div className="bg-green-500/20 border border-green-500/40 rounded-md p-2 text-center">
+                        <div className="text-xs text-green-300 mb-0.5">YES</div>
+                        <div className="text-base font-bold text-green-300">{market.yes_prob}%</div>
                       </div>
-                      <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-center">
-                        <div className="text-xs text-red-400 mb-1">NO</div>
-                        <div className="text-lg font-bold text-red-400">{market.no_prob}%</div>
+                      <div className="bg-red-500/20 border border-red-500/40 rounded-md p-2 text-center">
+                        <div className="text-xs text-red-300 mb-0.5">NO</div>
+                        <div className="text-base font-bold text-red-300">{market.no_prob}%</div>
                       </div>
                     </div>
 
                     {/* Volume & End Date */}
-                    <div className="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-gold/10">
-                      <div>
+                    <div className="flex flex-col gap-1 text-xs pt-2 border-t border-gold/20">
+                      <div className="flex items-center justify-between">
+                        <span className="text-amber-300/60">Vol:</span>
                         <span className="text-gold font-semibold">
                           {market.volume_24h >= 1000000
                             ? `$${(market.volume_24h / 1000000).toFixed(1)}M`
@@ -1341,10 +1342,12 @@ export default function HomePage() {
                             ? `$${(market.volume_24h / 1000).toFixed(0)}k`
                             : `$${market.volume_24h}`}
                         </span>
-                        <span className="ml-1">volume</span>
                       </div>
-                      <div>
-                        {new Date(market.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      <div className="flex items-center justify-between">
+                        <span className="text-amber-300/60">Ends:</span>
+                        <span className="text-amber-200/80 text-xs">
+                          {new Date(market.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
                       </div>
                     </div>
                   </div>
