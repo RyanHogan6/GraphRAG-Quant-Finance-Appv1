@@ -13,9 +13,16 @@ export default function AnimatedLogo() {
       <img
         src="/updated-logo-2.png"
         alt="KARGA"
-        className="w-auto h-auto max-w-3xl object-contain"
-        style={{ maxHeight: '280px' }}
+        className="w-auto h-auto max-w-[90%] sm:max-w-3xl object-contain"
+        style={{ maxHeight: '180px' }}
       />
+      <style jsx>{`
+        @media (min-width: 768px) {
+          img {
+            max-height: 560px !important;
+          }
+        }
+      `}</style>
     </motion.div>
   )
 }

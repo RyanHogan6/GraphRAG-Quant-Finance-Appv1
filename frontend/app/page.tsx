@@ -652,16 +652,16 @@ export default function HomePage() {
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.2 }}
-          className="text-center z-10"
+          className="text-center z-10 px-4"
         >
           {/* Animated KARGA Logo */}
-          <div className="mb-16">
+          <div className="mb-8 md:mb-16">
             <AnimatedLogo />
           </div>
-          <p className="text-3xl md:text-4xl text-gray-200 mb-6 font-light">
+          <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl text-gray-200 mb-4 md:mb-6 font-light leading-tight">
             Financial Intelligence Powered by Knowledge Graphs
           </p>
-          <p className="text-xl md:text-2xl text-gray-400 max-w-3xl mx-auto font-light">
+          <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-400 max-w-3xl mx-auto font-light leading-relaxed">
             Ask natural language questions. Get insights from millions of connected data points.
           </p>
         </motion.div>
