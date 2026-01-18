@@ -20,7 +20,7 @@ export default function Navigation() {
   // Track which section is currently in view
   useEffect(() => {
     const handleScroll = () => {
-      const sections = ['query', 'markets', 'whales', 'database', 'about']
+      const sections = ['query', 'markets', 'database', 'about']
       const scrollPosition = window.scrollY + 100
 
       for (const sectionId of sections) {
@@ -43,7 +43,6 @@ export default function Navigation() {
   const links = [
     { id: 'query', label: 'Query' },
     { id: 'markets', label: 'Markets' },
-    { id: 'whales', label: 'Whales' },
     { id: 'database', label: 'Database' },
     { id: 'about', label: 'About' },
   ]
@@ -65,7 +64,7 @@ export default function Navigation() {
           {/* Desktop Navigation */}
           <div className="hidden md:flex flex-1 items-center justify-center">
             <div className="flex space-x-1">
-              {links.slice(0, 4).map((link) => (
+              {links.slice(0, 3).map((link) => (
                 <button
                   key={link.id}
                   onClick={() => scrollToSection(link.id)}

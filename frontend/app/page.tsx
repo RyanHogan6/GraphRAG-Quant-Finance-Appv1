@@ -145,6 +145,7 @@ export default function HomePage() {
 
   // State for markets section
   const [selectedPlatform, setSelectedPlatform] = useState<'polymarket' | 'kalshi'>('polymarket')
+  const [polymarketView, setPolymarketView] = useState<'markets' | 'whales'>('markets') // Toggle between markets and whale tracker
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('All')
   const [sortBy, setSortBy] = useState<'volume' | 'probability' | 'traders'>('volume')
@@ -406,10 +407,10 @@ export default function HomePage() {
       try {
         const { api } = await import('@/lib/api')
         // Pass search to server for full database search
-        // Increased limit to 5000 for better demo experience - allows searching historical data
+        // Using max limit of 500 (backend constraint)
         const response = await api.browseCollection(
           selectedCollection,
-          5000,
+          500,
           debouncedSearch || undefined
         )
         // Handle multiple response formats: {documents: [...]}, {data: [...]}, or [...]
@@ -1084,7 +1085,7 @@ export default function HomePage() {
             <p className="text-gray-400 text-center mb-6">Live market data from Polymarket & Kalshi</p>
 
             {/* Platform Toggle */}
-            <div className="flex justify-center mb-8">
+            <div className="flex justify-center mb-4">
               <div className="inline-flex bg-dark-800 border border-gold/30 rounded-lg p-1">
                 <button
                   onClick={() => setSelectedPlatform('polymarket')}
@@ -1109,6 +1110,43 @@ export default function HomePage() {
               </div>
             </div>
 
+            {/* Polymarket View Toggle (Markets vs Whales) */}
+            {selectedPlatform === 'polymarket' && (
+              <div className="flex justify-center mb-8">
+                <div className="inline-flex bg-dark-700 border border-gold/20 rounded-lg p-1">
+                  <button
+                    onClick={() => setPolymarketView('markets')}
+                    className={`px-5 py-2 rounded-lg transition-all text-sm font-semibold ${
+                      polymarketView === 'markets'
+                        ? 'bg-gold/20 text-gold border border-gold/40'
+                        : 'text-gray-400 hover:text-gold'
+                    }`}
+                  >
+                    📊 Markets
+                  </button>
+                  <button
+                    onClick={() => setPolymarketView('whales')}
+                    className={`px-5 py-2 rounded-lg transition-all text-sm font-semibold ${
+                      polymarketView === 'whales'
+                        ? 'bg-gold/20 text-gold border border-gold/40'
+                        : 'text-gray-400 hover:text-gold'
+                    }`}
+                  >
+                    🐋 Whale Traders
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Conditional Content: Markets or Whale Tracker */}
+            {selectedPlatform === 'polymarket' && polymarketView === 'whales' ? (
+              /* Whale Tracker View */
+              <div className="mt-8">
+                <WhaleTracker />
+              </div>
+            ) : (
+              /* Markets View */
+              <>
             {/* Metrics Cards */}
             <div className="grid grid-cols-4 gap-4 mb-8">
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-5 hover:border-gold/40 transition-all">
@@ -1280,6 +1318,8 @@ export default function HomePage() {
               </button>
             </div>
           )}
+              </>
+            )}
         </div>
 
         {/* Market Detail Modal */}
@@ -1289,38 +1329,6 @@ export default function HomePage() {
             onClose={() => setSelectedMarket(null)}
           />
         )}
-      </section>
-
-      {/* Section Divider */}
-      <div className="w-full flex items-center justify-center py-8">
-        <div className="w-[70%] border-t-2 border-dashed border-gold/10"></div>
-      </div>
-
-      {/* Whale Tracker - Top Traders */}
-      <section
-        id="whales"
-        className="min-h-screen snap-start flex flex-col justify-center px-4 py-8 md:px-6 md:py-12 relative overflow-hidden"
-      >
-        {/* Animated background grid */}
-        <motion.div
-          className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
-          style={{ opacity: 0.3 }}
-        />
-        <div className="max-w-6xl mx-auto w-full relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl md:text-5xl font-bold text-gold mb-6">🐋 Whale Tracker</h2>
-            <p className="text-xl text-gray-400 max-w-3xl mx-auto mb-8">
-              Track the biggest bets and smartest money on Polymarket
-            </p>
-          </motion.div>
-
-          <WhaleTracker />
-        </div>
       </section>
 
       {/* Section Divider */}
@@ -1489,7 +1497,7 @@ export default function HomePage() {
               </div>
               {searchFilter && !isLoadingData && (
                 <div className="mb-4 text-sm text-gray-400">
-                  Found {collectionData.length} results (searching up to 5,000 records)
+                  Found {collectionData.length} results (showing up to 500 records)
                 </div>
               )}
 
