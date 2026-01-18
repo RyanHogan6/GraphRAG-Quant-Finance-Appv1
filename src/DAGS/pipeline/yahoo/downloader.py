@@ -9,17 +9,18 @@ def fetch_sp500_tickers():
     df = pd.read_html(url)[0]
     return df['Symbol'].str.replace('.', '-', regex=False).tolist()
 
-def download_stock_data(tickers, period='1mo', batch_size=30, sleep_between_batches=2.0):
+def download_stock_data(tickers, period='1mo', batch_size=1, sleep_between_tickers=0.5):
     """
-    Download stock data for given tickers with batching and error handling
+    Download stock data ONE TICKER AT A TIME with delays to avoid rate limiting
 
     Args:
         tickers: List of ticker symbols
         period: Time period ('1mo', '1y', '6mo')
-        batch_size: Number of tickers per batch (default 30 to avoid rate limits)
-        sleep_between_batches: Seconds to wait between batches (default 2.0)
+        batch_size: DEPRECATED - always downloads one at a time now
+        sleep_between_tickers: Seconds to wait between each ticker (default 0.5)
     """
     import time
+    import random
 
     if period == '1mo':
         start_date = datetime.today().date() - timedelta(days=30)
@@ -35,77 +36,65 @@ def download_stock_data(tickers, period='1mo', batch_size=30, sleep_between_batc
     all_records = []
     failed_tickers = []
 
-    total_batches = (len(tickers) - 1) // batch_size + 1
-    print(f"Downloading {len(tickers)} tickers in {total_batches} batches of {batch_size}...")
-    print(f"Rate limiting: {sleep_between_batches}s between batches")
+    print(f"Downloading {len(tickers)} tickers ONE AT A TIME...")
+    print(f"Rate limiting: {sleep_between_tickers}s between tickers (with random jitter)")
+    print("This will take approximately {:.1f} minutes".format(len(tickers) * sleep_between_tickers / 60))
 
-    # Download in batches
-    for batch_idx in range(0, len(tickers), batch_size):
-        batch = tickers[batch_idx:batch_idx + batch_size]
-        batch_num = batch_idx // batch_size + 1
-
-        print(f"\n  Batch {batch_num}/{total_batches}: {len(batch)} tickers", end='')
-
+    # Download one ticker at a time to avoid rate limiting
+    for idx, ticker in enumerate(tickers, 1):
         try:
-            # Download batch with timeout
+            # Progress update every 50 tickers
+            if idx % 50 == 0 or idx == len(tickers):
+                print(f"  Progress: {idx}/{len(tickers)} ({idx/len(tickers)*100:.1f}%) - Success: {len(all_records)}, Failed: {len(failed_tickers)}")
+
+            # Download single ticker
             data = yf.download(
-                batch,
+                ticker,
                 start=start_date,
                 end=end_date,
                 auto_adjust=True,
-                group_by='ticker',
-                threads=True,
                 progress=False
             )
 
-            # Process each ticker in batch
-            batch_success = 0
-            for ticker in batch:
-                try:
-                    # Extract ticker data
-                    if len(batch) == 1:
-                        df = data.copy()
-                    elif isinstance(data.columns, pd.MultiIndex):
-                        df = data[ticker].copy()
-                    else:
-                        df = data.copy()
+            # Check if data is empty
+            if data.empty or len(data) == 0:
+                failed_tickers.append(ticker)
+                # Add small delay even on failure
+                time.sleep(0.1)
+                continue
 
-                    # Reset index and standardize columns
-                    df = df.reset_index()
-                    df.columns = [col.lower() if isinstance(col, str) else col for col in df.columns]
+            # Process data
+            df = data.copy()
+            df = df.reset_index()
+            df.columns = [col.lower() if isinstance(col, str) else col for col in df.columns]
 
-                    # Skip if no data
-                    if df.empty or len(df) == 0:
-                        failed_tickers.append(ticker)
-                        continue
+            # Add ticker column and format date
+            df['ticker'] = ticker
+            df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d')
 
-                    # Add ticker column and format date
-                    df['ticker'] = ticker
-                    df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d')
-
-                    # Only keep rows with valid OHLCV data
-                    required_cols = ['open', 'high', 'low', 'close', 'volume']
-                    if all(col in df.columns for col in required_cols):
-                        df = df.dropna(subset=required_cols)
-                        if len(df) > 0:
-                            all_records.append(df)
-                            batch_success += 1
-                    else:
-                        failed_tickers.append(ticker)
-
-                except Exception as e:
-                    print(f"    Error processing {ticker}: {e}")
+            # Only keep rows with valid OHLCV data
+            required_cols = ['open', 'high', 'low', 'close', 'volume']
+            if all(col in df.columns for col in required_cols):
+                df = df.dropna(subset=required_cols)
+                if len(df) > 0:
+                    all_records.append(df)
+                else:
                     failed_tickers.append(ticker)
+            else:
+                failed_tickers.append(ticker)
 
-            print(f" - Success: {batch_success}/{len(batch)}")
-
-            # Rate limit: wait between batches
-            if batch_idx + batch_size < len(tickers):
-                time.sleep(sleep_between_batches)
+            # Rate limiting with random jitter to appear more human-like
+            if idx < len(tickers):
+                # Add random 10-30% variation to sleep time
+                jitter = random.uniform(0.9, 1.3)
+                time.sleep(sleep_between_tickers * jitter)
 
         except Exception as e:
-            print(f"\n  Batch download failed: {e}")
-            failed_tickers.extend(batch)
+            # Silently fail individual tickers (yfinance logs errors)
+            failed_tickers.append(ticker)
+            # Small delay on error
+            time.sleep(0.2)
+            continue
 
     # Combine all successful downloads
     if all_records:
