@@ -90,7 +90,6 @@ export default function HomePage() {
     'commodity_positions': 'Commodities & Futures',
     'prediction_markets_polymarket': 'Polymarket',
     'prediction_markets_kalshi': 'Kalshi',
-    'sec_filings': 'SEC Filings (10-K, 10-Q, 8-K)',
     'sec_sentences': '10-K Sentiment Analysis',
   }
 
@@ -129,11 +128,6 @@ export default function HomePage() {
     'prediction_markets_kalshi': (
       <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-      </svg>
-    ),
-    'sec_filings': (
-      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
       </svg>
     ),
     'sec_sentences': (
@@ -177,7 +171,6 @@ export default function HomePage() {
           { name: 'Company', count: 852, description: 'S&P 500 companies with fundamentals' },
           { name: 'MarketData', count: 2100000, description: 'Daily OHLCV + technical indicators' },
           { name: 'Award', count: 500000, description: 'Federal contracts with embeddings' },
-          { name: 'sec_filings', count: 15000, description: 'SEC filings with sentiment' },
           { name: 'sec_sentences', count: 890000, description: 'Filing sentences with FinBERT scores' },
           { name: 'prediction_markets_polymarket', count: 12968, description: 'Polymarket prediction data' },
           { name: 'prediction_markets_kalshi', count: 5432, description: 'Kalshi event contracts' },
@@ -704,7 +697,7 @@ export default function HomePage() {
           className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
           style={{ opacity: gridOpacity1 }}
         />
-        <div className="max-w-6xl mx-auto relative z-10">
+        <div className="max-w-7xl mx-auto relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             animate={isWhyGraphsInView ? { opacity: 1, y: 0 } : {}}
@@ -1022,7 +1015,7 @@ export default function HomePage() {
           className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
           style={{ opacity: gridOpacity3 }}
         />
-        <div className="max-w-6xl mx-auto w-full relative z-10">
+        <div className="max-w-7xl mx-auto w-full relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             animate={isGraphVizInView ? { opacity: 1, y: 0 } : {}}
@@ -1122,7 +1115,7 @@ export default function HomePage() {
                         : 'text-gray-400 hover:text-gold'
                     }`}
                   >
-                    📊 Markets
+                    Markets
                   </button>
                   <button
                     onClick={() => setPolymarketView('whales')}
@@ -1132,7 +1125,7 @@ export default function HomePage() {
                         : 'text-gray-400 hover:text-gold'
                     }`}
                   >
-                    🐋 Whale Traders
+                    Whale Traders
                   </button>
                 </div>
               </div>
@@ -1283,22 +1276,61 @@ export default function HomePage() {
             </motion.div>
           )}
 
-          {/* Markets Grid */}
+          {/* Markets Table */}
           {!loadingMarkets && !marketError && filteredMarkets.length > 0 ? (
             <motion.div
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 0.8 }}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-12"
+              className="bg-dark-700 border border-gold/20 rounded-lg overflow-hidden mb-12"
             >
-              {filteredMarkets.slice(0, displayLimit).map((market) => (
-                <MarketCard
-                  key={market.id}
-                  market={market}
-                  onClick={() => setSelectedMarket(market)}
-                />
-              ))}
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-dark-800 border-b border-gold/20">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Question</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Category</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">Yes</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">No</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Volume 24h</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">End Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gold/10">
+                    {filteredMarkets.slice(0, displayLimit).map((market) => (
+                      <tr
+                        key={market.id}
+                        className="hover:bg-dark-800/50 transition-colors cursor-pointer"
+                        onClick={() => setSelectedMarket(market)}
+                      >
+                        <td className="px-4 py-3 text-sm text-gray-200 max-w-md">
+                          <div className="line-clamp-2">{market.question}</div>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                          {market.category}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="text-sm font-semibold text-green-400">{market.yes_prob}%</span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="text-sm font-semibold text-red-400">{market.no_prob}%</span>
+                        </td>
+                        <td className="px-4 py-3 text-right text-sm text-gold font-medium">
+                          {market.volume_24h >= 1000000
+                            ? `$${(market.volume_24h / 1000000).toFixed(1)}M`
+                            : market.volume_24h >= 1000
+                            ? `$${(market.volume_24h / 1000).toFixed(0)}k`
+                            : `$${market.volume_24h}`}
+                        </td>
+                        <td className="px-4 py-3 text-right text-xs text-gray-400 whitespace-nowrap">
+                          {new Date(market.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </motion.div>
           ) : !loadingMarkets && !marketError ? (
             <div className="text-center py-16 bg-dark-800 border border-gold/20 rounded-lg">
@@ -1347,7 +1379,7 @@ export default function HomePage() {
           className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
           style={{ opacity: gridOpacity3 }}
         />
-        <div className="max-w-6xl mx-auto w-full relative z-10">
+        <div className="max-w-7xl mx-auto w-full relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             animate={isStatsInView ? { opacity: 1, y: 0 } : {}}

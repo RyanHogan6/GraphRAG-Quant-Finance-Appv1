@@ -88,110 +88,90 @@ export default function WhaleTracker() {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Whale Leaderboard Header - Hidden on mobile */}
-      <div className="hidden md:block bg-dark-800 border border-gold/30 rounded-lg p-4">
-        <div className="grid grid-cols-6 gap-4 text-sm text-gray-500 font-semibold">
-          <div>Rank</div>
-          <div>Trader</div>
-          <div className="text-right">Total Volume</div>
-          <div className="text-right">Profit</div>
-          <div className="text-right">Profit %</div>
-          <div className="text-right">Trades</div>
-        </div>
+    <div className="bg-dark-700 border border-gold/20 rounded-lg overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-dark-800 border-b border-gold/20">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Rank</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Trader</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Total Volume</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Profit</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">ROI %</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Trades</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gold/10">
+            {whales.map((whale, index) => (
+              <tr
+                key={whale.address}
+                className="hover:bg-dark-800/50 transition-colors"
+              >
+                {/* Rank */}
+                <td className="px-4 py-3">
+                  <div className="flex items-center space-x-2">
+                    <span className={`text-lg font-bold ${
+                      index === 0 ? 'text-yellow-400' :
+                      index === 1 ? 'text-gray-400' :
+                      index === 2 ? 'text-orange-600' :
+                      'text-gray-500'
+                    }`}>
+                      #{index + 1}
+                    </span>
+                    {index < 3 && (
+                      <span className="text-lg">
+                        {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                      </span>
+                    )}
+                  </div>
+                </td>
+
+                {/* Trader Address */}
+                <td className="px-4 py-3">
+                  <div className="font-mono text-gold font-semibold text-sm">
+                    {shortenAddress(whale.address)}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {whale.activity || 'Unknown'} activity
+                  </div>
+                </td>
+
+                {/* Volume */}
+                <td className="px-4 py-3 text-right">
+                  <div className="text-sm text-white font-semibold">
+                    {formatVolume(whale.volume)}
+                  </div>
+                </td>
+
+                {/* Profit */}
+                <td className="px-4 py-3 text-right">
+                  <div className={`text-sm font-semibold ${
+                    whale.profit >= 0 ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {formatProfit(whale.profit)}
+                  </div>
+                </td>
+
+                {/* Profit Ratio */}
+                <td className="px-4 py-3 text-right">
+                  <div className={`text-sm font-semibold ${
+                    whale.profit_ratio >= 0 ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {(whale.profit_ratio * 100).toFixed(2)}%
+                  </div>
+                </td>
+
+                {/* Trades */}
+                <td className="px-4 py-3 text-right">
+                  <div className="text-sm text-white font-semibold">
+                    {whale.trades.toLocaleString()}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-
-      {/* Whale List */}
-      {whales.map((whale, index) => (
-        <div
-          key={whale.address}
-          className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-4 hover:border-gold/40 transition-all cursor-pointer"
-        >
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-3 md:gap-4 items-center">
-            {/* Rank - Full width on mobile */}
-            <div className="flex items-center space-x-2 col-span-2 md:col-span-1">
-              <div className={`text-xl md:text-2xl font-bold ${
-                index === 0 ? 'text-yellow-400' :
-                index === 1 ? 'text-gray-400' :
-                index === 2 ? 'text-orange-600' :
-                'text-gray-500'
-              }`}>
-                #{index + 1}
-              </div>
-              {index < 3 && (
-                <span className="text-xl md:text-2xl">
-                  {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
-                </span>
-              )}
-              <div className="md:hidden flex-1">
-                <div className="font-mono text-gold font-semibold text-sm">
-                  {shortenAddress(whale.address)}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {whale.activity || 'Unknown'}
-                </div>
-              </div>
-            </div>
-
-            {/* Trader Address - Desktop only */}
-            <div className="hidden md:block">
-              <div className="font-mono text-gold font-semibold">
-                {shortenAddress(whale.address)}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                {whale.activity || 'Unknown'} activity
-              </div>
-            </div>
-
-            {/* Volume */}
-            <div className="text-right">
-              <div className="text-white font-semibold">
-                {formatVolume(whale.volume)}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">Total volume</div>
-            </div>
-
-            {/* Profit */}
-            <div className="text-right">
-              <div className={`font-semibold ${
-                whale.profit >= 0 ? 'text-green-400' : 'text-red-400'
-              }`}>
-                {formatProfit(whale.profit)}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">Net profit</div>
-            </div>
-
-            {/* Profit Ratio */}
-            <div className="text-right">
-              <div className={`font-semibold ${
-                whale.profit_ratio >= 0 ? 'text-green-400' : 'text-red-400'
-              }`}>
-                {(whale.profit_ratio * 100).toFixed(2)}%
-              </div>
-              <div className="text-xs text-gray-500 mt-1">ROI</div>
-            </div>
-
-            {/* Trades */}
-            <div className="text-right">
-              <div className="text-white font-semibold">
-                {whale.trades.toLocaleString()}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">Total trades</div>
-            </div>
-          </div>
-
-          {/* Whale Badge */}
-          <div className="mt-3 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <span className="text-2xl">🐋</span>
-              <span className="text-xs text-gold font-semibold">WHALE TRADER</span>
-            </div>
-            <button className="text-xs text-gray-400 hover:text-gold transition-colors">
-              View Details →
-            </button>
-          </div>
-        </div>
-      ))}
     </div>
   )
 }
