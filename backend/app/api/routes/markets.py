@@ -54,19 +54,20 @@ def get_sample_market():
 
 @router.get("/polymarket/fast")
 def get_fast_markets():
-    """EMERGENCY FAST endpoint - no filters, just grab ANY 50 markets"""
+    """EMERGENCY FAST endpoint - no filters, no sorting, just grab first 100"""
     db = get_db()
 
-    print(f"⚡ ULTRA-FAST v1.0 - No filters, just grab 50 markets")
+    print(f"⚡ ULTRA-FAST v2.0 - No filters/sorting, grab first 100")
 
     query = """
     FOR market IN prediction_markets_polymarket
-        LIMIT 50
+        LIMIT 100
+        LET yes_prob = market.yes_probability != null ? market.yes_probability * 100 : 50
         RETURN {
             id: market._key,
             question: market.question,
-            yes_prob: 50,
-            no_prob: 50,
+            yes_prob: ROUND(yes_prob),
+            no_prob: ROUND(100 - yes_prob),
             outcome_yes: "Yes",
             outcome_no: "No",
             volume_24h: market.volume_24h != null ? market.volume_24h : 0,
@@ -89,23 +90,19 @@ def get_fast_markets():
 @router.get("/polymarket/categories")
 @limiter.limit("30/minute")
 def get_polymarket_categories(request: Request):
-    """Get all Polymarket categories with counts - OPTIMIZED"""
+    """Get Polymarket categories - EMERGENCY FAST VERSION"""
     db = get_db()
 
-    print(f"🏷️ OPTIMIZED CATEGORIES v3.0 - Using liquidity sort (200 sample)")
+    print(f"🏷️ INDEXED CATEGORIES v5.0 - Using idx_closed_category")
 
     query = """
     FOR m IN prediction_markets_polymarket
-        // Only filter closed and null category (60k total markets)
+        // Uses idx_closed_category for fast filtering
         FILTER m.closed == false
         FILTER m.category != null
         FILTER m.liquidity != null
-
-        // Sample top 200 markets by liquidity for category diversity
         SORT m.liquidity DESC
-        LIMIT 200
-
-        // NOW collect categories (much smaller dataset)
+        LIMIT 500
         COLLECT category = m.category WITH COUNT INTO count
         SORT count DESC
         RETURN {category: category, count: count}
@@ -190,39 +187,28 @@ def get_featured_markets(
     - Fast indexes on volume_24h and liquidity
     """
 
-    print(f"🚀 OPTIMIZED QUERY v4.0 - Fetching {limit} markets (RELAXED FILTERS)")
+    print(f"🚀 INDEXED QUERY v6.0 - Using indexes on closed + liquidity")
 
     query = f"""
     FOR market IN prediction_markets_polymarket
-        // Only filter closed markets - volume_24h is often 0 for valid markets
+        // Uses idx_closed_liquidity compound index for fast filtering + sorting
         FILTER market.closed == false
         FILTER market.liquidity != null
-
-        // Sort by liquidity (more stable than volume_24h which is often 0)
         SORT market.liquidity DESC
         LIMIT {limit}
 
-        // NOW do calculations on smaller dataset
-        LET yes_prob_value = market.outcome_prices[0] != null ? market.outcome_prices[0] :
-                             (market.yes_probability != null ? market.yes_probability : 0.5)
-        LET yes_prob_pct = yes_prob_value <= 1 ? (yes_prob_value * 100) : yes_prob_value
-        LET no_prob_value = market.outcome_prices[1] != null ? market.outcome_prices[1] : (1 - yes_prob_value)
-        LET no_prob_pct = no_prob_value <= 1 ? (no_prob_value * 100) : no_prob_value
-
-        // Get outcomes
+        LET yes_prob = market.yes_probability != null ? market.yes_probability * 100 : 50
         LET outcomes_array = IS_ARRAY(market.outcomes) ? market.outcomes : []
-        LET outcome_yes = outcomes_array[0] != null ? outcomes_array[0] : "Yes"
-        LET outcome_no = outcomes_array[1] != null ? outcomes_array[1] : "No"
 
         RETURN {{
             id: market._key,
             question: market.question,
-            yes_prob: ROUND(yes_prob_pct),
-            no_prob: ROUND(no_prob_pct),
-            outcome_yes: outcome_yes,
-            outcome_no: outcome_no,
-            volume_24h: market.volume_24h,
-            liquidity: market.liquidity,
+            yes_prob: ROUND(yes_prob),
+            no_prob: ROUND(100 - yes_prob),
+            outcome_yes: outcomes_array[0] != null ? outcomes_array[0] : "Yes",
+            outcome_no: outcomes_array[1] != null ? outcomes_array[1] : "No",
+            volume_24h: market.volume_24h != null ? market.volume_24h : 0,
+            liquidity: market.liquidity != null ? market.liquidity : 0,
             category: market.category != null ? market.category : "Other",
             end_date: market.end_date,
             traders: 0
@@ -380,25 +366,111 @@ def get_whale_traders(
         return []
 
 
+@router.get("/kalshi/featured")
+@limiter.limit("30/minute")
+def get_kalshi_featured(
+    request: Request,
+    limit: int = 100
+):
+    """
+    Get Kalshi featured markets - MATCHES POLYMARKET FORMAT v2.0
+
+    Returns exact same structure as Polymarket for consistent frontend rendering
+    """
+    db = get_db()
+
+    print(f"🚀 KALSHI FEATURED v2.0 - Fetching {limit} active markets (indexed)")
+
+    query = f"""
+    FOR market IN prediction_markets_kalshi
+        // Uses indexes: idx_status, idx_yes_probability, idx_open_interest
+        FILTER market.status == "active"
+        FILTER market.yes_probability != null
+        FILTER market.yes_probability > 0
+        FILTER market.yes_probability < 1
+        FILTER (market.volume > 0 OR market.open_interest > 0)
+
+        // Sort by open interest (more stable than volume for Kalshi)
+        SORT market.open_interest DESC
+        LIMIT {limit}
+
+        LET yes_prob = market.yes_probability * 100
+
+        RETURN {{
+            id: market._key,
+            question: market.title,  // Map title -> question for frontend
+            yes_prob: ROUND(yes_prob),
+            no_prob: ROUND(100 - yes_prob),
+            outcome_yes: "Yes",
+            outcome_no: "No",
+            volume_24h: market.volume_24h != null ? market.volume_24h : 0,
+            liquidity: market.open_interest != null ? market.open_interest : 0,
+            category: market.category != null ? market.category : "Other",
+            end_date: market.close_time,
+            traders: 0
+        }}
+    """
+
+    try:
+        results, error = execute_aql(query)
+        if error:
+            raise HTTPException(status_code=500, detail=error)
+        return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/kalshi/categories")
+@limiter.limit("30/minute")
+def get_kalshi_categories(request: Request):
+    """Get Kalshi categories - MATCHES POLYMARKET FORMAT v2.0"""
+    db = get_db()
+
+    print(f"🏷️ KALSHI CATEGORIES v2.0 - Using indexed query")
+
+    query = """
+    FOR m IN prediction_markets_kalshi
+        // Uses indexes: idx_status, idx_yes_probability
+        FILTER m.status == "active"
+        FILTER m.category != null
+        FILTER m.yes_probability > 0
+        FILTER m.yes_probability < 1
+        FILTER (m.volume > 0 OR m.open_interest > 0)
+        SORT m.open_interest DESC
+        LIMIT 500
+        COLLECT category = m.category WITH COUNT INTO count
+        SORT count DESC
+        RETURN {category: category, count: count}
+    """
+
+    try:
+        results, error = execute_aql(query)
+        if error:
+            raise HTTPException(status_code=500, detail=error)
+        return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/kalshi/markets")
 def get_kalshi_markets(
-    limit: int = QueryParam(20)
+    limit: int = 20
 ):
-    """Get Kalshi markets"""
+    """Get Kalshi markets (legacy endpoint)"""
     db = get_db()
 
     query = f"""
     FOR market IN prediction_markets_kalshi
         FILTER market.status == "active"
-        FILTER market.volume_24h > 0
-        SORT market.volume_24h DESC
+        FILTER market.yes_probability > 0
+        SORT market.open_interest DESC
         LIMIT {limit}
         RETURN {{
             id: market._key,
             question: market.title,
-            yes_prob: FLOOR(market.yes_price * 100),
-            no_prob: FLOOR((1 - market.yes_price) * 100),
-            volume_24h: market.volume_24h,
+            yes_prob: ROUND(market.yes_probability * 100),
+            no_prob: ROUND((1 - market.yes_probability) * 100),
+            volume_24h: market.volume_24h != null ? market.volume_24h : 0,
             category: market.category,
             close_time: market.close_time
         }}

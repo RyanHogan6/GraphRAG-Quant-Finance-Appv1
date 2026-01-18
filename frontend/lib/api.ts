@@ -60,7 +60,7 @@ export const api = {
       return cached
     }
 
-    // Fetch from API with retry
+    // Fetch from API with retry - both platforms now have /featured endpoint
     const res = await fetchWithRetry(`${API_BASE_URL}/api/markets/${platform}/featured?limit=${limit}`);
     const data = await res.json();
 
