@@ -535,17 +535,7 @@ export default function HomePage() {
         setSearchQuery('')
         const { api } = await import('@/lib/api')
 
-        // Check if Kalshi is selected but not implemented yet
-        if (selectedPlatform === 'kalshi') {
-          setMarkets([])
-          setCategories([])
-          setDisplayLimit(12)
-          setHasMore(false)
-          setMarketError('Kalshi integration is currently in development. Please select Polymarket.')
-          setLoadingMarkets(false)
-          return
-        }
-
+        // Fetch markets for both Polymarket and Kalshi
         const [marketsData, categoriesData] = await Promise.all([
           api.getFeaturedMarkets(200, selectedPlatform),
           api.getCategories(selectedPlatform)
