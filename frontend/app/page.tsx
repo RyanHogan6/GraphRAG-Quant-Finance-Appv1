@@ -1294,14 +1294,36 @@ export default function HomePage() {
                       <th className="px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">Yes</th>
                       <th className="px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">No</th>
                       <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Volume 24h</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">End Date</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Liquidity</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Confidence</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Days Left</th>
+                    </tr>
+                    {/* Column Filters */}
+                    <tr className="bg-dark-800/50">
+                      <th className="px-2 py-2">
+                        <input
+                          type="text"
+                          placeholder="Filter question..."
+                          className="w-full bg-dark-900 border border-gold/20 rounded px-2 py-1 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-gold/40"
+                        />
+                      </th>
+                      <th className="px-2 py-2">
+                        <input
+                          type="text"
+                          placeholder="Filter category..."
+                          className="w-full bg-dark-900 border border-gold/20 rounded px-2 py-1 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-gold/40"
+                        />
+                      </th>
+                      <th colSpan={6}></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gold/10">
-                    {filteredMarkets.slice(0, displayLimit).map((market) => (
+                    {filteredMarkets.slice(0, displayLimit).map((market, index) => (
                       <tr
                         key={market.id}
-                        className="hover:bg-dark-800/50 transition-colors cursor-pointer"
+                        className={`hover:bg-dark-800/70 transition-colors cursor-pointer ${
+                          index % 2 === 0 ? 'bg-dark-800/20' : 'bg-gold/5'
+                        }`}
                         onClick={() => setSelectedMarket(market)}
                       >
                         <td className="px-4 py-3 text-sm text-gray-200 max-w-md">
@@ -1323,8 +1345,24 @@ export default function HomePage() {
                             ? `$${(market.volume_24h / 1000).toFixed(0)}k`
                             : `$${market.volume_24h}`}
                         </td>
-                        <td className="px-4 py-3 text-right text-xs text-gray-400 whitespace-nowrap">
-                          {new Date(market.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        <td className="px-4 py-3 text-right text-sm text-gray-300">
+                          {market.liquidity >= 1000000
+                            ? `$${(market.liquidity / 1000000).toFixed(1)}M`
+                            : market.liquidity >= 1000
+                            ? `$${(market.liquidity / 1000).toFixed(0)}k`
+                            : `$${Math.round(market.liquidity)}`}
+                        </td>
+                        <td className="px-4 py-3 text-right text-sm">
+                          <span className={`${
+                            (market.probability_confidence || 0) > 0.3 ? 'text-green-400' :
+                            (market.probability_confidence || 0) > 0.15 ? 'text-yellow-400' :
+                            'text-gray-500'
+                          }`}>
+                            {((market.probability_confidence || 0) * 100).toFixed(0)}%
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right text-xs text-gray-400">
+                          {market.days_until_end || Math.ceil((new Date(market.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))}d
                         </td>
                       </tr>
                     ))}
@@ -1598,7 +1636,9 @@ export default function HomePage() {
                         </thead>
                         <tbody className="divide-y divide-gold/10">
                           {filteredData.slice(0, 100).map((row, idx) => (
-                            <tr key={idx} className="hover:bg-dark-800/50 transition-colors">
+                            <tr key={idx} className={`hover:bg-dark-800/70 transition-colors ${
+                              idx % 2 === 0 ? 'bg-dark-800/20' : 'bg-gold/5'
+                            }`}>
                               {Object.entries(row)
                                 .filter(([key]) => !key.startsWith('_'))
                                 .map(([key, value]) => (
