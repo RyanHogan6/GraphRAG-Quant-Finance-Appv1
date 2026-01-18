@@ -1301,12 +1301,62 @@ export default function HomePage() {
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 0.8 }}
-              className="bg-dark-700 border border-gold/20 rounded-lg overflow-hidden mb-12"
+              className="mb-12"
             >
-              <div className="overflow-x-auto -mx-2 md:mx-0">
-                <div className="inline-block min-w-full align-middle">
-                  <div className="overflow-hidden">
-                    <table className="min-w-full divide-y divide-gold/10">
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3">
+                {filteredMarkets.slice(0, displayLimit).map((market, index) => (
+                  <div
+                    key={market.id}
+                    onClick={() => setSelectedMarket(market)}
+                    className="bg-dark-800 border border-gold/20 rounded-lg p-4 hover:border-gold/40 transition-all cursor-pointer"
+                  >
+                    {/* Category Badge */}
+                    <div className="text-xs text-gray-400 uppercase mb-2">{market.category}</div>
+
+                    {/* Question */}
+                    <h3 className="text-sm font-semibold text-gray-100 mb-3 line-clamp-2">
+                      {market.question}
+                    </h3>
+
+                    {/* Yes/No Probabilities */}
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 text-center">
+                        <div className="text-xs text-green-400 mb-1">YES</div>
+                        <div className="text-lg font-bold text-green-400">{market.yes_prob}%</div>
+                      </div>
+                      <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-center">
+                        <div className="text-xs text-red-400 mb-1">NO</div>
+                        <div className="text-lg font-bold text-red-400">{market.no_prob}%</div>
+                      </div>
+                    </div>
+
+                    {/* Volume & End Date */}
+                    <div className="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-gold/10">
+                      <div>
+                        <span className="text-gold font-semibold">
+                          {market.volume_24h >= 1000000
+                            ? `$${(market.volume_24h / 1000000).toFixed(1)}M`
+                            : market.volume_24h >= 1000
+                            ? `$${(market.volume_24h / 1000).toFixed(0)}k`
+                            : `$${market.volume_24h}`}
+                        </span>
+                        <span className="ml-1">volume</span>
+                      </div>
+                      <div>
+                        {new Date(market.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block bg-dark-700 border border-gold/20 rounded-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                  <div className="inline-block min-w-full align-middle">
+                    <div className="overflow-hidden">
+                      <table className="min-w-full divide-y divide-gold/10">
                   <thead className="bg-dark-800 border-b border-gold/20">
                     <tr>
                       <th className="px-2 md:px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider min-w-[200px]">Question</th>
@@ -1390,6 +1440,7 @@ export default function HomePage() {
                     ))}
                   </tbody>
                 </table>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1520,14 +1571,14 @@ export default function HomePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
-              className="bg-dark-800 border border-gold/30 rounded-lg p-6 mt-6"
+              className="bg-dark-800 border border-gold/30 rounded-lg p-4 md:p-6 mt-6"
             >
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-2xl font-bold text-gold">
+              <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-3">
+                <div className="flex-1">
+                  <h3 className="text-xl md:text-2xl font-bold text-gold">
                     {collectionDisplayNames[selectedCollection] || selectedCollection}
                   </h3>
-                  <p className="text-gray-400 text-sm mt-1">
+                  <p className="text-gray-400 text-xs md:text-sm mt-1">
                     {collections.find(c => c.name === selectedCollection)?.description}
                   </p>
                 </div>
@@ -1536,7 +1587,7 @@ export default function HomePage() {
                     setSelectedCollection(null)
                     setSearchFilter('')
                   }}
-                  className="text-gray-500 hover:text-gold transition-colors"
+                  className="text-gray-500 hover:text-gold transition-colors self-end md:self-auto"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1544,7 +1595,7 @@ export default function HomePage() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-6">
                 <div className="bg-dark-700 border border-gold/20 rounded p-4">
                   <div className="text-xs text-gray-400 mb-1">Total Documents</div>
                   <div className="text-2xl font-semibold text-gold">
@@ -1604,8 +1655,8 @@ export default function HomePage() {
                   </div>
                 ) : filteredData.length > 0 ? (
                   <>
-                    <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-                      <table className="w-full text-sm">
+                    <div className="overflow-x-auto overflow-y-auto max-h-[400px] md:max-h-[600px]">
+                      <table className="w-full text-xs md:text-sm">
                         <thead className="bg-dark-800 sticky top-0 z-10">
                           {/* Column Headers - Sortable */}
                           <tr>
@@ -1614,7 +1665,7 @@ export default function HomePage() {
                               .map((key) => (
                                 <th
                                   key={key}
-                                  className="px-4 py-3 text-left text-xs font-semibold text-gold uppercase tracking-wider border-b border-gold/20 cursor-pointer hover:bg-dark-700 transition-colors"
+                                  className="px-2 md:px-4 py-2 md:py-3 text-left text-xs font-semibold text-gold uppercase tracking-wider border-b border-gold/20 cursor-pointer hover:bg-dark-700 transition-colors whitespace-nowrap"
                                   onClick={() => {
                                     if (sortColumn === key) {
                                       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
@@ -1635,8 +1686,8 @@ export default function HomePage() {
                                 </th>
                               ))}
                           </tr>
-                          {/* Column Filters */}
-                          <tr>
+                          {/* Column Filters - Hidden on mobile */}
+                          <tr className="hidden md:table-row">
                             {Object.keys(filteredData[0])
                               .filter(key => !key.startsWith('_'))
                               .map((key) => (
@@ -1666,7 +1717,7 @@ export default function HomePage() {
                               {Object.entries(row)
                                 .filter(([key]) => !key.startsWith('_'))
                                 .map(([key, value]) => (
-                                  <td key={key} className="px-4 py-3 text-gray-300 whitespace-nowrap">
+                                  <td key={key} className="px-2 md:px-4 py-2 md:py-3 text-gray-300 whitespace-nowrap">
                                     {typeof value === 'object' && value !== null ? (
                                       <span className="text-xs text-gray-500 italic">
                                         {Array.isArray(value) ? `Array[${value.length}]` : 'Object'}

@@ -168,9 +168,68 @@ export default function WhaleTracker() {
         </div>
       )}
 
-      {/* Whale Table */}
-      <div className="bg-dark-700 border border-gold/20 rounded-lg overflow-hidden">
-        <div className="overflow-x-auto -mx-2 md:mx-0">
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-3">
+        {filteredWhales.slice(0, displayLimit).map((whale, index) => (
+          <div
+            key={whale.address}
+            className="bg-dark-800 border border-gold/20 rounded-lg p-4"
+          >
+            {/* Rank and Address */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2">
+                <span className={`text-lg font-bold ${
+                  index === 0 ? 'text-yellow-400' :
+                  index === 1 ? 'text-gray-400' :
+                  index === 2 ? 'text-orange-600' :
+                  'text-gray-500'
+                }`}>
+                  #{index + 1}
+                </span>
+                {index < 3 && (
+                  <span className="text-lg">
+                    {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                  </span>
+                )}
+              </div>
+              <div className="font-mono text-gold font-semibold text-xs">
+                {shortenAddress(whale.address)}
+              </div>
+            </div>
+
+            {/* Volume and Profit */}
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="bg-dark-700 border border-gold/10 rounded p-2">
+                <div className="text-xs text-gray-500 mb-1">Volume</div>
+                <div className="text-sm font-bold text-white">{formatVolume(whale.volume)}</div>
+              </div>
+              <div className="bg-dark-700 border border-gold/10 rounded p-2">
+                <div className="text-xs text-gray-500 mb-1">Profit</div>
+                <div className={`text-sm font-bold ${whale.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {formatProfit(whale.profit)}
+                </div>
+              </div>
+            </div>
+
+            {/* ROI and Trades */}
+            <div className="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-gold/10">
+              <div>
+                <span className="text-gray-500">ROI: </span>
+                <span className={`font-semibold ${whale.profit_ratio >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {(whale.profit_ratio * 100).toFixed(1)}%
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-500">{whale.trades.toLocaleString()} trades</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block bg-dark-700 border border-gold/20 rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
           <div className="inline-block min-w-full align-middle">
             <div className="overflow-hidden">
               <table className="min-w-full divide-y divide-gold/10">
