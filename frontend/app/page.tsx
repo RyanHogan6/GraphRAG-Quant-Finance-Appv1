@@ -655,13 +655,13 @@ export default function HomePage() {
           className="text-center z-10"
         >
           {/* Animated KARGA Logo */}
-          <div className="mb-8">
+          <div className="mb-16">
             <AnimatedLogo />
           </div>
-          <p className="text-2xl md:text-3xl text-gray-300 mb-4">
+          <p className="text-3xl md:text-4xl text-gray-200 mb-6 font-light">
             Financial Intelligence Powered by Knowledge Graphs
           </p>
-          <p className="text-lg text-gray-500 max-w-2xl mx-auto">
+          <p className="text-xl md:text-2xl text-gray-400 max-w-3xl mx-auto font-light">
             Ask natural language questions. Get insights from millions of connected data points.
           </p>
         </motion.div>
