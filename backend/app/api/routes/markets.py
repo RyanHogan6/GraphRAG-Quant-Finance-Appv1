@@ -145,31 +145,27 @@ def get_featured_markets(
     - Fast indexes on volume_24h and liquidity
     """
 
-    print(f"🚀 OPTIMIZED QUERY v2.0 - Fetching {limit} markets (NEW CODE RUNNING)")
+    print(f"🚀 OPTIMIZED QUERY v3.0 - Fetching {limit} markets (SORT+LIMIT BEFORE calculations)")
 
     query = f"""
     FOR market IN prediction_markets_polymarket
+        // Basic filters first (fast, uses indexes)
         FILTER market.closed == false
         FILTER market.volume_24h > 100
         FILTER market.liquidity > 50
 
-        // Extract probabilities (simple, no nested logic)
-        LET yes_prob_value = market.outcome_prices[0] != null ? market.outcome_prices[0] :
-                             (market.yes_probability != null ? market.yes_probability : 0.5)
-        LET yes_prob_pct = yes_prob_value <= 1 ? (yes_prob_value * 100) : yes_prob_value
-
-        // Filter out resolved markets
-        FILTER yes_prob_pct > 2 AND yes_prob_pct < 98
-
-        // Sort by volume (most liquid markets first)
+        // CRITICAL: Sort and limit BEFORE expensive calculations
         SORT market.volume_24h DESC
         LIMIT {limit}
 
-        // Calculate complementary values
+        // NOW do calculations on smaller dataset
+        LET yes_prob_value = market.outcome_prices[0] != null ? market.outcome_prices[0] :
+                             (market.yes_probability != null ? market.yes_probability : 0.5)
+        LET yes_prob_pct = yes_prob_value <= 1 ? (yes_prob_value * 100) : yes_prob_value
         LET no_prob_value = market.outcome_prices[1] != null ? market.outcome_prices[1] : (1 - yes_prob_value)
         LET no_prob_pct = no_prob_value <= 1 ? (no_prob_value * 100) : no_prob_value
 
-        // Get outcomes (simplified)
+        // Get outcomes
         LET outcomes_array = IS_ARRAY(market.outcomes) ? market.outcomes : []
         LET outcome_yes = outcomes_array[0] != null ? outcomes_array[0] : "Yes"
         LET outcome_no = outcomes_array[1] != null ? outcomes_array[1] : "No"
