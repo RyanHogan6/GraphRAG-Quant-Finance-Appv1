@@ -67,8 +67,14 @@ def build_sp500_constituents_history():
     combined.to_csv(CONSTITUENTS_PATH, index=False)
     print(f"Saved full S&P 500 lifecycle to {CONSTITUENTS_PATH}")
 
-def get_sp500_tickers():
-    """Get current S&P 500 tickers from CSV file"""
+def get_sp500_tickers(current_only=True):
+    """
+    Get S&P 500 tickers from CSV file
+
+    Args:
+        current_only: If True, only return current members (no removal_date)
+                     If False, return all historical members (852 tickers)
+    """
     import os
 
     # Use the CSV file in DAGS directory (relative to pipeline/yahoo/)
@@ -79,8 +85,14 @@ def get_sp500_tickers():
 
     df = pd.read_csv(csv_path)
 
+    if current_only:
+        # Filter to only current members (removal_date is null/empty)
+        df = df[df['removal_date'].isna() | (df['removal_date'] == '')]
+        print(f"Loaded {len(df)} CURRENT S&P 500 tickers")
+    else:
+        print(f"Loaded {len(df)} tickers (including historical)")
+
     # Get tickers, remove NaN values
     tickers = df['ticker'].dropna().unique().tolist()
 
-    print(f"Loaded {len(tickers)} tickers from SP500 CSV")
     return tickers

@@ -9,19 +9,22 @@ def fetch_sp500_tickers():
     df = pd.read_html(url)[0]
     return df['Symbol'].str.replace('.', '-', regex=False).tolist()
 
-def download_stock_data(tickers, period='1mo', batch_size=50):
+def download_stock_data(tickers, period='1mo', batch_size=30, sleep_between_batches=2.0):
     """
     Download stock data for given tickers with batching and error handling
 
     Args:
         tickers: List of ticker symbols
-        period: Time period ('1mo', '1y')
-        batch_size: Number of tickers per batch (default 50 to avoid rate limits)
+        period: Time period ('1mo', '1y', '6mo')
+        batch_size: Number of tickers per batch (default 30 to avoid rate limits)
+        sleep_between_batches: Seconds to wait between batches (default 2.0)
     """
     import time
 
     if period == '1mo':
         start_date = datetime.today().date() - timedelta(days=30)
+    elif period == '6mo':
+        start_date = datetime.today().date() - timedelta(days=180)
     elif period == '1y':
         start_date = datetime.today().date() - timedelta(days=365)
     else:
@@ -32,15 +35,19 @@ def download_stock_data(tickers, period='1mo', batch_size=50):
     all_records = []
     failed_tickers = []
 
-    print(f"Downloading {len(tickers)} tickers in batches of {batch_size}...")
+    total_batches = (len(tickers) - 1) // batch_size + 1
+    print(f"Downloading {len(tickers)} tickers in {total_batches} batches of {batch_size}...")
+    print(f"Rate limiting: {sleep_between_batches}s between batches")
 
     # Download in batches
     for batch_idx in range(0, len(tickers), batch_size):
         batch = tickers[batch_idx:batch_idx + batch_size]
-        print(f"  Batch {batch_idx//batch_size + 1}/{(len(tickers)-1)//batch_size + 1}: {len(batch)} tickers")
+        batch_num = batch_idx // batch_size + 1
+
+        print(f"\n  Batch {batch_num}/{total_batches}: {len(batch)} tickers", end='')
 
         try:
-            # Download batch
+            # Download batch with timeout
             data = yf.download(
                 batch,
                 start=start_date,
@@ -52,6 +59,7 @@ def download_stock_data(tickers, period='1mo', batch_size=50):
             )
 
             # Process each ticker in batch
+            batch_success = 0
             for ticker in batch:
                 try:
                     # Extract ticker data
@@ -81,6 +89,7 @@ def download_stock_data(tickers, period='1mo', batch_size=50):
                         df = df.dropna(subset=required_cols)
                         if len(df) > 0:
                             all_records.append(df)
+                            batch_success += 1
                     else:
                         failed_tickers.append(ticker)
 
@@ -88,12 +97,14 @@ def download_stock_data(tickers, period='1mo', batch_size=50):
                     print(f"    Error processing {ticker}: {e}")
                     failed_tickers.append(ticker)
 
+            print(f" - Success: {batch_success}/{len(batch)}")
+
             # Rate limit: wait between batches
             if batch_idx + batch_size < len(tickers):
-                time.sleep(1)
+                time.sleep(sleep_between_batches)
 
         except Exception as e:
-            print(f"  Batch download failed: {e}")
+            print(f"\n  Batch download failed: {e}")
             failed_tickers.extend(batch)
 
     # Combine all successful downloads

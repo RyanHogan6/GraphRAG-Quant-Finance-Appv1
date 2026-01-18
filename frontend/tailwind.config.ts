@@ -21,7 +21,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        mono: ['IBM Plex Mono', 'Courier New', 'monospace'],
+        sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-ibm-plex-mono)', 'Courier New', 'monospace'],
       },
     },
   },
