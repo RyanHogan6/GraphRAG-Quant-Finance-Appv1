@@ -325,7 +325,7 @@ def run_pipeline():
     logger.info("\n" + "="*80)
     logger.info(f"MASTER PIPELINE STARTED: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("="*80)
-    logger.info("Execution order: Yahoo → Kalshi → Polymarket (no embeddings)")
+    logger.info("Execution order: Kalshi → Polymarket → Yahoo (no embeddings)")
     logger.info("="*80 + "\n")
 
     results = {
@@ -334,7 +334,19 @@ def run_pipeline():
         'polymarket': False
     }
 
-    # Pipeline 1: Yahoo MarketData (DISABLED - yfinance rate limiting with 852 tickers)
+    # Pipeline 1: Kalshi (RUNS FIRST)
+    try:
+        results['kalshi'] = run_kalshi_pipeline()
+    except Exception as e:
+        logger.error(f"Kalshi pipeline crashed: {e}")
+
+    # Pipeline 2: Polymarket (skip embeddings - use standalone script)
+    try:
+        results['polymarket'] = run_polymarket_pipeline(skip_embeddings=True)
+    except Exception as e:
+        logger.error(f"Polymarket pipeline crashed: {e}")
+
+    # Pipeline 3: Yahoo MarketData (DISABLED - yfinance rate limiting with 852 tickers)
     # TODO: Fix by either:
     #   1. Reduce to current S&P 500 only (~503 tickers)
     #   2. Run Yahoo separately on longer schedule (weekly)
@@ -346,18 +358,6 @@ def run_pipeline():
     logger.info("⚠️  Yahoo pipeline disabled (yfinance rate limiting with 852 tickers)")
     results['yahoo'] = False
 
-    # Pipeline 2: Kalshi
-    try:
-        results['kalshi'] = run_kalshi_pipeline()
-    except Exception as e:
-        logger.error(f"Kalshi pipeline crashed: {e}")
-
-    # Pipeline 3: Polymarket (skip embeddings - use standalone script)
-    try:
-        results['polymarket'] = run_polymarket_pipeline(skip_embeddings=True)
-    except Exception as e:
-        logger.error(f"Polymarket pipeline crashed: {e}")
-
     # Summary
     end_time = datetime.now()
     duration = (end_time - start_time).total_seconds()
@@ -365,9 +365,9 @@ def run_pipeline():
     logger.info("\n" + "="*80)
     logger.info("MASTER PIPELINE COMPLETE")
     logger.info("="*80)
-    logger.info(f"Yahoo: {'✓ SUCCESS' if results['yahoo'] else '✗ FAILED'}")
     logger.info(f"Kalshi: {'✓ SUCCESS' if results['kalshi'] else '✗ FAILED'}")
     logger.info(f"Polymarket: {'✓ SUCCESS' if results['polymarket'] else '✗ FAILED'}")
+    logger.info(f"Yahoo: {'✓ SUCCESS' if results['yahoo'] else '✗ FAILED (disabled)'}")
     logger.info(f"Duration: {duration:.1f}s ({duration/60:.1f}min)")
     logger.info("="*80)
 
