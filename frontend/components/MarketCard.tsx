@@ -7,9 +7,10 @@ interface MarketCardProps {
 
 export default function MarketCard({ market, onClick }: MarketCardProps) {
   const formatVolume = (volume: number) => {
+    if (volume == null || isNaN(volume) || volume === 0) return '$0'
     if (volume >= 1000000) return `$${(volume / 1000000).toFixed(1)}M`
     if (volume >= 1000) return `$${(volume / 1000).toFixed(0)}k`
-    return `$${volume}`
+    return `$${volume.toFixed(2)}`
   }
 
   // Detect market type from question/category

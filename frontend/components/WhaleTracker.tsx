@@ -37,12 +37,14 @@ export default function WhaleTracker() {
   }, [])
 
   const formatVolume = (volume: number) => {
+    if (volume == null || isNaN(volume) || volume === 0) return '$0'
     if (volume >= 1000000) return `$${(volume / 1000000).toFixed(2)}M`
     if (volume >= 1000) return `$${(volume / 1000).toFixed(0)}k`
     return `$${volume.toFixed(0)}`
   }
 
   const formatProfit = (profit: number) => {
+    if (profit == null || isNaN(profit)) return '$0'
     const prefix = profit >= 0 ? '+' : ''
     if (Math.abs(profit) >= 1000000) return `${prefix}$${(profit / 1000000).toFixed(2)}M`
     if (Math.abs(profit) >= 1000) return `${prefix}$${(profit / 1000).toFixed(0)}k`
@@ -87,8 +89,8 @@ export default function WhaleTracker() {
 
   return (
     <div className="space-y-4">
-      {/* Whale Leaderboard Header */}
-      <div className="bg-dark-800 border border-gold/30 rounded-lg p-4">
+      {/* Whale Leaderboard Header - Hidden on mobile */}
+      <div className="hidden md:block bg-dark-800 border border-gold/30 rounded-lg p-4">
         <div className="grid grid-cols-6 gap-4 text-sm text-gray-500 font-semibold">
           <div>Rank</div>
           <div>Trader</div>
@@ -103,12 +105,12 @@ export default function WhaleTracker() {
       {whales.map((whale, index) => (
         <div
           key={whale.address}
-          className="bg-dark-800 border border-gold/20 rounded-lg p-4 hover:border-gold/40 transition-all cursor-pointer"
+          className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-4 hover:border-gold/40 transition-all cursor-pointer"
         >
-          <div className="grid grid-cols-6 gap-4 items-center">
-            {/* Rank */}
-            <div className="flex items-center space-x-2">
-              <div className={`text-2xl font-bold ${
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3 md:gap-4 items-center">
+            {/* Rank - Full width on mobile */}
+            <div className="flex items-center space-x-2 col-span-2 md:col-span-1">
+              <div className={`text-xl md:text-2xl font-bold ${
                 index === 0 ? 'text-yellow-400' :
                 index === 1 ? 'text-gray-400' :
                 index === 2 ? 'text-orange-600' :
@@ -117,14 +119,22 @@ export default function WhaleTracker() {
                 #{index + 1}
               </div>
               {index < 3 && (
-                <span className="text-2xl">
+                <span className="text-xl md:text-2xl">
                   {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
                 </span>
               )}
+              <div className="md:hidden flex-1">
+                <div className="font-mono text-gold font-semibold text-sm">
+                  {shortenAddress(whale.address)}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {whale.activity || 'Unknown'}
+                </div>
+              </div>
             </div>
 
-            {/* Trader Address */}
-            <div>
+            {/* Trader Address - Desktop only */}
+            <div className="hidden md:block">
               <div className="font-mono text-gold font-semibold">
                 {shortenAddress(whale.address)}
               </div>

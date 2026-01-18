@@ -372,14 +372,14 @@ export default function GraphVisualization() {
       {/* Node Details Modal */}
       {nodeInfo && (
         <div
-          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2 md:p-4"
           onClick={() => setSelectedNode(null)}
         >
           <div
-            className="bg-dark-800 border border-gold/30 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+            className="bg-dark-800 border border-gold/30 rounded-lg max-w-full md:max-w-2xl lg:max-w-3xl w-full max-h-[85vh] md:max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6">
+            <div className="p-3 md:p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-2xl font-bold text-gold">{nodeInfo.name}</h3>

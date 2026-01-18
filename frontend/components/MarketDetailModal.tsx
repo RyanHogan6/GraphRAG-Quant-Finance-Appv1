@@ -56,6 +56,7 @@ export default function MarketDetailModal({ market, onClose }: MarketDetailModal
   }, [showTraders, isPolymarket])
 
   const formatVolume = (volume: number) => {
+    if (volume == null || isNaN(volume) || volume === 0) return '$0'
     if (volume >= 1000000) return `$${(volume / 1000000).toFixed(2)}M`
     if (volume >= 1000) return `$${(volume / 1000).toFixed(2)}k`
     return `$${volume.toFixed(2)}`
@@ -69,28 +70,28 @@ export default function MarketDetailModal({ market, onClose }: MarketDetailModal
   const displayData = fullMarketData || market
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2 md:p-4" onClick={onClose}>
       <div
-        className="bg-dark-800 border border-gold/30 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+        className="bg-dark-800 border border-gold/30 rounded-lg max-w-full md:max-w-2xl lg:max-w-3xl w-full max-h-[85vh] md:max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="border-b border-gold/20 p-6">
+        <div className="border-b border-gold/20 p-3 md:p-6">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <div className="category-badge mb-3">
+              <div className="text-xs text-gray-400 uppercase mb-2">
                 {market.category}
               </div>
-              <h2 className="text-2xl font-bold text-gray-100 mb-2">
+              <h2 className="text-lg md:text-2xl font-bold text-gray-100 mb-2">
                 {market.question}
               </h2>
               {market.description && (
-                <p className="text-sm text-gray-400">{market.description}</p>
+                <p className="text-xs md:text-sm text-gray-400">{market.description}</p>
               )}
             </div>
             <button
               onClick={onClose}
-              className="text-gray-500 hover:text-gold transition-colors ml-4 text-2xl"
+              className="text-gray-500 hover:text-gold transition-colors ml-2 md:ml-4 text-xl md:text-2xl shrink-0"
             >
               ×
             </button>
@@ -104,22 +105,22 @@ export default function MarketDetailModal({ market, onClose }: MarketDetailModal
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-4 gap-4 p-6 border-b border-gold/20">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 p-3 md:p-6 border-b border-gold/20">
               <div>
                 <div className="text-xs text-gray-500 mb-1">Volume (24h)</div>
-                <div className="text-lg font-bold text-gold">{formatVolume(displayData.volume_24h)}</div>
+                <div className="text-base md:text-lg font-bold text-gold">{formatVolume(displayData.volume_24h)}</div>
               </div>
               <div>
                 <div className="text-xs text-gray-500 mb-1">Liquidity</div>
-                <div className="text-lg font-bold text-gold">{formatVolume(displayData.liquidity || 0)}</div>
+                <div className="text-base md:text-lg font-bold text-gold">{formatVolume(displayData.liquidity || 0)}</div>
               </div>
               <div>
                 <div className="text-xs text-gray-500 mb-1">Traders</div>
-                <div className="text-lg font-bold text-gold">{(displayData.trader_count || displayData.traders || 0).toLocaleString()}</div>
+                <div className="text-base md:text-lg font-bold text-gold">{(displayData.trader_count || displayData.traders || 0).toLocaleString()}</div>
               </div>
               <div>
                 <div className="text-xs text-gray-500 mb-1">End Date</div>
-                <div className="text-lg font-bold text-gold">
+                <div className="text-base md:text-lg font-bold text-gold">
                   {new Date(displayData.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </div>
               </div>
@@ -172,20 +173,11 @@ export default function MarketDetailModal({ market, onClose }: MarketDetailModal
           </>
         )}
 
-        {/* Probability Chart */}
-        {!loading && (
-          <div className="p-6 border-b border-gold/20">
-            <ProbabilityChart
-              yesProb={displayData.yes_prob}
-              noProb={displayData.no_prob}
-              marketData={displayData}
-            />
-          </div>
-        )}
+        {/* Probability Chart - Removed until real historical data available */}
 
         {/* Trader View Toggle (Polymarket only) */}
         {!loading && isPolymarket && (
-          <div className="p-6 border-b border-gold/20">
+          <div className="p-3 md:p-6 border-b border-gold/20">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-gold">TOP TRADERS</h3>
               <button
@@ -224,7 +216,7 @@ export default function MarketDetailModal({ market, onClose }: MarketDetailModal
                         </div>
                         <div className="text-right">
                           <div className="text-sm font-semibold text-gold">
-                            ${(trader.total_volume / 1000000).toFixed(2)}M
+                            {formatVolume(trader.total_volume || 0)}
                           </div>
                           <div className="text-xs text-gray-500">volume</div>
                         </div>
@@ -242,7 +234,7 @@ export default function MarketDetailModal({ market, onClose }: MarketDetailModal
         )}
 
         {/* Outcomes */}
-        <div className="p-6">
+        <div className="p-3 md:p-6">
           <h3 className="text-sm font-semibold text-gold mb-4">OUTCOMES</h3>
 
           {market.outcomes && market.outcomes.length > 0 ? (

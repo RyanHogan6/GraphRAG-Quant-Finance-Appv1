@@ -9,6 +9,7 @@ import MarketCard from '@/components/MarketCard'
 import MarketDetailModal from '@/components/MarketDetailModal'
 import ScrollToTop from '@/components/ScrollToTop'
 import AnimatedLogo from '@/components/AnimatedLogo'
+import WhaleTracker from '@/components/WhaleTracker'
 import { Market } from '@/lib/mockData'
 
 interface Message {
@@ -405,9 +406,10 @@ export default function HomePage() {
       try {
         const { api } = await import('@/lib/api')
         // Pass search to server for full database search
+        // Increased limit to 5000 for better demo experience - allows searching historical data
         const response = await api.browseCollection(
           selectedCollection,
-          100,
+          5000,
           debouncedSearch || undefined
         )
         // Handle multiple response formats: {documents: [...]}, {data: [...]}, or [...]
@@ -1294,6 +1296,38 @@ export default function HomePage() {
         <div className="w-[70%] border-t-2 border-dashed border-gold/10"></div>
       </div>
 
+      {/* Whale Tracker - Top Traders */}
+      <section
+        id="whales"
+        className="min-h-screen snap-start flex flex-col justify-center px-4 py-8 md:px-6 md:py-12 relative overflow-hidden"
+      >
+        {/* Animated background grid */}
+        <motion.div
+          className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
+          style={{ opacity: 0.3 }}
+        />
+        <div className="max-w-6xl mx-auto w-full relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-3xl md:text-5xl font-bold text-gold mb-6">🐋 Whale Tracker</h2>
+            <p className="text-xl text-gray-400 max-w-3xl mx-auto mb-8">
+              Track the biggest bets and smartest money on Polymarket
+            </p>
+          </motion.div>
+
+          <WhaleTracker />
+        </div>
+      </section>
+
+      {/* Section Divider */}
+      <div className="w-full flex items-center justify-center py-8">
+        <div className="w-[70%] border-t-2 border-dashed border-gold/10"></div>
+      </div>
+
       {/* Data Universe - Collections Browser */}
       <section
         id="database"
@@ -1416,9 +1450,9 @@ export default function HomePage() {
                   </div>
                 </div>
                 <div className="bg-dark-700 border border-gold/20 rounded p-4">
-                  <div className="text-xs text-gray-400 mb-1">Showing</div>
+                  <div className="text-xs text-gray-400 mb-1">Loaded</div>
                   <div className="text-2xl font-semibold text-gold">
-                    {filteredData.length} / 100
+                    {filteredData.length}
                   </div>
                 </div>
                 <div className="bg-dark-700 border border-gold/20 rounded p-4">
@@ -1433,7 +1467,7 @@ export default function HomePage() {
               <div className="mb-4 relative">
                 <input
                   type="text"
-                  placeholder="Search entire database (500ms debounced)..."
+                  placeholder="Search database (e.g., '2023', company name, keyword)..."
                   value={searchFilter}
                   onChange={(e) => setSearchFilter(e.target.value)}
                   className="w-full bg-dark-700 border border-gold/30 rounded-lg px-4 py-3 pr-10 text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold/60 focus:ring-2 focus:ring-gold/20"
@@ -1455,7 +1489,7 @@ export default function HomePage() {
               </div>
               {searchFilter && !isLoadingData && (
                 <div className="mb-4 text-sm text-gray-400">
-                  Searched entire database, showing {collectionData.length} results
+                  Found {collectionData.length} results (searching up to 5,000 records)
                 </div>
               )}
 
@@ -1549,9 +1583,9 @@ export default function HomePage() {
                         </tbody>
                       </table>
                     </div>
-                    {filteredData.length > 100 && (
+                    {filteredData.length > 1000 && (
                       <div className="bg-dark-800 border-t border-gold/20 px-4 py-3 text-center text-sm text-gray-400">
-                        Showing first 100 of {filteredData.length.toLocaleString()} results. Use filters to narrow down results.
+                        Showing first 1,000 of {filteredData.length.toLocaleString()} results. Use search/filters to narrow down results.
                       </div>
                     )}
                   </>
