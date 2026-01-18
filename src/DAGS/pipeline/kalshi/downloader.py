@@ -7,7 +7,7 @@ from .config import KALSHI_API_URL
 def fetch_events():
     """Fetch events to get categories"""
     url = f"{KALSHI_API_URL}/events"
-    params = {'limit': 200, 'status': 'active'}
+    params = {'limit': 200, 'status': 'open'}  # API uses 'open' for filter
 
     try:
         response = requests.get(url, params=params, timeout=30)
@@ -30,7 +30,7 @@ def fetch_all_markets():
     url = f"{KALSHI_API_URL}/markets"
     params = {
         'limit': 1000,
-        'status': 'active'  # Only fetch markets that are actively trading
+        'status': 'open'  # API filter uses 'open', returns markets with status='active'
     }
 
     response = requests.get(url, params=params, timeout=30)
@@ -39,6 +39,7 @@ def fetch_all_markets():
 
     markets = []
     for market in data.get('markets', []):
+        # Note: API returns status='active' in response even though filter is 'open'
         # Get event to extract category
         event_ticker = market.get('event_ticker')
         event = events_map.get(event_ticker, {})
@@ -82,5 +83,5 @@ def fetch_all_markets():
             'updated_at': datetime.now().isoformat()
         })
 
-    print(f"Fetched {len(markets)} active markets")
+    print(f"Fetched {len(markets)} open/active markets")
     return pd.DataFrame(markets)
