@@ -19,27 +19,62 @@ def fetch_events():
         print(f"Error fetching events: {e}")
         return {}
 
-def fetch_all_markets():
-    """Fetch all markets from Kalshi with proper category mapping"""
+def fetch_all_markets(status_filter=None, limit=None):
+    """
+    Fetch all markets from Kalshi with proper category mapping
+
+    Args:
+        status_filter: None (all), 'open' (active only), 'closed', 'settled'
+        limit: Max markets to fetch (None = all markets via pagination)
+    """
     # First fetch events to get categories
     print("Fetching events for category mapping...")
     events_map = fetch_events()
     print(f"Found {len(events_map)} events")
 
-    # Now fetch markets
+    # Now fetch markets with pagination
     url = f"{KALSHI_API_URL}/markets"
-    params = {
-        'limit': 1000,
-        'status': 'open'  # API filter uses 'open', returns markets with status='active'
-    }
+    all_markets = []
+    cursor = None
 
-    response = requests.get(url, params=params, timeout=30)
-    response.raise_for_status()
-    data = response.json()
+    while True:
+        params = {'limit': 200}  # Max per page
+
+        if status_filter:
+            params['status'] = status_filter
+
+        if cursor:
+            params['cursor'] = cursor
+
+        print(f"  Fetching batch (total so far: {len(all_markets)})...", end='\r')
+
+        response = requests.get(url, params=params, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+
+        markets_batch = data.get('markets', [])
+        if not markets_batch:
+            break
+
+        all_markets.extend(markets_batch)
+
+        # Check for next page
+        cursor = data.get('cursor')
+        if not cursor:
+            break
+
+        # Check limit
+        if limit and len(all_markets) >= limit:
+            all_markets = all_markets[:limit]
+            break
+
+        import time
+        time.sleep(0.2)  # Rate limiting
+
+    print(f"\n  Fetched {len(all_markets)} total markets")
 
     markets = []
-    for market in data.get('markets', []):
-        # Note: API returns status='active' in response even though filter is 'open'
+    for market in all_markets:
         # Get event to extract category
         event_ticker = market.get('event_ticker')
         event = events_map.get(event_ticker, {})
@@ -83,5 +118,5 @@ def fetch_all_markets():
             'updated_at': datetime.now().isoformat()
         })
 
-    print(f"Fetched {len(markets)} open/active markets")
+    print(f"Processed {len(markets)} markets with categories")
     return pd.DataFrame(markets)
