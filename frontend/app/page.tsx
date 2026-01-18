@@ -708,7 +708,7 @@ export default function HomePage() {
       {/* Why Graphs Section */}
       <section
         ref={whyGraphsRef}
-        className="snap-start flex flex-col items-center justify-center px-6 py-16 relative overflow-hidden"
+        className="snap-start px-4 md:px-6 py-8 md:py-12 relative overflow-hidden"
       >
         {/* Animated background grid */}
         <motion.div
@@ -720,22 +720,22 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 50 }}
             animate={isWhyGraphsInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8 }}
-            className="text-center mb-10"
+            className="text-center mb-6"
           >
-            <h2 className="text-3xl md:text-4xl font-bold text-gold mb-4">Why Knowledge Graphs?</h2>
-            <p className="text-lg text-gray-400 max-w-3xl mx-auto">
+            <h2 className="text-2xl md:text-3xl font-bold text-gold mb-2">Why Knowledge Graphs?</h2>
+            <p className="text-sm md:text-base text-gray-400 max-w-2xl mx-auto">
               Traditional databases see data in silos. Graphs see connections.
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 gap-3 md:gap-4">
             {[
               {
                 title: 'Connected Data',
                 description: 'Every company links to market data, government contracts, SEC filings, and prediction markets',
                 delay: 0.2,
                 icon: (
-                  <svg className="w-10 h-10 text-gold mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6 md:w-8 md:h-8 text-gold mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                   </svg>
                 ),
@@ -745,7 +745,7 @@ export default function HomePage() {
                 description: 'Find contracts mentioning "Iran" or "cybersecurity" using AI embeddings, not just keywords',
                 delay: 0.4,
                 icon: (
-                  <svg className="w-10 h-10 text-gold mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6 md:w-8 md:h-8 text-gold mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
                   </svg>
                 ),
@@ -755,7 +755,7 @@ export default function HomePage() {
                 description: 'Combine historical database queries with real-time web search for complete context',
                 delay: 0.6,
                 icon: (
-                  <svg className="w-10 h-10 text-gold mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6 md:w-8 md:h-8 text-gold mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 ),
@@ -766,11 +766,11 @@ export default function HomePage() {
                 initial={{ opacity: 0, y: 50 }}
                 animate={isWhyGraphsInView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.8, delay: item.delay }}
-                className="bg-dark-800 border border-gold/20 rounded-lg p-6 hover:border-gold/40 transition-all"
+                className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all"
               >
                 {item.icon}
-                <h3 className="text-xl font-semibold text-gold mb-3">{item.title}</h3>
-                <p className="text-gray-400 text-sm leading-relaxed">{item.description}</p>
+                <h3 className="text-base md:text-lg font-semibold text-gold mb-2">{item.title}</h3>
+                <p className="text-gray-400 text-xs md:text-sm leading-relaxed">{item.description}</p>
               </motion.div>
             ))}
           </div>
@@ -1249,13 +1249,13 @@ export default function HomePage() {
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 0.8 }}
-              className="flex items-center justify-between mb-8"
+              className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6"
             >
               {/* Category Filter */}
-              <div className="flex items-center space-x-2 overflow-x-auto pb-2">
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
                 <button
                   onClick={() => setSelectedCategory('All')}
-                  className={`px-4 py-2 rounded-lg border transition-all whitespace-nowrap ${
+                  className={`px-3 py-1.5 text-xs md:text-sm rounded-lg border transition-all whitespace-nowrap ${
                     selectedCategory === 'All'
                       ? 'bg-gold/20 text-gold border-gold/40'
                       : 'bg-dark-800 text-gray-400 border-gold/20 hover:border-gold/40'
@@ -1263,11 +1263,11 @@ export default function HomePage() {
                 >
                   All ({markets.length})
                 </button>
-                {actualCategories.map((cat) => (
+                {actualCategories.slice(0, 6).map((cat) => (
                   <button
                     key={cat.category}
                     onClick={() => setSelectedCategory(cat.category)}
-                    className={`px-4 py-2 rounded-lg border transition-all whitespace-nowrap ${
+                    className={`px-3 py-1.5 text-xs md:text-sm rounded-lg border transition-all whitespace-nowrap ${
                       selectedCategory === cat.category
                         ? 'bg-gold/20 text-gold border-gold/40'
                         : 'bg-dark-800 text-gray-400 border-gold/20 hover:border-gold/40'
@@ -1279,12 +1279,12 @@ export default function HomePage() {
               </div>
 
               {/* Sort */}
-              <div className="flex items-center space-x-2 ml-4">
-                <span className="text-gray-400 text-sm whitespace-nowrap">Sort by:</span>
+              <div className="flex items-center gap-2 md:ml-4">
+                <span className="text-gray-400 text-xs md:text-sm whitespace-nowrap">Sort:</span>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as any)}
-                  className="bg-dark-800 border border-gold/30 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-gold/60"
+                  className="bg-dark-800 border border-gold/30 rounded-lg px-2 py-1.5 text-xs md:text-sm text-gray-200 focus:outline-none focus:border-gold/60"
                 >
                   <option value="volume">Volume</option>
                   <option value="probability">Probability</option>
@@ -1303,38 +1303,38 @@ export default function HomePage() {
               transition={{ duration: 0.8 }}
               className="mb-12"
             >
-              {/* Card View - 2 cols mobile, 4 cols desktop */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 md:hidden mb-8">
+              {/* Card View - 3 cols mobile, 4 cols desktop */}
+              <div className="grid grid-cols-3 lg:grid-cols-4 gap-2 md:gap-4 md:hidden mb-8">
                 {filteredMarkets.slice(0, displayLimit).map((market, index) => (
                   <div
                     key={market.id}
                     onClick={() => setSelectedMarket(market)}
-                    className="bg-gradient-to-br from-amber-900/10 to-yellow-900/5 border border-gold/30 rounded-lg p-3 hover:border-gold/50 hover:from-amber-900/15 hover:to-yellow-900/10 transition-all cursor-pointer"
+                    className="bg-gradient-to-br from-amber-900/10 to-yellow-900/5 border border-gold/30 rounded-md p-2 hover:border-gold/50 hover:from-amber-900/15 hover:to-yellow-900/10 transition-all cursor-pointer"
                   >
                     {/* Category Badge */}
-                    <div className="text-xs text-amber-300/70 uppercase mb-2 font-semibold">{market.category}</div>
+                    <div className="text-[10px] text-amber-300/70 uppercase mb-1.5 font-semibold truncate">{market.category}</div>
 
                     {/* Question */}
-                    <h3 className="text-xs font-semibold text-amber-100 mb-3 line-clamp-3 leading-tight">
+                    <h3 className="text-[11px] font-semibold text-amber-100 mb-2 line-clamp-2 leading-tight">
                       {market.question}
                     </h3>
 
                     {/* Yes/No Probabilities */}
-                    <div className="grid grid-cols-2 gap-1.5 mb-2">
-                      <div className="bg-green-500/20 border border-green-500/40 rounded-md p-2 text-center">
-                        <div className="text-xs text-green-300 mb-0.5">YES</div>
-                        <div className="text-base font-bold text-green-300">{market.yes_prob}%</div>
+                    <div className="grid grid-cols-2 gap-1 mb-1.5">
+                      <div className="bg-green-500/20 border border-green-500/40 rounded p-1.5 text-center">
+                        <div className="text-[9px] text-green-300 mb-0.5">YES</div>
+                        <div className="text-sm font-bold text-green-300">{market.yes_prob}%</div>
                       </div>
-                      <div className="bg-red-500/20 border border-red-500/40 rounded-md p-2 text-center">
-                        <div className="text-xs text-red-300 mb-0.5">NO</div>
-                        <div className="text-base font-bold text-red-300">{market.no_prob}%</div>
+                      <div className="bg-red-500/20 border border-red-500/40 rounded p-1.5 text-center">
+                        <div className="text-[9px] text-red-300 mb-0.5">NO</div>
+                        <div className="text-sm font-bold text-red-300">{market.no_prob}%</div>
                       </div>
                     </div>
 
                     {/* Volume & End Date */}
-                    <div className="flex flex-col gap-1 text-xs pt-2 border-t border-gold/20">
+                    <div className="flex flex-col gap-0.5 text-[10px] pt-1.5 border-t border-gold/20">
                       <div className="flex items-center justify-between">
-                        <span className="text-amber-300/60">Vol:</span>
+                        <span className="text-amber-300/60">Vol</span>
                         <span className="text-gold font-semibold">
                           {market.volume_24h >= 1000000
                             ? `$${(market.volume_24h / 1000000).toFixed(1)}M`
@@ -1344,8 +1344,8 @@ export default function HomePage() {
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-amber-300/60">Ends:</span>
-                        <span className="text-amber-200/80 text-xs">
+                        <span className="text-amber-300/60">End</span>
+                        <span className="text-amber-200/80">
                           {new Date(market.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </span>
                       </div>
@@ -1488,7 +1488,7 @@ export default function HomePage() {
       <section
         id="database"
         ref={statsRef}
-        className="min-h-screen snap-start flex flex-col justify-center px-4 py-8 md:px-6 md:py-12 relative overflow-hidden"
+        className="snap-start px-4 py-8 md:px-6 md:py-12 relative overflow-hidden"
       >
         {/* Animated background grid */}
         <motion.div
@@ -1500,28 +1500,28 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 50 }}
             animate={isStatsInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8 }}
-            className="text-center mb-12"
+            className="text-center mb-6"
           >
-            <h2 className="text-3xl md:text-5xl font-bold text-gold mb-6">Data Universe</h2>
-            <p className="text-xl text-gray-400 max-w-3xl mx-auto mb-8">
+            <h2 className="text-2xl md:text-4xl font-bold text-gold mb-3">Data Universe</h2>
+            <p className="text-sm md:text-lg text-gray-400 max-w-2xl mx-auto mb-4">
               Explore all database collections and their connections
             </p>
 
             {/* Top Stats */}
-            <div className="grid grid-cols-3 gap-4 mb-8">
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-5">
-                <div className="text-gray-400 text-sm mb-1">Collections</div>
-                <div className="text-3xl font-bold text-gold">{collections.length}</div>
+            <div className="grid grid-cols-3 gap-2 md:gap-4 mb-4">
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-2 md:p-4">
+                <div className="text-gray-400 text-xs md:text-sm mb-1">Collections</div>
+                <div className="text-lg md:text-2xl font-bold text-gold">{collections.length}</div>
               </div>
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-5">
-                <div className="text-gray-400 text-sm mb-1">Total Documents</div>
-                <div className="text-3xl font-bold text-gold">
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-2 md:p-4">
+                <div className="text-gray-400 text-xs md:text-sm mb-1">Total Documents</div>
+                <div className="text-lg md:text-2xl font-bold text-gold">
                   {(collections.reduce((sum, c) => sum + c.count, 0) / 1000000).toFixed(1)}M
                 </div>
               </div>
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-5">
-                <div className="text-gray-400 text-sm mb-1">Edge Collections</div>
-                <div className="text-3xl font-bold text-gold">15</div>
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-2 md:p-4">
+                <div className="text-gray-400 text-xs md:text-sm mb-1">Edge Collections</div>
+                <div className="text-lg md:text-2xl font-bold text-gold">15</div>
               </div>
             </div>
           </motion.div>
@@ -1532,8 +1532,8 @@ export default function HomePage() {
             animate={isStatsInView ? { opacity: 1 } : {}}
             transition={{ duration: 0.8, delay: 0.2 }}
           >
-            <h3 className="text-2xl font-semibold text-gold mb-6 text-center">Document Collections</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
+            <h3 className="text-lg md:text-xl font-semibold text-gold mb-4 text-center">Document Collections</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 mb-6">
               {collections.map((collection, idx) => (
                 <motion.button
                   key={collection.name}
@@ -1541,7 +1541,7 @@ export default function HomePage() {
                   animate={isStatsInView ? { opacity: 1, scale: 1 } : {}}
                   transition={{ duration: 0.6, delay: 0.3 + idx * 0.05 }}
                   onClick={() => setSelectedCollection(collection.name === selectedCollection ? null : collection.name)}
-                  className={`bg-dark-800 border rounded-lg p-5 text-left transition-all ${
+                  className={`bg-dark-800 border rounded-lg p-3 md:p-4 text-left transition-all ${
                     selectedCollection === collection.name
                       ? 'border-gold/60 ring-2 ring-gold/20'
                       : 'border-gold/20 hover:border-gold/40'
