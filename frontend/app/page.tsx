@@ -697,7 +697,7 @@ export default function HomePage() {
       {/* Why Graphs Section */}
       <section
         ref={whyGraphsRef}
-        className="min-h-screen snap-start flex flex-col items-center justify-center px-6 py-12 relative overflow-hidden"
+        className="snap-start flex flex-col items-center justify-center px-6 py-16 relative overflow-hidden"
       >
         {/* Animated background grid */}
         <motion.div
@@ -709,22 +709,22 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 50 }}
             animate={isWhyGraphsInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8 }}
-            className="text-center mb-16"
+            className="text-center mb-10"
           >
-            <h2 className="text-3xl md:text-5xl font-bold text-gold mb-6">Why Knowledge Graphs?</h2>
-            <p className="text-xl text-gray-400 max-w-3xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold text-gold mb-4">Why Knowledge Graphs?</h2>
+            <p className="text-lg text-gray-400 max-w-3xl mx-auto">
               Traditional databases see data in silos. Graphs see connections.
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-6">
             {[
               {
                 title: 'Connected Data',
                 description: 'Every company links to market data, government contracts, SEC filings, and prediction markets',
                 delay: 0.2,
                 icon: (
-                  <svg className="w-12 h-12 text-gold mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-10 h-10 text-gold mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                   </svg>
                 ),
@@ -734,7 +734,7 @@ export default function HomePage() {
                 description: 'Find contracts mentioning "Iran" or "cybersecurity" using AI embeddings, not just keywords',
                 delay: 0.4,
                 icon: (
-                  <svg className="w-12 h-12 text-gold mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-10 h-10 text-gold mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
                   </svg>
                 ),
@@ -744,7 +744,7 @@ export default function HomePage() {
                 description: 'Combine historical database queries with real-time web search for complete context',
                 delay: 0.6,
                 icon: (
-                  <svg className="w-12 h-12 text-gold mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-10 h-10 text-gold mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 ),
@@ -755,11 +755,11 @@ export default function HomePage() {
                 initial={{ opacity: 0, y: 50 }}
                 animate={isWhyGraphsInView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.8, delay: item.delay }}
-                className="bg-dark-800 border border-gold/20 rounded-lg p-8 hover:border-gold/40 transition-all"
+                className="bg-dark-800 border border-gold/20 rounded-lg p-6 hover:border-gold/40 transition-all"
               >
                 {item.icon}
-                <h3 className="text-2xl font-semibold text-gold mb-4">{item.title}</h3>
-                <p className="text-gray-400 leading-relaxed">{item.description}</p>
+                <h3 className="text-xl font-semibold text-gold mb-3">{item.title}</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">{item.description}</p>
               </motion.div>
             ))}
           </div>
@@ -1137,18 +1137,19 @@ export default function HomePage() {
                 </div>
               </div>
             )}
+          </motion.div>
 
-            {/* Conditional Content: Markets or Whale Tracker */}
-            {selectedPlatform === 'polymarket' && polymarketView === 'whales' ? (
-              /* Whale Tracker View */
-              <div className="mt-8">
-                <WhaleTracker />
-              </div>
-            ) : (
-              /* Markets View */
-              <>
-            {/* Metrics Cards */}
-            <div className="grid grid-cols-4 gap-4 mb-8">
+          {/* Conditional Content: Markets or Whale Tracker */}
+          {selectedPlatform === 'polymarket' && polymarketView === 'whales' ? (
+            /* Whale Tracker View */
+            <div className="mt-8">
+              <WhaleTracker />
+            </div>
+          ) : (
+            /* Markets View */
+            <>
+          {/* Metrics Cards */}
+          <div className="grid grid-cols-4 gap-4 mb-8">
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-5 hover:border-gold/40 transition-all">
                 <div className="text-gray-400 text-sm mb-1">Active Markets</div>
                 <div className="text-3xl font-bold text-gold">{filteredMarkets.length}</div>
@@ -1166,7 +1167,6 @@ export default function HomePage() {
                 <div className="text-3xl font-bold text-gold">{categories.length}</div>
               </div>
             </div>
-          </motion.div>
 
           {/* Natural Language Search */}
           <motion.div
