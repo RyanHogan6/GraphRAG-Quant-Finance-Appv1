@@ -52,6 +52,28 @@ def get_sample_market():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/kalshi/sample")
+def get_sample_kalshi_market():
+    """Get a sample Kalshi market to see available fields - DEBUG ENDPOINT"""
+    db = get_db()
+
+    query = """
+    FOR market IN prediction_markets_kalshi
+        FILTER market.status == "active"
+        FILTER market.open_interest > 0
+        LIMIT 1
+        RETURN market
+    """
+
+    try:
+        results, error = execute_aql(query)
+        if error or not results:
+            return {"error": "No markets found"}
+        return results[0]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/polymarket/fast")
 def get_fast_markets():
     """EMERGENCY FAST endpoint - no filters, no sorting, just grab first 100"""
@@ -396,14 +418,17 @@ def get_kalshi_featured(
 
         LET yes_prob = market.yes_probability * 100
 
+        // Kalshi has 3 title fields: event_title (main question), subtitle, title (outcome text)
+        LET question_text = market.event_title != null ? market.event_title : market.title
+
         RETURN {{
             id: market._key,
-            question: market.title,  // Map title -> question for frontend
+            question: question_text,
             yes_prob: ROUND(yes_prob),
             no_prob: ROUND(100 - yes_prob),
-            outcome_yes: "Yes",
+            outcome_yes: market.title != null ? market.title : "Yes",  // Use title for outcome
             outcome_no: "No",
-            volume_24h: market.volume_24h != null ? market.volume_24h : 0,
+            volume_24h: market.volume != null ? market.volume : 0,  // Use 'volume' not 'volume_24h'
             liquidity: market.open_interest != null ? market.open_interest : 0,
             category: market.category != null ? market.category : "Other",
             end_date: market.close_time,
