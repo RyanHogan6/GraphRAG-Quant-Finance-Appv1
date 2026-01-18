@@ -17,11 +17,17 @@ def get_arango_connection():
     return db
 
 def upsert_markets(db, markets_df: pd.DataFrame):
-    """Upsert Kalshi markets"""
+    """Upsert Kalshi markets - truncates collection first for clean data"""
     print("\n[UPLOADER] Upserting Kalshi markets...")
 
     if len(markets_df) == 0:
         return 0, 0, 0
+
+    # Truncate collection to remove old data
+    print("  Truncating old data...")
+    collection = db.collection(MARKET_COL)
+    collection.truncate()
+    print("  ✓ Old data cleared")
 
     docs = []
     for _, row in markets_df.iterrows():

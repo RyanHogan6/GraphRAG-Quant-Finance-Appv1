@@ -7,7 +7,7 @@ from .config import KALSHI_API_URL
 def fetch_events():
     """Fetch events to get categories"""
     url = f"{KALSHI_API_URL}/events"
-    params = {'limit': 200, 'status': 'open'}
+    params = {'limit': 200, 'status': 'active'}
 
     try:
         response = requests.get(url, params=params, timeout=30)
@@ -30,7 +30,7 @@ def fetch_all_markets():
     url = f"{KALSHI_API_URL}/markets"
     params = {
         'limit': 1000,
-        'status': 'open'  # Only fetch markets that are actively trading
+        'status': 'active'  # Only fetch markets that are actively trading
     }
 
     response = requests.get(url, params=params, timeout=30)
@@ -82,5 +82,5 @@ def fetch_all_markets():
             'updated_at': datetime.now().isoformat()
         })
 
-    print(f"Fetched {len(markets)} open markets")
+    print(f"Fetched {len(markets)} active markets")
     return pd.DataFrame(markets)
