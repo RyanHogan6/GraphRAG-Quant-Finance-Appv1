@@ -630,6 +630,18 @@ export default function HomePage() {
   const totalVolume = filteredMarkets.reduce((sum, m) => sum + m.volume_24h, 0)
   const avgProbability = filteredMarkets.reduce((sum, m) => sum + m.yes_prob, 0) / (filteredMarkets.length || 1)
 
+  // Recalculate category counts based on actual markets data
+  const actualCategories = useMemo(() => {
+    const categoryCounts: Record<string, number> = {}
+    markets.forEach(m => {
+      const cat = m.category || 'Other'
+      categoryCounts[cat] = (categoryCounts[cat] || 0) + 1
+    })
+    return Object.entries(categoryCounts)
+      .map(([category, count]) => ({ category, count }))
+      .sort((a, b) => b.count - a.count)
+  }, [markets])
+
   const formatVolume = (volume: number) => {
     if (volume >= 1000000) return `$${(volume / 1000000).toFixed(2)}M`
     if (volume >= 1000) return `$${(volume / 1000).toFixed(0)}k`
@@ -1163,7 +1175,7 @@ export default function HomePage() {
               </div>
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-5 hover:border-gold/40 transition-all">
                 <div className="text-gray-400 text-sm mb-1">Categories</div>
-                <div className="text-3xl font-bold text-gold">{categories.length}</div>
+                <div className="text-3xl font-bold text-gold">{actualCategories.length}</div>
               </div>
             </div>
 
@@ -1251,7 +1263,7 @@ export default function HomePage() {
                 >
                   All ({markets.length})
                 </button>
-                {categories.map((cat) => (
+                {actualCategories.map((cat) => (
                   <button
                     key={cat.category}
                     onClick={() => setSelectedCategory(cat.category)}
@@ -1297,30 +1309,33 @@ export default function HomePage() {
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Question</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Category</th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">Yes</th>
+                      <th
+                        className="px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gold transition-colors"
+                        onClick={() => {
+                          if (sortBy === 'probability') {
+                            setSortBy('volume')
+                          } else {
+                            setSortBy('probability')
+                          }
+                        }}
+                      >
+                        Yes {sortBy === 'probability' && '↓'}
+                      </th>
                       <th className="px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">No</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Volume 24h</th>
+                      <th
+                        className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gold transition-colors"
+                        onClick={() => setSortBy('volume')}
+                      >
+                        Volume 24h {sortBy === 'volume' && '↓'}
+                      </th>
                       <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Liquidity</th>
                       <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Confidence</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Days Left</th>
-                    </tr>
-                    {/* Column Filters */}
-                    <tr className="bg-dark-800/50">
-                      <th className="px-2 py-2">
-                        <input
-                          type="text"
-                          placeholder="Filter question..."
-                          className="w-full bg-dark-900 border border-gold/20 rounded px-2 py-1 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-gold/40"
-                        />
+                      <th
+                        className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gold transition-colors"
+                        onClick={() => setSortBy('traders')}
+                      >
+                        Days Left {sortBy === 'traders' && '↓'}
                       </th>
-                      <th className="px-2 py-2">
-                        <input
-                          type="text"
-                          placeholder="Filter category..."
-                          className="w-full bg-dark-900 border border-gold/20 rounded px-2 py-1 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-gold/40"
-                        />
-                      </th>
-                      <th colSpan={6}></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gold/10">
@@ -1359,13 +1374,17 @@ export default function HomePage() {
                             : `$${Math.round(market.liquidity)}`}
                         </td>
                         <td className="px-4 py-3 text-right text-sm">
-                          <span className={`${
-                            (market.probability_confidence || 0) > 0.3 ? 'text-green-400' :
-                            (market.probability_confidence || 0) > 0.15 ? 'text-yellow-400' :
-                            'text-gray-500'
-                          }`}>
-                            {((market.probability_confidence || 0) * 100).toFixed(0)}%
-                          </span>
+                          {market.probability_confidence != null && market.probability_confidence > 0 ? (
+                            <span className={`${
+                              market.probability_confidence > 0.3 ? 'text-green-400' :
+                              market.probability_confidence > 0.15 ? 'text-yellow-400' :
+                              'text-yellow-300'
+                            }`}>
+                              {(market.probability_confidence * 100).toFixed(0)}%
+                            </span>
+                          ) : (
+                            <span className="text-gray-600 text-xs">N/A</span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-right text-xs text-gray-400">
                           {market.days_until_end || Math.ceil((new Date(market.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))}d
