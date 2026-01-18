@@ -562,6 +562,12 @@ export default function HomePage() {
           outcome_yes: m.outcome_yes,
           outcome_no: m.outcome_no,
           outcomes: m.outcomes,
+          // Rich Polymarket fields
+          probability_confidence: m.probability_confidence,
+          days_until_end: m.days_until_end,
+          activity_score: m.activity_score,
+          liquidity_score: m.liquidity_score,
+          volume_per_day: m.volume_per_day,
         }))
 
         setMarkets(formattedMarkets)
