@@ -55,12 +55,23 @@ def get_sample_market():
 @router.get("/polymarket/categories")
 @limiter.limit("30/minute")
 def get_polymarket_categories(request: Request):
-    """Get all Polymarket categories with counts"""
+    """Get all Polymarket categories with counts - OPTIMIZED"""
     db = get_db()
+
+    print(f"🏷️ OPTIMIZED CATEGORIES v2.0 - Limiting scan to high-volume markets")
 
     query = """
     FOR m IN prediction_markets_polymarket
-        FILTER m.closed == false AND m.category != null
+        // Only scan high-quality markets (use index)
+        FILTER m.closed == false
+        FILTER m.volume_24h > 50
+        FILTER m.category != null
+
+        // Sample top 1000 markets by volume
+        SORT m.volume_24h DESC
+        LIMIT 1000
+
+        // NOW collect categories (much smaller dataset)
         COLLECT category = m.category WITH COUNT INTO count
         SORT count DESC
         RETURN {category: category, count: count}
