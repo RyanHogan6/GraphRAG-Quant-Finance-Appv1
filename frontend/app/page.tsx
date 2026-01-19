@@ -1029,6 +1029,23 @@ export default function HomePage() {
                   <QueryBuilder
                     onQueryChange={(aql, desc) => setBuiltQuery({ aql, description: desc })}
                   />
+
+                  {/* AQL Preview */}
+                  {builtQuery.aql && (
+                    <div className="mt-4 bg-dark-900 border border-green-500/20 rounded-lg p-3">
+                      <details>
+                        <summary className="text-xs text-green-400 font-mono cursor-pointer hover:text-green-300 select-none flex items-center gap-2">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                          </svg>
+                          View Generated AQL Query
+                        </summary>
+                        <pre className="mt-2 text-[10px] md:text-xs text-gray-300 font-mono overflow-x-auto whitespace-pre-wrap">
+                          {builtQuery.aql}
+                        </pre>
+                      </details>
+                    </div>
+                  )}
                   <div className="mt-2 flex justify-end">
                     <button
                       onClick={handleSubmit}

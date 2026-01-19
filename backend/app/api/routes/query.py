@@ -346,6 +346,7 @@ async def execute_query_stream(request: Request, body: QueryRequest):
                 }
                 web_context_data = {'summary': '', 'sources': []}
                 intent_class = {'intent': 'db_only'}
+                query_intent = 'db_only'
                 
             else:
                 yield f"data: {json.dumps({'type': 'progress', 'stage': 'analyzing', 'message': 'Understanding your question...'})}\n\n"
