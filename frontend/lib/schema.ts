@@ -52,7 +52,9 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
             "sma_50", "targetHighPrice", "targetLowPrice", "targetMeanPrice", "targetMedianPrice", "ticker",
             "totalCash", "totalDebt", "tr", "trailingEps", "trailingPE", "twoHundredDayAverage", "volume", "year"
         ],
-        connections: [],
+        connections: [
+            { target: 'company', edge: 'HAS_MARKETDATA', direction: 'INBOUND', type: 'direct' }
+        ],
         exampleQuery: 'FOR m IN MarketData FILTER m.ticker == "AAPL" RETURN m'
     },
     awards: {
@@ -64,7 +66,9 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
             "description_embedding", "ingested_at", "matched_sp500_name", "recipient_name", "source_file",
             "start_date", "ticker"
         ],
-        connections: [],
+        connections: [
+            { target: 'company', edge: 'HAS_AWARD', direction: 'INBOUND', type: 'direct' }
+        ],
         exampleQuery: 'FOR a IN Award FILTER a.recipient_name == "LOCKHEED" RETURN a'
     },
     economicdata: {
@@ -91,7 +95,8 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
             "filing_date", "fiscal_year", "sentence_count", "ticker", "type"
         ],
         connections: [
-            { target: 'sec_sentences', edge: 'has_section', direction: 'OUTBOUND', type: 'multi_hop' } // Simplified representation
+            { target: 'sec_sentences', edge: 'has_section', direction: 'OUTBOUND', type: 'multi_hop' }, // Simplified representation
+            { target: 'company', edge: 'HAS_FILING', direction: 'INBOUND', type: 'direct' }
         ],
         exampleQuery: 'FOR f IN sec_filings FILTER f.ticker == "TSLA" RETURN f'
     },
@@ -126,7 +131,8 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
             "volume", "volume_24h", "yes_probability"
         ],
         connections: [
-            { target: 'company', edge: 'market_mentions_company_polymarket', direction: 'OUTBOUND', type: 'direct' }
+            { target: 'company', edge: 'market_mentions_company_polymarket', direction: 'OUTBOUND', type: 'direct' },
+            { target: 'polymarket_positions', edge: 'position_in_market', direction: 'INBOUND', type: 'direct' }
         ],
         exampleQuery: 'FOR m IN prediction_markets_polymarket FILTER m.volume_24h > 1000 RETURN m'
     },
@@ -217,7 +223,8 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
             "unrealized_profit", "updated_at"
         ],
         connections: [
-            { target: 'predictionmarkets', edge: 'position_in_market', direction: 'OUTBOUND', type: 'direct' }
+            { target: 'predictionmarkets', edge: 'position_in_market', direction: 'OUTBOUND', type: 'direct' },
+            { target: 'polymarket_traders', edge: 'trader_has_position', direction: 'INBOUND', type: 'direct' }
         ],
         exampleQuery: 'FOR p IN polymarket_positions SORT p.size DESC LIMIT 5 RETURN p'
     },
