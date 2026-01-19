@@ -164,7 +164,6 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                     {Object.entries(GRAPH_SCHEMA)
                         // Only show nodes that act as roots/sources (usually Company)
                         // Or let user pick anything? For now, stick to user's flow
-                        .filter(([key]) => key === 'company' || key === 'cftc' || key === 'kalshi' || key === 'predictionmarkets')
                         .map(([key, node]) => (
                             <button
                                 key={key}
