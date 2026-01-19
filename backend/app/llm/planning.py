@@ -698,6 +698,19 @@ Examples:
 6. For semantic search, MUST set requires_embedding: true
 7. **For date ranges:** Parse natural language dates into specific YYYY-MM-DD strings
 
+**QUERY OUTPUT STRATEGY:**
+For time series queries, choose the right output format:
+
+1. **Summary Format** (date range > 7 days OR user says "performance/summary"):
+   - Return aggregated metrics (open, close, high, low, % change)
+   - Single row with summary statistics
+   - Use Example 9b pattern
+
+2. **Daily Format** (date range <= 7 days OR user says "daily/detailed"):
+   - Return individual rows per day
+   - Use Example 9 pattern
+   - Limit to reasonable number (30-50 rows max)
+
 Generate a JSON response with:
 - "intent": classification (e.g., "top_contracts", "active_markets", "semantic_awards", "whale_positions", "stock_data", "sec_sentiment")
 - "collections": array of collection names used

@@ -761,6 +761,53 @@ Requires Embedding: false
 ⚠️ CRITICAL: "October 2020" → start_date: "2020-10-01", end_date: "2020-11-01"
 ⚠️ CRITICAL: Always use < (less than) for end_date, not <= (to exclude next month)
 
+⚠️ CRITICAL FIELD NAMES - AVOID CONFUSION:
+- MarketData collection: use doc.volume (NOT volume_24h!)
+- prediction_markets_polymarket: use market.volume_24h
+- prediction_markets_kalshi: use market.volume_24h
+
+---
+
+EXAMPLE 9b - Time Series Summary (For date ranges > 7 days):
+Question: "Tesla stock performance during October 2020"
+Intent: time_series_summary
+Collections: ["MarketData"]
+AQL:
+LET data = (
+  FOR doc IN MarketData
+    FILTER doc.ticker == @ticker
+    FILTER doc.date >= @start_date AND doc.date < @end_date
+    SORT doc.date ASC
+    RETURN doc
+)
+
+LET first = FIRST(data)
+LET last = LAST(data)
+
+RETURN {
+  ticker: @ticker,
+  period: CONCAT(@start_date, " to ", @end_date),
+  trading_days: LENGTH(data),
+  opening_price: first.open,
+  closing_price: last.close,
+  period_high: MAX(data[*].high),
+  period_low: MIN(data[*].low),
+  price_change: last.close - first.open,
+  percent_change: ROUND(((last.close - first.open) / first.open) * 100 * 100) / 100,
+  avg_daily_volume: ROUND(AVG(data[*].volume))
+}
+Bind Variables: {"ticker": "TSLA", "start_date": "2020-10-01", "end_date": "2020-11-01"}
+Requires Embedding: false
+
+💡 Use this summary pattern when:
+- Date range > 7 days
+- User asks for "performance", "how did X do", "summary"
+- User doesn't explicitly ask for daily/granular data
+
+💡 Use Example 9 (daily data) when:
+- Date range <= 7 days
+- User asks for "daily prices", "show me each day", "detailed data"
+
 ---
 
 EXAMPLE 10 - Aggregation:
