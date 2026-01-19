@@ -36,6 +36,14 @@ interface Message {
     bind_vars?: any
     intent?: string
     explanation?: string
+    is_time_series?: boolean
+    chart_data?: {
+      type: string
+      dates: string[]
+      values: number[]
+      label: string
+      ticker: string
+    }
   }
 }
 
