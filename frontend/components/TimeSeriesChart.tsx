@@ -163,7 +163,7 @@ export default function TimeSeriesChart({ dates, values, label, ticker }: TimeSe
       <canvas
         ref={canvasRef}
         className="w-full"
-        style={{ height: '400px' }}
+        style={{ height: '280px' }}
       />
     </div>
   )

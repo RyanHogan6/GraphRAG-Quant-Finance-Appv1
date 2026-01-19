@@ -646,11 +646,12 @@ FOR trader IN polymarket_traders
       }}
 
 Example 5: "Show me Apple stock data for the last 30 days"
+⚠️ CRITICAL: For time-series queries, LIMIT must match the requested days (30 days = LIMIT 30, 60 days = LIMIT 60, etc.)
 FOR doc IN MarketData
   FILTER doc.ticker == @ticker
   FILTER doc.date >= DATE_SUBTRACT(DATE_NOW(), 30, "day")
   SORT doc.date DESC
-  LIMIT 30
+  LIMIT 30  # ⚠️ MUST match the number of days requested!
   RETURN {{
     date: doc.date,
     close: doc.close,

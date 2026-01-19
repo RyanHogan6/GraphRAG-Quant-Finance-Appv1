@@ -820,7 +820,7 @@ export default function HomePage() {
             className="bg-dark-800 border border-gold/20 rounded-lg shadow-xl mb-4 md:mb-6"
           >
             {/* Messages */}
-            <div className="h-[350px] md:h-[500px] overflow-y-auto p-3 md:p-4 space-y-3">
+            <div className="h-[350px] md:h-[600px] lg:h-[700px] overflow-y-auto p-3 md:p-4 space-y-3">
               {messages.map((message, idx) => (
                 <div
                   key={idx}
