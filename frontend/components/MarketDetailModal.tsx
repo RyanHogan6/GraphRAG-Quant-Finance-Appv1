@@ -72,7 +72,7 @@ export default function MarketDetailModal({ market, onClose }: MarketDetailModal
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2 md:p-4" onClick={onClose}>
       <div
-        className="bg-dark-800 border border-gold/30 rounded-lg max-w-full md:max-w-2xl lg:max-w-3xl w-full max-h-[85vh] md:max-h-[90vh] overflow-y-auto"
+        className="bg-dark-800 border border-gold/30 rounded-lg max-w-full md:max-w-2xl lg:max-w-3xl w-full max-h-[80vh] md:max-h-[90vh] overflow-y-auto m-4"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -182,11 +182,10 @@ export default function MarketDetailModal({ market, onClose }: MarketDetailModal
               <h3 className="text-sm font-semibold text-gold">TOP TRADERS</h3>
               <button
                 onClick={() => setShowTraders(!showTraders)}
-                className={`px-4 py-2 rounded-lg border transition-all text-sm font-semibold ${
-                  showTraders
+                className={`px-4 py-2 rounded-lg border transition-all text-sm font-semibold ${showTraders
                     ? 'bg-gold/20 text-gold border-gold/40'
                     : 'bg-dark-700 text-gray-400 border-gold/20 hover:border-gold/40'
-                }`}
+                  }`}
               >
                 {showTraders ? 'Hide' : 'Show'} Traders
               </button>

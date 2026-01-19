@@ -24,6 +24,7 @@ limiter = Limiter(key_func=get_remote_address)
 class QueryRequest(BaseModel):
     question: constr(min_length=1, max_length=1000)  # Limit query length
     conversation_history: Optional[List[Dict[str, Any]]] = []  # Conversation context
+    forced_plan_aql: Optional[str] = None  # Direct AQL bypass for Query Builder
 
     @validator('question')
     def sanitize_question(cls, v):
@@ -332,25 +333,40 @@ async def execute_query_stream(request: Request, body: QueryRequest):
                 return
 
             # Step 1: Analyzing question (cache miss)
-            yield f"data: {json.dumps({'type': 'progress', 'stage': 'analyzing', 'message': 'Understanding your question...'})}\n\n"
-            await asyncio.sleep(0.1)  # Small delay for UX
+            if body.forced_plan_aql:
+                yield f"data: {json.dumps({'type': 'progress', 'stage': 'analyzing', 'message': 'Executing Builder Query...', 'details': 'Bypassing LLM Planner'})}\n\n"
+                await asyncio.sleep(0.1)
+                
+                # Mock query plan for builder execution
+                results, db_error = execute_aql(body.forced_plan_aql)
+                query_plan = {
+                    "aql_query": body.forced_plan_aql,
+                    "intent": "builder_execution",
+                    "explanation": "Manual Query Builder Execution"
+                }
+                web_context_data = {'summary': '', 'sources': []}
+                intent_class = {'intent': 'db_only'}
+                
+            else:
+                yield f"data: {json.dumps({'type': 'progress', 'stage': 'analyzing', 'message': 'Understanding your question...'})}\n\n"
+                await asyncio.sleep(0.1)  # Small delay for UX
 
-            # Step 2: Execute parallel searches
-            yield f"data: {json.dumps({'type': 'progress', 'stage': 'searching', 'message': 'Searching database and web...', 'details': 'Running 3 parallel tasks'})}\n\n"
+                # Step 2: Execute parallel searches
+                yield f"data: {json.dumps({'type': 'progress', 'stage': 'searching', 'message': 'Searching database and web...', 'details': 'Running 3 parallel tasks'})}\n\n"
 
-            # Run in thread pool (FastAPI handles async/sync mixing)
-            loop = asyncio.get_event_loop()
-            with ThreadPoolExecutor(max_workers=3) as executor:
-                db_future = loop.run_in_executor(executor, execute_db_query, body.question, body.conversation_history)
-                web_future = loop.run_in_executor(executor, execute_web_search, body.question)
-                intent_future = loop.run_in_executor(executor, classify_query_intent, body.question)
+                # Run in thread pool (FastAPI handles async/sync mixing)
+                loop = asyncio.get_event_loop()
+                with ThreadPoolExecutor(max_workers=3) as executor:
+                    db_future = loop.run_in_executor(executor, execute_db_query, body.question, body.conversation_history)
+                    web_future = loop.run_in_executor(executor, execute_web_search, body.question)
+                    intent_future = loop.run_in_executor(executor, classify_query_intent, body.question)
 
-                # Wait for all
-                results, query_plan, db_error = await db_future
-                web_context_data, web_error = await web_future
-                intent_classification = await intent_future
+                    # Wait for all
+                    results, query_plan, db_error = await db_future
+                    web_context_data, web_error = await web_future
+                    intent_classification = await intent_future
 
-            query_intent = intent_classification.get('intent', 'hybrid')
+                query_intent = intent_classification.get('intent', 'hybrid')
 
             # Handle errors
             if db_error:

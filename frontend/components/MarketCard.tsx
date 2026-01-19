@@ -7,7 +7,8 @@ interface MarketCardProps {
 
 export default function MarketCard({ market, onClick }: MarketCardProps) {
   const formatVolume = (volume: number) => {
-    if (volume == null || isNaN(volume) || volume === 0) return '$0'
+    if (volume == null || isNaN(volume)) return '$0'
+    if (volume === 0) return '$0'
     if (volume >= 1000000) return `$${(volume / 1000000).toFixed(1)}M`
     if (volume >= 1000) return `$${(volume / 1000).toFixed(0)}k`
     return `$${volume.toFixed(2)}`
@@ -20,8 +21,8 @@ export default function MarketCard({ market, onClick }: MarketCardProps) {
 
     // Sports categories
     if (cat.includes('sport') || cat.includes('nba') || cat.includes('nfl') ||
-        cat.includes('nhl') || cat.includes('mlb') || q.includes(' vs ') ||
-        q.includes('win the') && (q.includes('game') || q.includes('match'))) {
+      cat.includes('nhl') || cat.includes('mlb') || q.includes(' vs ') ||
+      q.includes('win the') && (q.includes('game') || q.includes('match'))) {
       return 'sports'
     }
 

@@ -11,6 +11,7 @@ import ScrollToTop from '@/components/ScrollToTop'
 import AnimatedLogo from '@/components/AnimatedLogo'
 import WhaleTracker from '@/components/WhaleTracker'
 import TimeSeriesChart from '@/components/TimeSeriesChart'
+import QueryBuilder from '@/components/QueryBuilder'
 import { Market } from '@/lib/types'
 
 interface Message {
@@ -58,6 +59,10 @@ export default function HomePage() {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [showAdvancedMode, setShowAdvancedMode] = useState(false)
+
+  // Query Builder State
+  const [isBuilderMode, setIsBuilderMode] = useState(false)
+  const [builtQuery, setBuiltQuery] = useState({ aql: '', description: '' })
 
   // Refs for scroll animations
   const heroRef = useRef(null)
@@ -195,17 +200,21 @@ export default function HomePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!input.trim()) return
+
+    // Determine input based on mode
+    const queryInput = isBuilderMode ? builtQuery.description : input
+    if (!queryInput.trim()) return
 
     const userMessage: Message = {
       role: 'user',
-      content: input,
+      content: queryInput,
       timestamp: new Date(),
     }
 
     setMessages((prev) => [...prev, userMessage])
-    const currentInput = input
-    setInput('')
+    const currentInput = queryInput
+    if (!isBuilderMode) setInput('') // Only clear text input if we used it
+
     setIsLoading(true)
 
     // Create placeholder for streaming assistant message
@@ -228,15 +237,23 @@ export default function HomePage() {
 
       // Use streaming endpoint
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+      const payload: any = {
+        question: currentInput,
+        conversation_history: conversationHistory
+      }
+
+      // If in builder mode, pass the forced AQL
+      if (isBuilderMode && builtQuery.aql) {
+        payload.forced_plan_aql = builtQuery.aql
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/query/execute-stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          question: currentInput,
-          conversation_history: conversationHistory
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (!response.ok) {
