@@ -810,6 +810,48 @@ Requires Embedding: false
 
 ---
 
+EXAMPLE 9c - Multi-Ticker Comparison (Separate summaries per ticker):
+Question: "Compare AAPL's stock trends with MSFT and GOOGL over the past year"
+Intent: multi_ticker_comparison
+Collections: ["MarketData"]
+AQL:
+FOR ticker IN ["AAPL", "MSFT", "GOOGL"]
+  LET data = (
+    FOR doc IN MarketData
+      FILTER doc.ticker == ticker
+      FILTER doc.date >= @start_date AND doc.date < @end_date
+      SORT doc.date ASC
+      RETURN doc
+  )
+  
+  LET first = FIRST(data)
+  LET last = LAST(data)
+  
+  RETURN {
+    ticker: ticker,
+    period: CONCAT(@start_date, " to ", @end_date),
+    trading_days: LENGTH(data),
+    opening_price: first.open,
+    closing_price: last.close,
+    period_high: MAX(data[*].high),
+    period_low: MIN(data[*].low),
+    price_change: last.close - first.open,
+    percent_change: ROUND(((last.close - first.open) / first.open) * 100 * 100) / 100,
+    avg_daily_volume: ROUND(AVG(data[*].volume))
+  }
+Bind Variables: {"start_date": "2025-01-01", "end_date": "2026-01-01"}
+Requires Embedding: false
+
+💡 This pattern returns 3 separate rows (one per ticker) for easy comparison
+💡 Each ticker gets its own summary statistics
+💡 Frontend can display as separate cards or comparison table
+💡 Use when user says "compare", "versus", "vs", or lists multiple tickers
+
+⚠️ DO NOT interleave data from multiple tickers in a single result set
+⚠️ DO NOT use UNION - use FOR loop over ticker array instead
+
+---
+
 EXAMPLE 10 - Aggregation:
 Question: "What's the total value of defense awards in 2017?"
 Intent: aggregation

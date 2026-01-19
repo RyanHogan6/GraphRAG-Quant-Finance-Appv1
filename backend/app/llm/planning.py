@@ -711,6 +711,12 @@ For time series queries, choose the right output format:
    - Use Example 9 pattern
    - Limit to reasonable number (30-50 rows max)
 
+3. **Multi-Ticker Comparison** (user compares multiple stocks):
+   - Return separate summary for EACH ticker
+   - Use Example 9c pattern with FOR loop over ticker array
+   - DO NOT interleave data from different tickers
+   - Each ticker gets its own row with summary stats
+
 Generate a JSON response with:
 - "intent": classification (e.g., "top_contracts", "active_markets", "semantic_awards", "whale_positions", "stock_data", "sec_sentiment")
 - "collections": array of collection names used
