@@ -783,7 +783,7 @@ export default function HomePage() {
       </div>
 
       {/* Chat Interface Section */}
-      <section id="query" className="min-h-screen snap-start flex items-center justify-center px-6 py-12 relative overflow-hidden">
+      <section id="query" className="snap-start flex items-center justify-center px-4 py-6 md:px-6 md:py-8 relative overflow-hidden">
         {/* Animated background grid */}
         <motion.div
           className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
@@ -795,10 +795,10 @@ export default function HomePage() {
             whileInView={{ opacity: 1 }}
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.8 }}
-            className="mb-8 text-center"
+            className="mb-4 md:mb-6 text-center"
           >
-            <h2 className="text-2xl md:text-4xl font-bold text-gold mb-2">AI Query Interface</h2>
-            <p className="text-gray-500">Natural language queries over financial knowledge graph</p>
+            <h2 className="text-xl md:text-3xl font-bold text-gold mb-1.5 md:mb-2">AI Query Interface</h2>
+            <p className="text-gray-500 text-xs md:text-sm">Natural language queries over financial knowledge graph</p>
           </motion.div>
 
           {/* Chat Container */}
@@ -807,28 +807,28 @@ export default function HomePage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.2 }}
             transition={{ duration: 0.8 }}
-            className="bg-dark-800 border border-gold/20 rounded-lg shadow-xl mb-6"
+            className="bg-dark-800 border border-gold/20 rounded-lg shadow-xl mb-4 md:mb-6"
           >
             {/* Messages */}
-            <div className="h-[500px] md:h-[700px] overflow-y-auto p-4 md:p-6 space-y-4">
+            <div className="h-[350px] md:h-[500px] overflow-y-auto p-3 md:p-4 space-y-3">
               {messages.map((message, idx) => (
                 <div
                   key={idx}
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-lg p-4 ${
+                    className={`max-w-[80%] rounded-lg p-2.5 md:p-3 ${
                       message.role === 'user'
                         ? 'bg-gold/20 border border-gold/40 text-gray-100'
                         : 'bg-dark-700 border border-gold/20 text-gray-300'
                     }`}
                   >
-                    <div className="flex items-start space-x-3">
-                      <div className="text-xs font-semibold text-gray-500 uppercase">
+                    <div className="flex items-start space-x-2 md:space-x-3">
+                      <div className="text-[10px] md:text-xs font-semibold text-gray-500 uppercase">
                         {message.role === 'user' ? 'You' : 'AI'}
                       </div>
                       <div className="flex-1">
-                        <div className="text-base mb-2 leading-relaxed">
+                        <div className="text-xs md:text-sm mb-1.5 md:mb-2 leading-relaxed">
                           {message.useMarkdown ? (
                             <MarkdownRenderer content={message.content} />
                           ) : (
@@ -926,7 +926,7 @@ export default function HomePage() {
                             </div>
                           </div>
                         )}
-                        <div className="text-xs text-gray-600 mt-2">
+                        <div className="text-[10px] md:text-xs text-gray-600 mt-1 md:mt-1.5">
                           {message.timestamp.toLocaleTimeString()}
                         </div>
                       </div>
@@ -937,13 +937,13 @@ export default function HomePage() {
 
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="bg-dark-700 border border-gold/20 rounded-lg p-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="text-xs font-semibold text-gray-500 uppercase">AI</div>
+                  <div className="bg-dark-700 border border-gold/20 rounded-lg p-2.5 md:p-3">
+                    <div className="flex items-center space-x-2">
+                      <div className="text-[10px] md:text-xs font-semibold text-gray-500 uppercase">AI</div>
                       <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-gold rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                        <div className="w-2 h-2 bg-gold rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                        <div className="w-2 h-2 bg-gold rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                        <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-gold rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                        <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-gold rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                        <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-gold rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                       </div>
                     </div>
                   </div>
@@ -952,11 +952,11 @@ export default function HomePage() {
             </div>
 
             {/* Input */}
-            <div className="border-t border-gold/20 p-3 md:p-4">
+            <div className="border-t border-gold/20 p-2 md:p-3">
               {/* Advanced Mode Toggle */}
-              <div className="flex items-center justify-end mb-3">
+              <div className="flex items-center justify-end mb-2">
                 <label className="flex items-center cursor-pointer">
-                  <span className="text-xs text-gray-400 mr-2">Advanced Mode</span>
+                  <span className="text-[10px] md:text-xs text-gray-400 mr-1.5 md:mr-2">Advanced Mode</span>
                   <div className="relative">
                     <input
                       type="checkbox"
@@ -964,12 +964,12 @@ export default function HomePage() {
                       onChange={(e) => setShowAdvancedMode(e.target.checked)}
                       className="sr-only"
                     />
-                    <div className={`block w-10 h-6 rounded-full transition ${showAdvancedMode ? 'bg-purple-500' : 'bg-gray-600'}`}></div>
-                    <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition ${showAdvancedMode ? 'transform translate-x-4' : ''}`}></div>
+                    <div className={`block w-8 h-5 md:w-10 md:h-6 rounded-full transition ${showAdvancedMode ? 'bg-purple-500' : 'bg-gray-600'}`}></div>
+                    <div className={`dot absolute left-0.5 top-0.5 md:left-1 md:top-1 bg-white w-4 h-4 rounded-full transition ${showAdvancedMode ? 'transform translate-x-3 md:translate-x-4' : ''}`}></div>
                   </div>
                 </label>
               </div>
-              <form onSubmit={handleSubmit} className="flex flex-col md:flex-row md:space-x-3 space-y-3 md:space-y-0">
+              <form onSubmit={handleSubmit} className="flex flex-col md:flex-row md:space-x-2 space-y-2 md:space-y-0">
                 <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
@@ -980,14 +980,14 @@ export default function HomePage() {
                     }
                   }}
                   placeholder="Ask a question about markets, companies, or contracts..."
-                  rows={3}
-                  className="flex-1 bg-dark-700 border border-gold/30 rounded-lg px-3 py-2 md:px-4 md:py-3 text-sm md:text-base text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold/60 focus:ring-2 focus:ring-gold/20 resize-y min-h-[80px] max-h-[200px]"
+                  rows={2}
+                  className="flex-1 bg-dark-700 border border-gold/30 rounded-lg px-2.5 py-1.5 md:px-3 md:py-2 text-xs md:text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold/60 focus:ring-2 focus:ring-gold/20 resize-y min-h-[60px] max-h-[150px]"
                   disabled={isLoading}
                 />
                 <button
                   type="submit"
                   disabled={isLoading || !input.trim()}
-                  className="w-full md:w-auto px-6 py-3 bg-gold/20 border border-gold/40 rounded-lg text-gold hover:bg-gold/30 hover:border-gold/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold md:self-end"
+                  className="w-full md:w-auto px-4 py-2 md:px-5 md:py-2.5 bg-gold/20 border border-gold/40 rounded-lg text-xs md:text-sm text-gold hover:bg-gold/30 hover:border-gold/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold md:self-end"
                 >
                   Send
                 </button>
@@ -1002,13 +1002,13 @@ export default function HomePage() {
             viewport={{ once: true }}
             transition={{ duration: 0.8, delay: 0.2 }}
           >
-            <h3 className="text-base md:text-lg font-semibold text-gold mb-4">Suggested Questions</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <h3 className="text-sm md:text-base font-semibold text-gold mb-2 md:mb-3">Suggested Questions</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3">
               {suggestedQuestions.map((question, idx) => (
                 <button
                   key={idx}
                   onClick={() => setInput(question)}
-                  className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-4 text-left text-xs md:text-sm text-gray-400 hover:border-gold/40 hover:text-gold transition-all"
+                  className="bg-dark-800 border border-gold/20 rounded-lg p-2 md:p-3 text-left text-[11px] md:text-xs text-gray-400 hover:border-gold/40 hover:text-gold transition-all"
                 >
                   {question}
                 </button>
@@ -1026,7 +1026,7 @@ export default function HomePage() {
       {/* Graph Architecture Visualization */}
       <section
         ref={graphVizRef}
-        className="min-h-screen snap-start flex flex-col items-center justify-center px-6 py-12 relative overflow-hidden"
+        className="snap-start flex flex-col items-center justify-center px-4 py-6 md:px-6 md:py-8 relative overflow-hidden"
       >
         {/* Animated background grid */}
         <motion.div
@@ -1038,10 +1038,10 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 50 }}
             animate={isGraphVizInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8 }}
-            className="text-center mb-12"
+            className="text-center mb-4 md:mb-6"
           >
-            <h2 className="text-3xl md:text-5xl font-bold text-gold mb-6">Graph Architecture</h2>
-            <p className="text-xl text-gray-400 max-w-3xl mx-auto mb-8">
+            <h2 className="text-2xl md:text-4xl font-bold text-gold mb-2 md:mb-3">Graph Architecture</h2>
+            <p className="text-sm md:text-base text-gray-400 max-w-3xl mx-auto mb-3 md:mb-4">
               Everything connects to everything. Click nodes to explore how data flows through the knowledge graph.
             </p>
           </motion.div>
@@ -1058,9 +1058,9 @@ export default function HomePage() {
             initial={{ opacity: 0 }}
             animate={isGraphVizInView ? { opacity: 1 } : {}}
             transition={{ duration: 0.8, delay: 0.6 }}
-            className="mt-12 text-center"
+            className="mt-4 md:mt-6 text-center"
           >
-            <p className="text-gray-400 text-lg">
+            <p className="text-gray-400 text-xs md:text-sm">
               Built on <span className="text-gold font-semibold">ArangoDB</span> with{' '}
               <span className="text-gold font-semibold">GPT-4</span> query planning and{' '}
               <span className="text-gold font-semibold">Perplexity</span> web search
