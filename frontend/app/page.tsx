@@ -11,7 +11,7 @@ import ScrollToTop from '@/components/ScrollToTop'
 import AnimatedLogo from '@/components/AnimatedLogo'
 import TimeSeriesChart from '@/components/TimeSeriesChart'
 import QueryBuilder from '../components/QueryBuilder'
-import WhaleTracker  from '@/components/WhaleTracker'
+import WhaleTracker from '@/components/WhaleTracker'
 import { Market } from '@/lib/types'
 
 interface Message {
@@ -1030,39 +1030,40 @@ export default function HomePage() {
                     onQueryChange={(aql, desc) => setBuiltQuery({ aql, description: desc })}
                   />
                   <div className="mt-2 flex justify-end">
-                     <button
-                        onClick={handleSubmit}
-                        disabled={isLoading || !builtQuery.aql}
-                        className="px-4 py-2 bg-gold/20 border border-gold/40 rounded-lg text-sm text-gold hover:bg-gold/30 hover:border-gold/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-                      >
-                        Run Visual Query
-                      </button>
+                    <button
+                      onClick={handleSubmit}
+                      disabled={isLoading || !builtQuery.aql}
+                      className="px-4 py-2 bg-gold/20 border border-gold/40 rounded-lg text-sm text-gold hover:bg-gold/30 hover:border-gold/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                    >
+                      Run Visual Query
+                    </button>
                   </div>
                 </div>
               ) : (
-              <form onSubmit={handleSubmit} className="flex flex-col md:flex-row md:space-x-2 space-y-2 md:space-y-0">
-                <textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      handleSubmit(e)
-                    }
-                  }}
-                  placeholder="Ask a question about markets, companies, or contracts..."
-                  rows={2}
-                  className="flex-1 bg-dark-700 border border-gold/30 rounded-lg px-2.5 py-1.5 md:px-3 md:py-2 text-xs md:text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold/60 focus:ring-2 focus:ring-gold/20 resize-y min-h-[60px] max-h-[150px]"
-                  disabled={isLoading}
-                />
-                <button
-                  type="submit"
-                  disabled={isLoading || !input.trim()}
-                  className="w-full md:w-auto px-4 py-2 md:px-5 md:py-2.5 bg-gold/20 border border-gold/40 rounded-lg text-xs md:text-sm text-gold hover:bg-gold/30 hover:border-gold/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold md:self-end"
-                >
-                  Send
-                </button>
-              </form>
+                <form onSubmit={handleSubmit} className="flex flex-col md:flex-row md:space-x-2 space-y-2 md:space-y-0">
+                  <textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        handleSubmit(e)
+                      }
+                    }}
+                    placeholder="Ask a question about markets, companies, or contracts..."
+                    rows={2}
+                    className="flex-1 bg-dark-700 border border-gold/30 rounded-lg px-2.5 py-1.5 md:px-3 md:py-2 text-xs md:text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold/60 focus:ring-2 focus:ring-gold/20 resize-y min-h-[60px] max-h-[150px]"
+                    disabled={isLoading}
+                  />
+                  <button
+                    type="submit"
+                    disabled={isLoading || !input.trim()}
+                    className="w-full md:w-auto px-4 py-2 md:px-5 md:py-2.5 bg-gold/20 border border-gold/40 rounded-lg text-xs md:text-sm text-gold hover:bg-gold/30 hover:border-gold/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold md:self-end"
+                  >
+                    Send
+                  </button>
+                </form>
+              )}
             </div>
           </motion.div>
 
