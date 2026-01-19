@@ -246,6 +246,7 @@ export default function HomePage() {
       // If in builder mode, pass the forced AQL
       if (isBuilderMode && builtQuery.aql) {
         payload.forced_plan_aql = builtQuery.aql
+        payload.timestamp = Date.now() // Force fresh request
       }
 
       const response = await fetch(`${API_BASE_URL}/api/query/execute-stream`, {
