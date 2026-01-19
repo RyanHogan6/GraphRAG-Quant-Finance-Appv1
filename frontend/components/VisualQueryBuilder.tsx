@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { GRAPH_SCHEMA, SchemaNode, isValidConnection } from '../lib/schema'
+import { GRAPH_SCHEMA, SchemaNode, isValidConnection } from '@/lib/schema'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface QueryBuilderProps {
