@@ -737,7 +737,7 @@ Requires Embedding: false
 
 ---
 
-EXAMPLE 9 - Date Range Query:
+EXAMPLE 9 - Date Range Query (CRITICAL: Month/Year Parsing):
 Question: "Show me Tesla's stock prices for January 2016"
 Intent: time_series
 Collections: ["MarketData"]
@@ -756,6 +756,10 @@ FOR doc IN MarketData
   }
 Bind Variables: {"ticker": "TSLA", "start_date": "2016-01-01", "end_date": "2016-02-01"}
 Requires Embedding: false
+
+⚠️ CRITICAL: "January 2016" → start_date: "2016-01-01", end_date: "2016-02-01" (first day of NEXT month)
+⚠️ CRITICAL: "October 2020" → start_date: "2020-10-01", end_date: "2020-11-01"
+⚠️ CRITICAL: Always use < (less than) for end_date, not <= (to exclude next month)
 
 ---
 

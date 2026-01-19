@@ -677,6 +677,18 @@ USER QUESTION: "{question}"{hint_text}
 
 Current Date: {current_date}
 
+⚠️ **CRITICAL: DATE RANGE PARSING**
+When user mentions a specific month/year or time period, convert to EXACT date ranges:
+
+Examples:
+- "October 2020" → start_date: "2020-10-01", end_date: "2020-11-01" (first day of next month)
+- "Q1 2021" → start_date: "2021-01-01", end_date: "2021-04-01"
+- "January 2024" → start_date: "2024-01-01", end_date: "2024-02-01"
+- "2023" → start_date: "2023-01-01", end_date: "2024-01-01"
+- "last 30 days" → use DATE_SUBTRACT(DATE_NOW(), 30, "day")
+
+⚠️ NEVER use DATE_NOW() for historical queries! User asking about "October 2020" wants data from 2020, NOT recent data!
+
 **INSTRUCTIONS:**
 1. Match the user question to the closest example above
 2. Adapt that example's pattern for the user's specific needs
@@ -684,6 +696,7 @@ Current Date: {current_date}
 4. Use EXACT field names from examples (award_amount_float, volume_24h, etc.)
 5. For ticker queries, use bind variable: @ticker
 6. For semantic search, MUST set requires_embedding: true
+7. **For date ranges:** Parse natural language dates into specific YYYY-MM-DD strings
 
 Generate a JSON response with:
 - "intent": classification (e.g., "top_contracts", "active_markets", "semantic_awards", "whale_positions", "stock_data", "sec_sentiment")
