@@ -53,7 +53,7 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
         description: '10-K/10-Q Filings',
         keyFields: ['filing_type', 'filing_date', 'form_type'],
         connections: [
-            { target: 'sec_sentences', edge: 'has_section', direction: 'OUTBOUND', type: 'multi_hop' } # Simplified representation
+            { target: 'sec_sentences', edge: 'has_section', direction: 'OUTBOUND', type: 'multi_hop' } // Simplified representation
         ],
         exampleQuery: 'FOR f IN sec_filings FILTER f.ticker == "TSLA" RETURN f'
     },
