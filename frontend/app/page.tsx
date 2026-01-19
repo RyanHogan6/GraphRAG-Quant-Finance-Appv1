@@ -10,6 +10,7 @@ import MarketDetailModal from '@/components/MarketDetailModal'
 import ScrollToTop from '@/components/ScrollToTop'
 import AnimatedLogo from '@/components/AnimatedLogo'
 import WhaleTracker from '@/components/WhaleTracker'
+import TimeSeriesChart from '@/components/TimeSeriesChart'
 import { Market } from '@/lib/types'
 
 interface Message {
@@ -836,6 +837,14 @@ export default function HomePage() {
                             message.content
                           )}
                         </div>
+                        {message.queryPlan?.is_time_series && message.queryPlan?.chart_data && (
+                          <TimeSeriesChart
+                            dates={message.queryPlan.chart_data.dates}
+                            values={message.queryPlan.chart_data.values}
+                            label={message.queryPlan.chart_data.label}
+                            ticker={message.queryPlan.chart_data.ticker}
+                          />
+                        )}
                         {showAdvancedMode && message.queryPlan && message.queryPlan.aql_query && (
                           <details className="mt-3 mb-3">
                             <summary className="cursor-pointer text-xs text-purple-400 hover:text-purple-300 font-semibold">

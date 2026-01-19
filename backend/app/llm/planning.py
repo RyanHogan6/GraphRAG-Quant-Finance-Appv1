@@ -775,6 +775,102 @@ def get_query_embedding(text: str):
         return None
 
 
+def detect_time_series_query(results: list, query_plan: dict):
+    """Detect if this is a time series query (stock prices, etc.)"""
+    if not results:
+        return False
+
+    # Check if results have time series characteristics
+    first_result = results[0]
+    has_date = 'date' in first_result
+    has_price_fields = any(field in first_result for field in ['close', 'open', 'high', 'low', 'price', 'volume'])
+
+    # Check query plan collections
+    collections = query_plan.get('collections', [])
+    is_market_data = 'MarketData' in collections
+
+    return has_date and has_price_fields and is_market_data
+
+
+def format_time_series_analysis(user_question: str, results: list, query_plan: dict):
+    """Format time series data with statistics and chart-ready format"""
+
+    if not results:
+        return "No data found for the specified time period."
+
+    # Sort by date
+    sorted_results = sorted(results, key=lambda x: x.get('date', ''))
+
+    # Extract time series data
+    dates = [r.get('date', '') for r in sorted_results]
+    closes = [float(r.get('close', 0)) for r in sorted_results]
+    volumes = [float(r.get('volume', 0)) for r in sorted_results]
+
+    # Calculate statistics
+    if closes:
+        first_close = closes[0]
+        last_close = closes[-1]
+        price_change = last_close - first_close
+        price_change_pct = (price_change / first_close * 100) if first_close > 0 else 0
+        high_price = max(closes)
+        low_price = min(closes)
+        avg_price = sum(closes) / len(closes)
+        avg_volume = sum(volumes) / len(volumes) if volumes else 0
+
+        # Format summary
+        ticker = sorted_results[0].get('ticker', 'Unknown')
+        period_start = dates[0] if dates else 'N/A'
+        period_end = dates[-1] if dates else 'N/A'
+
+        change_indicator = "📈" if price_change >= 0 else "📉"
+
+        analysis = f"""## {ticker} Stock Performance
+
+**Period:** {period_start} to {period_end} ({len(sorted_results)} trading days)
+
+### Price Summary
+- **Starting Price:** ${first_close:.2f}
+- **Ending Price:** ${last_close:.2f}
+- **Change:** {change_indicator} ${price_change:+.2f} ({price_change_pct:+.2f}%)
+- **High:** ${high_price:.2f}
+- **Low:** ${low_price:.2f}
+- **Average:** ${avg_price:.2f}
+
+### Trading Activity
+- **Average Daily Volume:** {avg_volume:,.0f} shares
+- **Total Days:** {len(sorted_results)}
+
+### Key Insights
+"""
+
+        # Add insights based on data
+        if price_change_pct > 10:
+            analysis += f"- Strong upward trend with {price_change_pct:.1f}% gain over the period\n"
+        elif price_change_pct < -10:
+            analysis += f"- Significant decline of {price_change_pct:.1f}% over the period\n"
+        else:
+            analysis += f"- Relatively stable price movement ({price_change_pct:+.1f}% change)\n"
+
+        volatility = (high_price - low_price) / avg_price * 100
+        if volatility > 15:
+            analysis += f"- High volatility with {volatility:.1f}% price range\n"
+        elif volatility < 5:
+            analysis += f"- Low volatility with {volatility:.1f}% price range\n"
+
+        # Add moving average if available
+        if 'sma_20' in sorted_results[-1]:
+            sma_20 = sorted_results[-1].get('sma_20')
+            if sma_20:
+                if last_close > sma_20:
+                    analysis += f"- Currently trading above 20-day moving average (${sma_20:.2f})\n"
+                else:
+                    analysis += f"- Currently trading below 20-day moving average (${sma_20:.2f})\n"
+
+        return analysis
+
+    return "Unable to analyze price data."
+
+
 def analyze_results_with_llm(user_question: str, results: list, query_plan: dict):
     """Analyze query results and generate natural language response"""
 
@@ -787,6 +883,11 @@ def analyze_results_with_llm(user_question: str, results: list, query_plan: dict
     if not results:
         print("[LLM ANALYSIS] No results found, using fallback response")
         return generate_no_results_response(user_question, query_plan)
+
+    # Check if this is a time series query (stock prices)
+    if detect_time_series_query(results, query_plan):
+        print("[LLM ANALYSIS] Detected time series query - using specialized formatter")
+        return format_time_series_analysis(user_question, results, query_plan)
 
     # Limit results sample for LLM analysis (avoid token limits)
     results_sample = results[:10] if len(results) > 10 else results

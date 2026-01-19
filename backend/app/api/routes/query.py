@@ -243,6 +243,23 @@ def execute_query(request: Request, body: QueryRequest):
         follow_ups = generate_follow_up_questions(body.question, results, query_plan)
         print(f"[EXECUTE] Generated {len(follow_ups)} follow-up questions")
 
+        # Check if this is a time series query and add chart metadata
+        if results and query_plan:
+            from app.llm.planning import detect_time_series_query
+            if detect_time_series_query(results, query_plan):
+                # Sort results by date for chart
+                sorted_results = sorted(results, key=lambda x: x.get('date', ''))
+                # Add chart metadata to query_plan
+                query_plan['is_time_series'] = True
+                query_plan['chart_data'] = {
+                    'type': 'line',
+                    'dates': [r.get('date', '') for r in sorted_results],
+                    'values': [float(r.get('close', 0)) for r in sorted_results],
+                    'label': f"{sorted_results[0].get('ticker', 'Stock')} Close Price",
+                    'ticker': sorted_results[0].get('ticker', 'Unknown')
+                }
+                print(f"[EXECUTE] Added chart metadata for time series query")
+
         # Log web context status
         has_sources = bool(web_context_data and (web_context_data.get('sources') or web_context_data.get('citations')))
         print(f"[EXECUTE] Web context has sources: {has_sources}")
@@ -401,6 +418,23 @@ async def execute_query_stream(request: Request, body: QueryRequest):
                         results,
                         query_plan
                     )
+
+            # Check if this is a time series query and add chart metadata
+            if results and query_plan:
+                from app.llm.planning import detect_time_series_query
+                if detect_time_series_query(results, query_plan):
+                    # Sort results by date for chart
+                    sorted_results = sorted(results, key=lambda x: x.get('date', ''))
+                    # Add chart metadata to query_plan
+                    query_plan['is_time_series'] = True
+                    query_plan['chart_data'] = {
+                        'type': 'line',
+                        'dates': [r.get('date', '') for r in sorted_results],
+                        'values': [float(r.get('close', 0)) for r in sorted_results],
+                        'label': f"{sorted_results[0].get('ticker', 'Stock')} Close Price",
+                        'ticker': sorted_results[0].get('ticker', 'Unknown')
+                    }
+                    print(f"[STREAM] Added chart metadata for time series query")
 
             # Step 6: Send complete payload
             final_payload = {
