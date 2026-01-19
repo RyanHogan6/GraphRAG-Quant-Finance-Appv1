@@ -3,7 +3,7 @@ export default function Disclaimer() {
     <div className="min-h-screen bg-dark-900 text-gray-200 py-16 px-6">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-4xl font-bold text-gold mb-4">Disclaimer</h1>
-        <p className="text-sm text-gray-400 mb-8">Last Updated: January 15, 2026</p>
+        <p className="text-sm text-gray-400 mb-8">Last Updated: January 18, 2026</p>
 
         <div className="bg-red-900/20 border-2 border-red-500/50 rounded-lg p-8 mb-8">
           <h2 className="text-3xl font-bold text-red-300 mb-4">⚠️ NOT FINANCIAL ADVICE</h2>
@@ -174,7 +174,7 @@ export default function Disclaimer() {
               If you have questions about this disclaimer or need clarification, contact us at:
             </p>
             <p className="mt-2">
-              <strong>Email:</strong> <a href="mailto:legal@graphragmarkets.com" className="text-gold hover:underline">legal@graphragmarkets.com</a>
+              <strong>Email:</strong> <a href="mailto:karga.analytics@gmail.com" className="text-gold hover:underline">karga.analytics@gmail.com</a>
             </p>
           </section>
 

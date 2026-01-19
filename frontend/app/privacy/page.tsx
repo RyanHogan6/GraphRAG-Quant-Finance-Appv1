@@ -3,7 +3,7 @@ export default function PrivacyPolicy() {
     <div className="min-h-screen bg-dark-900 text-gray-200 py-16 px-6">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-4xl font-bold text-gold mb-4">Privacy Policy</h1>
-        <p className="text-sm text-gray-400 mb-8">Last Updated: January 15, 2026</p>
+        <p className="text-sm text-gray-400 mb-8">Last Updated: January 18, 2026</p>
 
         <div className="space-y-8 text-gray-300">
           <section>
@@ -108,7 +108,7 @@ export default function PrivacyPolicy() {
               For privacy-related questions or to exercise your rights, contact us at:
             </p>
             <p className="mt-2">
-              <strong>Email:</strong> <a href="mailto:privacy@graphragmarkets.com" className="text-gold hover:underline">privacy@graphragmarkets.com</a>
+              <strong>Email:</strong> <a href="mailto:karga.analytics@gmail.com" className="text-gold hover:underline">karga.analytics@gmail.com</a>
             </p>
           </section>
         </div>

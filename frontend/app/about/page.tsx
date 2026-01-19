@@ -21,7 +21,7 @@ export default function About() {
               </p>
               <p className="text-gray-300 mb-4 text-lg leading-relaxed font-light">
                 When you want to answer questions like <em className="text-gold font-normal">"Which S&P 500 companies with significant
-                government contracts are mentioned in prediction markets?"</em> - you'd need to manually query multiple
+                  government contracts are mentioned in prediction markets?"</em> - you'd need to manually query multiple
                 systems, export data, and perform complex joins in spreadsheets.
               </p>
               <p className="text-gold font-semibold text-lg">
@@ -78,7 +78,7 @@ export default function About() {
 
             <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-8 overflow-x-auto">
               <pre className="text-xs md:text-sm text-green-400 font-mono leading-relaxed">
-{`┌─────────────────────────────────────────────────────────────────────┐
+                {`┌─────────────────────────────────────────────────────────────────────┐
 │                          USER INTERFACE                              │
 │  Next.js 14 + React + Framer Motion + Tailwind CSS                  │
 │  • Natural Language Query Input                                      │
@@ -361,7 +361,7 @@ export default function About() {
                     (AI, cybersecurity)? This determines whether to use exact matching or semantic search.
                   </p>
                   <div className="bg-dark-900 p-2 md:p-3 rounded font-mono text-[10px] md:text-xs">
-                    <span className="text-gray-500">Input:</span> <span className="text-gray-300">"Show me AI companies with government contracts"</span><br/>
+                    <span className="text-gray-500">Input:</span> <span className="text-gray-300">"Show me AI companies with government contracts"</span><br />
                     <span className="text-gray-500">Intent:</span> <span className="text-green-400">concept_query</span>
                   </div>
                 </div>
@@ -599,8 +599,8 @@ export default function About() {
             </p>
             <p className="text-gray-400 leading-relaxed">
               Interested in collaborating or have ideas for improvement? Reach out at{' '}
-              <a href="mailto:contact@graphragmarkets.com" className="text-gold hover:underline">
-                contact@graphragmarkets.com
+              <a href="mailto:karga.analytics@gmail.com" className="text-gold hover:underline">
+                karga.analytics@gmail.com
               </a>
             </p>
           </section>

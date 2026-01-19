@@ -80,20 +80,20 @@ export default function Footer() {
             <ul className="space-y-3 text-sm">
               <li className="text-gray-400">
                 <strong className="text-gray-300">General:</strong><br />
-                <a href="mailto:contact@karga.markets" className="hover:text-gold transition-colors">
-                  contact@karga.markets
+                <a href="mailto:karga.analytics@gmail.com" className="hover:text-gold transition-colors">
+                  karga.analytics@gmail.com
                 </a>
               </li>
               <li className="text-gray-400">
                 <strong className="text-gray-300">Privacy:</strong><br />
-                <a href="mailto:privacy@karga.markets" className="hover:text-gold transition-colors">
-                  privacy@karga.markets
+                <a href="mailto:karga.analytics@gmail.com" className="hover:text-gold transition-colors">
+                  karga.analytics@gmail.com
                 </a>
               </li>
               <li className="text-gray-400">
                 <strong className="text-gray-300">Legal:</strong><br />
-                <a href="mailto:legal@karga.markets" className="hover:text-gold transition-colors">
-                  legal@karga.markets
+                <a href="mailto:karga.analytics@gmail.com" className="hover:text-gold transition-colors">
+                  karga.analytics@gmail.com
                 </a>
               </li>
             </ul>

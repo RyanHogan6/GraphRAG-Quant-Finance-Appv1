@@ -3,7 +3,7 @@ export default function TermsOfService() {
     <div className="min-h-screen bg-dark-900 text-gray-200 py-16 px-6">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-4xl font-bold text-gold mb-4">Terms of Service</h1>
-        <p className="text-sm text-gray-400 mb-8">Last Updated: January 15, 2026</p>
+        <p className="text-sm text-gray-400 mb-8">Last Updated: January 18, 2026</p>
 
         <div className="space-y-8 text-gray-300">
           <section>
@@ -152,7 +152,7 @@ export default function TermsOfService() {
             <h2 className="text-2xl font-semibold text-gold mb-4">11. Governing Law</h2>
             <p>
               These Terms shall be governed by and construed in accordance with the laws of
-              [Your State/Country], without regard to conflict of law principles.
+              the Commonwealth of Pennsylvania, without regard to conflict of law principles.
             </p>
           </section>
 
@@ -178,7 +178,7 @@ export default function TermsOfService() {
               For questions about these Terms, contact us at:
             </p>
             <p className="mt-2">
-              <strong>Email:</strong> <a href="mailto:legal@graphragmarkets.com" className="text-gold hover:underline">legal@graphragmarkets.com</a>
+              <strong>Email:</strong> <a href="mailto:karga.analytics@gmail.com" className="text-gold hover:underline">karga.analytics@gmail.com</a>
             </p>
           </section>
         </div>
