@@ -78,6 +78,12 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                         aql += `      SORT t.date DESC LIMIT 30 RETURN t\n`
                     } else if (targetKey === 'awards') {
                         aql += `      SORT t.start_date DESC LIMIT 5 RETURN t\n`
+                    } else if (targetKey === 'sec') {
+                        aql += `      LET top_sentences = (\n`
+                        aql += `        FOR s IN 1..2 OUTBOUND t has_section, has_sentence\n`
+                        aql += `        SORT ABS(s.finbert_score) DESC LIMIT 5 RETURN { text: s.text, score: s.finbert_score }\n`
+                        aql += `      )\n`
+                        aql += `      LIMIT 5 RETURN MERGE(t, { top_sentences })\n`
                     } else {
                         aql += `      LIMIT 5 RETURN t\n`
                     }
