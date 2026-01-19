@@ -141,10 +141,25 @@ def browse_collection(collection_name: str, limit: int = 50, search: str = None,
 def execute_aql(aql_query: str, bind_vars: dict = None):
     """Execute AQL query and return results"""
     db = get_db()
+    
+    # Ensure bind_vars is a dict
+    bind_vars = bind_vars or {}
+    
+    # ARANGODB SAFETY: Remove bind parameters that aren't actually in the query
+    # ArangoDB throws a 400 error if you provide a parameter but don't use it in the AQL
+    if bind_vars:
+        pruned_vars = {}
+        for key, value in bind_vars.items():
+            # Check if @key is in the query string
+            parameter_string = f"@{key}"
+            if parameter_string in aql_query:
+                pruned_vars[key] = value
+        bind_vars = pruned_vars
+
     try:
         cursor = db.aql.execute(
             aql_query,
-            bind_vars=bind_vars or {},
+            bind_vars=bind_vars,
             ttl=config.QUERY_TIMEOUT,
             max_runtime=config.QUERY_TIMEOUT,  # Also set max runtime
             batch_size=1000  # Stream results in batches for large datasets

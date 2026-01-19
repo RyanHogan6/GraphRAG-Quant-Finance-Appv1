@@ -337,8 +337,12 @@ async def execute_query_stream(request: Request, body: QueryRequest):
                 yield f"data: {json.dumps({'type': 'progress', 'stage': 'analyzing', 'message': 'Executing Builder Query...', 'details': 'Bypassing LLM Planner'})}\n\n"
                 await asyncio.sleep(0.1)
                 
+                # Run AQL in thread to avoid blocking event loop
+                loop = asyncio.get_event_loop()
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    results, db_error = await loop.run_in_executor(executor, execute_aql, body.forced_plan_aql)
+                
                 # Mock query plan for builder execution
-                results, db_error = execute_aql(body.forced_plan_aql)
                 query_plan = {
                     "aql_query": body.forced_plan_aql,
                     "intent": "builder_execution",
