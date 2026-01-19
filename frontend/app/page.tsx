@@ -9,9 +9,8 @@ import MarketCard from '@/components/MarketCard'
 import MarketDetailModal from '@/components/MarketDetailModal'
 import ScrollToTop from '@/components/ScrollToTop'
 import AnimatedLogo from '@/components/AnimatedLogo'
-import WhaleTracker from '@/components/WhaleTracker'
 import TimeSeriesChart from '@/components/TimeSeriesChart'
-import QueryBuilder from '@/components/QueryBuilder'
+import QueryBuilder from '../components/QueryBuilder'
 import { Market } from '@/lib/types'
 
 interface Message {
