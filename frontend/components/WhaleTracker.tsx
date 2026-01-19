@@ -87,20 +87,20 @@ export default function WhaleTracker() {
 
   if (loading) {
     return (
-      <div className="text-center py-16">
-        <div className="text-xl text-gray-400">Loading whale traders...</div>
+      <div className="text-center py-8 md:py-12">
+        <div className="text-base md:text-lg text-gray-400">Loading whale traders...</div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6">
-        <div className="text-red-400 font-semibold mb-2">Error Loading Whales</div>
-        <div className="text-red-300">{error}</div>
+      <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 md:p-6">
+        <div className="text-red-400 font-semibold text-sm md:text-base mb-2">Error Loading Whales</div>
+        <div className="text-red-300 text-xs md:text-sm">{error}</div>
         <button
           onClick={() => window.location.reload()}
-          className="mt-4 px-4 py-2 bg-red-500/20 border border-red-500/40 rounded-lg text-red-300 hover:bg-red-500/30"
+          className="mt-3 px-3 py-1.5 md:px-4 md:py-2 bg-red-500/20 border border-red-500/40 rounded-lg text-red-300 text-xs md:text-sm hover:bg-red-500/30"
         >
           Retry
         </button>
@@ -110,34 +110,34 @@ export default function WhaleTracker() {
 
   if (whales.length === 0) {
     return (
-      <div className="text-center py-16 bg-dark-800 border border-gold/20 rounded-lg">
-        <div className="text-xl text-gray-400 mb-2">No whale traders found</div>
-        <div className="text-sm text-gray-600">Check back later for whale activity</div>
+      <div className="text-center py-8 md:py-12 bg-dark-800 border border-gold/20 rounded-lg">
+        <div className="text-base md:text-lg text-gray-400 mb-2">No whale traders found</div>
+        <div className="text-xs md:text-sm text-gray-600">Check back later for whale activity</div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-5">
       {/* Metrics Cards */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="bg-dark-800 border border-gold/20 rounded-lg p-5 hover:border-gold/40 transition-all">
-          <div className="text-gray-400 text-sm mb-1">Total Whales</div>
-          <div className="text-3xl font-bold text-gold">{filteredWhales.length}</div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+        <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all">
+          <div className="text-gray-400 text-xs md:text-sm mb-1">Total Whales</div>
+          <div className="text-xl md:text-3xl font-bold text-gold">{filteredWhales.length}</div>
         </div>
-        <div className="bg-dark-800 border border-gold/20 rounded-lg p-5 hover:border-gold/40 transition-all">
-          <div className="text-gray-400 text-sm mb-1">Combined Volume</div>
-          <div className="text-3xl font-bold text-gold">{formatVolume(totalVolume)}</div>
+        <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all">
+          <div className="text-gray-400 text-xs md:text-sm mb-1">Combined Volume</div>
+          <div className="text-xl md:text-3xl font-bold text-gold">{formatVolume(totalVolume)}</div>
         </div>
-        <div className="bg-dark-800 border border-gold/20 rounded-lg p-5 hover:border-gold/40 transition-all">
-          <div className="text-gray-400 text-sm mb-1">Total Profit</div>
-          <div className={`text-3xl font-bold ${totalProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+        <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all">
+          <div className="text-gray-400 text-xs md:text-sm mb-1">Total Profit</div>
+          <div className={`text-xl md:text-3xl font-bold ${totalProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
             {formatProfit(totalProfit)}
           </div>
         </div>
-        <div className="bg-dark-800 border border-gold/20 rounded-lg p-5 hover:border-gold/40 transition-all">
-          <div className="text-gray-400 text-sm mb-1">Avg ROI</div>
-          <div className={`text-3xl font-bold ${avgROI >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+        <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all">
+          <div className="text-gray-400 text-xs md:text-sm mb-1">Avg ROI</div>
+          <div className={`text-xl md:text-3xl font-bold ${avgROI >= 0 ? 'text-green-400' : 'text-red-400'}`}>
             {avgROI.toFixed(1)}%
           </div>
         </div>
@@ -150,12 +150,12 @@ export default function WhaleTracker() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search by address or activity..."
-          className="w-full bg-dark-800 border border-gold/30 rounded-lg px-4 py-3 text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold/60 focus:ring-2 focus:ring-gold/20"
+          className="w-full bg-dark-800 border border-gold/30 rounded-lg px-3 py-2 md:px-4 md:py-2.5 text-sm md:text-base text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold/60 focus:ring-2 focus:ring-gold/20"
         />
         {searchQuery && (
           <button
             onClick={() => setSearchQuery('')}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gold transition-colors"
+            className="absolute right-3 md:right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gold transition-colors text-sm"
           >
             ✕
           </button>
@@ -163,64 +163,67 @@ export default function WhaleTracker() {
       </div>
 
       {searchQuery && (
-        <div className="text-sm text-gray-400">
+        <div className="text-xs md:text-sm text-gray-400">
           Found <span className="text-gold font-semibold">{filteredWhales.length}</span> whales matching "{searchQuery}"
         </div>
       )}
 
-      {/* Mobile Card View */}
-      <div className="md:hidden space-y-3">
+      {/* Card View - 2 cols mobile, 4 cols desktop */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 md:hidden mb-4 md:mb-6">
         {filteredWhales.slice(0, displayLimit).map((whale, index) => (
           <div
             key={whale.address}
-            className="bg-dark-800 border border-gold/20 rounded-lg p-4"
+            className="bg-gradient-to-br from-amber-900/10 to-yellow-900/5 border border-gold/30 rounded-lg p-3 hover:border-gold/50 hover:from-amber-900/15 hover:to-yellow-900/10 transition-all"
           >
             {/* Rank and Address */}
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center space-x-2">
-                <span className={`text-lg font-bold ${
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center space-x-1.5">
+                <span className={`text-base font-bold ${
                   index === 0 ? 'text-yellow-400' :
-                  index === 1 ? 'text-gray-400' :
-                  index === 2 ? 'text-orange-600' :
-                  'text-gray-500'
+                  index === 1 ? 'text-amber-300' :
+                  index === 2 ? 'text-orange-400' :
+                  'text-amber-200/70'
                 }`}>
                   #{index + 1}
                 </span>
                 {index < 3 && (
-                  <span className="text-lg">
+                  <span className="text-sm">
                     {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
                   </span>
                 )}
               </div>
-              <div className="font-mono text-gold font-semibold text-xs">
-                {shortenAddress(whale.address)}
-              </div>
+            </div>
+
+            {/* Address */}
+            <div className="font-mono text-gold font-semibold text-xs mb-3">
+              {shortenAddress(whale.address)}
             </div>
 
             {/* Volume and Profit */}
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              <div className="bg-dark-700 border border-gold/10 rounded p-2">
-                <div className="text-xs text-gray-500 mb-1">Volume</div>
-                <div className="text-sm font-bold text-white">{formatVolume(whale.volume)}</div>
+            <div className="grid grid-cols-2 gap-1.5 mb-2">
+              <div className="bg-amber-900/20 border border-gold/20 rounded p-2">
+                <div className="text-xs text-amber-300/60 mb-0.5">Volume</div>
+                <div className="text-xs font-bold text-amber-100">{formatVolume(whale.volume)}</div>
               </div>
-              <div className="bg-dark-700 border border-gold/10 rounded p-2">
-                <div className="text-xs text-gray-500 mb-1">Profit</div>
-                <div className={`text-sm font-bold ${whale.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              <div className="bg-amber-900/20 border border-gold/20 rounded p-2">
+                <div className="text-xs text-amber-300/60 mb-0.5">Profit</div>
+                <div className={`text-xs font-bold ${whale.profit >= 0 ? 'text-green-300' : 'text-red-300'}`}>
                   {formatProfit(whale.profit)}
                 </div>
               </div>
             </div>
 
             {/* ROI and Trades */}
-            <div className="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-gold/10">
-              <div>
-                <span className="text-gray-500">ROI: </span>
-                <span className={`font-semibold ${whale.profit_ratio >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            <div className="flex flex-col gap-1 text-xs pt-2 border-t border-gold/20">
+              <div className="flex items-center justify-between">
+                <span className="text-amber-300/60">ROI:</span>
+                <span className={`font-semibold ${whale.profit_ratio >= 0 ? 'text-green-300' : 'text-red-300'}`}>
                   {(whale.profit_ratio * 100).toFixed(1)}%
                 </span>
               </div>
-              <div>
-                <span className="text-gray-500">{whale.trades.toLocaleString()} trades</span>
+              <div className="flex items-center justify-between">
+                <span className="text-amber-300/60">Trades:</span>
+                <span className="text-amber-200/80">{whale.trades.toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -334,10 +337,10 @@ export default function WhaleTracker() {
 
     {/* Load More */}
     {filteredWhales.length > displayLimit && (
-      <div className="text-center mt-6">
+      <div className="text-center mt-4 md:mt-5">
         <button
           onClick={() => setDisplayLimit(prev => prev + 20)}
-          className="px-8 py-3 bg-gold/10 border border-gold/30 rounded-lg text-gold hover:bg-gold/20 hover:border-gold/50 transition-all"
+          className="px-6 py-2 md:px-8 md:py-3 bg-gold/10 border border-gold/30 rounded-lg text-sm md:text-base text-gold hover:bg-gold/20 hover:border-gold/50 transition-all"
         >
           Load More Whales (showing {displayLimit} of {filteredWhales.length})
         </button>
