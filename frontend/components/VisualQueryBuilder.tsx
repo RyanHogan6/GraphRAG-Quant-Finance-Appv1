@@ -15,76 +15,81 @@ type Filter = {
 }
 
 type Enrichment = {
-    collection: string
-    targetField: string
+    targetKey: string
 }
 
 export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps) {
-    // Steps: 0 = Source, 1 = Filter, 2 = Enrich
     const [step, setStep] = useState(0)
 
-    // State
     const [source, setSource] = useState<string>('')
     const [filters, setFilters] = useState<Filter[]>([])
     const [enrichments, setEnrichments] = useState<Enrichment[]>([])
     const [limit, setLimit] = useState(20)
 
-    // Derived
     const sourceNode = source ? GRAPH_SCHEMA[source] : null
 
-    // Generate AQL whenever state changes
     useEffect(() => {
         if (!sourceNode) return
 
         let aql = `FOR doc IN ${sourceNode.collection}\n`
         let desc = `Find ${sourceNode.name}`
 
-        // Filters
         filters.forEach(f => {
             if (!f.field || !f.value) return
-            // Handle string vs number
             const isNum = !isNaN(Number(f.value))
             const val = isNum ? f.value : `"${f.value}"`
             aql += `  FILTER doc.${f.field} ${f.operator} ${val}\n`
             desc += ` where ${f.field} ${f.operator} ${f.value}`
         })
 
-        // Enrichments (Graph Traversals)
         enrichments.forEach(e => {
-            const targetNode = GRAPH_SCHEMA[e.collection]
-            if (!targetNode) return
+            const targetKey = e.targetKey
+            const targetNode = GRAPH_SCHEMA[targetKey]
+            const connection = sourceNode.connections.find(c => c.target === targetKey)
 
-            aql += `\n  // Enrich with ${targetNode.name}\n`
-
-            // Connection logic depends on schema. For MVP we use standard edge patterns
-            // This is a simplification. Real graph traversals might need specific edge collections.
-            // We will try to infer connection based on IDs or semantic links.
-
-            // Strategy: Simple Subquery Lookup
-            // e.g. FOR m IN MarketData FILTER m.ticker == doc.ticker
-
-            if (sourceNode.collection === 'Company' && targetNode.collection === 'MarketData') {
-                aql += `  LET ${e.collection}_data = (\n`
-                aql += `    FOR x IN MarketData FILTER x.ticker == doc.ticker SORT x.date DESC LIMIT 1 RETURN x\n`
-                aql += `  )\n`
-            } else if (sourceNode.collection === 'Company' && targetNode.collection === 'Award') {
-                aql += `  LET ${e.collection}_data = (\n`
-                aql += `    FOR x IN Award FILTER x.recipient_name == doc.name SORT x.award_amount_float DESC LIMIT 5 RETURN x\n`
-                aql += `  )\n`
-            } else {
-                // Generic fallback or Graph Traversal
-                // For MVP, if no specific logic, we skip or show warning
-                aql += `  // Auto-connection logic for ${targetNode.name} not implemented in this MVP builder\n`
+            if (!targetNode || !connection) {
+                aql += `  LET ${targetNode?.collection || targetKey}_data = []\n`
+                return
             }
 
+            aql += `\n  // Enrich with ${targetNode.name}\n`
+            aql += `  LET ${targetNode.collection}_data = (\n`
+
+            if (connection.type === 'direct') {
+                if (connection.direction === 'INBOUND') {
+                    aql += `    FOR t IN INBOUND doc ${connection.edge}\n`
+                    aql += `      LIMIT 5 RETURN t\n`
+                } else {
+                    aql += `    FOR t IN OUTBOUND doc ${connection.edge}\n`
+                    if (targetKey === 'marketdata') {
+                        aql += `      SORT t.date DESC LIMIT 30 RETURN t\n`
+                    } else if (targetKey === 'awards') {
+                        aql += `      SORT t.start_date DESC LIMIT 5 RETURN t\n`
+                    } else {
+                        aql += `      LIMIT 5 RETURN t\n`
+                    }
+                }
+            } else if (connection.type === 'multi_hop') {
+                if (targetKey === 'sec_sentences') {
+                    aql += `    FOR v IN 1..3 OUTBOUND doc HAS_FILING, has_section, has_sentence\n`
+                    aql += `      FILTER IS_SAME_COLLECTION('sec_sentences', v)\n`
+                    aql += `      LIMIT 5 RETURN v\n`
+                } else {
+                    aql += `    RETURN {}\n`
+                }
+            }
+
+            aql += `  )\n`
             desc += ` + ${targetNode.name}`
         })
 
         aql += `  LIMIT ${limit}\n`
 
-        // Merge enrichments into return
         if (enrichments.length > 0) {
-            const merges = enrichments.map(e => `${e.collection}: ${e.collection}_data`).join(', ')
+            const merges = enrichments.map(e => {
+                const node = GRAPH_SCHEMA[e.targetKey]
+                return node ? `${node.collection}: ${node.collection}_data` : ''
+            }).filter(Boolean).join(', ')
             aql += `  RETURN MERGE(doc, { ${merges} })`
         } else {
             aql += `  RETURN doc`
@@ -110,41 +115,40 @@ export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps)
         setFilters(newFilters)
     }
 
-    const toggleEnrichment = (collectionKey: string) => {
-        if (enrichments.find(e => e.collection === collectionKey)) {
-            setEnrichments(enrichments.filter(e => e.collection !== collectionKey))
+    const toggleEnrichment = (targetKey: string) => {
+        if (enrichments.find(e => e.targetKey === targetKey)) {
+            setEnrichments(enrichments.filter(e => e.targetKey !== targetKey))
         } else {
-            setEnrichments([...enrichments, { collection: collectionKey, targetField: 'data' }])
+            setEnrichments([...enrichments, { targetKey }])
         }
     }
 
-    // UI Components
     return (
         <div className="bg-dark-900/50 p-4 rounded-lg border border-gold/10 space-y-4">
-
-            {/* Step 1: Source Selection */}
             <div className="space-y-2">
                 <label className="text-xs text-gold font-semibold uppercase tracking-wider">1. Start With</label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {Object.entries(GRAPH_SCHEMA).map(([key, node]) => (
-                        <button
-                            key={key}
-                            onClick={() => {
-                                setSource(key)
-                                setFilters([])
-                                setEnrichments([])
-                                setStep(1)
-                            }}
-                            className={`p-2 rounded text-xs md:text-sm border transition-all truncate text-left
+                    {Object.entries(GRAPH_SCHEMA)
+                        .filter(([key]) => key === 'company' || key === 'cftc' || key === 'kalshi' || key === 'predictionmarkets')
+                        .map(([key, node]) => (
+                            <button
+                                key={key}
+                                onClick={() => {
+                                    setSource(key)
+                                    setFilters([])
+                                    setEnrichments([])
+                                    setStep(1)
+                                }}
+                                className={`p-2 rounded text-xs md:text-sm border transition-all truncate text-left
                 ${source === key
-                                    ? 'bg-gold/20 border-gold text-gold'
-                                    : 'bg-dark-800 border-gold/10 text-gray-400 hover:border-gold/30'
-                                }`}
-                        >
-                            <div className="font-semibold">{node.name}</div>
-                            <div className="text-[10px] opacity-60 truncate">{node.description}</div>
-                        </button>
-                    ))}
+                                        ? 'bg-gold/20 border-gold text-gold'
+                                        : 'bg-dark-800 border-gold/10 text-gray-400 hover:border-gold/30'
+                                    }`}
+                            >
+                                <div className="font-semibold">{node.name}</div>
+                                <div className="text-[10px] opacity-60 truncate">{node.description}</div>
+                            </button>
+                        ))}
                 </div>
             </div>
 
@@ -155,8 +159,6 @@ export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps)
                         animate={{ opacity: 1, height: 'auto' }}
                         className="space-y-4 pt-2 border-t border-gold/10"
                     >
-
-                        {/* Step 2: Filters */}
                         <div className="space-y-2">
                             <div className="flex justify-between items-center">
                                 <label className="text-xs text-gold font-semibold uppercase tracking-wider">2. Filter Data (Where)</label>
@@ -209,15 +211,15 @@ export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps)
                             ))}
                         </div>
 
-                        {/* Step 3: Enrich */}
-                        {sourceNode.validConnections.length > 0 && (
+                        {sourceNode.connections.length > 0 && (
                             <div className="space-y-2 pt-2 border-t border-gold/10">
                                 <label className="text-xs text-gold font-semibold uppercase tracking-wider">3. Enrich With (Connect)</label>
                                 <div className="flex flex-wrap gap-2">
-                                    {sourceNode.validConnections.map(targetKey => {
+                                    {sourceNode.connections.map(conn => {
+                                        const targetKey = conn.target
                                         const target = GRAPH_SCHEMA[targetKey]
                                         if (!target) return null
-                                        const isSelected = enrichments.some(e => e.collection === targetKey)
+                                        const isSelected = enrichments.some(e => e.targetKey === targetKey)
 
                                         return (
                                             <button
@@ -238,7 +240,6 @@ export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps)
                             </div>
                         )}
 
-                        {/* Limit Config */}
                         <div className="flex items-center justify-end gap-2 pt-2">
                             <span className="text-xs text-gray-500">Limit:</span>
                             <select
