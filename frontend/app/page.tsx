@@ -11,6 +11,7 @@ import ScrollToTop from '@/components/ScrollToTop'
 import AnimatedLogo from '@/components/AnimatedLogo'
 import TimeSeriesChart from '@/components/TimeSeriesChart'
 import QueryBuilder from '../components/QueryBuilder'
+import WhaleTracker  from '@/components/WhaleTracker'
 import { Market } from '@/lib/types'
 
 interface Message {
