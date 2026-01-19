@@ -233,7 +233,7 @@ def get_featured_markets(
             liquidity: market.liquidity != null ? market.liquidity : 0,
             category: market.category != null ? market.category : "Other",
             end_date: market.end_date,
-            traders: 0
+            traders: market.num_traders != null ? market.num_traders : 0
         }}
     """
 

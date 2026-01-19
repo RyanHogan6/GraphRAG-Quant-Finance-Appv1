@@ -22,7 +22,7 @@ interface Message {
   followUpQuestions?: string[]
   webContext?: {
     sources?: string[]
-    citations?: Array<{number: number, url: string, referenced: boolean}>
+    citations?: Array<{ number: number, url: string, referenced: boolean }>
   }
   metadata?: {
     tickers?: string[]
@@ -84,7 +84,7 @@ export default function HomePage() {
   const [isLoadingData, setIsLoadingData] = useState(false)
   const [searchFilter, setSearchFilter] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [collections, setCollections] = useState<Array<{name: string, count: number, description: string}>>([])
+  const [collections, setCollections] = useState<Array<{ name: string, count: number, description: string }>>([])
   const [loadingCollections, setLoadingCollections] = useState(true)
   const [sortColumn, setSortColumn] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
@@ -153,7 +153,7 @@ export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('All')
   const [sortBy, setSortBy] = useState<'volume' | 'probability' | 'traders'>('volume')
   const [markets, setMarkets] = useState<Market[]>([])
-  const [categories, setCategories] = useState<Array<{category: string, count: number}>>([])
+  const [categories, setCategories] = useState<Array<{ category: string, count: number }>>([])
   const [loadingMarkets, setLoadingMarkets] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [marketError, setMarketError] = useState<string | null>(null)
@@ -523,8 +523,8 @@ export default function HomePage() {
         // Clear cache on mount to ensure fresh data
         marketCache.clear()
         // Prefetch Polymarket in background (most common)
-        api.getFeaturedMarkets(200, 'polymarket').catch(() => {})
-        api.getCategories('polymarket').catch(() => {})
+        api.getFeaturedMarkets(200, 'polymarket').catch(() => { })
+        api.getCategories('polymarket').catch(() => { })
       } catch (err) {
         // Silent fail for prefetch
       }
@@ -590,8 +590,8 @@ export default function HomePage() {
         const errorMsg = err?.message?.includes('500')
           ? 'Server error loading markets. The data might be temporarily unavailable. Please try refreshing.'
           : err?.message?.includes('timeout')
-          ? 'Request timed out. The server might be slow. Please try again.'
-          : 'Failed to load markets. Please try refreshing the page.'
+            ? 'Request timed out. The server might be slow. Please try again.'
+            : 'Failed to load markets. Please try refreshing the page.'
         setMarketError(errorMsg)
         setMarkets([])
         setCategories([])
@@ -752,7 +752,7 @@ export default function HomePage() {
               },
               {
                 title: 'Semantic Search',
-                description: 'Find contracts mentioning "Iran" or "cybersecurity" using AI embeddings, not just keywords',
+                description: 'Find contracts mentioning "AI" or "cybersecurity" using vector embeddings, not just keywords',
                 delay: 0.4,
                 icon: (
                   <svg className="w-6 h-6 md:w-8 md:h-8 text-gold mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -827,11 +827,10 @@ export default function HomePage() {
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-lg p-2.5 md:p-3 ${
-                      message.role === 'user'
-                        ? 'bg-gold/20 border border-gold/40 text-gray-100'
-                        : 'bg-dark-700 border border-gold/20 text-gray-300'
-                    }`}
+                    className={`max-w-[80%] rounded-lg p-2.5 md:p-3 ${message.role === 'user'
+                      ? 'bg-gold/20 border border-gold/40 text-gray-100'
+                      : 'bg-dark-700 border border-gold/20 text-gray-300'
+                      }`}
                   >
                     <div className="flex items-start space-x-2 md:space-x-3">
                       <div className="text-[10px] md:text-xs font-semibold text-gray-500 uppercase">
@@ -1118,21 +1117,19 @@ export default function HomePage() {
               <div className="inline-flex bg-dark-800 border border-gold/30 rounded-lg p-1">
                 <button
                   onClick={() => setSelectedPlatform('polymarket')}
-                  className={`px-6 py-2 rounded-lg transition-all font-semibold ${
-                    selectedPlatform === 'polymarket'
-                      ? 'bg-gold/20 text-gold border border-gold/40'
-                      : 'text-gray-400 hover:text-gold'
-                  }`}
+                  className={`px-6 py-2 rounded-lg transition-all font-semibold ${selectedPlatform === 'polymarket'
+                    ? 'bg-gold/20 text-gold border border-gold/40'
+                    : 'text-gray-400 hover:text-gold'
+                    }`}
                 >
                   Polymarket
                 </button>
                 <button
                   onClick={() => setSelectedPlatform('kalshi')}
-                  className={`px-6 py-2 rounded-lg transition-all font-semibold ${
-                    selectedPlatform === 'kalshi'
-                      ? 'bg-gold/20 text-gold border border-gold/40'
-                      : 'text-gray-400 hover:text-gold'
-                  }`}
+                  className={`px-6 py-2 rounded-lg transition-all font-semibold ${selectedPlatform === 'kalshi'
+                    ? 'bg-gold/20 text-gold border border-gold/40'
+                    : 'text-gray-400 hover:text-gold'
+                    }`}
                 >
                   Kalshi
                 </button>
@@ -1145,21 +1142,19 @@ export default function HomePage() {
                 <div className="inline-flex bg-dark-700 border border-gold/20 rounded-lg p-1">
                   <button
                     onClick={() => setPolymarketView('markets')}
-                    className={`px-5 py-2 rounded-lg transition-all text-sm font-semibold ${
-                      polymarketView === 'markets'
-                        ? 'bg-gold/20 text-gold border border-gold/40'
-                        : 'text-gray-400 hover:text-gold'
-                    }`}
+                    className={`px-5 py-2 rounded-lg transition-all text-sm font-semibold ${polymarketView === 'markets'
+                      ? 'bg-gold/20 text-gold border border-gold/40'
+                      : 'text-gray-400 hover:text-gold'
+                      }`}
                   >
                     Markets
                   </button>
                   <button
                     onClick={() => setPolymarketView('whales')}
-                    className={`px-5 py-2 rounded-lg transition-all text-sm font-semibold ${
-                      polymarketView === 'whales'
-                        ? 'bg-gold/20 text-gold border border-gold/40'
-                        : 'text-gray-400 hover:text-gold'
-                    }`}
+                    className={`px-5 py-2 rounded-lg transition-all text-sm font-semibold ${polymarketView === 'whales'
+                      ? 'bg-gold/20 text-gold border border-gold/40'
+                      : 'text-gray-400 hover:text-gold'
+                      }`}
                   >
                     Whale Traders
                   </button>
@@ -1177,315 +1172,311 @@ export default function HomePage() {
           ) : (
             /* Markets View */
             <>
-          {/* Metrics Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all">
-                <div className="text-gray-400 text-xs md:text-sm mb-1">Active Markets</div>
-                <div className="text-xl md:text-3xl font-bold text-gold">{filteredMarkets.length}</div>
-              </div>
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all">
-                <div className="text-gray-400 text-xs md:text-sm mb-1">24h Volume</div>
-                <div className="text-xl md:text-3xl font-bold text-gold">{formatVolume(totalVolume)}</div>
-              </div>
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all">
-                <div className="text-gray-400 text-xs md:text-sm mb-1">Avg Probability</div>
-                <div className="text-xl md:text-3xl font-bold text-gold">{avgProbability.toFixed(0)}%</div>
-              </div>
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all">
-                <div className="text-gray-400 text-xs md:text-sm mb-1">Categories</div>
-                <div className="text-xl md:text-3xl font-bold text-gold">{actualCategories.length}</div>
-              </div>
-            </div>
-
-          {/* Natural Language Search */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="mb-6"
-          >
-            <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search markets... (e.g., 'Trump', 'crypto', 'election')"
-                className="w-full bg-dark-800 border border-gold/30 rounded-lg px-4 py-3 text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold/60 focus:ring-2 focus:ring-gold/20"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gold transition-colors"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-            {searchQuery && (
-              <div className="mt-2 text-sm text-gray-400">
-                Found <span className="text-gold font-semibold">{filteredMarkets.length}</span> markets matching "{searchQuery}"
-              </div>
-            )}
-          </motion.div>
-
-          {/* Loading State */}
-          {loadingMarkets && (
-            <div className="text-center py-16">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gold"></div>
-              <p className="text-gray-400 mt-4">Loading markets...</p>
-            </div>
-          )}
-
-          {/* Error State */}
-          {marketError && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6 mb-8">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="text-red-400 font-semibold mb-2">Error Loading Markets</div>
-                  <div className="text-red-300 mb-4">{marketError}</div>
-                  <button
-                    onClick={() => {
-                      setMarketError(null)
-                      setLoadingMarkets(true)
-                      // Trigger refetch by toggling platform state
-                      setSelectedPlatform(prev => prev === 'polymarket' ? 'polymarket' : 'polymarket')
-                    }}
-                    className="px-4 py-2 bg-red-500/20 border border-red-500/40 rounded-lg text-red-300 hover:bg-red-500/30 hover:border-red-500/60 transition-all font-semibold"
-                  >
-                    Retry
-                  </button>
+              {/* Metrics Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
+                <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all">
+                  <div className="text-gray-400 text-xs md:text-sm mb-1">Active Markets</div>
+                  <div className="text-xl md:text-3xl font-bold text-gold">{filteredMarkets.length}</div>
+                </div>
+                <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all">
+                  <div className="text-gray-400 text-xs md:text-sm mb-1">24h Volume</div>
+                  <div className="text-xl md:text-3xl font-bold text-gold">{formatVolume(totalVolume)}</div>
+                </div>
+                <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all">
+                  <div className="text-gray-400 text-xs md:text-sm mb-1">Avg Probability</div>
+                  <div className="text-xl md:text-3xl font-bold text-gold">{avgProbability.toFixed(0)}%</div>
+                </div>
+                <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all">
+                  <div className="text-gray-400 text-xs md:text-sm mb-1">Categories</div>
+                  <div className="text-xl md:text-3xl font-bold text-gold">{actualCategories.length}</div>
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* Filters */}
-          {!loadingMarkets && !marketError && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8 }}
-              className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6"
-            >
-              {/* Category Filter */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
-                <button
-                  onClick={() => setSelectedCategory('All')}
-                  className={`px-3 py-1.5 text-xs md:text-sm rounded-lg border transition-all whitespace-nowrap ${
-                    selectedCategory === 'All'
-                      ? 'bg-gold/20 text-gold border-gold/40'
-                      : 'bg-dark-800 text-gray-400 border-gold/20 hover:border-gold/40'
-                  }`}
+              {/* Natural Language Search */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8 }}
+                className="mb-6"
+              >
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search markets... (e.g., 'Trump', 'crypto', 'election')"
+                    className="w-full bg-dark-800 border border-gold/30 rounded-lg px-4 py-3 text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold/60 focus:ring-2 focus:ring-gold/20"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gold transition-colors"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+                {searchQuery && (
+                  <div className="mt-2 text-sm text-gray-400">
+                    Found <span className="text-gold font-semibold">{filteredMarkets.length}</span> markets matching "{searchQuery}"
+                  </div>
+                )}
+              </motion.div>
+
+              {/* Loading State */}
+              {loadingMarkets && (
+                <div className="text-center py-16">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gold"></div>
+                  <p className="text-gray-400 mt-4">Loading markets...</p>
+                </div>
+              )}
+
+              {/* Error State */}
+              {marketError && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6 mb-8">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="text-red-400 font-semibold mb-2">Error Loading Markets</div>
+                      <div className="text-red-300 mb-4">{marketError}</div>
+                      <button
+                        onClick={() => {
+                          setMarketError(null)
+                          setLoadingMarkets(true)
+                          // Trigger refetch by toggling platform state
+                          setSelectedPlatform(prev => prev === 'polymarket' ? 'polymarket' : 'polymarket')
+                        }}
+                        className="px-4 py-2 bg-red-500/20 border border-red-500/40 rounded-lg text-red-300 hover:bg-red-500/30 hover:border-red-500/60 transition-all font-semibold"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Filters */}
+              {!loadingMarkets && !marketError && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.8 }}
+                  className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6"
                 >
-                  All ({markets.length})
-                </button>
-                {actualCategories.slice(0, 6).map((cat) => (
-                  <button
-                    key={cat.category}
-                    onClick={() => setSelectedCategory(cat.category)}
-                    className={`px-3 py-1.5 text-xs md:text-sm rounded-lg border transition-all whitespace-nowrap ${
-                      selectedCategory === cat.category
+                  {/* Category Filter */}
+                  <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
+                    <button
+                      onClick={() => setSelectedCategory('All')}
+                      className={`px-3 py-1.5 text-xs md:text-sm rounded-lg border transition-all whitespace-nowrap ${selectedCategory === 'All'
                         ? 'bg-gold/20 text-gold border-gold/40'
                         : 'bg-dark-800 text-gray-400 border-gold/20 hover:border-gold/40'
-                    }`}
-                  >
-                    {cat.category} ({cat.count})
-                  </button>
-                ))}
-              </div>
-
-              {/* Sort */}
-              <div className="flex items-center gap-2 md:ml-4">
-                <span className="text-gray-400 text-xs md:text-sm whitespace-nowrap">Sort:</span>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="bg-dark-800 border border-gold/30 rounded-lg px-2 py-1.5 text-xs md:text-sm text-gray-200 focus:outline-none focus:border-gold/60"
-                >
-                  <option value="volume">Volume</option>
-                  <option value="probability">Probability</option>
-                  <option value="traders">Traders</option>
-                </select>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Markets Table */}
-          {!loadingMarkets && !marketError && filteredMarkets.length > 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8 }}
-              className="mb-12"
-            >
-              {/* Card View - 3 cols mobile, 4 cols desktop */}
-              <div className="grid grid-cols-3 lg:grid-cols-4 gap-2 md:gap-4 md:hidden mb-8">
-                {filteredMarkets.slice(0, displayLimit).map((market, index) => (
-                  <div
-                    key={market.id}
-                    onClick={() => setSelectedMarket(market)}
-                    className="bg-gradient-to-br from-amber-900/10 to-yellow-900/5 border border-gold/30 rounded-md p-2 hover:border-gold/50 hover:from-amber-900/15 hover:to-yellow-900/10 transition-all cursor-pointer"
-                  >
-                    {/* Category Badge */}
-                    <div className="text-[10px] text-amber-300/70 uppercase mb-1.5 font-semibold truncate">{market.category}</div>
-
-                    {/* Question */}
-                    <h3 className="text-[11px] font-semibold text-amber-100 mb-2 line-clamp-2 leading-tight">
-                      {market.question}
-                    </h3>
-
-                    {/* Yes/No Probabilities */}
-                    <div className="grid grid-cols-2 gap-1 mb-1.5">
-                      <div className="bg-green-500/20 border border-green-500/40 rounded p-1.5 text-center">
-                        <div className="text-[9px] text-green-300 mb-0.5">YES</div>
-                        <div className="text-sm font-bold text-green-300">{market.yes_prob}%</div>
-                      </div>
-                      <div className="bg-red-500/20 border border-red-500/40 rounded p-1.5 text-center">
-                        <div className="text-[9px] text-red-300 mb-0.5">NO</div>
-                        <div className="text-sm font-bold text-red-300">{market.no_prob}%</div>
-                      </div>
-                    </div>
-
-                    {/* Volume & End Date */}
-                    <div className="flex flex-col gap-0.5 text-[10px] pt-1.5 border-t border-gold/20">
-                      <div className="flex items-center justify-between">
-                        <span className="text-amber-300/60">Vol</span>
-                        <span className="text-gold font-semibold">
-                          {market.volume_24h >= 1000000
-                            ? `$${(market.volume_24h / 1000000).toFixed(1)}M`
-                            : market.volume_24h >= 1000
-                            ? `$${(market.volume_24h / 1000).toFixed(0)}k`
-                            : `$${market.volume_24h}`}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-amber-300/60">End</span>
-                        <span className="text-amber-200/80">
-                          {new Date(market.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Desktop Table View */}
-              <div className="hidden md:block bg-dark-700 border border-gold/20 rounded-lg overflow-hidden">
-                <div className="overflow-x-auto">
-                  <div className="inline-block min-w-full align-middle">
-                    <div className="overflow-hidden">
-                      <table className="min-w-full divide-y divide-gold/10">
-                  <thead className="bg-dark-800 border-b border-gold/20">
-                    <tr>
-                      <th className="px-2 md:px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider min-w-[200px]">Question</th>
-                      <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Category</th>
-                      <th
-                        className="px-2 md:px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gold transition-colors whitespace-nowrap"
-                        onClick={() => {
-                          if (sortBy === 'probability') {
-                            setSortBy('volume')
-                          } else {
-                            setSortBy('probability')
-                          }
-                        }}
-                      >
-                        Yes {sortBy === 'probability' && '↓'}
-                      </th>
-                      <th className="px-2 md:px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">No</th>
-                      <th
-                        className="px-2 md:px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gold transition-colors whitespace-nowrap"
-                        onClick={() => setSortBy('volume')}
-                      >
-                        Vol {sortBy === 'volume' && '↓'}
-                      </th>
-                      <th className="hidden lg:table-cell px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Liquidity</th>
-                      <th className="hidden lg:table-cell px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Confidence</th>
-                      <th className="hidden md:table-cell px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Days</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gold/10">
-                    {filteredMarkets.slice(0, displayLimit).map((market, index) => (
-                      <tr
-                        key={market.id}
-                        className={`hover:bg-dark-800/70 transition-colors cursor-pointer ${
-                          index % 2 === 0 ? 'bg-dark-800/20' : 'bg-gold/5'
                         }`}
-                        onClick={() => setSelectedMarket(market)}
+                    >
+                      All ({markets.length})
+                    </button>
+                    {actualCategories.slice(0, 6).map((cat) => (
+                      <button
+                        key={cat.category}
+                        onClick={() => setSelectedCategory(cat.category)}
+                        className={`px-3 py-1.5 text-xs md:text-sm rounded-lg border transition-all whitespace-nowrap ${selectedCategory === cat.category
+                          ? 'bg-gold/20 text-gold border-gold/40'
+                          : 'bg-dark-800 text-gray-400 border-gold/20 hover:border-gold/40'
+                          }`}
                       >
-                        <td className="px-2 md:px-4 py-3 text-xs md:text-sm text-gray-200 max-w-[200px] md:max-w-md">
-                          <div className="line-clamp-2">{market.question}</div>
-                        </td>
-                        <td className="hidden md:table-cell px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
-                          {market.category}
-                        </td>
-                        <td className="px-2 md:px-4 py-3 text-center">
-                          <span className="text-xs md:text-sm font-semibold text-green-400">{market.yes_prob}%</span>
-                        </td>
-                        <td className="px-2 md:px-4 py-3 text-center">
-                          <span className="text-xs md:text-sm font-semibold text-red-400">{market.no_prob}%</span>
-                        </td>
-                        <td className="px-2 md:px-4 py-3 text-right text-xs md:text-sm text-gold font-medium whitespace-nowrap">
-                          {market.volume_24h >= 1000000
-                            ? `$${(market.volume_24h / 1000000).toFixed(1)}M`
-                            : market.volume_24h >= 1000
-                            ? `$${(market.volume_24h / 1000).toFixed(0)}k`
-                            : `$${market.volume_24h}`}
-                        </td>
-                        <td className="hidden lg:table-cell px-4 py-3 text-right text-sm text-gray-300 whitespace-nowrap">
-                          {market.liquidity >= 1000000
-                            ? `$${(market.liquidity / 1000000).toFixed(1)}M`
-                            : market.liquidity >= 1000
-                            ? `$${(market.liquidity / 1000).toFixed(0)}k`
-                            : `$${Math.round(market.liquidity)}`}
-                        </td>
-                        <td className="hidden lg:table-cell px-4 py-3 text-right text-sm whitespace-nowrap">
-                          {market.probability_confidence != null && market.probability_confidence > 0 ? (
-                            <span className={`${
-                              market.probability_confidence > 0.3 ? 'text-green-400' :
-                              market.probability_confidence > 0.15 ? 'text-yellow-400' :
-                              'text-yellow-300'
-                            }`}>
-                              {(market.probability_confidence * 100).toFixed(0)}%
-                            </span>
-                          ) : (
-                            <span className="text-gray-600 text-xs">N/A</span>
-                          )}
-                        </td>
-                        <td className="hidden md:table-cell px-4 py-3 text-right text-xs text-gray-400 whitespace-nowrap">
-                          {market.days_until_end || Math.ceil((new Date(market.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))}d
-                        </td>
-                      </tr>
+                        {cat.category} ({cat.count})
+                      </button>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+
+                  {/* Sort */}
+                  <div className="flex items-center gap-2 md:ml-4">
+                    <span className="text-gray-400 text-xs md:text-sm whitespace-nowrap">Sort:</span>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as any)}
+                      className="bg-dark-800 border border-gold/30 rounded-lg px-2 py-1.5 text-xs md:text-sm text-gray-200 focus:outline-none focus:border-gold/60"
+                    >
+                      <option value="volume">Volume</option>
+                      <option value="probability">Probability</option>
+                      <option value="traders">Traders</option>
+                    </select>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Markets Table */}
+              {!loadingMarkets && !marketError && filteredMarkets.length > 0 ? (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.8 }}
+                  className="mb-12"
+                >
+                  {/* Card View - 3 cols mobile, 4 cols desktop */}
+                  <div className="grid grid-cols-3 lg:grid-cols-4 gap-2 md:gap-4 md:hidden mb-8">
+                    {filteredMarkets.slice(0, displayLimit).map((market, index) => (
+                      <div
+                        key={market.id}
+                        onClick={() => setSelectedMarket(market)}
+                        className="bg-gradient-to-br from-amber-900/10 to-yellow-900/5 border border-gold/30 rounded-md p-2 hover:border-gold/50 hover:from-amber-900/15 hover:to-yellow-900/10 transition-all cursor-pointer"
+                      >
+                        {/* Category Badge */}
+                        <div className="text-[10px] text-amber-300/70 uppercase mb-1.5 font-semibold truncate">{market.category}</div>
+
+                        {/* Question */}
+                        <h3 className="text-[11px] font-semibold text-amber-100 mb-2 line-clamp-2 leading-tight">
+                          {market.question}
+                        </h3>
+
+                        {/* Yes/No Probabilities */}
+                        <div className="grid grid-cols-2 gap-1 mb-1.5">
+                          <div className="bg-green-500/20 border border-green-500/40 rounded p-1.5 text-center">
+                            <div className="text-[9px] text-green-300 mb-0.5">YES</div>
+                            <div className="text-sm font-bold text-green-300">{market.yes_prob}%</div>
+                          </div>
+                          <div className="bg-red-500/20 border border-red-500/40 rounded p-1.5 text-center">
+                            <div className="text-[9px] text-red-300 mb-0.5">NO</div>
+                            <div className="text-sm font-bold text-red-300">{market.no_prob}%</div>
+                          </div>
+                        </div>
+
+                        {/* Volume & End Date */}
+                        <div className="flex flex-col gap-0.5 text-[10px] pt-1.5 border-t border-gold/20">
+                          <div className="flex items-center justify-between">
+                            <span className="text-amber-300/60">Vol</span>
+                            <span className="text-gold font-semibold">
+                              {market.volume_24h >= 1000000
+                                ? `$${(market.volume_24h / 1000000).toFixed(1)}M`
+                                : market.volume_24h >= 1000
+                                  ? `$${(market.volume_24h / 1000).toFixed(0)}k`
+                                  : `$${market.volume_24h}`}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-amber-300/60">End</span>
+                            <span className="text-amber-200/80">
+                              {new Date(market.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block bg-dark-700 border border-gold/20 rounded-lg overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <div className="inline-block min-w-full align-middle">
+                        <div className="overflow-hidden">
+                          <table className="min-w-full divide-y divide-gold/10">
+                            <thead className="bg-dark-800 border-b border-gold/20">
+                              <tr>
+                                <th className="px-2 md:px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider min-w-[200px]">Question</th>
+                                <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Category</th>
+                                <th
+                                  className="px-2 md:px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gold transition-colors whitespace-nowrap"
+                                  onClick={() => {
+                                    if (sortBy === 'probability') {
+                                      setSortBy('volume')
+                                    } else {
+                                      setSortBy('probability')
+                                    }
+                                  }}
+                                >
+                                  Yes {sortBy === 'probability' && '↓'}
+                                </th>
+                                <th className="px-2 md:px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">No</th>
+                                <th
+                                  className="px-2 md:px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gold transition-colors whitespace-nowrap"
+                                  onClick={() => setSortBy('volume')}
+                                >
+                                  Vol {sortBy === 'volume' && '↓'}
+                                </th>
+                                <th className="hidden lg:table-cell px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Liquidity</th>
+                                <th className="hidden lg:table-cell px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Confidence</th>
+                                <th className="hidden md:table-cell px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Days</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gold/10">
+                              {filteredMarkets.slice(0, displayLimit).map((market, index) => (
+                                <tr
+                                  key={market.id}
+                                  className={`hover:bg-dark-800/70 transition-colors cursor-pointer ${index % 2 === 0 ? 'bg-dark-800/20' : 'bg-gold/5'
+                                    }`}
+                                  onClick={() => setSelectedMarket(market)}
+                                >
+                                  <td className="px-2 md:px-4 py-3 text-xs md:text-sm text-gray-200 max-w-[200px] md:max-w-md">
+                                    <div className="line-clamp-2">{market.question}</div>
+                                  </td>
+                                  <td className="hidden md:table-cell px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                                    {market.category}
+                                  </td>
+                                  <td className="px-2 md:px-4 py-3 text-center">
+                                    <span className="text-xs md:text-sm font-semibold text-green-400">{market.yes_prob}%</span>
+                                  </td>
+                                  <td className="px-2 md:px-4 py-3 text-center">
+                                    <span className="text-xs md:text-sm font-semibold text-red-400">{market.no_prob}%</span>
+                                  </td>
+                                  <td className="px-2 md:px-4 py-3 text-right text-xs md:text-sm text-gold font-medium whitespace-nowrap">
+                                    {market.volume_24h >= 1000000
+                                      ? `$${(market.volume_24h / 1000000).toFixed(1)}M`
+                                      : market.volume_24h >= 1000
+                                        ? `$${(market.volume_24h / 1000).toFixed(0)}k`
+                                        : `$${market.volume_24h}`}
+                                  </td>
+                                  <td className="hidden lg:table-cell px-4 py-3 text-right text-sm text-gray-300 whitespace-nowrap">
+                                    {market.liquidity >= 1000000
+                                      ? `$${(market.liquidity / 1000000).toFixed(1)}M`
+                                      : market.liquidity >= 1000
+                                        ? `$${(market.liquidity / 1000).toFixed(0)}k`
+                                        : `$${Math.round(market.liquidity)}`}
+                                  </td>
+                                  <td className="hidden lg:table-cell px-4 py-3 text-right text-sm whitespace-nowrap">
+                                    {market.probability_confidence != null && market.probability_confidence > 0 ? (
+                                      <span className={`${market.probability_confidence > 0.3 ? 'text-green-400' :
+                                        market.probability_confidence > 0.15 ? 'text-yellow-400' :
+                                          'text-yellow-300'
+                                        }`}>
+                                        {(market.probability_confidence * 100).toFixed(0)}%
+                                      </span>
+                                    ) : (
+                                      <span className="text-gray-600 text-xs">N/A</span>
+                                    )}
+                                  </td>
+                                  <td className="hidden md:table-cell px-4 py-3 text-right text-xs text-gray-400 whitespace-nowrap">
+                                    {market.days_until_end || Math.ceil((new Date(market.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))}d
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
                     </div>
                   </div>
+                </motion.div>
+              ) : !loadingMarkets && !marketError ? (
+                <div className="text-center py-16 bg-dark-800 border border-gold/20 rounded-lg">
+                  <div className="text-xl text-gray-400 mb-2">No markets found</div>
+                  <div className="text-sm text-gray-500">Try adjusting your search or filters</div>
                 </div>
-              </div>
-            </motion.div>
-          ) : !loadingMarkets && !marketError ? (
-            <div className="text-center py-16 bg-dark-800 border border-gold/20 rounded-lg">
-              <div className="text-xl text-gray-400 mb-2">No markets found</div>
-              <div className="text-sm text-gray-500">Try adjusting your search or filters</div>
-            </div>
-          ) : null}
+              ) : null}
 
-          {/* Load More */}
-          {!loadingMarkets && hasMore && filteredMarkets.length > displayLimit && (
-            <div className="text-center">
-              <button
-                onClick={handleLoadMore}
-                className="px-8 py-3 bg-gold/10 border border-gold/30 rounded-lg text-gold hover:bg-gold/20 hover:border-gold/50 transition-all"
-              >
-                Load More Markets (showing {displayLimit} of {Math.min(filteredMarkets.length, 50)})
-              </button>
-            </div>
+              {/* Load More */}
+              {!loadingMarkets && hasMore && filteredMarkets.length > displayLimit && (
+                <div className="text-center">
+                  <button
+                    onClick={handleLoadMore}
+                    className="px-8 py-3 bg-gold/10 border border-gold/30 rounded-lg text-gold hover:bg-gold/20 hover:border-gold/50 transition-all"
+                  >
+                    Load More Markets (showing {displayLimit} of {Math.min(filteredMarkets.length, 50)})
+                  </button>
+                </div>
+              )}
+            </>
           )}
-              </>
-            )}
         </div>
 
         {/* Market Detail Modal */}
@@ -1559,11 +1550,10 @@ export default function HomePage() {
                   animate={isStatsInView ? { opacity: 1, scale: 1 } : {}}
                   transition={{ duration: 0.6, delay: 0.3 + idx * 0.05 }}
                   onClick={() => setSelectedCollection(collection.name === selectedCollection ? null : collection.name)}
-                  className={`bg-dark-800 border rounded-lg p-3 md:p-4 text-left transition-all ${
-                    selectedCollection === collection.name
-                      ? 'border-gold/60 ring-2 ring-gold/20'
-                      : 'border-gold/20 hover:border-gold/40'
-                  }`}
+                  className={`bg-dark-800 border rounded-lg p-3 md:p-4 text-left transition-all ${selectedCollection === collection.name
+                    ? 'border-gold/60 ring-2 ring-gold/20'
+                    : 'border-gold/20 hover:border-gold/40'
+                    }`}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="w-10 h-10 rounded-lg bg-gold/10 border border-gold/30 flex items-center justify-center">
@@ -1732,9 +1722,8 @@ export default function HomePage() {
                         </thead>
                         <tbody className="divide-y divide-gold/10">
                           {filteredData.slice(0, 100).map((row, idx) => (
-                            <tr key={idx} className={`hover:bg-dark-800/70 transition-colors ${
-                              idx % 2 === 0 ? 'bg-dark-800/20' : 'bg-gold/5'
-                            }`}>
+                            <tr key={idx} className={`hover:bg-dark-800/70 transition-colors ${idx % 2 === 0 ? 'bg-dark-800/20' : 'bg-gold/5'
+                              }`}>
                               {Object.entries(row)
                                 .filter(([key]) => !key.startsWith('_'))
                                 .map(([key, value]) => (

@@ -335,8 +335,8 @@ export default function GraphVisualization() {
     setSelectedNode(node.id)
   }, [])
 
-  const onNodesChange = useCallback(() => {}, [])
-  const onEdgesChange = useCallback(() => {}, [])
+  const onNodesChange = useCallback(() => { }, [])
+  const onEdgesChange = useCallback(() => { }, [])
 
   const nodeInfo = selectedNode ? collectionData[selectedNode as keyof typeof collectionData] : null
 
@@ -376,7 +376,7 @@ export default function GraphVisualization() {
           onClick={() => setSelectedNode(null)}
         >
           <div
-            className="bg-dark-800 border border-gold/30 rounded-lg max-w-full md:max-w-2xl lg:max-w-3xl w-full max-h-[85vh] md:max-h-[90vh] overflow-y-auto"
+            className="bg-dark-800 border border-gold/30 rounded-lg max-w-full md:max-w-2xl lg:max-w-3xl w-full max-h-[80vh] md:max-h-[90vh] overflow-y-auto m-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-3 md:p-6">
