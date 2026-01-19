@@ -71,10 +71,32 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                 aql += `  LET ${e.collection}_data = (\n`
                 aql += `    FOR x IN Award FILTER x.recipient_name == doc.name SORT x.award_amount_float DESC LIMIT 5 RETURN x\n`
                 aql += `  )\n`
+            } else if (sourceNode.collection === 'Company' && targetNode.collection === 'prediction_markets_polymarket') {
+                // Use edge traversal or direct filter if ticker is present (though polys usually don't have ticker directly, we use edge)
+                // Assuming edge 'market_mentions_company_polymarket' exists from Market -> Company
+                // But typically edges are directional. If edge is Market -> Company, we can't easily iterate from Company -> Market without reverse edge or graph traversal.
+                // Let's assume we can filter by matching company name in question or using a graph traversal if supported.
+                // SInce we are in 'Company' context (doc), we want markets related to this company.
+                // Is there an edge FROM company TO market? schema says validConnection is 'company' on predictionmarkets.
+                // Let's try to find an edge or use name matching for MVP if edge isn't clear.
+                // The user mentioned edge: market_mentions_company_polymarket / market_mentions_company_kalshi
+                // These start at Market and end at Company.
+                // So: FOR m IN prediction_markets_polymarket FOR e IN market_mentions_company_polymarket FILTER e._from == m._id AND e._to == doc._id
+
+                aql += `  LET ${e.collection}_data = (\n`
+                aql += `    FOR m IN prediction_markets_polymarket\n`
+                aql += `      FOR edge IN market_mentions_company_polymarket\n`
+                aql += `      FILTER edge._from == m._id AND edge._to == doc._id\n`
+                aql += `      SORT m.volume_24h DESC LIMIT 5\n`
+                aql += `      RETURN m\n`
+                aql += `  )\n`
+            } else if (sourceNode.collection === 'Company' && targetNode.collection === 'sec_sentences') {
+                aql += `  LET ${e.collection}_data = (\n`
+                aql += `    FOR s IN sec_sentences FILTER s.ticker == doc.ticker SORT s.filing_date DESC LIMIT 5 RETURN s\n`
+                aql += `  )\n`
             } else {
-                // Generic fallback or Graph Traversal
-                // For MVP, if no specific logic, we skip or show warning
-                aql += `  // Auto-connection logic for ${targetNode.name} not implemented in this MVP builder\n`
+                // Fallback for unknown connections - ensure variable exists to prevent error
+                aql += `  LET ${e.collection}_data = [] // Connection logic not implemented\n`
             }
 
             desc += ` + ${targetNode.name}`

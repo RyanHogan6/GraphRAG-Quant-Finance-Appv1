@@ -12,7 +12,7 @@ export interface SchemaNode {
 
 export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
     company: {
-        name: 'Company',
+        name: 'Companies',
         collection: 'Company',
         description: 'S&P 500 Companies',
         keyFields: ['ticker', 'name', 'sector', 'industry', 'marketCap'],
@@ -36,20 +36,20 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
         exampleQuery: 'FOR a IN Award FILTER a.recipient_name == "LOCKHEED" RETURN a'
     },
     sec: {
-        name: 'SEC Filings',
-        collection: 'sec_filings',
-        description: '10-K/10-Q Filings',
-        keyFields: ['filing_type', 'filing_date', 'sentiment_score'],
-        validConnections: ['sec_sections'], // Hierarchy
-        exampleQuery: 'FOR f IN sec_filings FILTER f.ticker == "TSLA" RETURN f'
+        name: 'SEC Sentences',
+        collection: 'sec_sentences',
+        description: '10-K/10-Q Sentiment',
+        keyFields: ['sentence', 'sentiment_score', 'sentiment_label', 'filing_date'],
+        validConnections: [],
+        exampleQuery: 'FOR s IN sec_sentences FILTER s.ticker == "TSLA" SORT s.filing_date DESC RETURN s'
     },
     predictionmarkets: {
-        name: 'Prediction Mkts',
+        name: 'Prediction Markets',
         collection: 'prediction_markets_polymarket',
         description: 'Polymarket/Kalshi Events',
         keyFields: ['question', 'volume_24h', 'yes_prob', 'no_prob'],
-        validConnections: ['company'], 
-    exampleQuery: 'FOR m IN prediction_markets_polymarket FILTER m.volume_24h > 1000 RETURN m'
+        validConnections: ['company'],
+        exampleQuery: 'FOR m IN prediction_markets_polymarket FILTER m.volume_24h > 1000 RETURN m'
     },
     cftc: {
         name: 'CFTC Positions',
