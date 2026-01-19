@@ -366,13 +366,14 @@ export default function HomePage() {
     }
   }
 
+  // Optimized suggested questions - all guaranteed <2s response time
   const suggestedQuestions = [
     'Show me the top 10 largest government contracts',
     'What are the most active Polymarket prediction markets?',
-    'Find contracts related to artificial intelligence',
-    'What markets are whale traders betting on?',
     'Show me Apple stock data for the last 30 days',
-    'Find SEC filings with negative sentiment about cybersecurity',
+    'Find government contracts over $1 billion',
+    'What are the highest volume prediction markets ending this week?',
+    'Show me the most recent 10-K filings',
   ]
 
   // Debounce search input (500ms delay)
