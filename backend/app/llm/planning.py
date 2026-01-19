@@ -597,8 +597,7 @@ FOR doc IN Award
   RETURN {{
     recipient: doc.recipient_name,
     amount: doc.award_amount_float,
-    agency: doc.awarding_agency,
-    description: SUBSTRING(doc.description, 0, 200)
+    agency: doc.awarding_agency
   }}
 
 Example 2: "What are the most active Polymarket prediction markets?"
@@ -610,26 +609,56 @@ FOR market IN prediction_markets_polymarket
   RETURN {{
     question: market.question,
     volume_24h: market.volume_24h,
-    yes_probability: market.yes_probability,
-    liquidity: market.liquidity
+    yes_probability: market.yes_probability
   }}
 
-Example 3: "Find contracts related to artificial intelligence"
-(REQUIRES EMBEDDING - set requires_embedding: true)
-FOR doc IN Award
-  FILTER doc.description_embedding != null
-  LET similarity = COSINE_SIMILARITY(doc.description_embedding, @query_vector)
-  FILTER similarity >= 0.70
-  SORT similarity DESC
-  LIMIT 10
+Example 3: "Show me Apple stock data for the last 30 days"
+FOR doc IN MarketData
+  FILTER doc.ticker == @ticker
+  FILTER doc.date >= DATE_SUBTRACT(DATE_NOW(), 30, "day")
+  SORT doc.date DESC
+  LIMIT 30
   RETURN {{
-    recipient: doc.recipient_name,
-    amount: doc.award_amount_float,
-    description: SUBSTRING(doc.description, 0, 300),
-    similarity: similarity
+    date: doc.date,
+    close: doc.close,
+    volume: doc.volume
   }}
 
-Example 4: "What markets are whale traders betting on?"
+Example 4: "Tesla stock performance during October 2020" (SUMMARY for > 7 days)
+LET data = (
+  FOR doc IN MarketData
+    FILTER doc.ticker == @ticker
+    FILTER doc.date >= @start_date AND doc.date < @end_date
+    SORT doc.date ASC
+    RETURN doc
+)
+LET first = FIRST(data)
+LET last = LAST(data)
+RETURN {{
+  ticker: @ticker,
+  trading_days: LENGTH(data),
+  opening_price: first.open,
+  closing_price: last.close,
+  percent_change: ROUND(((last.close - first.open) / first.open) * 100 * 100) / 100
+}}
+
+Example 5: "Compare AAPL vs MSFT vs GOOGL" (Multi-ticker)
+FOR ticker IN ["AAPL", "MSFT", "GOOGL"]
+  LET data = (
+    FOR doc IN MarketData
+      FILTER doc.ticker == ticker
+      FILTER doc.date >= @start_date AND doc.date < @end_date
+      SORT doc.date ASC
+      RETURN doc
+  )
+  LET first = FIRST(data)
+  LET last = LAST(data)
+  RETURN {{
+    ticker: ticker,
+    percent_change: ROUND(((last.close - first.open) / first.open) * 100 * 100) / 100
+  }}
+
+Example 6: "What markets are whale traders betting on?" (Graph traversal)
 FOR trader IN polymarket_traders
   FILTER trader.is_whale == true
   FOR position IN OUTBOUND trader trader_has_position
@@ -640,36 +669,8 @@ FOR trader IN polymarket_traders
       LIMIT 20
       RETURN DISTINCT {{
         market_question: market.question,
-        yes_probability: market.yes_probability,
-        position_size: position.size,
-        trader_volume: trader.total_volume
+        position_size: position.size
       }}
-
-Example 5: "Show me Apple stock data for the last 30 days"
-⚠️ CRITICAL: For time-series queries, LIMIT must match the requested days (30 days = LIMIT 30, 60 days = LIMIT 60, etc.)
-FOR doc IN MarketData
-  FILTER doc.ticker == @ticker
-  FILTER doc.date >= DATE_SUBTRACT(DATE_NOW(), 30, "day")
-  SORT doc.date DESC
-  LIMIT 30  # ⚠️ MUST match the number of days requested!
-  RETURN {{
-    date: doc.date,
-    close: doc.close,
-    volume: doc.volume,
-    sma_20: doc.sma_20
-  }}
-
-Example 6: "Find SEC filings with negative sentiment about cybersecurity"
-FOR doc IN sec_sentences
-  FILTER CONTAINS(LOWER(doc.text), "cybersecurity")
-  FILTER doc.finbert_score < -0.3
-  SORT doc.finbert_score ASC
-  LIMIT 20
-  RETURN {{
-    text: SUBSTRING(doc.text, 0, 400),
-    sentiment: doc.finbert_score,
-    negative_per_1k: doc.negative_per_1k
-  }}
 
 {history_context}
 
