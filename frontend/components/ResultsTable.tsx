@@ -37,12 +37,13 @@ export default function ResultsTable({ data, maxRows = 10 }: ResultsTableProps) 
                 <div className="space-y-1">
                   {Object.entries(item).map(([k, v]) => {
                     if (k.startsWith('_') || k === 'description_embedding') return null // Skip internal/bulky
+                    // Special rendering for SEC sentences
                     if (k === 'top_sentences' && Array.isArray(v)) {
                       return (
                         <div key={k} className="pl-2 border-l border-gold/20 mt-1">
-                          <div className="text-[10px] text-gold uppercase">Top Sentences:</div>
+                          <div className="text-[10px] text-gold uppercase font-semibold">Top Sentences:</div>
                           {v.map((s: any, si: number) => (
-                            <div key={si} className="text-[10px] text-gray-400 mt-1">
+                            <div key={si} className="text-[10px] text-gray-400 mt-1 leading-tight">
                               <span className={s.score > 0 ? 'text-green-400' : 'text-red-400'}>
                                 ({typeof s.score === 'number' ? s.score.toFixed(2) : s.score})
                               </span> {s.text?.substring(0, 100)}...
@@ -51,10 +52,13 @@ export default function ResultsTable({ data, maxRows = 10 }: ResultsTableProps) 
                         </div>
                       )
                     }
+
+                    // Generic rendering for other fields
+                    const displayVal = typeof v === 'object' ? JSON.stringify(v).substring(0, 30) + '...' : String(v)
                     return (
-                      <div key={k} className="flex gap-1">
-                        <span className="text-gray-500 font-mono">{k}:</span>
-                        <span className="text-gray-300 truncate">{String(v).substring(0, 50)}</span>
+                      <div key={k} className="flex gap-1 overflow-hidden">
+                        <span className="text-gray-500 font-mono flex-shrink-0">{k}:</span>
+                        <span className="text-gray-300 truncate">{displayVal}</span>
                       </div>
                     )
                   })}
@@ -66,7 +70,7 @@ export default function ResultsTable({ data, maxRows = 10 }: ResultsTableProps) 
       )
     }
 
-    if (typeof value === 'object') return JSON.stringify(value)
+    if (typeof value === 'object') return <pre className="text-[10px] bg-dark-800 p-1 rounded max-h-20 overflow-auto">{JSON.stringify(value, null, 2)}</pre>
     if (typeof value === 'number') {
       return value.toLocaleString()
     }

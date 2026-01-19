@@ -899,15 +899,26 @@ export default function HomePage() {
                             </div>
                           </details>
                         )}
-                        {message.results && message.results.length > 0 && !message.content.includes('|') && (
-                          <details className="mt-3">
-                            <summary className="cursor-pointer text-xs text-gold hover:text-gold/80 font-semibold">
-                              View raw data table ({message.results.length} rows)
-                            </summary>
-                            <div className="mt-2">
-                              <ResultsTable data={message.results} maxRows={20} />
-                            </div>
-                          </details>
+                        {message.results && message.results.length > 0 && (
+                          <div className="mt-4">
+                            {message.queryPlan?.intent === 'builder_execution' || !message.content.includes('|') ? (
+                              <div className="space-y-2">
+                                <div className="text-[10px] text-gold uppercase font-bold tracking-widest opacity-70">
+                                  Database Results ({message.results.length})
+                                </div>
+                                <ResultsTable data={message.results} maxRows={20} />
+                              </div>
+                            ) : (
+                              <details className="mt-3">
+                                <summary className="cursor-pointer text-xs text-gold hover:text-gold/80 font-semibold">
+                                  View raw data table ({message.results.length} rows)
+                                </summary>
+                                <div className="mt-2">
+                                  <ResultsTable data={message.results} maxRows={20} />
+                                </div>
+                              </details>
+                            )}
+                          </div>
                         )}
                         {message.webContext && (message.webContext.citations?.length || message.webContext.sources?.length) && (
                           <div className="mt-4 pt-3 border-t border-gold/20">

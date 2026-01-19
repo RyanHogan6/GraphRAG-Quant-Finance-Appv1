@@ -392,7 +392,10 @@ async def execute_query_stream(request: Request, body: QueryRequest):
             yield f"data: {json.dumps({'type': 'progress', 'stage': 'synthesizing', 'message': 'Generating analysis...', 'details': f'Found {len(results)} results'})}\n\n"
 
             # Generate analysis
-            if results and web_context_data.get('summary'):
+            if query_intent == 'db_only' and body.forced_plan_aql:
+                print(f"[ANALYSIS] Using concise builder-mode analysis")
+                analysis = f"I've executed your manual query. Found {len(results)} records matching your criteria. You can explore the structured results in the table below."
+            elif results and web_context_data.get('summary'):
                 print(f"[ANALYSIS] Using hybrid synthesis (DB + Web)")
                 analysis = synthesize_hybrid_response(
                     question=body.question,
