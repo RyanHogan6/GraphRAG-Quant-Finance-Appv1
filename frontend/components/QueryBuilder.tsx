@@ -15,8 +15,7 @@ type Filter = {
 }
 
 type Enrichment = {
-    collection: string
-    targetField: string
+    targetKey: string // Key in GRAPH_SCHEMA (e.g., 'marketdata', 'predictionmarkets')
 }
 
 export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
@@ -49,56 +48,67 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
             desc += ` where ${f.field} ${f.operator} ${f.value}`
         })
 
-        // Enrichments (Graph Traversals)
+        // Enrichments (Graph Traversals using Schema Connections)
         enrichments.forEach(e => {
-            const targetNode = GRAPH_SCHEMA[e.collection]
-            if (!targetNode) return
+            const targetKey = e.targetKey
+            const targetNode = GRAPH_SCHEMA[targetKey]
 
-            aql += `\n  // Enrich with ${targetNode.name}\n`
+            // Find connection definition in schema
+            const connection = sourceNode.connections.find(c => c.target === targetKey)
 
-            // Connection logic depends on schema. For MVP we use standard edge patterns
-            // This is a simplification. Real graph traversals might need specific edge collections.
-            // We will try to infer connection based on IDs or semantic links.
-
-            // Strategy: Simple Subquery Lookup
-            // e.g. FOR m IN MarketData FILTER m.ticker == doc.ticker
-
-            if (sourceNode.collection === 'Company' && targetNode.collection === 'MarketData') {
-                aql += `  LET ${e.collection}_data = (\n`
-                aql += `    FOR x IN MarketData FILTER x.ticker == doc.ticker SORT x.date DESC LIMIT 1 RETURN x\n`
-                aql += `  )\n`
-            } else if (sourceNode.collection === 'Company' && targetNode.collection === 'Award') {
-                aql += `  LET ${e.collection}_data = (\n`
-                aql += `    FOR x IN Award FILTER x.recipient_name == doc.name SORT x.award_amount_float DESC LIMIT 5 RETURN x\n`
-                aql += `  )\n`
-            } else if (sourceNode.collection === 'Company' && targetNode.collection === 'prediction_markets_polymarket') {
-                // Use edge traversal or direct filter if ticker is present (though polys usually don't have ticker directly, we use edge)
-                // Assuming edge 'market_mentions_company_polymarket' exists from Market -> Company
-                // But typically edges are directional. If edge is Market -> Company, we can't easily iterate from Company -> Market without reverse edge or graph traversal.
-                // Let's assume we can filter by matching company name in question or using a graph traversal if supported.
-                // SInce we are in 'Company' context (doc), we want markets related to this company.
-                // Is there an edge FROM company TO market? schema says validConnection is 'company' on predictionmarkets.
-                // Let's try to find an edge or use name matching for MVP if edge isn't clear.
-                // The user mentioned edge: market_mentions_company_polymarket / market_mentions_company_kalshi
-                // These start at Market and end at Company.
-                // So: FOR m IN prediction_markets_polymarket FOR e IN market_mentions_company_polymarket FILTER e._from == m._id AND e._to == doc._id
-
-                aql += `  LET ${e.collection}_data = (\n`
-                aql += `    FOR m IN prediction_markets_polymarket\n`
-                aql += `      FOR edge IN market_mentions_company_polymarket\n`
-                aql += `      FILTER edge._from == m._id AND edge._to == doc._id\n`
-                aql += `      SORT m.volume_24h DESC LIMIT 5\n`
-                aql += `      RETURN m\n`
-                aql += `  )\n`
-            } else if (sourceNode.collection === 'Company' && targetNode.collection === 'sec_sentences') {
-                aql += `  LET ${e.collection}_data = (\n`
-                aql += `    FOR s IN sec_sentences FILTER s.ticker == doc.ticker SORT s.filing_date DESC LIMIT 5 RETURN s\n`
-                aql += `  )\n`
-            } else {
-                // Fallback for unknown connections - ensure variable exists to prevent error
-                aql += `  LET ${e.collection}_data = [] // Connection logic not implemented\n`
+            if (!targetNode || !connection) {
+                // Should not happen if UI is consistent with schema
+                aql += `  LET ${targetNode?.collection || targetKey}_data = [] // Connection not defined in schema\n`
+                return
             }
 
+            aql += `\n  // Enrich with ${targetNode.name}\n`
+            aql += `  LET ${targetNode.collection}_data = (\n`
+
+            if (connection.type === 'direct') {
+                if (connection.direction === 'INBOUND') {
+                    // FOR t IN INBOUND doc edge_collection
+                    aql += `    FOR t IN INBOUND doc ${connection.edge}\n`
+                    aql += `      LIMIT 5 RETURN t\n`
+                } else {
+                    // FOR t IN OUTBOUND doc edge_collection
+                    aql += `    FOR t IN OUTBOUND doc ${connection.edge}\n`
+                    // Special handling for market data sort
+                    if (targetKey === 'marketdata') {
+                        aql += `      SORT t.date DESC LIMIT 30 RETURN t\n`
+                    } else if (targetKey === 'awards') {
+                        aql += `      SORT t.start_date DESC LIMIT 5 RETURN t\n`
+                    } else {
+                        aql += `      LIMIT 5 RETURN t\n`
+                    }
+                }
+            } else if (connection.type === 'multi_hop') {
+                // Special case for SEC sentences (multi-hop traversal)
+                if (targetKey === 'sec_sentences') {
+                    // Company -> HAS_FILING -> sec_filings -> has_section -> sec_sections -> has_sentence -> sec_sentences
+                    // AQL graph traversal 3 hops
+                    // 1..3 OUTBOUND doc HAS_FILING, has_section, has_sentence
+                    // Note: Edges must be listed.
+                    // Simplified: Just match by ticker if reliable, BUT the user wants graph traversal.
+                    // Let's use the explicit pattern from example queries which is usually cleaner:
+                    // 1. Get Filings -> 2. Get Sections -> 3. Get Sentences
+                    // BUT to do it in one block efficiently:
+                    // TRAVERSAL with depth 3? Or nested?
+                    // Let's use the robust traversal if the edges are known.
+                    // "FOR v, e, p IN 1..3 OUTBOUND doc HAS_FILING, has_section, has_sentence FILTER IS_SAME_COLLECTION('sec_sentences', v) LIMIT 5 RETURN v"
+                    // This assumes the edge names are exactly right.
+                    // schema says: Company -> (HAS_FILING) -> sec_filings
+                    // sec_filings -> (has_section) -> sec_sections
+                    // sec_sections -> (has_sentence) -> sec_sentences
+                    aql += `    FOR v IN 1..3 OUTBOUND doc HAS_FILING, has_section, has_sentence\n`
+                    aql += `      FILTER IS_SAME_COLLECTION('sec_sentences', v)\n`
+                    aql += `      LIMIT 5 RETURN v\n`
+                } else {
+                    aql += `    RETURN {} // Multi-hop logic not implemented genrically yet\n`
+                }
+            }
+
+            aql += `  )\n`
             desc += ` + ${targetNode.name}`
         })
 
@@ -106,7 +116,10 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
 
         // Merge enrichments into return
         if (enrichments.length > 0) {
-            const merges = enrichments.map(e => `${e.collection}: ${e.collection}_data`).join(', ')
+            const merges = enrichments.map(e => {
+                const node = GRAPH_SCHEMA[e.targetKey]
+                return node ? `${node.collection}: ${node.collection}_data` : ''
+            }).filter(Boolean).join(', ')
             aql += `  RETURN MERGE(doc, { ${merges} })`
         } else {
             aql += `  RETURN doc`
@@ -132,11 +145,11 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
         setFilters(newFilters)
     }
 
-    const toggleEnrichment = (collectionKey: string) => {
-        if (enrichments.find(e => e.collection === collectionKey)) {
-            setEnrichments(enrichments.filter(e => e.collection !== collectionKey))
+    const toggleEnrichment = (targetKey: string) => {
+        if (enrichments.find(e => e.targetKey === targetKey)) {
+            setEnrichments(enrichments.filter(e => e.targetKey !== targetKey))
         } else {
-            setEnrichments([...enrichments, { collection: collectionKey, targetField: 'data' }])
+            setEnrichments([...enrichments, { targetKey }])
         }
     }
 
@@ -148,25 +161,29 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
             <div className="space-y-2">
                 <label className="text-xs text-gold font-semibold uppercase tracking-wider">1. Start With</label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {Object.entries(GRAPH_SCHEMA).map(([key, node]) => (
-                        <button
-                            key={key}
-                            onClick={() => {
-                                setSource(key)
-                                setFilters([])
-                                setEnrichments([])
-                                setStep(1)
-                            }}
-                            className={`p-2 rounded text-xs md:text-sm border transition-all truncate text-left
+                    {Object.entries(GRAPH_SCHEMA)
+                        // Only show nodes that act as roots/sources (usually Company)
+                        // Or let user pick anything? For now, stick to user's flow
+                        .filter(([key]) => key === 'company' || key === 'cftc' || key === 'kalshi' || key === 'predictionmarkets')
+                        .map(([key, node]) => (
+                            <button
+                                key={key}
+                                onClick={() => {
+                                    setSource(key)
+                                    setFilters([])
+                                    setEnrichments([])
+                                    setStep(1)
+                                }}
+                                className={`p-2 rounded text-xs md:text-sm border transition-all truncate text-left
                 ${source === key
-                                    ? 'bg-gold/20 border-gold text-gold'
-                                    : 'bg-dark-800 border-gold/10 text-gray-400 hover:border-gold/30'
-                                }`}
-                        >
-                            <div className="font-semibold">{node.name}</div>
-                            <div className="text-[10px] opacity-60 truncate">{node.description}</div>
-                        </button>
-                    ))}
+                                        ? 'bg-gold/20 border-gold text-gold'
+                                        : 'bg-dark-800 border-gold/10 text-gray-400 hover:border-gold/30'
+                                    }`}
+                            >
+                                <div className="font-semibold">{node.name}</div>
+                                <div className="text-[10px] opacity-60 truncate">{node.description}</div>
+                            </button>
+                        ))}
                 </div>
             </div>
 
@@ -232,14 +249,15 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                         </div>
 
                         {/* Step 3: Enrich */}
-                        {sourceNode.validConnections.length > 0 && (
+                        {sourceNode.connections.length > 0 && (
                             <div className="space-y-2 pt-2 border-t border-gold/10">
                                 <label className="text-xs text-gold font-semibold uppercase tracking-wider">3. Enrich With (Connect)</label>
                                 <div className="flex flex-wrap gap-2">
-                                    {sourceNode.validConnections.map(targetKey => {
+                                    {sourceNode.connections.map(conn => {
+                                        const targetKey = conn.target
                                         const target = GRAPH_SCHEMA[targetKey]
                                         if (!target) return null
-                                        const isSelected = enrichments.some(e => e.collection === targetKey)
+                                        const isSelected = enrichments.some(e => e.targetKey === targetKey)
 
                                         return (
                                             <button
