@@ -147,6 +147,7 @@ export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps)
                 <label className="text-xs text-gold font-semibold uppercase tracking-wider">1. Start With</label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {Object.entries(GRAPH_SCHEMA)
+                        .filter(([key]) => key !== 'sec' && key !== 'sec_sections')
                         .map(([key, node]) => (
                             <button
                                 key={key}

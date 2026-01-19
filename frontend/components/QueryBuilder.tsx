@@ -162,6 +162,7 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                 <label className="text-xs text-gold font-semibold uppercase tracking-wider">1. Start With</label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {Object.entries(GRAPH_SCHEMA)
+                        .filter(([key]) => key !== 'sec' && key !== 'sec_sections')
                         // Only show nodes that act as roots/sources (usually Company)
                         // Or let user pick anything? For now, stick to user's flow
                         .map(([key, node]) => (
