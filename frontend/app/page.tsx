@@ -700,11 +700,11 @@ export default function HomePage() {
           <div className="mb-1 md:mb-2">
             <AnimatedLogo />
           </div>
-          <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl text-gray-200 mb-4 md:mb-6 font-light leading-tight">
+          <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl text-gray-200 mb-3 md:mb-4 font-light leading-tight">
             Financial Intelligence Powered by Knowledge Graphs
           </p>
           <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-400 max-w-3xl mx-auto font-light leading-relaxed">
-            Ask natural language questions. Get insights from millions of connected data points.
+            Uncover deep insights with <span className="text-gold font-semibold">GraphRAG</span>. Ask natural language questions across millions of connected data points.
           </p>
         </motion.div>
 
