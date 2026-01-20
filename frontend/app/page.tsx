@@ -900,20 +900,20 @@ export default function HomePage() {
                           </details>
                         )}
                         {message.results && message.results.length > 0 && (
-                          <div className="mt-4">
+                          <div className="mt-4 overflow-hidden">
                             {message.queryPlan?.intent === 'builder_execution' || !message.content.includes('|') ? (
-                              <div className="space-y-2">
+                              <div className="space-y-2 overflow-hidden">
                                 <div className="text-[10px] text-gold uppercase font-bold tracking-widest opacity-70">
                                   Database Results ({message.results.length})
                                 </div>
                                 <ResultsTable data={message.results} maxRows={20} />
                               </div>
                             ) : (
-                              <details className="mt-3">
+                              <details className="mt-3 overflow-hidden">
                                 <summary className="cursor-pointer text-xs text-gold hover:text-gold/80 font-semibold">
                                   View raw data table ({message.results.length} rows)
                                 </summary>
-                                <div className="mt-2">
+                                <div className="mt-2 overflow-hidden">
                                   <ResultsTable data={message.results} maxRows={20} />
                                 </div>
                               </details>

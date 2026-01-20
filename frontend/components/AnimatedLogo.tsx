@@ -13,13 +13,13 @@ export default function AnimatedLogo() {
       <img
         src="/heavy-outline.png"
         alt="KARGA"
-        className="w-auto h-auto max-w-[90%] md:max-w-4xl lg:max-w-5xl object-contain"
-        style={{ maxHeight: '270px', transform: 'translateX(-8%)' }}
+        className="w-auto h-auto max-w-[95%] md:max-w-6xl lg:max-w-7xl object-contain"
+        style={{ maxHeight: '405px', transform: 'translateX(-8%)' }}
       />
       <style jsx>{`
         @media (min-width: 768px) {
           img {
-            max-height: 560px !important;
+            max-height: 840px !important;
           }
         }
       `}</style>

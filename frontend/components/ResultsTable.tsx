@@ -29,7 +29,7 @@ export default function ResultsTable({ data, maxRows = 10 }: ResultsTableProps) 
     // Handle nested arrays (e.g., sec_filings, awards)
     if (Array.isArray(value)) {
       return (
-        <div className="max-h-40 overflow-y-auto space-y-2">
+        <div className="max-h-40 overflow-y-auto space-y-2 min-w-[200px]">
           {value.map((item: any, i: number) => (
             <div key={i} className="text-xs bg-dark-800 p-2 rounded border border-white/5">
               {/* Recursive or specific rendering */}
@@ -75,19 +75,20 @@ export default function ResultsTable({ data, maxRows = 10 }: ResultsTableProps) 
       return value.toLocaleString()
     }
     const str = String(value)
-    return str.length > 200 ? str.substring(0, 200) + '...' : str
+    // More aggressive truncation for table cells
+    return str.length > 100 ? str.substring(0, 100) + '...' : str
   }
 
   return (
-    <div className="my-4">
-      <div className="overflow-x-auto rounded-lg border border-gold/30">
-        <table className="min-w-full">
+    <div className="my-4 w-full overflow-hidden">
+      <div className="overflow-x-auto rounded-lg border border-gold/30 bg-black/20">
+        <table className="w-full border-collapse">
           <thead className="bg-gold/10 border-b border-gold/30">
             <tr>
               {allKeys.map((key) => (
                 <th
                   key={key}
-                  className="px-4 py-2 text-left text-xs font-semibold text-gold uppercase tracking-wider"
+                  className="px-3 py-2 text-left text-[10px] font-bold text-gold uppercase tracking-widest whitespace-nowrap"
                 >
                   {key}
                 </th>
@@ -100,7 +101,7 @@ export default function ResultsTable({ data, maxRows = 10 }: ResultsTableProps) 
                 {allKeys.map((key) => (
                   <td
                     key={key}
-                    className="px-4 py-2 text-sm text-gray-300 max-w-xs align-top"
+                    className="px-3 py-2 text-xs text-gray-300 align-top max-w-[200px] break-words"
                   >
                     {formatValue(row[key])}
                   </td>
