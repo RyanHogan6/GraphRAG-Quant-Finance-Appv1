@@ -704,7 +704,7 @@ export default function HomePage() {
             Financial Intelligence Powered by Knowledge Graphs
           </p>
           <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-400 max-w-3xl mx-auto font-light leading-relaxed">
-            Uncover deep insights with <span className="text-gold font-semibold">GraphRAG</span>. Ask natural language questions across millions of connected data points.
+            Uncover deep insights with <span className="text-gold font-semibold">GraphRAG</span>. By bridging <span className="text-gold font-semibold">Polymarket</span> data directly into professional financial schemas, we reveal the hidden sentiment driving global markets.
           </p>
         </motion.div>
 
