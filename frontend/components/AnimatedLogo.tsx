@@ -13,7 +13,7 @@ export default function AnimatedLogo() {
       <img
         src="/nice-fade.png"
         alt="KARGA"
-        className="w-auto h-auto max-w-[95%] md:max-w-6xl lg:max-w-7xl object-contain -mb-8 md:-mb-20"
+        className="w-auto h-auto max-w-[95%] md:max-w-6xl lg:max-w-7xl object-contain -mb-12 md:-mb-32"
         style={{ maxHeight: '405px', transform: 'translateX(-8%)' }}
       />
       <style jsx>{`
