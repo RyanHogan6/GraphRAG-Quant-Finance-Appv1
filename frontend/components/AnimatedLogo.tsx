@@ -11,7 +11,7 @@ export default function AnimatedLogo() {
       className="flex items-center justify-center"
     >
       <img
-        src="/heavy-outline.png"
+        src="/nice-fade.png"
         alt="KARGA"
         className="w-auto h-auto max-w-[95%] md:max-w-6xl lg:max-w-7xl object-contain -mb-8 md:-mb-20"
         style={{ maxHeight: '405px', transform: 'translateX(-8%)' }}
