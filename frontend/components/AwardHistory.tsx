@@ -27,7 +27,7 @@ export default function AwardHistory({ recipientName, awardAmount, startDate, ag
                 }
 
                 // Ensure startDate is in YYYY-MM-DD format
-                let formattedDate = startDate;
+                let formattedDate: string | null = startDate;
                 if (!startDate || startDate === 'N/A') {
                     formattedDate = null;
                 } else {
