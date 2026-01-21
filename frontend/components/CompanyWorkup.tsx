@@ -168,7 +168,7 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                                             Score: {f.avg_finbert?.toFixed(3)}
                                         </span>
                                     </div>
-                                    {f.top_sentences?.length > 0 && (
+                                    {f.top_sentences?.[0]?.text && (
                                         <div className="text-[10px] text-gray-500 italic leading-tight border-l-2 border-gold/20 pl-2">
                                             "{f.top_sentences[0].text.substring(0, 120)}..."
                                         </div>
