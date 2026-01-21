@@ -12,6 +12,8 @@ import AnimatedLogo from '@/components/AnimatedLogo'
 import TimeSeriesChart from '@/components/TimeSeriesChart'
 import QueryBuilder from '../components/QueryBuilder'
 import WhaleTracker from '@/components/WhaleTracker'
+import CompanyWorkup from '@/components/CompanyWorkup'
+import CompanyCompare from '@/components/CompanyCompare'
 import { Market } from '@/lib/types'
 
 interface Message {
@@ -63,6 +65,7 @@ export default function HomePage() {
   // Query Builder State
   const [isBuilderMode, setIsBuilderMode] = useState(false)
   const [builtQuery, setBuiltQuery] = useState({ aql: '', description: '' })
+  const [expandedMessageIdx, setExpandedMessageIdx] = useState<number | null>(null)
 
   // Refs for scroll animations
   const heroRef = useRef(null)
@@ -845,11 +848,30 @@ export default function HomePage() {
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-lg p-2.5 md:p-3 ${message.role === 'user'
+                    className={`${expandedMessageIdx === idx ? 'w-full max-w-7xl' : 'max-w-[85%] md:max-w-[80%]'} rounded-lg p-2.5 md:p-3 relative group transition-all duration-300 ${message.role === 'user'
                       ? 'bg-gold/20 border border-gold/40 text-gray-100'
                       : 'bg-dark-700 border border-gold/20 text-gray-300'
                       }`}
                   >
+                    {/* Expand/Maximize Button for AI results */}
+                    {message.role === 'assistant' && message.results && message.results.length > 0 && (
+                      <button
+                        onClick={() => setExpandedMessageIdx(expandedMessageIdx === idx ? null : idx)}
+                        className="absolute -top-2 -right-2 bg-dark-800 border border-gold/30 rounded-full p-1.5 text-gold hover:bg-gold hover:text-dark-800 opacity-0 group-hover:opacity-100 transition-all z-20 shadow-lg"
+                        title={expandedMessageIdx === idx ? "Shrink View" : "Maximize View"}
+                      >
+                        {expandedMessageIdx === idx ? (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                          </svg>
+                        )}
+                      </button>
+                    )}
+
                     <div className="flex items-start space-x-2 md:space-x-3">
                       <div className="text-[10px] md:text-xs font-semibold text-gray-500 uppercase">
                         {message.role === 'user' ? 'You' : 'AI'}
@@ -901,23 +923,53 @@ export default function HomePage() {
                         )}
                         {message.results && message.results.length > 0 && (
                           <div className="mt-4 overflow-hidden">
-                            {message.queryPlan?.intent === 'builder_execution' || !message.content.includes('|') ? (
-                              <div className="space-y-2 overflow-hidden">
-                                <div className="text-[10px] text-gold uppercase font-bold tracking-widest opacity-70">
-                                  Database Results ({message.results.length})
-                                </div>
-                                <ResultsTable data={message.results} maxRows={20} />
-                              </div>
-                            ) : (
-                              <details className="mt-3 overflow-hidden">
-                                <summary className="cursor-pointer text-xs text-gold hover:text-gold/80 font-semibold">
-                                  View raw data table ({message.results.length} rows)
-                                </summary>
-                                <div className="mt-2 overflow-hidden">
+                            {(() => {
+                              const result = message.results[0];
+                              const isWorkup = (r: any) => r.ticker && (r.MarketData || r.sec_filings || r.prediction_markets_polymarket || r.Award);
+
+                              const singleWorkup = message.results.length === 1 && isWorkup(result);
+                              const doubleCompare = message.results.length === 2 && isWorkup(message.results[0]) && isWorkup(message.results[1]);
+
+                              if (doubleCompare) {
+                                return (
+                                  <div className="mt-2">
+                                    <div className="text-[10px] text-gold uppercase font-bold tracking-widest opacity-70 mb-4 text-center">
+                                      Comparative Market Intelligence Report
+                                    </div>
+                                    <CompanyCompare companyA={message.results[0]} companyB={message.results[1]} />
+                                  </div>
+                                );
+                              }
+
+                              if (singleWorkup) {
+                                return (
+                                  <div className="mt-2">
+                                    <div className="text-[10px] text-gold uppercase font-bold tracking-widest opacity-70 mb-4">
+                                      The KARGA Financial Workup
+                                    </div>
+                                    <CompanyWorkup data={result} />
+                                  </div>
+                                );
+                              }
+
+                              return message.queryPlan?.intent === 'builder_execution' || !message.content.includes('|') ? (
+                                <div className="space-y-2 overflow-hidden">
+                                  <div className="text-[10px] text-gold uppercase font-bold tracking-widest opacity-70">
+                                    Database Results ({message.results.length})
+                                  </div>
                                   <ResultsTable data={message.results} maxRows={20} />
                                 </div>
-                              </details>
-                            )}
+                              ) : (
+                                <details className="mt-3 overflow-hidden">
+                                  <summary className="cursor-pointer text-xs text-gold hover:text-gold/80 font-semibold">
+                                    View raw data table ({message.results.length} rows)
+                                  </summary>
+                                  <div className="mt-2 overflow-hidden">
+                                    <ResultsTable data={message.results} maxRows={20} />
+                                  </div>
+                                </details>
+                              );
+                            })()}
                           </div>
                         )}
                         {message.webContext && (message.webContext.citations?.length || message.webContext.sources?.length) && (
@@ -1072,7 +1124,12 @@ export default function HomePage() {
                 <form onSubmit={handleSubmit} className="flex flex-col md:flex-row md:space-x-2 space-y-2 md:space-y-0">
                   <textarea
                     value={input}
-                    onChange={(e) => setInput(e.target.value)}
+                    onChange={(e) => {
+                      setInput(e.target.value)
+                      if (isBuilderMode && e.target.value.trim()) {
+                        setIsBuilderMode(false)
+                      }
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault()
@@ -1108,7 +1165,10 @@ export default function HomePage() {
               {suggestedQuestions.map((question, idx) => (
                 <button
                   key={idx}
-                  onClick={() => setInput(question)}
+                  onClick={() => {
+                    setInput(question)
+                    setIsBuilderMode(false)
+                  }}
                   className="bg-dark-800 border border-gold/20 rounded-lg p-2 md:p-3 text-left text-[11px] md:text-xs text-gray-400 hover:border-gold/40 hover:text-gold transition-all"
                 >
                   {question}
