@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import TimeSeriesChart from './TimeSeriesChart'
 import { motion, AnimatePresence } from 'framer-motion'
-import ContractHistory from '@/components/ContractHistory'
+import AwardHistory from '@/components/AwardHistory'
 
 interface CompanyWorkupProps {
     data: any
@@ -395,7 +395,7 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                                                     <h5 className="text-[10px] font-black text-gold uppercase tracking-[0.2em]">Advanced Procurement Telemetry</h5>
                                                 </div>
 
-                                                <ContractHistory
+                                                <AwardHistory
                                                     recipientName={selectedDetail.data.recipient_name || company.company}
                                                     awardAmount={selectedDetail.data.award_amount_float}
                                                     startDate={selectedDetail.data.start_date}
