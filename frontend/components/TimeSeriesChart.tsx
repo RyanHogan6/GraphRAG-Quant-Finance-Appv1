@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 interface TimeSeriesChartProps {
   dates: string[]
@@ -11,6 +11,7 @@ interface TimeSeriesChartProps {
 
 export default function TimeSeriesChart({ dates, values, label, ticker }: TimeSeriesChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
 
   useEffect(() => {
     if (!canvasRef.current || !dates.length || !values.length) return
@@ -86,7 +87,13 @@ export default function TimeSeriesChart({ dates, values, label, ticker }: TimeSe
 
     // Draw X-axis labels (dates)
     ctx.textAlign = 'center'
-    const dateLabels = [0, Math.floor(dates.length / 2), dates.length - 1]
+
+    // Calculate 4-5 evenly spaced labels depending on data length
+    const labelCount = dates.length > 10 ? 4 : 2
+    const dateLabels = []
+    for (let i = 0; i <= labelCount; i++) {
+      dateLabels.push(Math.floor((dates.length - 1) * (i / labelCount)))
+    }
 
     // Determine if we should show the year (if range > 12 months)
     const startDate = new Date(dates[0])
@@ -165,13 +172,99 @@ export default function TimeSeriesChart({ dates, values, label, ticker }: TimeSe
     const changeText = `${change >= 0 ? '+' : ''}$${change.toFixed(2)} (${changePercent.toFixed(2)}%)`
     ctx.fillText(changeText, width - padding.right, height - 10)
 
-  }, [dates, values, label])
+    // Draw Hover State (Crosshair + Tooltip)
+    if (hoveredIndex !== null && hoveredIndex < values.length) {
+      const x = xScale(hoveredIndex)
+      const y = yScale(values[hoveredIndex])
+      const date = new Date(dates[hoveredIndex])
+      const price = values[hoveredIndex]
+
+      // 1. Draw dashed vertical line
+      ctx.setLineDash([5, 5])
+      ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(x, y)
+      ctx.lineTo(x, height - padding.bottom)
+      ctx.stroke()
+      ctx.setLineDash([]) // Reset line dash
+
+      // 2. Highlight point
+      ctx.fillStyle = '#FFF'
+      ctx.strokeStyle = '#FFD700'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.arc(x, y, 5, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.stroke()
+
+      // 3. Draw tooltip
+      const tooltipPadding = 8
+      const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      const priceStr = `$${price.toFixed(2)}`
+
+      ctx.font = 'bold 12px monospace'
+      const priceWidth = ctx.measureText(priceStr).width
+      ctx.font = '10px sans-serif'
+      const dateWidth = ctx.measureText(dateStr).width
+      const tooltipWidth = Math.max(priceWidth, dateWidth) + tooltipPadding * 2
+      const tooltipHeight = 40
+
+      // Tooltip position (keep within bounds)
+      let tooltipX = x - tooltipWidth / 2
+      if (tooltipX < padding.left) tooltipX = padding.left
+      if (tooltipX + tooltipWidth > width - padding.right) tooltipX = width - padding.right - tooltipWidth
+
+      const tooltipY = y - tooltipHeight - 10
+
+      // Draw tooltip box
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'
+      ctx.strokeStyle = '#FFD700'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.roundRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight, 4)
+      ctx.fill()
+      ctx.stroke()
+
+      // Draw tooltip text
+      ctx.fillStyle = '#FFD700'
+      ctx.font = 'bold 12px monospace'
+      ctx.textAlign = 'center'
+      ctx.fillText(priceStr, tooltipX + tooltipWidth / 2, tooltipY + 18)
+
+      ctx.fillStyle = '#9CA3AF'
+      ctx.font = '10px sans-serif'
+      ctx.fillText(dateStr, tooltipX + tooltipWidth / 2, tooltipY + 34)
+    }
+
+  }, [dates, values, label, hoveredIndex])
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!canvasRef.current || !dates.length) return
+    const rect = canvasRef.current.getBoundingClientRect()
+    const x = e.clientX - rect.left
+
+    const padding = { left: 60, right: 40 }
+    const chartWidth = rect.width - padding.left - padding.right
+
+    // Reverse xScale to get index
+    const relativeX = x - padding.left
+    const index = Math.round((relativeX / chartWidth) * (dates.length - 1))
+
+    if (index >= 0 && index < dates.length) {
+      setHoveredIndex(index)
+    } else {
+      setHoveredIndex(null)
+    }
+  }
 
   return (
     <div className="w-full bg-dark-800 border border-gold/20 rounded-lg p-4 my-4">
       <canvas
         ref={canvasRef}
-        className="w-full"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setHoveredIndex(null)}
+        className="w-full cursor-crosshair"
         style={{ height: '280px' }}
       />
     </div>
