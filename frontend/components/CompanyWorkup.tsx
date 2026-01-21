@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import TimeSeriesChart from './TimeSeriesChart'
 import { motion, AnimatePresence } from 'framer-motion'
+import ContractHistory from './ContractHistory'
 
 interface CompanyWorkupProps {
     data: any
@@ -80,11 +81,19 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
     const fundamentalMetrics = useMemo(() => {
         const all = { ...company, ...latestMarket }
 
+        // Derive Revenue and Absolute Margins if raw fields are missing
+        const calcRevenue = (all.revenuePerShare && all.sharesOutstanding)
+            ? (all.revenuePerShare * all.sharesOutstanding)
+            : null;
+
+        const calcEbitda = (all.ebitda) ? all.ebitda : (calcRevenue && all.ebitdaMargins ? calcRevenue * all.ebitdaMargins : null);
+        const calcNetIncome = (all.netIncome) ? all.netIncome : (calcRevenue && all.profitMargins ? calcRevenue * all.profitMargins : null);
+
         const metricsList = [
             { name: 'Revenue Growth', val: all.revenueGrowth, benchmark: '> 10%', type: 'pct', check: (v: number) => v > 0.1 },
-            { name: 'EBITDA', val: all.ebitda, benchmark: 'Growing', type: 'currency' },
+            { name: 'EBITDA', val: calcEbitda, benchmark: 'Growing', type: 'currency' },
             { name: 'EBITDA Margin', val: all.ebitdaMargins, benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 },
-            { name: 'Net Profit (PAT)', val: all.netIncome, benchmark: 'Growing', type: 'currency' },
+            { name: 'Net Profit (PAT)', val: calcNetIncome, benchmark: 'Growing', type: 'currency' },
             { name: 'PAT Margin', val: all.profitMargins, benchmark: '> 10%', type: 'pct', check: (v: number) => v > 0.1 },
             { name: 'ROE', val: all.returnOnEquity, benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 },
             { name: 'ROA', val: all.returnOnAssets, benchmark: '> 7%', type: 'pct', check: (v: number) => v > 0.07 },
@@ -93,7 +102,7 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
             { name: 'Free Cash Flow', val: all.freeCashflow, benchmark: 'Positive', type: 'currency', check: (v: number) => v > 0 },
             { name: 'EPS', val: all.epsTrailingTwelveMonths || all.eps, benchmark: 'Growing', type: 'number' },
             { name: 'P/E Ratio', val: all.trailingPE || all.forwardPE, benchmark: '< 20 (Fair)', type: 'number', check: (v: number) => v < 20 },
-            { name: 'ROCE', val: all.ebit / (all.totalDebt + all.totalStockholderEquity), benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 }
+            { name: 'ROCE', val: (all.ebit && all.totalDebt && all.totalStockholderEquity) ? (all.ebit / (all.totalDebt + all.totalStockholderEquity)) : null, benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 }
         ]
 
         return metricsList.map(m => ({
@@ -156,7 +165,7 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                     Deep Intelligence Synthesis
                 </h3>
                 <div className="space-y-3 relative z-10">
-                    {aiSummary.map((s, i) => (
+                    {aiSummary.map((s: string, i: number) => (
                         <p key={i} className="text-[13px] md:text-sm text-gray-300 leading-relaxed font-medium">
                             {s}
                             {i === 1 && secFilings.length > 0 && (
@@ -225,7 +234,7 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                             </button>
                         </div>
                         <div className="p-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-y-8 gap-x-6">
-                            {fundamentalMetrics.slice(0, showAllMetrics ? undefined : 8).map((m, i) => (
+                            {fundamentalMetrics.slice(0, showAllMetrics ? undefined : 8).map((m: any, i: number) => (
                                 <div key={i} className="group border-l border-white/5 pl-4 hover:border-gold/30 transition-all">
                                     <div className="flex items-center justify-between mb-1.5">
                                         <div className="text-[9px] text-gray-500 uppercase font-black tracking-tighter group-hover:text-gold transition-colors">{m.name}</div>
@@ -382,23 +391,21 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                                         </div>
                                         <div className="space-y-6">
                                             <div>
-                                                <div className="flex justify-between items-center border-b border-gold/20 pb-2 mb-4">
-                                                    <h5 className="text-[10px] font-black text-gold uppercase tracking-[0.2em]">Procurement Intelligence</h5>
-                                                    <button
-                                                        onClick={() => {
-                                                            const query = `${company.company} market news ${selectedDetail.data.start_date || selectedDetail.data.contract_year} contract procurement impact`;
-                                                            window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank');
-                                                        }}
-                                                        className="px-3 py-1 bg-gold text-dark-900 rounded-full text-[9px] font-black uppercase hover:bg-white transition-all flex items-center gap-2 shadow-lg"
-                                                    >
-                                                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>
-                                                        Investigate Procurement Context
-                                                    </button>
+                                                <div className="border-b border-gold/20 pb-2 mb-6">
+                                                    <h5 className="text-[10px] font-black text-gold uppercase tracking-[0.2em]">Advanced Procurement Telemetry</h5>
                                                 </div>
-                                                <div className="text-sm text-gray-200 leading-relaxed bg-black/40 p-6 rounded-2xl border border-gold/10 font-medium">
-                                                    {selectedDetail.data.description}
-                                                    <div className="mt-4 pt-4 border-t border-white/5 text-[10px] text-gray-500 italic">
-                                                        Note: Federal awards are often iterative. This summary reflects the initial allocation; procurement context links provide historical market sentiment at the time of award.
+
+                                                <ContractHistory
+                                                    recipientName={selectedDetail.data.recipient_name || company.company}
+                                                    awardAmount={selectedDetail.data.award_amount_float}
+                                                    startDate={selectedDetail.data.start_date}
+                                                    agency={selectedDetail.data.awarding_agency}
+                                                />
+
+                                                <div className="mt-8 pt-6 border-t border-white/5">
+                                                    <div className="text-[10px] text-gray-500 uppercase font-bold mb-3 tracking-widest">Initial Grant Description</div>
+                                                    <div className="text-sm text-gray-300 leading-relaxed bg-black/20 p-6 rounded-2xl border border-white/5 font-medium italic">
+                                                        "{selectedDetail.data.description}"
                                                     </div>
                                                 </div>
                                             </div>
