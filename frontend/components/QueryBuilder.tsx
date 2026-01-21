@@ -75,7 +75,7 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                     aql += `    FOR t IN OUTBOUND doc ${connection.edge}\n`
                     // Special handling for market data sort
                     if (targetKey === 'marketdata') {
-                        aql += `      SORT t.date DESC LIMIT 500 RETURN t\n`
+                        aql += `      SORT t.date DESC LIMIT 1800 RETURN t\n`
                     } else if (targetKey === 'awards') {
                         aql += `      FILTER t.ticker == doc.ticker OR t.recipient_name == doc.company\n`
                         aql += `      SORT t.start_date DESC LIMIT 5 RETURN t\n`

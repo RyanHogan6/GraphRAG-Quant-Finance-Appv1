@@ -67,6 +67,15 @@ export default function HomePage() {
   const [builtQuery, setBuiltQuery] = useState({ aql: '', description: '' })
   const [expandedMessageIdx, setExpandedMessageIdx] = useState<number | null>(null)
 
+  // Close expanded view on ESC
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setExpandedMessageIdx(null)
+    }
+    window.addEventListener('keydown', handleEsc)
+    return () => window.removeEventListener('keydown', handleEsc)
+  }, [])
+
   // Refs for scroll animations
   const heroRef = useRef(null)
   const whyGraphsRef = useRef(null)
@@ -99,6 +108,97 @@ export default function HomePage() {
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({})
   const [collectionOffset, setCollectionOffset] = useState(0)
   const [hasMoreCollectionData, setHasMoreCollectionData] = useState(true)
+
+  const renderMessageContent = (message: Message) => (
+    <>
+      <div className="flex-1">
+        <div className="text-xs md:text-sm mb-1.5 md:mb-2 leading-relaxed">
+          {message.useMarkdown ? (
+            <MarkdownRenderer content={message.content} />
+          ) : (
+            message.content
+          )}
+        </div>
+        {message.queryPlan?.is_time_series && message.queryPlan?.chart_data && (
+          <TimeSeriesChart
+            dates={message.queryPlan.chart_data.dates}
+            values={message.queryPlan.chart_data.values}
+            label={message.queryPlan.chart_data.label}
+            ticker={message.queryPlan.chart_data.ticker}
+          />
+        )}
+        {showAdvancedMode && message.queryPlan && message.queryPlan.aql_query && (
+          <details className="mt-3 mb-3">
+            <summary className="cursor-pointer text-xs text-purple-400 hover:text-purple-300 font-semibold">
+              🔧 Query Plan (Advanced)
+            </summary>
+            <div className="mt-2 bg-dark-900 border border-purple-500/30 rounded p-3">
+              <div className="text-xs text-gray-400 mb-2">
+                <strong className="text-purple-400">Intent:</strong> {message.queryPlan.intent || 'N/A'}
+                {message.queryPlan.explanation && (
+                  <div className="mt-1">
+                    <strong className="text-purple-400">Strategy:</strong> {message.queryPlan.explanation}
+                  </div>
+                )}
+              </div>
+              <div className="text-xs text-gray-500 font-mono mb-1">AQL Query:</div>
+              <pre className="text-xs bg-black/50 p-2 rounded overflow-x-auto text-green-400 border border-green-500/20">
+                {message.queryPlan.aql_query}
+              </pre>
+              {message.queryPlan.bind_vars && Object.keys(message.queryPlan.bind_vars).length > 0 && (
+                <div className="mt-2">
+                  <div className="text-xs text-gray-500 font-mono mb-1">Bind Variables:</div>
+                  <pre className="text-xs bg-black/50 p-2 rounded overflow-x-auto text-blue-400 border border-blue-500/20">
+                    {JSON.stringify(message.queryPlan.bind_vars, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          </details>
+        )}
+
+        {message.results && message.results.length > 0 && (
+          <div className="mt-3 md:mt-4 space-y-3 md:space-y-4">
+            {(() => {
+              const isWorkup = (r: any) =>
+                r.MarketData || r.sec_filings || r.Award || r.prediction_markets_polymarket;
+
+              const workupResults = message.results.filter(isWorkup);
+
+              if (workupResults.length === 2) {
+                return (
+                  <CompanyCompare
+                    companyA={workupResults[0]}
+                    companyB={workupResults[1]}
+                  />
+                );
+              } else if (workupResults.length === 1) {
+                return <CompanyWorkup data={workupResults[0]} />;
+              } else {
+                return <ResultsTable data={message.results} />;
+              }
+            })()}
+          </div>
+        )}
+
+        {message.followUpQuestions && message.followUpQuestions.length > 0 && (
+          <div className="mt-4 md:mt-6 space-y-2">
+            <div className="text-[10px] md:text-sm text-gold font-bold mb-2">Follow-up questions:</div>
+            {message.followUpQuestions.map((q, i) => (
+              <button
+                key={i}
+                onClick={() => setInput(q)}
+                className="w-full text-left p-2 md:p-3 bg-dark-800/50 border border-white/5 rounded-lg text-xs md:text-sm text-gray-300 hover:border-gold/30 hover:bg-gold/5 transition-all"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+  /* Removed duplicate hasMoreCollectionData */
 
   // Collection name translations
   const collectionDisplayNames: Record<string, string> = {
@@ -868,6 +968,34 @@ export default function HomePage() {
             transition={{ duration: 0.8 }}
             className="bg-dark-800 border border-gold/20 rounded-lg shadow-xl mb-4 md:mb-6"
           >
+            {/* Expanded Message Overlay */}
+            {expandedMessageIdx !== null && (
+              <div
+                className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 md:p-8"
+                onClick={() => setExpandedMessageIdx(null)}
+              >
+                <div
+                  className="bg-dark-800 border border-gold/30 rounded-xl w-full max-w-[85vw] h-[90vh] overflow-hidden flex flex-col shadow-2xl relative"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between p-4 border-b border-gold/20 bg-dark-900/50">
+                    <h3 className="text-gold font-bold uppercase tracking-widest text-sm">Deep Intelligence Terminal</h3>
+                    <button
+                      onClick={() => setExpandedMessageIdx(null)}
+                      className="p-2 text-gray-400 hover:text-white transition-colors"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-4 md:p-8">
+                    {renderMessageContent(messages[expandedMessageIdx])}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Messages */}
             <div className="h-[350px] md:h-[600px] lg:h-[700px] overflow-y-auto p-3 md:p-4 space-y-3">
               {messages.map((message, idx) => (
@@ -876,7 +1004,7 @@ export default function HomePage() {
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`${expandedMessageIdx === idx ? 'w-[75vw] !max-w-none ml-[50%] -translate-x-1/2' : 'max-w-[85%] md:max-w-[80%]'} rounded-lg p-2.5 md:p-3 relative group transition-all duration-300 ${message.role === 'user'
+                    className={`max-w-[85%] md:max-w-[80%] rounded-lg p-2.5 md:p-3 relative group transition-all duration-300 ${message.role === 'user'
                       ? 'bg-gold/20 border border-gold/40 text-gray-100'
                       : 'bg-dark-700 border border-gold/20 text-gray-300'
                       }`}
@@ -886,17 +1014,11 @@ export default function HomePage() {
                       <button
                         onClick={() => setExpandedMessageIdx(expandedMessageIdx === idx ? null : idx)}
                         className="absolute -top-2 -right-2 bg-dark-800 border border-gold/30 rounded-full p-1.5 text-gold hover:bg-gold hover:text-dark-800 opacity-0 group-hover:opacity-100 transition-all z-20 shadow-lg"
-                        title={expandedMessageIdx === idx ? "Shrink View" : "Maximize View"}
+                        title="Maximize View"
                       >
-                        {expandedMessageIdx === idx ? (
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        ) : (
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                          </svg>
-                        )}
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                        </svg>
                       </button>
                     )}
 
