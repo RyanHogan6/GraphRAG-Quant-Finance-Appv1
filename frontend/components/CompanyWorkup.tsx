@@ -76,33 +76,45 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
         ]
     }, [company, timeframe, chartData, awards, secFilings, polyMarkets])
 
-    // Metric formatting helper
-    const formatKey = (key: string) => {
-        return key
-            .replace(/([A-Z])/g, ' $1')
-            .replace(/_/g, ' ')
-            .replace(/^./, str => str.toUpperCase())
-            .trim()
-    }
+    // Moneycontain "13 Essential Financial Metrics"
+    const fundamentalMetrics = useMemo(() => {
+        const all = { ...company, ...latestMarket }
 
-    const formatVal = (val: any) => {
-        if (typeof val === 'number') {
+        const metricsList = [
+            { name: 'Revenue Growth', val: all.revenueGrowth, benchmark: '> 10%', type: 'pct', check: (v: number) => v > 0.1 },
+            { name: 'EBITDA', val: all.ebitda, benchmark: 'Growing', type: 'currency' },
+            { name: 'EBITDA Margin', val: all.ebitdaMargins, benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 },
+            { name: 'Net Profit (PAT)', val: all.netIncome, benchmark: 'Growing', type: 'currency' },
+            { name: 'PAT Margin', val: all.profitMargins, benchmark: '> 10%', type: 'pct', check: (v: number) => v > 0.1 },
+            { name: 'ROE', val: all.returnOnEquity, benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 },
+            { name: 'ROA', val: all.returnOnAssets, benchmark: '> 7%', type: 'pct', check: (v: number) => v > 0.07 },
+            { name: 'Debt-to-Equity', val: all.debtToEquity, benchmark: '< 1', type: 'ratio', check: (v: number) => v < 1 },
+            { name: 'Current Ratio', val: all.currentRatio, benchmark: '> 1.5', type: 'ratio', check: (v: number) => v > 1.5 },
+            { name: 'Free Cash Flow', val: all.freeCashflow, benchmark: 'Positive', type: 'currency', check: (v: number) => v > 0 },
+            { name: 'EPS', val: all.epsTrailingTwelveMonths || all.eps, benchmark: 'Growing', type: 'number' },
+            { name: 'P/E Ratio', val: all.trailingPE || all.forwardPE, benchmark: '< 20 (Fair)', type: 'number', check: (v: number) => v < 20 },
+            { name: 'ROCE', val: all.ebit / (all.totalDebt + all.totalStockholderEquity), benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 }
+        ]
+
+        return metricsList.map(m => ({
+            ...m,
+            displayVal: formatVal(m.val, m.type),
+            status: m.check ? (m.check(m.val) ? 'good' : 'bad') : 'neutral'
+        }))
+    }, [company, latestMarket])
+
+    function formatVal(val: any, type: string) {
+        if (val == null || isNaN(val)) return 'N/A'
+        if (type === 'currency') {
+            if (val > 1e12) return `$${(val / 1e12).toFixed(2)}T`
             if (val > 1e9) return `$${(val / 1e9).toFixed(2)}B`
             if (val > 1e6) return `$${(val / 1e6).toFixed(2)}M`
-            if (Math.abs(val) < 1 && val !== 0) return val.toFixed(4)
-            return val.toLocaleString()
+            return `$${val.toLocaleString()}`
         }
+        if (type === 'pct') return `${(val * 100).toFixed(2)}%`
+        if (type === 'ratio' || type === 'number') return val.toFixed(2)
         return String(val)
     }
-
-    // Filter relevant metrics for deep dive
-    const deepMetrics = useMemo(() => {
-        const excluded = ['ticker', 'date', 'year', 'month', 'quarter', 'day_of_week', 'day_of_month', 'ingested_at', 'litigious_per_1k', 'description_embedding']
-        const all = { ...company, ...latestMarket }
-        return Object.entries(all)
-            .filter(([k, v]) => !excluded.includes(k) && typeof v !== 'object' && v !== null && v !== '')
-            .sort((a, b) => a[0].localeCompare(b[0]))
-    }, [company, latestMarket])
 
     return (
         <div className="w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
@@ -161,14 +173,14 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
             {/* Main Content Sections with Zero Collisions */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
 
-                {/* Left Area: Chart & Key Metrics (8 Cols) */}
+                {/* Left Area: Chart & Fundamental Checklist (8 Cols) */}
                 <div className="xl:col-span-8 space-y-8">
                     {/* Chart Section */}
                     <div className="bg-dark-900/40 border border-gold/10 rounded-2xl p-6 shadow-xl backdrop-blur-sm">
                         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
                             <div>
                                 <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-1">Market Performance Hub</h3>
-                                <div className="text-[10px] text-gray-500 font-mono">500 - 1,800 Point Historical Resolution</div>
+                                <div className="text-[10px] text-gray-500 font-mono">1,800 Point Historical Resolution</div>
                             </div>
                             <div className="flex bg-dark-800 rounded-xl p-1 border border-white/10 shadow-inner">
                                 {['1M', '3M', '6M', '1Y', '5Y'].map(tf => (
@@ -198,22 +210,35 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                         )}
                     </div>
 
-                    {/* Metric Deep Dive Grid */}
+                    {/* Moneycontain Fundamental Checklist */}
                     <div className="bg-dark-900/60 border border-white/5 rounded-2xl overflow-hidden shadow-lg">
                         <div className="p-5 border-b border-white/5 flex justify-between items-center bg-dark-800/40">
-                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Financial & Technical Parameters</h3>
+                            <div className="flex items-center gap-3">
+                                <h3 className="text-xs font-bold text-gray-200 uppercase tracking-widest">13 Point Fundamental Checklist</h3>
+                                <span className="text-[9px] text-gray-500 font-mono py-0.5 px-2 bg-black/40 rounded border border-white/10">Industry Standard Benchmarking</span>
+                            </div>
                             <button
                                 onClick={() => setShowAllMetrics(!showAllMetrics)}
                                 className="px-3 py-1 text-[9px] bg-gold/10 text-gold hover:bg-gold/20 rounded-full border border-gold/20 font-bold uppercase transition-all"
                             >
-                                {showAllMetrics ? 'Hide Non-Core' : 'Expand All Values'}
+                                {showAllMetrics ? 'Core View' : 'All Metrics'}
                             </button>
                         </div>
-                        <div className="p-6 grid grid-cols-2 md:grid-cols-4 gap-6">
-                            {deepMetrics.slice(0, showAllMetrics ? undefined : 12).map(([k, v]) => (
-                                <div key={k} className="group border-l border-white/5 pl-3 hover:border-gold/30 transition-all">
-                                    <div className="text-[9px] text-gray-500 uppercase font-black tracking-tighter mb-1 group-hover:text-gold transition-colors">{formatKey(k)}</div>
-                                    <div className="text-xs font-mono font-bold text-gray-200 truncate">{formatVal(v)}</div>
+                        <div className="p-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-y-8 gap-x-6">
+                            {fundamentalMetrics.slice(0, showAllMetrics ? undefined : 8).map((m, i) => (
+                                <div key={i} className="group border-l border-white/5 pl-4 hover:border-gold/30 transition-all">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <div className="text-[9px] text-gray-500 uppercase font-black tracking-tighter group-hover:text-gold transition-colors">{m.name}</div>
+                                        <div className="text-[8px] text-gray-600 font-mono tracking-tighter">Ref: {m.benchmark}</div>
+                                    </div>
+                                    <div className={`text-base font-mono font-black ${m.status === 'good' ? 'text-green-400' : m.status === 'bad' ? 'text-red-400' : 'text-gray-200'}`}>
+                                        {m.displayVal}
+                                        {m.status !== 'neutral' && (
+                                            <span className={`ml-1 text-[10px] ${m.status === 'good' ? 'text-green-400/50' : 'text-red-400/50'}`}>
+                                                {m.status === 'good' ? '▲' : '▼'}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -272,7 +297,7 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                                     >
                                         <div className="max-w-[65%]">
                                             <div className="text-gray-100 font-bold truncate mb-0.5">{a.awarding_agency}</div>
-                                            <div className="text-gray-500 truncate text-[9px] italic">Fiscal Year {a.contract_year}</div>
+                                            <div className="text-gray-500 truncate text-[9px] italic">FY-{a.contract_year || '26'}</div>
                                         </div>
                                         <div className="text-gold font-mono font-bold text-xs ring-1 ring-gold/10 px-2 py-1 rounded bg-gold/5">${(a.award_amount_float / 1e6).toFixed(1)}M</div>
                                     </div>
@@ -346,7 +371,7 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                                         <div className="flex justify-between items-start">
                                             <div>
                                                 <div className="text-2xl font-black text-white tracking-tighter">{selectedDetail.data.awarding_agency}</div>
-                                                <div className="text-xs text-gray-400 mt-1 uppercase font-black">Fiscal Context: {selectedDetail.data.contract_year || 'FY-26'}</div>
+                                                <div className="text-xs text-gray-400 mt-1 uppercase font-black">Fiscal Context: FY-{selectedDetail.data.contract_year || '26'}</div>
                                             </div>
                                             <div className="text-right">
                                                 <div className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">Allocated Value</div>
@@ -357,19 +382,34 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                                         </div>
                                         <div className="space-y-6">
                                             <div>
-                                                <h5 className="text-[10px] font-black text-gold uppercase tracking-[0.2em] border-b border-gold/20 pb-2 mb-4">Tactical Description</h5>
+                                                <div className="flex justify-between items-center border-b border-gold/20 pb-2 mb-4">
+                                                    <h5 className="text-[10px] font-black text-gold uppercase tracking-[0.2em]">Procurement Intelligence</h5>
+                                                    <button
+                                                        onClick={() => {
+                                                            const query = `${company.company} market news ${selectedDetail.data.start_date || selectedDetail.data.contract_year} contract procurement impact`;
+                                                            window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank');
+                                                        }}
+                                                        className="px-3 py-1 bg-gold text-dark-900 rounded-full text-[9px] font-black uppercase hover:bg-white transition-all flex items-center gap-2 shadow-lg"
+                                                    >
+                                                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>
+                                                        Investigate Procurement Context
+                                                    </button>
+                                                </div>
                                                 <div className="text-sm text-gray-200 leading-relaxed bg-black/40 p-6 rounded-2xl border border-gold/10 font-medium">
                                                     {selectedDetail.data.description}
+                                                    <div className="mt-4 pt-4 border-t border-white/5 text-[10px] text-gray-500 italic">
+                                                        Note: Federal awards are often iterative. This summary reflects the initial allocation; procurement context links provide historical market sentiment at the time of award.
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="bg-dark-900/80 p-4 rounded-xl border border-white/5 hover:border-gold/20 transition-all">
                                                     <div className="text-[9px] text-gray-500 uppercase font-black mb-1">Entity Reference</div>
-                                                    <div className="text-xs text-gray-200 font-bold">{selectedDetail.data.matched_sp500_name}</div>
+                                                    <div className="text-xs text-gray-200 font-bold">{selectedDetail.data.matched_sp500_name || company.company}</div>
                                                 </div>
                                                 <div className="bg-dark-900/80 p-4 rounded-xl border border-white/5 hover:border-gold/20 transition-all">
-                                                    <div className="text-[9px] text-gray-500 uppercase font-black mb-1">Execution Window Start</div>
-                                                    <div className="text-xs text-gray-200 font-bold">{selectedDetail.data.start_date}</div>
+                                                    <div className="text-[9px] text-gray-500 uppercase font-black mb-1">Execution Start</div>
+                                                    <div className="text-xs text-gray-200 font-bold">{selectedDetail.data.start_date || 'N/A'}</div>
                                                 </div>
                                             </div>
                                         </div>
