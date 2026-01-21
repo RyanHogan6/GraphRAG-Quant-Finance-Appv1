@@ -75,13 +75,13 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                     aql += `    FOR t IN OUTBOUND doc ${connection.edge}\n`
                     // Special handling for market data sort
                     if (targetKey === 'marketdata') {
-                        aql += `      SORT t.date DESC LIMIT 30 RETURN t\n`
+                        aql += `      SORT t.date DESC LIMIT 500 RETURN t\n`
                     } else if (targetKey === 'awards') {
+                        aql += `      FILTER t.ticker == doc.ticker OR t.recipient_name == doc.company\n`
                         aql += `      SORT t.start_date DESC LIMIT 5 RETURN t\n`
                     } else if (targetKey === 'sec') {
                         aql += `      LET top_sentences = (\n`
                         aql += `        FOR s IN 1..2 OUTBOUND t has_section, has_sentence\n`
-                        aql += `        FILTER s.finbert_score > 0.4 OR s.finbert_score < -0.4 // Optimization: Use index to filter significant sentiment first\n`
                         aql += `        SORT ABS(s.finbert_score) DESC LIMIT 5 RETURN { text: s.text, score: s.finbert_score }\n`
                         aql += `      )\n`
                         aql += `      LIMIT 5 RETURN MERGE(t, { top_sentences })\n`

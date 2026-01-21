@@ -29,7 +29,8 @@ def get_collections():
 def browse(
     collection_name: str,
     limit: int = QueryParam(100, le=500),
-    search: Optional[str] = QueryParam(None)
+    search: Optional[str] = QueryParam(None),
+    offset: int = QueryParam(0, ge=0)
 ):
     """Browse documents in a collection with optional search"""
     try:
@@ -43,7 +44,7 @@ def browse(
         if collection_name not in allowed_collections:
             raise HTTPException(status_code=400, detail="Invalid collection name")
 
-        results = browse_collection(collection_name, limit=limit, search=search)
+        results = browse_collection(collection_name, limit=limit, search=search, offset=offset)
         return {
             "collection": collection_name,
             "count": len(results),

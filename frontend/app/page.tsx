@@ -97,6 +97,8 @@ export default function HomePage() {
   const [sortColumn, setSortColumn] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({})
+  const [collectionOffset, setCollectionOffset] = useState(0)
+  const [hasMoreCollectionData, setHasMoreCollectionData] = useState(true)
 
   // Collection name translations
   const collectionDisplayNames: Record<string, string> = {
@@ -415,7 +417,7 @@ export default function HomePage() {
     return () => clearTimeout(timer)
   }, [searchFilter])
 
-  // Fetch collection data when selected or search changes
+  // Fetch collection data when selected, search changes, or offset changes
   useEffect(() => {
     const fetchCollectionData = async () => {
       if (!selectedCollection) {
@@ -424,6 +426,8 @@ export default function HomePage() {
         setDebouncedSearch('')
         setSortColumn(null)
         setColumnFilters({})
+        setCollectionOffset(0)
+        setHasMoreCollectionData(true)
         return
       }
 
@@ -431,47 +435,71 @@ export default function HomePage() {
       try {
         const { api } = await import('@/lib/api')
         // Pass search to server for full database search
-        // Using max limit of 500 (backend constraint)
+        // Using batch size of 100 for pagination
+        const limit = 100
         const response = await api.browseCollection(
           selectedCollection,
-          500,
-          debouncedSearch || undefined
+          limit,
+          debouncedSearch || undefined,
+          collectionOffset
         )
         // Handle multiple response formats: {documents: [...]}, {data: [...]}, or [...]
         const data = Array.isArray(response)
           ? response
           : (response.documents || response.data || [])
-        console.log('Collection data received:', data.length, 'items', 'Search:', debouncedSearch)
 
-        // Auto-detect date column and set as default sort (only on first load)
-        if (data.length > 0 && !debouncedSearch) {
-          const firstItem = data[0]
-          const dateColumns = Object.keys(firstItem).filter(key =>
-            key.toLowerCase().includes('date') ||
-            key.toLowerCase().includes('time') ||
-            key === 'timestamp'
-          )
+        console.log('Collection data received:', data.length, 'items', 'Search:', debouncedSearch, 'Offset:', collectionOffset)
 
-          // Prefer 'date' column, otherwise use first date-like column
-          const defaultSortCol = dateColumns.find(col => col === 'date') || dateColumns[0]
-          if (defaultSortCol) {
-            setSortColumn(defaultSortCol)
-            setSortDirection('desc') // Most recent first
-          } else {
-            setSortColumn(null)
+        if (collectionOffset === 0) {
+          // New collection or fresh search - replace data
+          setCollectionData(data)
+
+          // Auto-detect date column and set as default sort (only on first load)
+          if (data.length > 0 && !debouncedSearch) {
+            const firstItem = data[0]
+            const dateColumns = Object.keys(firstItem).filter(key =>
+              key.toLowerCase().includes('date') ||
+              key.toLowerCase().includes('time') ||
+              key === 'timestamp'
+            )
+
+            const defaultSortCol = dateColumns.find(col => col === 'date') || dateColumns[0]
+            if (defaultSortCol) {
+              setSortColumn(defaultSortCol)
+              setSortDirection('desc')
+            } else {
+              setSortColumn(null)
+            }
           }
+        } else {
+          // Appending data for pagination
+          setCollectionData(prev => [...prev, ...data])
         }
 
-        setCollectionData(data)
+        // If we got fewer results than the limit, we've reached the end
+        setHasMoreCollectionData(data.length === limit)
       } catch (error) {
         console.error('Failed to fetch collection data:', error)
-        setCollectionData([])
+        if (collectionOffset === 0) setCollectionData([])
       } finally {
         setIsLoadingData(false)
       }
     }
 
     fetchCollectionData()
+  }, [selectedCollection, debouncedSearch, collectionOffset])
+
+  // Helper to load next page of collection data
+  const handleLoadMoreCollectionData = () => {
+    if (!isLoadingData && hasMoreCollectionData) {
+      setCollectionOffset(prev => prev + 100)
+    }
+  }
+
+  // Reset offset when collection or search changes
+  useEffect(() => {
+    setCollectionOffset(0)
+    setHasMoreCollectionData(true)
   }, [selectedCollection, debouncedSearch])
 
   // Filter and sort data (search is now server-side, only column filters are client-side)
@@ -848,7 +876,7 @@ export default function HomePage() {
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`${expandedMessageIdx === idx ? 'w-full max-w-7xl' : 'max-w-[85%] md:max-w-[80%]'} rounded-lg p-2.5 md:p-3 relative group transition-all duration-300 ${message.role === 'user'
+                    className={`${expandedMessageIdx === idx ? 'w-[75vw] !max-w-none ml-[50%] -translate-x-1/2' : 'max-w-[85%] md:max-w-[80%]'} rounded-lg p-2.5 md:p-3 relative group transition-all duration-300 ${message.role === 'user'
                       ? 'bg-gold/20 border border-gold/40 text-gray-100'
                       : 'bg-dark-700 border border-gold/20 text-gray-300'
                       }`}
@@ -1892,9 +1920,32 @@ export default function HomePage() {
                         </tbody>
                       </table>
                     </div>
-                    {filteredData.length > 1000 && (
-                      <div className="bg-dark-800 border-t border-gold/20 px-4 py-3 text-center text-sm text-gray-400">
-                        Showing first 1,000 of {filteredData.length.toLocaleString()} results. Use search/filters to narrow down results.
+                    {isLoadingData && collectionOffset > 0 && (
+                      <div className="bg-dark-800 border-t border-gold/20 px-4 py-3 text-center">
+                        <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-gold mr-2 align-middle"></div>
+                        <span className="text-gray-400 text-sm">Fetching more records...</span>
+                      </div>
+                    )}
+
+                    {!isLoadingData && hasMoreCollectionData && collectionData.length > 0 && (
+                      <div className="bg-dark-800 border-t border-gold/20 px-4 py-3 text-center font-mono">
+                        <button
+                          onClick={handleLoadMoreCollectionData}
+                          className="text-xs text-gold hover:text-white uppercase tracking-widest font-bold transition-colors py-1 px-4 rounded border border-gold/30 hover:bg-gold/10"
+                        >
+                          [ Load More Records ]
+                        </button>
+                      </div>
+                    )}
+
+                    {!hasMoreCollectionData && collectionData.length > 0 && (
+                      <div className="bg-dark-800 border-t border-gold/20 px-4 py-8 text-center">
+                        <div className="text-[10px] text-gray-600 uppercase tracking-[0.2em] font-bold">
+                          End of Data Collection Reached
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Showing {collectionData.length.toLocaleString()} of {collections.find(c => c.name === selectedCollection)?.count.toLocaleString()} documents
+                        </div>
                       </div>
                     )}
                   </>

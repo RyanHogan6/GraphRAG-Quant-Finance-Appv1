@@ -125,8 +125,11 @@ export const api = {
     return res.json();
   },
 
-  async browseCollection(collection: string, limit: number = 100, search?: string) {
-    const params = new URLSearchParams({ limit: limit.toString() })
+  async browseCollection(collection: string, limit: number = 100, search?: string, offset: number = 0) {
+    const params = new URLSearchParams({
+      limit: limit.toString(),
+      offset: offset.toString()
+    })
     if (search) params.append('search', search)
 
     const res = await fetchWithRetry(`${API_BASE_URL}/api/database/browse/${collection}?${params}`);

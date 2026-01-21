@@ -95,7 +95,8 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
             "filing_date", "fiscal_year", "sentence_count", "ticker", "type"
         ],
         connections: [
-            { target: 'sec_sentences', edge: 'has_section', direction: 'OUTBOUND', type: 'multi_hop' }, // Simplified representation
+            { target: 'sec_sections', edge: 'has_section', direction: 'OUTBOUND', type: 'direct' },
+            { target: 'sec_sentences', edge: 'has_section', direction: 'OUTBOUND', type: 'multi_hop' },
             { target: 'company', edge: 'HAS_FILING', direction: 'INBOUND', type: 'direct' }
         ],
         exampleQuery: 'FOR f IN sec_filings FILTER f.ticker == "TSLA" RETURN f'
@@ -106,6 +107,7 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
         description: 'Filing Sections',
         keyFields: ["filing_id", "length", "section_type", "start_char"],
         connections: [
+            { target: 'sec', edge: 'has_section', direction: 'INBOUND', type: 'direct' },
             { target: 'sec_sentences', edge: 'has_sentence', direction: 'OUTBOUND', type: 'direct' }
         ],
         exampleQuery: 'FOR s IN sec_sections LIMIT 5 RETURN s'
@@ -118,7 +120,9 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
             "finbert_probs", "finbert_score", "litigious_per_1k", "n_tokens", "negative_per_1k", "positive_per_1k",
             "section_id", "text", "uncertainty_per_1k"
         ],
-        connections: [],
+        connections: [
+            { target: 'sec_sections', edge: 'has_sentence', direction: 'INBOUND', type: 'direct' }
+        ],
         exampleQuery: 'FOR s IN sec_sentences FILTER s.finbert_score < -0.5 RETURN s'
     },
     predictionmarkets: {
@@ -132,7 +136,8 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
         ],
         connections: [
             { target: 'company', edge: 'market_mentions_company_polymarket', direction: 'OUTBOUND', type: 'direct' },
-            { target: 'polymarket_positions', edge: 'position_in_market', direction: 'INBOUND', type: 'direct' }
+            { target: 'polymarket_positions', edge: 'position_in_market', direction: 'INBOUND', type: 'direct' },
+            { target: 'polymarket_price_history', edge: 'market_has_price_history', direction: 'OUTBOUND', type: 'direct' }
         ],
         exampleQuery: 'FOR m IN prediction_markets_polymarket FILTER m.volume_24h > 1000 RETURN m'
     },
@@ -236,7 +241,9 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
             "condition_id", "datetime", "liquidity", "market_id", "no_price", "timestamp", "volume",
             "volume_24h", "yes_price"
         ],
-        connections: [],
+        connections: [
+            { target: 'predictionmarkets', edge: 'market_has_price_history', direction: 'INBOUND', type: 'direct' }
+        ],
         exampleQuery: 'FOR h IN polymarket_price_history LIMIT 5 RETURN h'
     }
 }

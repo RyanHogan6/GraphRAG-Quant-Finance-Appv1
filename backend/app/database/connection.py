@@ -76,7 +76,7 @@ def get_collections_info():
     return stats
 
 
-def browse_collection(collection_name: str, limit: int = 50, search: str = None, filters: dict = None):
+def browse_collection(collection_name: str, limit: int = 50, search: str = None, filters: dict = None, offset: int = 0):
     """Browse documents in a collection with optional filters and search"""
     db = get_db()
     try:
@@ -122,11 +122,14 @@ def browse_collection(collection_name: str, limit: int = 50, search: str = None,
 
         filter_clause = "\n".join(filter_lines)
 
+        bind_vars["limit"] = limit
+        bind_vars["offset"] = offset
+        
         aql = f"""
         FOR doc IN {collection_name}
             {filter_clause}
             {sort_clause}
-            LIMIT @limit
+            LIMIT @offset, @limit
             RETURN doc
         """
 
