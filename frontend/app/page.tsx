@@ -187,7 +187,13 @@ export default function HomePage() {
             {message.followUpQuestions.map((q, i) => (
               <button
                 key={i}
-                onClick={() => setInput(q)}
+                onClick={() => {
+                  setInput(q);
+                  setTimeout(() => {
+                    const fakeEvent = { preventDefault: () => { } } as React.FormEvent;
+                    handleSubmit(fakeEvent);
+                  }, 50);
+                }}
                 className="w-full text-left p-2 md:p-3 bg-dark-800/50 border border-white/5 rounded-lg text-xs md:text-sm text-gray-300 hover:border-gold/30 hover:bg-gold/5 transition-all"
               >
                 {q}
@@ -1165,7 +1171,13 @@ export default function HomePage() {
                               {message.followUpQuestions.map((question, qIdx) => (
                                 <button
                                   key={qIdx}
-                                  onClick={() => setInput(question)}
+                                  onClick={() => {
+                                    setInput(question);
+                                    setTimeout(() => {
+                                      const fakeEvent = { preventDefault: () => { } } as React.FormEvent;
+                                      handleSubmit(fakeEvent);
+                                    }, 50);
+                                  }}
                                   className="text-left text-xs bg-dark-800 border border-gold/30 rounded px-3 py-2 text-gray-300 hover:border-gold/60 hover:bg-dark-700 hover:text-gold transition-all"
                                 >
                                   {question}

@@ -169,7 +169,12 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                         <p key={i} className="text-[13px] md:text-sm text-gray-300 leading-relaxed font-medium">
                             {s}
                             {i === 1 && secFilings.length > 0 && (
-                                <span className="ml-1 text-[10px] text-blue-400 font-mono cursor-pointer hover:underline bg-blue-500/10 px-1 rounded">[SEC-{secFilings[0].filing_date}]</span>
+                                <span
+                                    onClick={() => setSelectedDetail({ type: 'SEC', data: secFilings[0] })}
+                                    className="ml-1 text-[10px] text-blue-400 font-mono cursor-pointer hover:underline bg-blue-500/10 px-1 rounded"
+                                >
+                                    [SEC-{secFilings[0].filing_date}]
+                                </span>
                             )}
                             {i === 3 && polyMarkets.length > 0 && (
                                 <span className="ml-1 text-[10px] text-purple-400 font-mono cursor-pointer hover:underline bg-purple-500/10 px-1 rounded">[BIAS-{(polyMarkets[0].yes_probability * 100).toFixed(0)}%]</span>

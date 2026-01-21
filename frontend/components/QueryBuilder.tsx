@@ -28,6 +28,24 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
     const [enrichments, setEnrichments] = useState<Enrichment[]>([])
     const [limit, setLimit] = useState(20)
 
+    // Company suggestions for autofill
+    const [companies, setCompanies] = useState<{ ticker: string, company: string }[]>([])
+
+    useEffect(() => {
+        const fetchCompanies = async () => {
+            try {
+                const { api } = await import('@/lib/api')
+                // Direct call to browse Company collection
+                const res = await api.browseCollection('Company', 1000)
+                const data = Array.isArray(res) ? res : (res.documents || [])
+                setCompanies(data.map((c: any) => ({ ticker: c.ticker, company: c.company })))
+            } catch (e) {
+                console.warn("QueryBuilder: Failed to pre-cache company list")
+            }
+        }
+        fetchCompanies()
+    }, [])
+
     // Derived
     const sourceNode = source ? GRAPH_SCHEMA[source] : null
 
@@ -244,6 +262,7 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
 
                                     <input
                                         type="text"
+                                        list="company-list"
                                         value={filter.value}
                                         onChange={(e) => updateFilter(idx, 'value', e.target.value)}
                                         placeholder="Value..."
@@ -303,6 +322,12 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                     </motion.div>
                 </AnimatePresence>
             )}
+
+            <datalist id="company-list">
+                {companies.map(c => (
+                    <option key={c.ticker} value={c.ticker}>{c.company} ({c.ticker})</option>
+                ))}
+            </datalist>
         </div>
     )
 }

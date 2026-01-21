@@ -17,9 +17,22 @@ export default function ResultsTable({ data, maxRows = 10 }: ResultsTableProps) 
     new Set(data.flatMap(obj => Object.keys(obj)))
   ).filter(key => !key.startsWith('_')) // Filter out internal ArangoDB keys
 
+  // Filter out low-signal records (more than 1 null/NaN)
+  const filteredData = data.filter(row => {
+    const values = Object.values(row).filter(v => !Array.isArray(v) && typeof v !== 'object')
+    const nullCount = values.filter(v =>
+      v === null ||
+      v === undefined ||
+      v === '' ||
+      v === 'N/A' ||
+      (typeof v === 'number' && isNaN(v))
+    ).length
+    return nullCount <= 1
+  })
+
   // Limit displayed rows
-  const displayData = data.slice(0, maxRows)
-  const hasMore = data.length > maxRows
+  const displayData = filteredData.slice(0, maxRows)
+  const hasMore = filteredData.length > maxRows
 
   // Format value for display
   const formatValue = (value: any): any => {
