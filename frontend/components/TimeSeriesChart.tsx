@@ -87,10 +87,19 @@ export default function TimeSeriesChart({ dates, values, label, ticker }: TimeSe
     // Draw X-axis labels (dates)
     ctx.textAlign = 'center'
     const dateLabels = [0, Math.floor(dates.length / 2), dates.length - 1]
+
+    // Determine if we should show the year (if range > 12 months)
+    const startDate = new Date(dates[0])
+    const endDate = new Date(dates[dates.length - 1])
+    const showYear = (endDate.getFullYear() - startDate.getFullYear()) >= 1
+
     dateLabels.forEach(index => {
       if (index < dates.length) {
         const x = xScale(index)
-        const dateStr = new Date(dates[index]).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        const d = new Date(dates[index])
+        const dateStr = showYear
+          ? d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+          : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
         ctx.fillText(dateStr, x, height - padding.bottom + 20)
       }
     })

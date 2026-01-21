@@ -20,16 +20,48 @@ export default function AwardHistory({ recipientName, awardAmount, startDate, ag
             setLoading(true)
             setError(null)
             try {
+                if (!recipientName || isNaN(awardAmount)) {
+                    setError("Insufficient award telemetry to initiate deep tracking.")
+                    setLoading(false)
+                    return
+                }
+
+                // Ensure startDate is in YYYY-MM-DD format
+                let formattedDate = startDate;
+                if (!startDate || startDate === 'N/A') {
+                    formattedDate = null;
+                } else {
+                    try {
+                        formattedDate = new Date(startDate).toISOString().split('T')[0];
+                    } catch (e) {
+                        formattedDate = null;
+                    }
+                }
+
                 // 1. Search for the award to get the generated_internal_id
+                const searchFilters: any = {
+                    keywords: [recipientName],
+                    award_amounts: [{ lower_bound: Math.max(0, awardAmount * 0.8), upper_bound: awardAmount * 1.2 }]
+                };
+
+                if (formattedDate) {
+                    const d = new Date(formattedDate);
+                    const prevMonth = new Date(d);
+                    prevMonth.setMonth(d.getMonth() - 1);
+                    const nextMonth = new Date(d);
+                    nextMonth.setMonth(d.getMonth() + 1);
+
+                    searchFilters.time_period = [{
+                        start_date: prevMonth.toISOString().split('T')[0],
+                        end_date: nextMonth.toISOString().split('T')[0]
+                    }];
+                }
+
                 const searchRes = await fetch('https://api.usaspending.gov/api/v2/search/spending_by_award/', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        filters: {
-                            keywords: [recipientName],
-                            time_period: [{ start_date: startDate, end_date: startDate }],
-                            award_amounts: [{ lower_bound: awardAmount * 0.9, upper_bound: awardAmount * 1.1 }]
-                        },
+                        filters: searchFilters,
                         fields: ["Award ID", "Recipient Name", "Award Amount", "Awarding Agency", "generated_internal_id"],
                         limit: 1
                     })
