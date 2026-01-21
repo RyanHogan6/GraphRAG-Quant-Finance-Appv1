@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import TimeSeriesChart from './TimeSeriesChart'
 import { motion, AnimatePresence } from 'framer-motion'
-import ContractHistory from './ContractHistory'
+import ContractHistory from '@/components/ContractHistory'
 
 interface CompanyWorkupProps {
     data: any
