@@ -967,16 +967,18 @@ export default function HomePage() {
           className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
           style={{ opacity: gridOpacity2 }}
         />
-        <div className="container mx-auto max-w-7xl relative z-10">
+        <div className="container mx-auto max-w-[1400px] relative z-10">
           <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.8 }}
-            className="mb-4 md:mb-6 text-center"
+            className="mb-3 md:mb-4 text-left px-2"
           >
-            <h2 className="text-xl md:text-3xl font-bold text-gold mb-1.5 md:mb-2">AI Query Interface</h2>
-            <p className="text-gray-500 text-xs md:text-sm">Natural language queries over financial knowledge graph</p>
+            <h2 className="text-lg md:text-xl font-bold text-gold/80 tracking-tight flex items-center gap-2">
+              <span className="w-2 h-2 bg-gold rounded-full animate-pulse" />
+              Intelligence Terminal
+            </h2>
           </motion.div>
 
           {/* Chat Container */}
@@ -1026,7 +1028,7 @@ export default function HomePage() {
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[90%] md:max-w-[80%] rounded-2xl p-3 md:p-4 relative group transition-all duration-300 shadow-lg ${message.role === 'user'
+                    className={`max-w-[95%] md:max-w-[90%] rounded-2xl p-3 md:p-4 relative group transition-all duration-300 shadow-lg ${message.role === 'user'
                       ? 'bg-gold/15 border border-gold/30 text-gray-100 rounded-tr-none'
                       : 'bg-dark-900/50 border border-white/5 text-gray-300 rounded-tl-none'
                       }`}
@@ -1241,41 +1243,47 @@ export default function HomePage() {
             {/* Input Area - Sticky on Mobile */}
             <div className="sticky bottom-0 z-[40] md:relative bg-dark-800 border-t border-gold/20 p-2 md:p-4 backdrop-blur-md">
               {/* Advanced Mode Toggle */}
-              <div className="flex items-center justify-end mb-1 md:mb-2 gap-3">
-                {/* Builder Mode Toggle */}
-                <label className="flex items-center cursor-pointer">
-                  <span className="text-[9px] md:text-xs text-gray-400 mr-1 md:mr-2 font-medium">Visual Builder</span>
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      checked={isBuilderMode}
-                      onChange={(e) => {
-                        setIsBuilderMode(e.target.checked)
-                        if (e.target.checked) {
-                          setShowAdvancedMode(true) // Builder implies advanced
-                        }
-                      }}
-                      className="sr-only"
-                    />
-                    <div className={`block w-7 h-4 md:w-10 md:h-6 rounded-full transition ${isBuilderMode ? 'bg-gold' : 'bg-gray-600'}`}></div>
-                    <div className={`dot absolute left-0.5 top-0.5 md:left-1 md:top-1 bg-white w-3 h-3 md:w-4 md:h-4 rounded-full transition ${isBuilderMode ? 'transform translate-x-3 md:translate-x-4' : ''}`}></div>
-                  </div>
-                </label>
+              <div className="flex items-center justify-between mb-1 md:mb-2 gap-3 px-1">
+                <div className="flex items-center gap-3">
+                  {/* Builder Mode Toggle */}
+                  <label className="flex items-center cursor-pointer group">
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        checked={isBuilderMode}
+                        onChange={(e) => {
+                          setIsBuilderMode(e.target.checked)
+                          if (e.target.checked) {
+                            setShowAdvancedMode(true)
+                          }
+                        }}
+                        className="sr-only"
+                      />
+                      <div className={`block w-6 h-3.5 md:w-8 md:h-4.5 rounded-full transition ${isBuilderMode ? 'bg-gold' : 'bg-gray-600'}`}></div>
+                      <div className={`dot absolute left-0.5 top-0.5 md:left-0.5 md:top-0.5 bg-white w-2.5 h-2.5 md:w-3.5 md:h-3.5 rounded-full transition ${isBuilderMode ? 'transform translate-x-2.5 md:translate-x-3.5' : ''}`}></div>
+                    </div>
+                    <span className="text-[9px] md:text-[10px] text-gray-400 ml-1.5 font-medium group-hover:text-gold transition-colors">Visual Builder</span>
+                  </label>
 
-                {/* Advanced Mode Toggle */}
-                <label className="flex items-center cursor-pointer">
-                  <span className="text-[9px] md:text-xs text-gray-400 mr-1 md:mr-2 font-medium">Advanced</span>
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      checked={showAdvancedMode}
-                      onChange={(e) => setShowAdvancedMode(e.target.checked)}
-                      className="sr-only"
-                    />
-                    <div className={`block w-7 h-4 md:w-10 md:h-6 rounded-full transition ${showAdvancedMode ? 'bg-purple-500' : 'bg-gray-600'}`}></div>
-                    <div className={`dot absolute left-0.5 top-0.5 md:left-1 md:top-1 bg-white w-3 h-3 md:w-4 md:h-4 rounded-full transition ${showAdvancedMode ? 'transform translate-x-3 md:translate-x-4' : ''}`}></div>
-                  </div>
-                </label>
+                  {/* Advanced Mode Toggle */}
+                  <label className="flex items-center cursor-pointer group">
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        checked={showAdvancedMode}
+                        onChange={(e) => setShowAdvancedMode(e.target.checked)}
+                        className="sr-only"
+                      />
+                      <div className={`block w-6 h-3.5 md:w-8 md:h-4.5 rounded-full transition ${showAdvancedMode ? 'bg-purple-500' : 'bg-gray-600'}`}></div>
+                      <div className={`dot absolute left-0.5 top-0.5 md:left-0.5 md:top-0.5 bg-white w-2.5 h-2.5 md:w-3.5 md:h-3.5 rounded-full transition ${showAdvancedMode ? 'transform translate-x-2.5 md:translate-x-3.5' : ''}`}></div>
+                    </div>
+                    <span className="text-[9px] md:text-[10px] text-gray-400 ml-1.5 font-medium group-hover:text-purple-400 transition-colors">Advanced</span>
+                  </label>
+                </div>
+
+                <div className="text-[9px] md:text-[10px] text-gray-500 font-mono tracking-tighter">
+                  QUERY_ENGINE_V1.2
+                </div>
               </div>
               {isBuilderMode ? (
                 <div className="mb-2 md:mb-4">
@@ -1303,9 +1311,9 @@ export default function HomePage() {
                     <button
                       onClick={handleSubmit}
                       disabled={isLoading || !builtQuery.aql}
-                      className="px-3 py-1.5 md:px-4 md:py-2 bg-gold/20 border border-gold/40 rounded-lg text-xs md:text-sm text-gold hover:bg-gold/30 hover:border-gold/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-sm"
+                      className="px-3 py-1.5 bg-gold/20 border border-gold/40 rounded-md text-[11px] text-gold hover:bg-gold/30 hover:border-gold/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-bold uppercase tracking-wider shadow-sm"
                     >
-                      Run Visual Query
+                      Execute AQL Query
                     </button>
                   </div>
                 </div>
@@ -1333,9 +1341,9 @@ export default function HomePage() {
                   <button
                     type="submit"
                     disabled={isLoading || !input.trim()}
-                    className="w-full md:w-auto px-4 py-1.5 md:px-5 md:py-2.5 bg-gold/20 border border-gold/40 rounded-lg text-xs md:text-sm text-gold hover:bg-gold/30 hover:border-gold/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold md:self-end shadow-md"
+                    className="w-full md:w-auto px-4 py-1.5 bg-gold/20 border border-gold/40 rounded-md text-[11px] text-gold hover:bg-gold/30 hover:border-gold/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-bold uppercase tracking-wider md:self-end shadow-md"
                   >
-                    Send
+                    Send Query
                   </button>
                 </form>
               )}
@@ -1425,406 +1433,14 @@ export default function HomePage() {
         <div className="w-[70%] border-t-2 border-dashed border-gold/10"></div>
       </div>
 
-      {/* Prediction Markets Section */}
+      {/* Prediction Markets Section - Hidden per user request
       <section
         id="markets"
         className="min-h-screen snap-start flex flex-col justify-center px-4 py-8 md:px-6 md:py-12 relative overflow-hidden"
       >
-        {/* Animated background grid */}
-        <motion.div
-          className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
-          style={{ opacity: gridOpacity3 }}
-        />
-        <div className="max-w-7xl mx-auto w-full relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.3 }}
-            transition={{ duration: 0.8 }}
-            className="mb-8"
-          >
-            <h2 className="text-3xl md:text-5xl font-bold text-gold mb-2 text-center">Prediction Markets</h2>
-            <p className="text-gray-400 text-center mb-6">Live market data from Polymarket & Kalshi</p>
-
-            {/* Platform Selector */}
-            <div className="flex justify-center mb-6 px-4">
-              <div className="inline-flex bg-dark-700 border border-gold/20 rounded-lg p-1 overflow-x-auto max-w-full">
-                <button
-                  onClick={() => setSelectedPlatform('polymarket')}
-                  className={`px-6 py-2 rounded-lg transition-all font-semibold ${selectedPlatform === 'polymarket'
-                    ? 'bg-gold/20 text-gold border border-gold/40'
-                    : 'text-gray-400 hover:text-gold'
-                    }`}
-                >
-                  Polymarket
-                </button>
-                <button
-                  onClick={() => setSelectedPlatform('kalshi')}
-                  className={`px-6 py-2 rounded-lg transition-all font-semibold ${selectedPlatform === 'kalshi'
-                    ? 'bg-gold/20 text-gold border border-gold/40'
-                    : 'text-gray-400 hover:text-gold'
-                    }`}
-                >
-                  Kalshi
-                </button>
-              </div>
-            </div>
-
-            {/* Polymarket View Toggle (Markets vs Whales) */}
-            {selectedPlatform === 'polymarket' && (
-              <div className="flex justify-center mb-8">
-                <div className="inline-flex bg-dark-700 border border-gold/20 rounded-lg p-1 overflow-x-auto max-w-full">
-                  <button
-                    onClick={() => setPolymarketView('markets')}
-                    className={`px-5 py-2 rounded-lg transition-all text-sm font-semibold ${polymarketView === 'markets'
-                      ? 'bg-gold/20 text-gold border border-gold/40'
-                      : 'text-gray-400 hover:text-gold'
-                      }`}
-                  >
-                    Markets
-                  </button>
-                  <button
-                    onClick={() => setPolymarketView('whales')}
-                    className={`px-5 py-2 rounded-lg transition-all text-sm font-semibold ${polymarketView === 'whales'
-                      ? 'bg-gold/20 text-gold border border-gold/40'
-                      : 'text-gray-400 hover:text-gold'
-                      }`}
-                  >
-                    Whale Traders
-                  </button>
-                </div>
-              </div>
-            )}
-          </motion.div>
-
-          {/* Conditional Content: Markets or Whale Tracker */}
-          {
-            selectedPlatform === 'polymarket' && polymarketView === 'whales' ? (
-              /* Whale Tracker View */
-              <div className="mt-8">
-                <WhaleTracker />
-              </div>
-            ) : (
-              /* Markets View */
-              <>
-                {/* Metrics Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
-                  <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all">
-                    <div className="text-gray-400 text-xs md:text-sm mb-1">Active Markets</div>
-                    <div className="text-xl md:text-3xl font-bold text-gold">{filteredMarkets.length}</div>
-                  </div>
-                  <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all">
-                    <div className="text-gray-400 text-xs md:text-sm mb-1">24h Volume</div>
-                    <div className="text-xl md:text-3xl font-bold text-gold">{formatVolume(totalVolume)}</div>
-                  </div>
-                  <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all">
-                    <div className="text-gray-400 text-xs md:text-sm mb-1">Avg Probability</div>
-                    <div className="text-xl md:text-3xl font-bold text-gold">{avgProbability.toFixed(0)}%</div>
-                  </div>
-                  <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all">
-                    <div className="text-gray-400 text-xs md:text-sm mb-1">Categories</div>
-                    <div className="text-xl md:text-3xl font-bold text-gold">{actualCategories.length}</div>
-                  </div>
-                </div>
-
-                {/* Natural Language Search */}
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  whileInView={{ opacity: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.8 }}
-                  className="mb-6"
-                >
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search markets... (e.g., 'Trump', 'crypto', 'election')"
-                      className="w-full bg-dark-800 border border-gold/30 rounded-lg px-4 py-3 text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold/60 focus:ring-2 focus:ring-gold/20"
-                    />
-                    {searchQuery && (
-                      <button
-                        onClick={() => setSearchQuery('')}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gold transition-colors"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                  {searchQuery && (
-                    <div className="mt-2 text-sm text-gray-400">
-                      Found <span className="text-gold font-semibold">{filteredMarkets.length}</span> markets matching "{searchQuery}"
-                    </div>
-                  )}
-                </motion.div>
-
-                {/* Loading State */}
-                {loadingMarkets && (
-                  <div className="text-center py-16">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gold"></div>
-                    <p className="text-gray-400 mt-4">Loading markets...</p>
-                  </div>
-                )}
-
-                {/* Error State */}
-                {marketError && (
-                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6 mb-8">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="text-red-400 font-semibold mb-2">Error Loading Markets</div>
-                        <div className="text-red-300 mb-4">{marketError}</div>
-                        <button
-                          onClick={() => {
-                            setMarketError(null)
-                            setLoadingMarkets(true)
-                            // Trigger refetch by toggling platform state
-                            setSelectedPlatform(prev => prev === 'polymarket' ? 'polymarket' : 'polymarket')
-                          }}
-                          className="px-4 py-2 bg-red-500/20 border border-red-500/40 rounded-lg text-red-300 hover:bg-red-500/30 hover:border-red-500/60 transition-all font-semibold"
-                        >
-                          Retry
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Filters */}
-                {!loadingMarkets && !marketError && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    whileInView={{ opacity: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.8 }}
-                    className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6"
-                  >
-                    {/* Category Filter */}
-                    <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
-                      <button
-                        onClick={() => setSelectedCategory('All')}
-                        className={`px-3 py-1.5 text-xs md:text-sm rounded-lg border transition-all whitespace-nowrap ${selectedCategory === 'All'
-                          ? 'bg-gold/20 text-gold border-gold/40'
-                          : 'bg-dark-800 text-gray-400 border-gold/20 hover:border-gold/40'
-                          }`}
-                      >
-                        All ({markets.length})
-                      </button>
-                      {actualCategories.slice(0, 6).map((cat) => (
-                        <button
-                          key={cat.category}
-                          onClick={() => setSelectedCategory(cat.category)}
-                          className={`px-3 py-1.5 text-xs md:text-sm rounded-lg border transition-all whitespace-nowrap ${selectedCategory === cat.category
-                            ? 'bg-gold/20 text-gold border-gold/40'
-                            : 'bg-dark-800 text-gray-400 border-gold/20 hover:border-gold/40'
-                            }`}
-                        >
-                          {cat.category} ({cat.count})
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Sort */}
-                    <div className="flex items-center gap-2 md:ml-4">
-                      <span className="text-gray-400 text-xs md:text-sm whitespace-nowrap">Sort:</span>
-                      <select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value as any)}
-                        className="bg-dark-800 border border-gold/30 rounded-lg px-2 py-1.5 text-xs md:text-sm text-gray-200 focus:outline-none focus:border-gold/60"
-                      >
-                        <option value="volume">Volume</option>
-                        <option value="probability">Probability</option>
-                        <option value="traders">Traders</option>
-                      </select>
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* Markets Table */}
-                {!loadingMarkets && !marketError && filteredMarkets.length > 0 ? (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    whileInView={{ opacity: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.8 }}
-                    className="mb-12"
-                  >
-                    {/* Card View - Responsive Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 md:hidden mb-8">
-                      {filteredMarkets.slice(0, displayLimit).map((market, index) => (
-                        <div
-                          key={market.id}
-                          onClick={() => setSelectedMarket(market)}
-                          className="bg-gradient-to-br from-amber-900/10 to-yellow-900/5 border border-gold/30 rounded-md p-2 hover:border-gold/50 hover:from-amber-900/15 hover:to-yellow-900/10 transition-all cursor-pointer"
-                        >
-                          {/* Category Badge */}
-                          <div className="text-[10px] text-amber-300/70 uppercase mb-1.5 font-semibold truncate">{market.category}</div>
-
-                          {/* Question */}
-                          <h3 className="text-[11px] font-semibold text-amber-100 mb-2 line-clamp-2 leading-tight">
-                            {market.question}
-                          </h3>
-
-                          {/* Yes/No Probabilities */}
-                          <div className="grid grid-cols-2 gap-1 mb-1.5">
-                            <div className="bg-green-500/20 border border-green-500/40 rounded p-1.5 text-center">
-                              <div className="text-[9px] text-green-300 mb-0.5">YES</div>
-                              <div className="text-sm font-bold text-green-300">{market.yes_prob}%</div>
-                            </div>
-                            <div className="bg-red-500/20 border border-red-500/40 rounded p-1.5 text-center">
-                              <div className="text-[9px] text-red-300 mb-0.5">NO</div>
-                              <div className="text-sm font-bold text-red-300">{market.no_prob}%</div>
-                            </div>
-                          </div>
-
-                          {/* Volume & End Date */}
-                          <div className="flex flex-col gap-0.5 text-[10px] pt-1.5 border-t border-gold/20">
-                            <div className="flex items-center justify-between">
-                              <span className="text-amber-300/60">Vol</span>
-                              <span className="text-gold font-semibold">
-                                {market.volume_24h >= 1000000
-                                  ? `$${(market.volume_24h / 1000000).toFixed(1)}M`
-                                  : market.volume_24h >= 1000
-                                    ? `$${(market.volume_24h / 1000).toFixed(0)}k`
-                                    : `$${market.volume_24h}`}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-amber-300/60">End</span>
-                              <span className="text-amber-200/80">
-                                {new Date(market.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Desktop Table View */}
-                    <div className="hidden md:block bg-dark-700 border border-gold/20 rounded-lg overflow-hidden">
-                      <div className="overflow-x-auto">
-                        <div className="inline-block min-w-full align-middle">
-                          <div className="overflow-hidden">
-                            <table className="min-w-full divide-y divide-gold/10">
-                              <thead className="bg-dark-800 border-b border-gold/20">
-                                <tr>
-                                  <th className="px-2 md:px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider min-w-[200px]">Question</th>
-                                  <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Category</th>
-                                  <th
-                                    className="px-2 md:px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gold transition-colors whitespace-nowrap"
-                                    onClick={() => {
-                                      if (sortBy === 'probability') {
-                                        setSortBy('volume')
-                                      } else {
-                                        setSortBy('probability')
-                                      }
-                                    }}
-                                  >
-                                    Yes {sortBy === 'probability' && '↓'}
-                                  </th>
-                                  <th className="px-2 md:px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">No</th>
-                                  <th
-                                    className="px-2 md:px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gold transition-colors whitespace-nowrap"
-                                    onClick={() => setSortBy('volume')}
-                                  >
-                                    Vol {sortBy === 'volume' && '↓'}
-                                  </th>
-                                  <th className="hidden lg:table-cell px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Liquidity</th>
-                                  <th className="hidden lg:table-cell px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Confidence</th>
-                                  <th className="hidden md:table-cell px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Days</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-gold/10">
-                                {filteredMarkets.slice(0, displayLimit).map((market, index) => (
-                                  <tr
-                                    key={market.id}
-                                    className={`hover:bg-dark-800/70 transition-colors cursor-pointer ${index % 2 === 0 ? 'bg-dark-800/20' : 'bg-gold/5'
-                                      }`}
-                                    onClick={() => setSelectedMarket(market)}
-                                  >
-                                    <td className="px-2 md:px-4 py-3 text-xs md:text-sm text-gray-200 max-w-[200px] md:max-w-md">
-                                      <div className="line-clamp-2">{market.question}</div>
-                                    </td>
-                                    <td className="hidden md:table-cell px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
-                                      {market.category}
-                                    </td>
-                                    <td className="px-2 md:px-4 py-3 text-center">
-                                      <span className="text-xs md:text-sm font-semibold text-green-400">{market.yes_prob}%</span>
-                                    </td>
-                                    <td className="px-2 md:px-4 py-3 text-center">
-                                      <span className="text-xs md:text-sm font-semibold text-red-400">{market.no_prob}%</span>
-                                    </td>
-                                    <td className="px-2 md:px-4 py-3 text-right text-xs md:text-sm text-gold font-medium whitespace-nowrap">
-                                      {market.volume_24h >= 1000000
-                                        ? `$${(market.volume_24h / 1000000).toFixed(1)}M`
-                                        : market.volume_24h >= 1000
-                                          ? `$${(market.volume_24h / 1000).toFixed(0)}k`
-                                          : `$${market.volume_24h}`}
-                                    </td>
-                                    <td className="hidden lg:table-cell px-4 py-3 text-right text-sm text-gray-300 whitespace-nowrap">
-                                      {market.liquidity >= 1000000
-                                        ? `$${(market.liquidity / 1000000).toFixed(1)}M`
-                                        : market.liquidity >= 1000
-                                          ? `$${(market.liquidity / 1000).toFixed(0)}k`
-                                          : `$${Math.round(market.liquidity)}`}
-                                    </td>
-                                    <td className="hidden lg:table-cell px-4 py-3 text-right text-sm whitespace-nowrap">
-                                      {market.probability_confidence != null && market.probability_confidence > 0 ? (
-                                        <span className={`${market.probability_confidence > 0.3 ? 'text-green-400' :
-                                          market.probability_confidence > 0.15 ? 'text-yellow-400' :
-                                            'text-yellow-300'
-                                          }`}>
-                                          {(market.probability_confidence * 100).toFixed(0)}%
-                                        </span>
-                                      ) : (
-                                        <span className="text-gray-600 text-xs">N/A</span>
-                                      )}
-                                    </td>
-                                    <td className="hidden md:table-cell px-4 py-3 text-right text-xs text-gray-400 whitespace-nowrap">
-                                      {market.days_until_end || Math.ceil((new Date(market.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))}d
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                ) : !loadingMarkets && !marketError ? (
-                  <div className="text-center py-16 bg-dark-800 border border-gold/20 rounded-lg">
-                    <div className="text-xl text-gray-400 mb-2">No markets found</div>
-                    <div className="text-sm text-gray-500">Try adjusting your search or filters</div>
-                  </div>
-                ) : null}
-
-                {/* Load More */}
-                {!loadingMarkets && hasMore && filteredMarkets.length > displayLimit && (
-                  <div className="text-center">
-                    <button
-                      onClick={handleLoadMore}
-                      className="px-8 py-3 bg-gold/10 border border-gold/30 rounded-lg text-gold hover:bg-gold/20 hover:border-gold/50 transition-all"
-                    >
-                      Load More Markets (showing {displayLimit} of {Math.min(filteredMarkets.length, 50)})
-                    </button>
-                  </div>
-                )}
-              </>
-            )
-          }
-        </div >
-
-        {/* Market Detail Modal */}
-        {
-          selectedMarket && (
-            <MarketDetailModal
-              market={selectedMarket}
-              onClose={() => setSelectedMarket(null)}
-            />
-          )
-        }
+        ... [Prediction Market Content] ...
       </section>
+      */}
 
       {/* Section Divider */}
       <div className="w-full flex items-center justify-center py-8">

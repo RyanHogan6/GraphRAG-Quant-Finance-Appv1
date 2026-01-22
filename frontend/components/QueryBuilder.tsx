@@ -180,12 +180,12 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
 
     // UI Components
     return (
-        <div className="bg-dark-900/50 p-4 rounded-lg border border-gold/10 space-y-4">
+        <div className="bg-dark-900 border border-gold/20 p-3 rounded-lg space-y-3 shadow-2xl">
 
             {/* Step 1: Source Selection */}
-            <div className="space-y-2">
-                <label className="text-xs text-gold font-semibold uppercase tracking-wider">1. Start With</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="space-y-1.5">
+                <label className="text-[10px] text-gold/60 font-bold uppercase tracking-widest pl-1">1. START WITH</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5">
                     {Object.entries(GRAPH_SCHEMA)
                         .filter(([key]) => key !== 'sec' && key !== 'sec_sections')
                         // Only show nodes that act as roots/sources (usually Company)
@@ -199,14 +199,14 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                                     setEnrichments([])
                                     setStep(1)
                                 }}
-                                className={`p-2 rounded text-xs md:text-sm border transition-all truncate text-left
+                                className={`p-1.5 rounded-md text-[11px] border transition-all truncate text-left
                 ${source === key
-                                        ? 'bg-gold/20 border-gold text-gold'
+                                        ? 'bg-gold/20 border-gold/60 text-gold shadow-[0_0_10px_rgba(212,175,55,0.1)]'
                                         : 'bg-dark-800 border-gold/10 text-gray-400 hover:border-gold/30'
                                     }`}
                             >
-                                <div className="font-semibold">{node.name}</div>
-                                <div className="text-[10px] opacity-60 truncate">{node.description}</div>
+                                <div className="font-bold tracking-tight">{node.name}</div>
+                                <div className="text-[9px] opacity-50 truncate leading-tight">{node.description}</div>
                             </button>
                         ))}
                 </div>
@@ -221,9 +221,9 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                     >
 
                         {/* Step 2: Filters */}
-                        <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                                <label className="text-xs text-gold font-semibold uppercase tracking-wider">2. Filter Data (Where)</label>
+                        <div className="space-y-1.5">
+                            <div className="flex justify-between items-center px-1">
+                                <label className="text-[10px] text-gold/60 font-bold uppercase tracking-widest">2. FILTER DATA</label>
                                 <button
                                     onClick={addFilter}
                                     className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
@@ -237,7 +237,7 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                             )}
 
                             {filters.map((filter, idx) => (
-                                <div key={idx} className="flex gap-2 items-center bg-dark-800 p-2 rounded border border-gold/10">
+                                <div key={idx} className="flex gap-1.5 items-center bg-dark-800/80 p-1.5 rounded border border-gold/10">
                                     <select
                                         value={filter.field}
                                         onChange={(e) => updateFilter(idx, 'field', e.target.value)}
@@ -276,9 +276,9 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
 
                         {/* Step 3: Enrich */}
                         {sourceNode.connections.length > 0 && (
-                            <div className="space-y-2 pt-2 border-t border-gold/10">
-                                <label className="text-xs text-gold font-semibold uppercase tracking-wider">3. Enrich With (Connect)</label>
-                                <div className="flex flex-wrap gap-2">
+                            <div className="space-y-1.5 pt-1 border-t border-gold/10">
+                                <label className="text-[10px] text-gold/60 font-bold uppercase tracking-widest pl-1">3. ENRICH WITH</label>
+                                <div className="flex flex-wrap gap-1.5">
                                     {sourceNode.connections.map(conn => {
                                         const targetKey = conn.target
                                         const target = GRAPH_SCHEMA[targetKey]
@@ -289,13 +289,13 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                                             <button
                                                 key={targetKey}
                                                 onClick={() => toggleEnrichment(targetKey)}
-                                                className={`px-3 py-1.5 rounded-full text-xs border flex items-center gap-2 transition-all
+                                                className={`px-2.5 py-1 rounded-full text-[10px] border flex items-center gap-1.5 transition-all
                           ${isSelected
-                                                        ? 'bg-purple-500/20 border-purple-500 text-purple-300'
-                                                        : 'bg-dark-800 border-gray-700 text-gray-400 hover:border-purple-500/50'
+                                                        ? 'bg-purple-500/20 border-purple-500/50 text-purple-300'
+                                                        : 'bg-dark-800 border-gray-700 text-gray-500 hover:border-gold/30'
                                                     }`}
                                             >
-                                                <span className={isSelected ? 'bg-purple-500 w-2 h-2 rounded-full' : 'bg-gray-600 w-2 h-2 rounded-full'} />
+                                                <span className={isSelected ? 'bg-purple-500 w-1.5 h-1.5 rounded-full shadow-[0_0_5px_rgba(168,85,247,0.5)]' : 'bg-gray-700 w-1.5 h-1.5 rounded-full'} />
                                                 {target.name}
                                             </button>
                                         )
