@@ -36,7 +36,7 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
             try {
                 const { api } = await import('@/lib/api')
                 // Direct call to browse Company collection
-                const res = await api.browseCollection('Company', 1000)
+                const res = await api.browseCollection('Company', 500)
                 const data = Array.isArray(res) ? res : (res.documents || [])
                 setCompanies(data.map((c: any) => ({ ticker: c.ticker, company: c.company })))
             } catch (e) {

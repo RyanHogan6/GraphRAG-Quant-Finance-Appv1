@@ -157,10 +157,10 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
             </div>
 
             {/* AI Intelligence Summary */}
-            <div className="bg-gradient-to-br from-gold/10 to-transparent border border-gold/20 rounded-2xl p-6 relative overflow-hidden group shadow-2xl">
+            <div className="bg-gradient-to-br from-gold/10 to-transparent border border-gold/20 rounded-2xl p-4 md:p-6 relative overflow-hidden group shadow-2xl">
                 <div className="absolute top-0 left-0 w-1 h-full bg-gold/50" />
                 <div className="absolute -right-12 -top-12 w-48 h-48 bg-gold/5 rounded-full blur-3xl group-hover:bg-gold/10 transition-all" />
-                <h3 className="text-[10px] font-bold text-gold uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                <h3 className="text-[9px] md:text-[10px] font-bold text-gold uppercase tracking-[0.2em] mb-3 md:mb-4 flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" />
                     Deep Intelligence Synthesis
                 </h3>
@@ -190,18 +190,18 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                 {/* Left Area: Chart & Fundamental Checklist (8 Cols) */}
                 <div className="xl:col-span-8 space-y-8">
                     {/* Chart Section */}
-                    <div className="bg-dark-900/40 border border-gold/10 rounded-2xl p-6 shadow-xl backdrop-blur-sm">
-                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+                    <div className="bg-dark-900/40 border border-gold/10 rounded-2xl p-4 md:p-6 shadow-xl backdrop-blur-sm">
+                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 md:mb-6 gap-4">
                             <div>
-                                <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-1">Market Performance Hub</h3>
-                                <div className="text-[10px] text-gray-500 font-mono">1,800 Point Historical Resolution</div>
+                                <h3 className="text-[10px] md:text-xs font-bold text-gold uppercase tracking-widest mb-1">Market Performance Hub</h3>
+                                <div className="text-[9px] md:text-[10px] text-gray-500 font-mono italic">Structural Momentum Analysis</div>
                             </div>
-                            <div className="flex bg-dark-800 rounded-xl p-1 border border-white/10 shadow-inner">
+                            <div className="flex bg-dark-800 rounded-xl p-0.5 border border-white/10 shadow-inner">
                                 {['1M', '3M', '6M', '1Y', '5Y'].map(tf => (
                                     <button
                                         key={tf}
                                         onClick={() => setTimeframe(tf as any)}
-                                        className={`px-4 py-1.5 text-[10px] rounded-lg transition-all ${timeframe === tf ? 'bg-gold text-dark-900 font-bold shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
+                                        className={`px-3 py-1 md:px-4 md:py-1.5 text-[9px] md:text-[10px] rounded-lg transition-all ${timeframe === tf ? 'bg-gold text-dark-900 font-bold shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
                                     >
                                         {tf}
                                     </button>
@@ -238,17 +238,17 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                                 {showAllMetrics ? 'Core View' : 'All Metrics'}
                             </button>
                         </div>
-                        <div className="p-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-y-8 gap-x-6">
+                        <div className="p-4 md:p-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-y-6 gap-x-4 md:gap-y-8 md:gap-x-6">
                             {fundamentalMetrics.slice(0, showAllMetrics ? undefined : 8).map((m: any, i: number) => (
-                                <div key={i} className="group border-l border-white/5 pl-4 hover:border-gold/30 transition-all">
-                                    <div className="flex items-center justify-between mb-1.5">
-                                        <div className="text-[9px] text-gray-500 uppercase font-black tracking-tighter group-hover:text-gold transition-colors">{m.name}</div>
-                                        <div className="text-[8px] text-gray-600 font-mono tracking-tighter">Ref: {m.benchmark}</div>
+                                <div key={i} className="group border-l border-white/5 pl-3 md:pl-4 hover:border-gold/30 transition-all">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <div className="text-[8px] md:text-[9px] text-gray-500 uppercase font-black tracking-tighter group-hover:text-gold transition-colors">{m.name}</div>
+                                        <div className="text-[7px] md:text-[8px] text-gray-600 font-mono tracking-tighter hidden sm:block">Ref: {m.benchmark}</div>
                                     </div>
-                                    <div className={`text-base font-mono font-black ${m.status === 'good' ? 'text-green-400' : m.status === 'bad' ? 'text-red-400' : 'text-gray-200'}`}>
+                                    <div className={`text-sm md:text-base font-mono font-black ${m.status === 'good' ? 'text-green-400' : m.status === 'bad' ? 'text-red-400' : 'text-gray-200'}`}>
                                         {m.displayVal}
                                         {m.status !== 'neutral' && (
-                                            <span className={`ml-1 text-[10px] ${m.status === 'good' ? 'text-green-400/50' : 'text-red-400/50'}`}>
+                                            <span className={`ml-0.5 text-[8px] md:text-[10px] ${m.status === 'good' ? 'text-green-400/50' : 'text-red-400/50'}`}>
                                                 {m.status === 'good' ? '▲' : '▼'}
                                             </span>
                                         )}
@@ -262,8 +262,8 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                 {/* Right Area: Signals (4 Cols) */}
                 <div className="xl:col-span-4 space-y-8">
                     {/* Regulatory Column */}
-                    <div className="bg-dark-900/40 border border-blue-500/10 rounded-2xl p-6 shadow-xl backdrop-blur-sm">
-                        <h3 className="text-xs font-bold text-blue-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
+                    <div className="bg-dark-900/40 border border-blue-500/10 rounded-2xl p-4 md:p-6 shadow-xl backdrop-blur-sm">
+                        <h3 className="text-[10px] md:text-xs font-bold text-blue-400 uppercase tracking-[0.2em] mb-4 md:mb-6 flex items-center gap-3">
                             <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
                             SEC Intelligent Signals
                         </h3>
@@ -296,8 +296,8 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                     </div>
 
                     {/* Gov Awards Column */}
-                    <div className="bg-dark-900/40 border border-gold/10 rounded-2xl p-6 shadow-xl backdrop-blur-sm">
-                        <h3 className="text-xs font-bold text-gold uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
+                    <div className="bg-dark-900/40 border border-gold/10 rounded-2xl p-4 md:p-6 shadow-xl backdrop-blur-sm">
+                        <h3 className="text-[10px] md:text-xs font-bold text-gold uppercase tracking-[0.2em] mb-4 md:mb-6 flex items-center gap-3">
                             <div className="w-1.5 h-1.5 rounded-full bg-gold shadow-[0_0_8px_rgba(255,215,0,0.5)]" />
                             Federal Contract Awards
                         </h3>

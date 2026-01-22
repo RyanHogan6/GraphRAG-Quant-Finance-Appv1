@@ -172,6 +172,114 @@ def execute_web_search(question: str):
         }, str(e)
 
 
+def enrich_single_company_results(results: List[Dict], query_plan: Dict) -> List[Dict]:
+    """
+    Detect if results are for a single company and enrich with workup data.
+    
+    This enables the CompanyWorkup component to display for natural language queries
+    like "Show me apple stock performance", matching the advanced query builder experience.
+    
+    Returns:
+        - Original results if not single-company or too large
+        - Enriched workup structure if single-company detected
+    """
+    # Skip enrichment for empty, large, or already-enriched results
+    if not results or len(results) > 100:
+        return results
+    
+    # Check if already enriched (has nested MarketData, sec_filings, etc.)
+    if results and any(isinstance(r.get('MarketData'), list) for r in results):
+        print("[ENRICH] Results already enriched, skipping")
+        return results
+    
+    # Check if all results have the same ticker
+    tickers = {r.get('ticker') for r in results if r.get('ticker')}
+    if len(tickers) != 1:
+        print(f"[ENRICH] Multi-company or no ticker detected ({len(tickers)} tickers), skipping enrichment")
+        return results  # Multi-company or no ticker
+    
+    ticker = list(tickers)[0]
+    print(f"[ENRICH] Single company detected: {ticker}, enriching with workup data...")
+    
+    try:
+        # Fetch enrichment data in parallel for better performance
+        from concurrent.futures import ThreadPoolExecutor
+        
+        def fetch_market_data():
+            query = """
+            FOR m IN MarketData
+              FILTER m.ticker == @ticker
+              SORT m.date DESC
+              LIMIT 500
+              RETURN m
+            """
+            data, _ = execute_aql(query, {"ticker": ticker})
+            return data or []
+        
+        def fetch_sec_filings():
+            query = """
+            FOR s IN sec_filings
+              FILTER s.ticker == @ticker
+              SORT s.filing_date DESC
+              LIMIT 10
+              RETURN s
+            """
+            data, _ = execute_aql(query, {"ticker": ticker})
+            return data or []
+        
+        def fetch_awards():
+            query = """
+            FOR a IN Award
+              FILTER a.ticker == @ticker
+              SORT a.start_date DESC
+              LIMIT 20
+              RETURN a
+            """
+            data, _ = execute_aql(query, {"ticker": ticker})
+            return data or []
+        
+        def fetch_company_info():
+            query = """
+            FOR c IN Company
+              FILTER c.ticker == @ticker
+              LIMIT 1
+              RETURN c
+            """
+            data, _ = execute_aql(query, {"ticker": ticker})
+            return data[0] if data else {}
+        
+        # Execute all queries in parallel
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            market_future = executor.submit(fetch_market_data)
+            sec_future = executor.submit(fetch_sec_filings)
+            award_future = executor.submit(fetch_awards)
+            company_future = executor.submit(fetch_company_info)
+            
+            market_data = market_future.result()
+            sec_data = sec_future.result()
+            award_data = award_future.result()
+            company_info = company_future.result()
+        
+        # Build enriched structure matching CompanyWorkup expectations
+        enriched = {
+            "ticker": ticker,
+            "company": company_info.get('company', ticker),
+            "MarketData": market_data,
+            "sec_filings": sec_data,
+            "Award": award_data,
+            "prediction_markets_polymarket": []  # Optional: can add later
+        }
+        
+        print(f"[ENRICH] Enriched {ticker} with {len(market_data)} market records, {len(sec_data)} filings, {len(award_data)} awards")
+        return [enriched]
+        
+    except Exception as e:
+        print(f"[ENRICH ERROR] Failed to enrich {ticker}: {e}")
+        import traceback
+        print(f"[ENRICH ERROR] Traceback: {traceback.format_exc()}")
+        return results  # Return original results on error
+
+
 @router.post("/execute", response_model=QueryExecuteResponse)
 @limiter.limit("20/minute")  # Stricter limit for expensive operations
 def execute_query(request: Request, body: QueryRequest):
@@ -264,6 +372,10 @@ def execute_query(request: Request, body: QueryRequest):
         # Log web context status
         has_sources = bool(web_context_data and (web_context_data.get('sources') or web_context_data.get('citations')))
         print(f"[EXECUTE] Web context has sources: {has_sources}")
+
+        # Enrich single-company results for CompanyWorkup display
+        if results:
+            results = enrich_single_company_results(results, query_plan)
 
         return QueryExecuteResponse(
             results=results,
@@ -459,6 +571,10 @@ async def execute_query_stream(request: Request, body: QueryRequest):
                         'ticker': sorted_results[0].get('ticker', 'Unknown')
                     }
                     print(f"[STREAM] Added chart metadata for time series query")
+
+            # Enrich single-company results for CompanyWorkup display
+            if results:
+                results = enrich_single_company_results(results, query_plan)
 
             # Step 6: Send complete payload
             final_payload = {
