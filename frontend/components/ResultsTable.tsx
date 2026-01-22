@@ -93,28 +93,28 @@ export default function ResultsTable({ data, maxRows = 10 }: ResultsTableProps) 
   }
 
   return (
-    <div className="my-4 w-full overflow-hidden">
-      <div className="overflow-x-auto rounded-lg border border-gold/30 bg-black/20">
+    <div className="my-2 md:my-4 w-full overflow-hidden">
+      <div className="overflow-x-auto rounded-lg border border-gold/30 bg-black/20 scrollbar-thin scrollbar-thumb-gold/20">
         <table className="w-full border-collapse">
           <thead className="bg-gold/10 border-b border-gold/30">
             <tr>
               {allKeys.map((key) => (
                 <th
                   key={key}
-                  className="px-3 py-2 text-left text-[10px] font-bold text-gold uppercase tracking-widest whitespace-nowrap"
+                  className="px-2 py-1.5 md:px-3 md:py-2 text-left text-[9px] md:text-[10px] font-bold text-gold uppercase tracking-wider whitespace-nowrap"
                 >
                   {key}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gold/20">
+          <tbody className="divide-y divide-gold/10">
             {displayData.map((row, idx) => (
               <tr key={idx} className="hover:bg-gold/5 transition-colors">
                 {allKeys.map((key) => (
                   <td
                     key={key}
-                    className="px-3 py-2 text-xs text-gray-300 align-top max-w-[200px] break-words"
+                    className="px-2 py-1.5 md:px-3 md:py-2 text-[10px] md:text-xs text-gray-300 align-top max-w-[150px] md:max-w-[200px] break-words"
                   >
                     {formatValue(row[key])}
                   </td>

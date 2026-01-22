@@ -131,7 +131,7 @@ export default function HomePage() {
             message.content
           )}
         </div>
-        {message.queryPlan?.is_time_series && message.queryPlan?.chart_data && (
+        {!!message.queryPlan?.is_time_series && message.queryPlan?.chart_data && (
           <TimeSeriesChart
             dates={message.queryPlan.chart_data.dates}
             values={message.queryPlan.chart_data.values}
@@ -140,12 +140,12 @@ export default function HomePage() {
           />
         )}
         {showAdvancedMode && message.queryPlan && message.queryPlan.aql_query && (
-          <details className="mt-3 mb-3">
-            <summary className="cursor-pointer text-xs text-purple-400 hover:text-purple-300 font-semibold">
-              🔧 Query Plan (Advanced)
+          <details className="mt-2 mb-2">
+            <summary className="cursor-pointer text-[10px] md:text-xs text-purple-400 hover:text-purple-300 font-semibold opacity-80 hover:opacity-100 transition-opacity">
+              🔧 Query Plan
             </summary>
-            <div className="mt-2 bg-dark-900 border border-purple-500/30 rounded p-3">
-              <div className="text-xs text-gray-400 mb-2">
+            <div className="mt-1.5 bg-dark-900/50 border border-purple-500/20 rounded p-2 md:p-3">
+              <div className="text-[10px] md:text-xs text-gray-400 mb-1.5">
                 <strong className="text-purple-400">Intent:</strong> {message.queryPlan.intent || 'N/A'}
                 {message.queryPlan.explanation && (
                   <div className="mt-1">
@@ -153,14 +153,14 @@ export default function HomePage() {
                   </div>
                 )}
               </div>
-              <div className="text-xs text-gray-500 font-mono mb-1">AQL Query:</div>
-              <pre className="text-xs bg-black/50 p-2 rounded overflow-x-auto text-green-400 border border-green-500/20">
+              <div className="text-[10px] text-gray-500 font-mono mb-1">AQL Query:</div>
+              <pre className="text-[9px] md:text-xs bg-black/50 p-2 rounded overflow-x-auto text-green-400/80 border border-green-500/10">
                 {message.queryPlan.aql_query}
               </pre>
               {message.queryPlan.bind_vars && Object.keys(message.queryPlan.bind_vars).length > 0 && (
                 <div className="mt-2">
-                  <div className="text-xs text-gray-500 font-mono mb-1">Bind Variables:</div>
-                  <pre className="text-xs bg-black/50 p-2 rounded overflow-x-auto text-blue-400 border border-blue-500/20">
+                  <div className="text-[10px] text-gray-500 font-mono mb-1">Bind Variables:</div>
+                  <pre className="text-[9px] md:text-xs bg-black/50 p-2 rounded overflow-x-auto text-blue-400/80 border border-blue-500/10">
                     {JSON.stringify(message.queryPlan.bind_vars, null, 2)}
                   </pre>
                 </div>
@@ -1155,7 +1155,7 @@ export default function HomePage() {
                         })()}
                       </div>
                     )}
-                    {message.webContext && (message.webContext.citations?.length || message.webContext.sources?.length) && (
+                    {message.webContext && (!!message.webContext.citations?.length || !!message.webContext.sources?.length) && (
                       <div className="mt-4 pt-3 border-t border-gold/20">
                         <div className="text-xs font-semibold text-gold mb-2">Sources:</div>
                         <div className="space-y-1">
@@ -1239,12 +1239,12 @@ export default function HomePage() {
             </div>
 
             {/* Input Area - Sticky on Mobile */}
-            <div className="sticky bottom-0 z-[40] md:relative bg-dark-800 border-t border-gold/20 p-3 md:p-4 backdrop-blur-md">
+            <div className="sticky bottom-0 z-[40] md:relative bg-dark-800 border-t border-gold/20 p-2 md:p-4 backdrop-blur-md">
               {/* Advanced Mode Toggle */}
-              <div className="flex items-center justify-end mb-2 gap-3">
+              <div className="flex items-center justify-end mb-1 md:mb-2 gap-3">
                 {/* Builder Mode Toggle */}
                 <label className="flex items-center cursor-pointer">
-                  <span className="text-[10px] md:text-xs text-gray-400 mr-1.5 md:mr-2">Visual Query Builder</span>
+                  <span className="text-[9px] md:text-xs text-gray-400 mr-1 md:mr-2 font-medium">Visual Builder</span>
                   <div className="relative">
                     <input
                       type="checkbox"
@@ -1257,14 +1257,14 @@ export default function HomePage() {
                       }}
                       className="sr-only"
                     />
-                    <div className={`block w-8 h-5 md:w-10 md:h-6 rounded-full transition ${isBuilderMode ? 'bg-gold' : 'bg-gray-600'}`}></div>
-                    <div className={`dot absolute left-0.5 top-0.5 md:left-1 md:top-1 bg-white w-4 h-4 rounded-full transition ${isBuilderMode ? 'transform translate-x-3 md:translate-x-4' : ''}`}></div>
+                    <div className={`block w-7 h-4 md:w-10 md:h-6 rounded-full transition ${isBuilderMode ? 'bg-gold' : 'bg-gray-600'}`}></div>
+                    <div className={`dot absolute left-0.5 top-0.5 md:left-1 md:top-1 bg-white w-3 h-3 md:w-4 md:h-4 rounded-full transition ${isBuilderMode ? 'transform translate-x-3 md:translate-x-4' : ''}`}></div>
                   </div>
                 </label>
 
                 {/* Advanced Mode Toggle */}
                 <label className="flex items-center cursor-pointer">
-                  <span className="text-[10px] md:text-xs text-gray-400 mr-1.5 md:mr-2">Advanced Mode</span>
+                  <span className="text-[9px] md:text-xs text-gray-400 mr-1 md:mr-2 font-medium">Advanced</span>
                   <div className="relative">
                     <input
                       type="checkbox"
@@ -1272,28 +1272,28 @@ export default function HomePage() {
                       onChange={(e) => setShowAdvancedMode(e.target.checked)}
                       className="sr-only"
                     />
-                    <div className={`block w-8 h-5 md:w-10 md:h-6 rounded-full transition ${showAdvancedMode ? 'bg-purple-500' : 'bg-gray-600'}`}></div>
-                    <div className={`dot absolute left-0.5 top-0.5 md:left-1 md:top-1 bg-white w-4 h-4 rounded-full transition ${showAdvancedMode ? 'transform translate-x-3 md:translate-x-4' : ''}`}></div>
+                    <div className={`block w-7 h-4 md:w-10 md:h-6 rounded-full transition ${showAdvancedMode ? 'bg-purple-500' : 'bg-gray-600'}`}></div>
+                    <div className={`dot absolute left-0.5 top-0.5 md:left-1 md:top-1 bg-white w-3 h-3 md:w-4 md:h-4 rounded-full transition ${showAdvancedMode ? 'transform translate-x-3 md:translate-x-4' : ''}`}></div>
                   </div>
                 </label>
               </div>
               {isBuilderMode ? (
-                <div className="mb-4">
+                <div className="mb-2 md:mb-4">
                   <QueryBuilder
                     onQueryChange={(aql, desc) => setBuiltQuery({ aql, description: desc })}
                   />
 
                   {/* AQL Preview */}
                   {builtQuery.aql && (
-                    <div className="mt-4 bg-dark-900 border border-green-500/20 rounded-lg p-3">
+                    <div className="mt-2 bg-dark-900 border border-green-500/20 rounded-lg p-2">
                       <details>
-                        <summary className="text-xs text-green-400 font-mono cursor-pointer hover:text-green-300 select-none flex items-center gap-2">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <summary className="text-[10px] text-green-400 font-mono cursor-pointer hover:text-green-300 select-none flex items-center gap-1.5 transition-colors">
+                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                           </svg>
-                          View Generated AQL Query
+                          Generated AQL
                         </summary>
-                        <pre className="mt-2 text-[10px] md:text-xs text-gray-300 font-mono overflow-x-auto whitespace-pre-wrap">
+                        <pre className="mt-1.5 text-[9px] md:text-xs text-gray-300 font-mono overflow-x-auto whitespace-pre-wrap max-h-[100px] bg-black/30 p-1.5 rounded">
                           {builtQuery.aql}
                         </pre>
                       </details>
@@ -1303,7 +1303,7 @@ export default function HomePage() {
                     <button
                       onClick={handleSubmit}
                       disabled={isLoading || !builtQuery.aql}
-                      className="px-4 py-2 bg-gold/20 border border-gold/40 rounded-lg text-sm text-gold hover:bg-gold/30 hover:border-gold/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                      className="px-3 py-1.5 md:px-4 md:py-2 bg-gold/20 border border-gold/40 rounded-lg text-xs md:text-sm text-gold hover:bg-gold/30 hover:border-gold/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-sm"
                     >
                       Run Visual Query
                     </button>
@@ -1325,15 +1325,15 @@ export default function HomePage() {
                         handleSubmit(e)
                       }
                     }}
-                    placeholder="Ask a question about markets, companies, or contracts..."
-                    rows={2}
-                    className="flex-1 bg-dark-700 border border-gold/30 rounded-lg px-2.5 py-1.5 md:px-3 md:py-2 text-xs md:text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold/60 focus:ring-2 focus:ring-gold/20 resize-y min-h-[60px] max-h-[150px]"
+                    placeholder="Ask markets, companies, or contracts..."
+                    rows={1}
+                    className="flex-1 bg-dark-700 border border-gold/30 rounded-lg px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold/60 focus:ring-2 focus:ring-gold/20 resize-y min-h-[40px] max-h-[120px]"
                     disabled={isLoading}
                   />
                   <button
                     type="submit"
                     disabled={isLoading || !input.trim()}
-                    className="w-full md:w-auto px-4 py-2 md:px-5 md:py-2.5 bg-gold/20 border border-gold/40 rounded-lg text-xs md:text-sm text-gold hover:bg-gold/30 hover:border-gold/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold md:self-end"
+                    className="w-full md:w-auto px-4 py-1.5 md:px-5 md:py-2.5 bg-gold/20 border border-gold/40 rounded-lg text-xs md:text-sm text-gold hover:bg-gold/30 hover:border-gold/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold md:self-end shadow-md"
                   >
                     Send
                   </button>
