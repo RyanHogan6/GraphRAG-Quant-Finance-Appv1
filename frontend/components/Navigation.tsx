@@ -20,7 +20,7 @@ export default function Navigation() {
   // Track which section is currently in view
   useEffect(() => {
     const handleScroll = () => {
-      const sections = ['query', 'markets', 'database', 'about']
+      const sections = ['query', 'database', 'about']
       const scrollPosition = window.scrollY + 100
 
       for (const sectionId of sections) {
@@ -42,7 +42,6 @@ export default function Navigation() {
 
   const links = [
     { id: 'query', label: 'Query' },
-    { id: 'markets', label: 'Markets' },
     { id: 'database', label: 'Database' },
     { id: 'about', label: 'About' },
   ]
@@ -64,15 +63,14 @@ export default function Navigation() {
           {/* Desktop Navigation */}
           <div className="hidden md:flex flex-1 items-center justify-center">
             <div className="flex space-x-1">
-              {links.slice(0, 3).map((link) => (
+              {links.slice(0, 2).map((link) => (
                 <button
                   key={link.id}
                   onClick={() => scrollToSection(link.id)}
-                  className={`px-4 py-2 rounded-lg transition-all ${
-                    activeSection === link.id
-                      ? 'bg-gold/20 text-gold border border-gold/40'
-                      : 'text-gray-400 hover:text-gold hover:bg-gold/10'
-                  }`}
+                  className={`px-4 py-2 rounded-lg transition-all ${activeSection === link.id
+                    ? 'bg-gold/20 text-gold border border-gold/40'
+                    : 'text-gray-400 hover:text-gold hover:bg-gold/10'
+                    }`}
                 >
                   {link.label}
                 </button>
@@ -83,11 +81,10 @@ export default function Navigation() {
           <div className="hidden md:flex items-center">
             <button
               onClick={() => scrollToSection('about')}
-              className={`px-4 py-2 rounded-lg transition-all ${
-                activeSection === 'about'
-                  ? 'bg-gold/20 text-gold border border-gold/40'
-                  : 'text-gray-400 hover:text-gold hover:bg-gold/10'
-              }`}
+              className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'about'
+                ? 'bg-gold/20 text-gold border border-gold/40'
+                : 'text-gray-400 hover:text-gold hover:bg-gold/10'
+                }`}
             >
               About
             </button>
@@ -118,11 +115,10 @@ export default function Navigation() {
               <button
                 key={link.id}
                 onClick={() => scrollToSection(link.id)}
-                className={`w-full text-left px-4 py-3 rounded-lg transition-all ${
-                  activeSection === link.id
-                    ? 'bg-gold/20 text-gold border border-gold/40'
-                    : 'text-gray-400 hover:text-gold hover:bg-gold/10'
-                }`}
+                className={`w-full text-left px-4 py-3 rounded-lg transition-all ${activeSection === link.id
+                  ? 'bg-gold/20 text-gold border border-gold/40'
+                  : 'text-gray-400 hover:text-gold hover:bg-gold/10'
+                  }`}
               >
                 {link.label}
               </button>

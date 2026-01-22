@@ -827,7 +827,6 @@ export default function HomePage() {
 
   return (
     <div className="relative z-10">
-      <Navigation />
       {/* Hero Section */}
       <motion.section
         ref={heroRef}
@@ -879,7 +878,7 @@ export default function HomePage() {
       </motion.section>
 
       {/* Section Divider */}
-      <div className="w-full flex items-center justify-center py-8">
+      <div className="w-full flex items-center justify-center py-8" >
         <div className="w-[70%] border-t-2 border-dashed border-gold/10"></div>
       </div>
 
@@ -891,9 +890,10 @@ export default function HomePage() {
         {/* Animated background grid */}
         <motion.div
           className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
-          style={{ opacity: gridOpacity1 }}
+          style={{ opacity: gridOpacity1 }
+          }
         />
-        <div className="max-w-7xl mx-auto relative z-10">
+        <div className="max-w-7xl mx-auto relative z-10" >
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             animate={isWhyGraphsInView ? { opacity: 1, y: 0 } : {}}
@@ -956,18 +956,18 @@ export default function HomePage() {
       </section>
 
       {/* Section Divider */}
-      <div className="w-full flex items-center justify-center py-8">
+      <div className="w-full flex items-center justify-center py-8" >
         <div className="w-[70%] border-t-2 border-dashed border-gold/10"></div>
       </div>
 
       {/* Chat Interface Section */}
-      <section id="query" className="snap-start flex items-center justify-center px-4 py-6 md:px-6 md:py-8 relative overflow-hidden">
+      <section id="query" className="snap-start flex items-center justify-center px-4 py-6 md:px-6 md:py-8 relative overflow-hidden" >
         {/* Animated background grid */}
         <motion.div
           className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
           style={{ opacity: gridOpacity2 }}
         />
-        <div className="container mx-auto max-w-[1400px] relative z-10">
+        <div className="container mx-auto max-w-[1400px] relative z-10" >
           <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
@@ -1378,7 +1378,7 @@ export default function HomePage() {
       </section>
 
       {/* Section Divider */}
-      <div className="w-full flex items-center justify-center py-8">
+      <div className="w-full flex items-center justify-center py-8" >
         <div className="w-[70%] border-t-2 border-dashed border-gold/10"></div>
       </div>
 
@@ -1429,7 +1429,7 @@ export default function HomePage() {
       </section>
 
       {/* Section Divider */}
-      <div className="w-full flex items-center justify-center py-8">
+      <div className="w-full flex items-center justify-center py-8" >
         <div className="w-[70%] border-t-2 border-dashed border-gold/10"></div>
       </div>
 
