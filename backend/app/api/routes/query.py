@@ -184,7 +184,12 @@ def enrich_single_company_results(results: List[Dict], query_plan: Dict) -> List
         - Enriched workup structure if single-company detected
     """
     # Skip enrichment for empty, large, or already-enriched results
-    if not results or len(results) > 100:
+    if not results:
+        print("[ENRICH] No results to enrich")
+        return results
+    
+    if len(results) > 100:
+        print(f"[ENRICH] Too many results ({len(results)}), skipping enrichment")
         return results
     
     # Check if already enriched (has nested MarketData, sec_filings, etc.)
@@ -192,8 +197,15 @@ def enrich_single_company_results(results: List[Dict], query_plan: Dict) -> List
         print("[ENRICH] Results already enriched, skipping")
         return results
     
+    # Debug: Log first result structure
+    if results:
+        print(f"[ENRICH DEBUG] First result keys: {list(results[0].keys())}")
+        print(f"[ENRICH DEBUG] First result ticker field: {results[0].get('ticker')}")
+    
     # Check if all results have the same ticker
     tickers = {r.get('ticker') for r in results if r.get('ticker')}
+    print(f"[ENRICH DEBUG] Found {len(tickers)} unique tickers: {tickers}")
+    
     if len(tickers) != 1:
         print(f"[ENRICH] Multi-company or no ticker detected ({len(tickers)} tickers), skipping enrichment")
         return results  # Multi-company or no ticker
