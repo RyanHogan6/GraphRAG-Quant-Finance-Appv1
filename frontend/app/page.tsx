@@ -131,14 +131,16 @@ export default function HomePage() {
             message.content
           )}
         </div>
-        {!!message.queryPlan?.is_time_series && message.queryPlan?.chart_data && (
-          <TimeSeriesChart
-            dates={message.queryPlan.chart_data.dates}
-            values={message.queryPlan.chart_data.values}
-            label={message.queryPlan.chart_data.label}
-            ticker={message.queryPlan.chart_data.ticker}
-          />
-        )}
+        {!!message.queryPlan?.is_time_series && message.queryPlan?.chart_data &&
+          // Only show standalone chart if NOT showing CompanyWorkup (which has its own charts)
+          !message.results?.some((r: any) => r.MarketData || r.sec_filings || r.Award || r.prediction_markets_polymarket) && (
+            <TimeSeriesChart
+              dates={message.queryPlan.chart_data.dates}
+              values={message.queryPlan.chart_data.values}
+              label={message.queryPlan.chart_data.label}
+              ticker={message.queryPlan.chart_data.ticker}
+            />
+          )}
         {showAdvancedMode && message.queryPlan && message.queryPlan.aql_query && (
           <details className="mt-2 mb-2">
             <summary className="cursor-pointer text-[10px] md:text-xs text-purple-400 hover:text-purple-300 font-semibold opacity-80 hover:opacity-100 transition-opacity">
