@@ -855,7 +855,7 @@ export default function HomePage() {
             Financial Intelligence Powered by Knowledge Graphs
           </p>
           <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-400 max-w-3xl mx-auto font-light leading-relaxed">
-            Uncover deep insights with <span className="text-gold font-semibold">GraphRAG</span>. By bridging <span className="text-gold font-semibold">Prediction Market</span> data directly into professional financial schemas, we reveal the hidden sentiment driving global markets.
+            Uncover deep insights with <span className="text-gold font-semibold">GraphRAG</span>. By bridging <span className="text-gold font-semibold">Prediction Market, SEC Filings, Government Awards and SP500 Market</span> data directly into professional financial schemas, we reveal the hidden connections driving markets.
           </p>
         </motion.div>
 
@@ -1059,7 +1059,7 @@ export default function HomePage() {
 
                       <div className="flex-1 min-w-0">
                         <div className="text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-tight mb-1 flex items-center gap-2">
-                          {message.role === 'user' ? 'Market Analyst' : 'KARGA Intelligence Intelligence'}
+                          {message.role === 'user' ? 'Market Analyst' : 'KARGA Intelligence'}
                           {message.role === 'assistant' && <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />}
                         </div>
                         <div className="text-sm md:text-base mb-1.5 md:mb-2 leading-relaxed text-gray-200">
