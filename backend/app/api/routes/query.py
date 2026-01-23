@@ -206,11 +206,30 @@ def enrich_single_company_results(results: List[Dict], query_plan: Dict) -> List
     tickers = {r.get('ticker') for r in results if r.get('ticker')}
     print(f"[ENRICH DEBUG] Found {len(tickers)} unique tickers: {tickers}")
     
-    if len(tickers) != 1:
-        print(f"[ENRICH] Multi-company or no ticker detected ({len(tickers)} tickers), skipping enrichment")
-        return results  # Multi-company or no ticker
+    ticker = None
     
-    ticker = list(tickers)[0]
+    # Strategy 1: Find ticker in results
+    if len(tickers) == 1:
+        ticker = list(tickers)[0]
+    # Strategy 2: If no ticker in results (e.g. only date/close selected), check query plan
+    elif len(tickers) == 0 and query_plan:
+        print("[ENRICH DEBUG] No ticker in results, checking query plan bind vars...")
+        bind_vars = query_plan.get('bind_vars', {})
+        # Look for bind vars that might contain ticker
+        # Common patterns: @ticker, @symbol, @company
+        for key, value in bind_vars.items():
+            if key in ['ticker', 'symbol', 'company', 'TICKER', '0'] and isinstance(value, str):
+                ticker = value.upper()
+                print(f"[ENRICH DEBUG] Found ticker in bind vars: {ticker}")
+                break
+    
+    if not ticker:
+        print(f"[ENRICH] Could not determine unique ticker. Tickers found: {tickers}, skipping enrichment")
+        return results
+    
+    if len(tickers) > 1:
+        print(f"[ENRICH] Multi-company detected ({len(tickers)} tickers), skipping enrichment")
+        return results
     print(f"[ENRICH] Single company detected: {ticker}, enriching with workup data...")
     
     try:
