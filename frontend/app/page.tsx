@@ -524,7 +524,7 @@ export default function HomePage() {
     'What are the most active Polymarket prediction markets?',
     'Show me Apple stock data for the last 30 days',
     'Find government contracts over $1 billion',
-    'What are the highest volume prediction markets ending this week?',
+    'What was TSLA stock price on October 4th, 2022?',
     'Show me the most recent 10-K filings',
   ]
 
@@ -855,7 +855,7 @@ export default function HomePage() {
             Financial Intelligence Powered by Knowledge Graphs
           </p>
           <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-400 max-w-3xl mx-auto font-light leading-relaxed">
-            Uncover deep insights with <span className="text-gold font-semibold">GraphRAG</span>. By bridging <span className="text-gold font-semibold">Prediction Market, SEC Filings, Government Awards and SP500 Market</span> data directly into professional financial schemas, we reveal the hidden connections driving markets.
+            Uncover deep insights with <span className="text-gold font-semibold">GraphRAG</span>. By bridging <span className="text-gold font-semibold">Prediction Markets, SEC Filings, government awards, and S&P 500 market</span> data directly into professional financial schemas, we reveal the hidden connections driving markets.
           </p>
         </motion.div>
 
