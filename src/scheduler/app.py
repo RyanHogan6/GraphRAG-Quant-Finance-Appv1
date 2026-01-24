@@ -422,7 +422,7 @@ def run_pipeline():
     logger.info("\n" + "="*80)
     logger.info(f"MASTER PIPELINE STARTED: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("="*80)
-    logger.info("Execution order: Yahoo → Kalshi → Polymarket → Awards")
+    logger.info("Execution order: Yahoo → Kalshi → Polymarket → Awards → CFTC")
     logger.info("="*80 + "\n")
 
     results = {
@@ -466,11 +466,20 @@ def run_pipeline():
         results['polymarket'] = False
 
     # Pipeline 4: Awards (USASpending)
-    try:
-        results['awards'] = run_awards_pipeline()
-    except Exception as e:
-        logger.error(f"Awards pipeline crashed: {e}")
-        results['awards'] = False
+    if AWARDS_AVAILABLE:
+        try:
+            results['awards'] = run_awards_pipeline()
+        except Exception as e:
+            logger.error(f"Awards pipeline crashed: {e}")
+            results['awards'] = False
+
+    # Pipeline 5: CFTC Commitments of Traders
+    if CFTC_AVAILABLE:
+        try:
+            results['cftc'] = run_cftc_pipeline()
+        except Exception as e:
+            logger.error(f"CFTC pipeline crashed: {e}")
+            results['cftc'] = False
 
     # Summary
     end_time = datetime.now()
@@ -482,7 +491,10 @@ def run_pipeline():
     logger.info(f"Yahoo: {'✓ SUCCESS' if results['yahoo'] else '✗ FAILED'}")
     logger.info(f"Kalshi: {'✓ SUCCESS' if results['kalshi'] else '✗ FAILED'}")
     logger.info(f"Polymarket: {'✓ SUCCESS' if results['polymarket'] else '✗ FAILED'}")
-    logger.info(f"Awards: {'✓ SUCCESS' if results['awards'] else '✗ FAILED'}")
+    if AWARDS_AVAILABLE:
+        logger.info(f"Awards: {'✓ SUCCESS' if results['awards'] else '✗ FAILED'}")
+    if CFTC_AVAILABLE:
+        logger.info(f"CFTC: {'✓ SUCCESS' if results['cftc'] else '✗ FAILED'}")
     logger.info(f"Duration: {duration:.1f}s ({duration/60:.1f}min)")
     logger.info("="*80)
 
