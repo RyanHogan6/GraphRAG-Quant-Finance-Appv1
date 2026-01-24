@@ -74,6 +74,17 @@ try:
         AWARDS_AVAILABLE = False
         logger.warning("⚠️ Awards pipeline not available (not deployed)")
 
+    # CFTC (optional)
+    try:
+        from cftc.downloader import fetch_recent_cftc_data
+        from cftc.features import engineer_cftc_features
+        from cftc.arango_uploader import upsert_commodity_positions
+        CFTC_AVAILABLE = True
+        logger.info("✓ CFTC pipeline available")
+    except ImportError:
+        CFTC_AVAILABLE = False
+        logger.warning("⚠️ CFTC pipeline not available (not deployed)")
+
     logger.info("✓ Successfully imported all pipeline modules")
 except Exception as e:
     logger.error(f"✗ Failed to import pipeline modules: {e}")
@@ -169,6 +180,43 @@ def run_kalshi_pipeline():
 
     except Exception as e:
         logger.error(f"✗ Kalshi pipeline failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def run_cftc_pipeline():
+    """Execute CFTC Commitments of Traders ETL pipeline"""
+    logger.info("\n" + "="*80)
+    logger.info("CFTC COMMITMENTS OF TRADERS PIPELINE")
+    logger.info("="*80)
+
+    try:
+        # Step 1: Fetch recent CFTC data (last 4 weeks)
+        logger.info("[1/3] Fetching recent CFTC data (last 4 weeks)...")
+        cftc_df = fetch_recent_cftc_data(weeks_back=4)
+
+        if cftc_df.empty:
+            logger.info("✓ No new CFTC data found")
+            return True
+
+        logger.info(f"✓ Fetched {len(cftc_df)} records")
+
+        # Step 2: Engineer features
+        logger.info("[2/3] Engineering features...")
+        cftc_df = engineer_cftc_features(cftc_df)
+        logger.info(f"✓ Processed {len(cftc_df)} records")
+
+        # Step 3: Upload to ArangoDB
+        logger.info("[3/3] Uploading to ArangoDB...")
+        db = get_arango_connection()
+        inserted, updated = upsert_commodity_positions(db, cftc_df)
+        logger.info(f"✓ Inserted: {inserted}, Updated: {updated}")
+
+        return True
+
+    except Exception as e:
+        logger.error(f"✗ CFTC pipeline failed: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -381,7 +429,8 @@ def run_pipeline():
         'yahoo': False,
         'kalshi': False,
         'polymarket': False,
-        'awards': False
+        'awards': False,
+        'cftc': False
     }
 
     # Pipeline 1: Yahoo MarketData (RUNS FIRST)
