@@ -11,22 +11,22 @@ COLLECTIONS = {
     'natgas_storage': {
         'collection': 'eia_natgas_storage',
         'edge': 'HAS_NATGAS_STORAGE_DATA',
-        'commodity_codes': ['023651']  # CFTC Natural Gas code
+        'commodity_codes': ['23']  # CFTC Henry Hub Natural Gas
     },
     'crude_inventory': {
         'collection': 'eia_crude_inventory',
         'edge': 'HAS_CRUDE_INVENTORY_DATA',
-        'commodity_codes': ['067651']  # CFTC Crude Oil code
+        'commodity_codes': ['22', '111']  # Heating Oil, RBOB Gasoline (petroleum products)
     },
     'lng_exports': {
         'collection': 'eia_lng_exports',
         'edge': 'HAS_LNG_EXPORT_DATA',
-        'commodity_codes': ['023651']  # Links to nat gas
+        'commodity_codes': ['23']  # Links to nat gas
     },
     'natgas_production': {
         'collection': 'eia_natgas_production',
         'edge': 'HAS_NATGAS_PRODUCTION_DATA',
-        'commodity_codes': ['023651']  # Links to nat gas
+        'commodity_codes': ['23']  # Links to nat gas
     }
 }
 
