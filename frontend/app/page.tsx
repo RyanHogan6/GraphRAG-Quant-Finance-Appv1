@@ -1244,47 +1244,58 @@ export default function HomePage() {
 
             {/* Input Area - Sticky on Mobile */}
             <div className="sticky bottom-0 z-[40] md:relative bg-dark-800 border-t border-gold/20 p-2 md:p-4 backdrop-blur-md">
-              {/* Advanced Mode Toggle */}
-              <div className="flex items-center justify-between mb-1 md:mb-2 gap-3 px-1">
-                <div className="flex items-center gap-3">
-                  {/* Builder Mode Toggle */}
-                  <label className="flex items-center cursor-pointer group">
-                    <div className="relative">
-                      <input
-                        type="checkbox"
-                        checked={isBuilderMode}
-                        onChange={(e) => {
-                          setIsBuilderMode(e.target.checked)
-                          if (e.target.checked) {
-                            setShowAdvancedMode(true)
-                          }
-                        }}
-                        className="sr-only"
-                      />
-                      <div className={`block w-6 h-3.5 md:w-8 md:h-4.5 rounded-full transition ${isBuilderMode ? 'bg-gold' : 'bg-gray-600'}`}></div>
-                      <div className={`dot absolute left-0.5 top-0.5 md:left-0.5 md:top-0.5 bg-white w-2.5 h-2.5 md:w-3.5 md:h-3.5 rounded-full transition ${isBuilderMode ? 'transform translate-x-2.5 md:translate-x-3.5' : ''}`}></div>
-                    </div>
-                    <span className="text-[9px] md:text-[10px] text-gray-400 ml-1.5 font-medium group-hover:text-gold transition-colors">Visual Builder</span>
-                  </label>
+              {/* Tab Switcher */}
+              <div className="flex items-center justify-between mb-2 gap-3 px-1">
+                <div className="flex items-center gap-1 bg-dark-900 p-1 rounded-lg border border-gray-700">
+                  {/* LLM Interface Tab */}
+                  <button
+                    onClick={() => setIsBuilderMode(false)}
+                    className={`px-3 py-1 rounded text-[10px] font-medium transition-all ${
+                      !isBuilderMode
+                        ? 'bg-gold text-dark-900'
+                        : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    LLM Interface
+                  </button>
 
-                  {/* Advanced Mode Toggle */}
-                  <label className="flex items-center cursor-pointer group">
-                    <div className="relative">
-                      <input
-                        type="checkbox"
-                        checked={showAdvancedMode}
-                        onChange={(e) => setShowAdvancedMode(e.target.checked)}
-                        className="sr-only"
-                      />
-                      <div className={`block w-6 h-3.5 md:w-8 md:h-4.5 rounded-full transition ${showAdvancedMode ? 'bg-purple-500' : 'bg-gray-600'}`}></div>
-                      <div className={`dot absolute left-0.5 top-0.5 md:left-0.5 md:top-0.5 bg-white w-2.5 h-2.5 md:w-3.5 md:h-3.5 rounded-full transition ${showAdvancedMode ? 'transform translate-x-2.5 md:translate-x-3.5' : ''}`}></div>
-                    </div>
-                    <span className="text-[9px] md:text-[10px] text-gray-400 ml-1.5 font-medium group-hover:text-purple-400 transition-colors">Advanced</span>
-                  </label>
+                  {/* Visual Query Builder Tab */}
+                  <button
+                    onClick={() => {
+                      setIsBuilderMode(true)
+                      setShowAdvancedMode(true)
+                    }}
+                    className={`px-3 py-1 rounded text-[10px] font-medium transition-all ${
+                      isBuilderMode
+                        ? 'bg-gold text-dark-900'
+                        : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    Visual Query Builder
+                  </button>
                 </div>
 
-                <div className="text-[9px] md:text-[10px] text-gray-500 font-mono tracking-tighter">
-                  QUERY_ENGINE_V1.2
+                <div className="flex items-center gap-3">
+                  {/* Advanced Mode Toggle (only for LLM mode) */}
+                  {!isBuilderMode && (
+                    <label className="flex items-center cursor-pointer group">
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          checked={showAdvancedMode}
+                          onChange={(e) => setShowAdvancedMode(e.target.checked)}
+                          className="sr-only"
+                        />
+                        <div className={`block w-6 h-3.5 md:w-8 md:h-4.5 rounded-full transition ${showAdvancedMode ? 'bg-purple-500' : 'bg-gray-600'}`}></div>
+                        <div className={`dot absolute left-0.5 top-0.5 md:left-0.5 md:top-0.5 bg-white w-2.5 h-2.5 md:w-3.5 md:h-3.5 rounded-full transition ${showAdvancedMode ? 'transform translate-x-2.5 md:translate-x-3.5' : ''}`}></div>
+                      </div>
+                      <span className="text-[9px] md:text-[10px] text-gray-400 ml-1.5 font-medium group-hover:text-purple-400 transition-colors">Advanced</span>
+                    </label>
+                  )}
+
+                  <div className="text-[9px] md:text-[10px] text-gray-500 font-mono tracking-tighter">
+                    QUERY_ENGINE_V1.2
+                  </div>
                 </div>
               </div>
               {isBuilderMode ? (
