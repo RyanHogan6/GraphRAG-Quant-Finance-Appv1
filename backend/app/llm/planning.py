@@ -113,6 +113,16 @@ def get_relevant_schema(question, intent):
             "critical_notes": "❌ NO embeddings - use text filters only",
             "sample_query": "FOR f IN sec_filings FILTER f.ticker == @ticker AND f.type == '10-K' SORT f.filing_date DESC LIMIT 20 RETURN f"
         },
+        "sec_sections": {
+            "description": "SEC filing sections (Risk Factors, MD&A, etc.) with semantic search",
+            "key_fields": [
+                "filing_id", "section_type", "start_char", "length",
+                "section_embedding (array[1536] - for semantic search!)",
+                "risk_topics (list)", "dollar_mentions (int)", "max_dollar_amount (float)"
+            ],
+            "critical_notes": "✅ HAS section_embedding - use COSINE_SIMILARITY(doc.section_embedding, @query_vector) for semantic search over Risk Factors/MD&A",
+            "sample_query": "FOR doc IN sec_sections FILTER doc.section_type == 'Item 1A Risk Factors' SORT COSINE_SIMILARITY(doc.section_embedding, @query_vector) DESC LIMIT 10 RETURN doc"
+        },
         "sec_sentences": {
             "description": "Individual SEC sentences with sentiment (NO embeddings!)",
             "key_fields": [
