@@ -18,3 +18,4 @@ openai>=1.0.0
 
 # Additional pipeline dependencies
 tqdm>=4.65.0
+fredapi>=0.5.0  # FRED Federal Reserve Economic Data
