@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import TimeSeriesChart from './TimeSeriesChart'
 import { motion, AnimatePresence } from 'framer-motion'
 import AwardHistory from '@/components/AwardHistory'
+import type { Key } from 'react'
 
 interface CompanyWorkupProps {
     data: any
@@ -30,8 +31,8 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
 
     // Get unique form types
     const formTypes = useMemo(() => {
-        const types = new Set(allSecFilings.map((f: any) => f.type || f.form_type).filter(Boolean))
-        return ['all', ...Array.from(types).sort()]
+        const types = new Set<string>(allSecFilings.map((f: any) => f.type || f.form_type).filter(Boolean))
+        return ['all', ...Array.from(types).sort()] as string[]
     }, [allSecFilings])
 
     const latestMarket = marketData[0] || {}
