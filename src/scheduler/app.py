@@ -70,9 +70,9 @@ try:
         from awards.arango_uploader import upsert_awards
         AWARDS_AVAILABLE = True
         logger.info("✓ Awards pipeline available")
-    except ImportError:
+    except ImportError as e:
         AWARDS_AVAILABLE = False
-        logger.warning("⚠️ Awards pipeline not available (not deployed)")
+        logger.warning(f"⚠️ Awards pipeline not available (not deployed): {e}")
 
     # CFTC (optional)
     try:
@@ -81,9 +81,9 @@ try:
         from cftc.arango_uploader import upsert_commodity_positions
         CFTC_AVAILABLE = True
         logger.info("✓ CFTC pipeline available")
-    except ImportError:
+    except ImportError as e:
         CFTC_AVAILABLE = False
-        logger.warning("⚠️ CFTC pipeline not available (not deployed)")
+        logger.warning(f"⚠️ CFTC pipeline not available (not deployed): {e}")
 
     # EIA (optional)
     try:
@@ -92,9 +92,9 @@ try:
         from eia.arango_uploader import upsert_all_eia_data
         EIA_AVAILABLE = True
         logger.info("✓ EIA pipeline available")
-    except ImportError:
+    except ImportError as e:
         EIA_AVAILABLE = False
-        logger.warning("⚠️ EIA pipeline not available (not deployed)")
+        logger.warning(f"⚠️ EIA pipeline not available (not deployed): {e}")
 
     # FRED (optional)
     try:
@@ -103,9 +103,11 @@ try:
         from fred.arango_uploader import upsert_fred_data
         FRED_AVAILABLE = True
         logger.info("✓ FRED pipeline available")
-    except ImportError:
+    except ImportError as e:
         FRED_AVAILABLE = False
-        logger.warning("⚠️ FRED pipeline not available (not deployed)")
+        logger.warning(f"⚠️ FRED pipeline not available (not deployed): {e}")
+        import traceback
+        traceback.print_exc()
 
     logger.info("✓ Successfully imported all pipeline modules")
 except Exception as e:
