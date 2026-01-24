@@ -53,6 +53,8 @@ def clean_column_name(col):
 
 def upsert_commodity_positions(db, df):
     """Upload commodity positions to ArangoDB"""
+    import numpy as np
+
     setup_collections(db)
 
     commodity_col = db.collection(COMMODITY_COL)
@@ -85,9 +87,23 @@ def upsert_commodity_positions(db, df):
         for col in df.columns:
             if col not in ['CFTC Commodity Code', 'As of Date in Form YYYY-MM-DD']:
                 val = row.get(col)
-                if val is not None and str(val).strip() != '':
-                    clean_col = clean_column_name(col)
-                    doc[clean_col] = val
+
+                # Skip null/empty values
+                if val is None or (isinstance(val, str) and str(val).strip() == ''):
+                    continue
+
+                # Clean NaN/infinity for numeric values
+                if isinstance(val, (int, float)):
+                    if np.isnan(val) or np.isinf(val):
+                        continue
+                    # Convert numpy types to Python types
+                    if isinstance(val, (np.integer, np.int64, np.int32)):
+                        val = int(val)
+                    elif isinstance(val, (np.floating, np.float64, np.float32)):
+                        val = float(val)
+
+                clean_col = clean_column_name(col)
+                doc[clean_col] = val
 
         docs.append(doc)
 
