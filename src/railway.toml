@@ -11,7 +11,7 @@ pythonVersion = "3.11"
 [deploy]
 # Railway root directory is set to: src
 # Nixpacks auto-installs from requirements.txt at build time
-# Just run the scheduler
-startCommand = "python scheduler/app.py"
+# Activate venv and run the scheduler
+startCommand = ". /opt/venv/bin/activate && python scheduler/app.py"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
