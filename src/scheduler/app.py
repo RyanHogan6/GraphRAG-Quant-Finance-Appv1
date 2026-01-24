@@ -79,6 +79,8 @@ try:
         from cftc.downloader import fetch_recent_cftc_data
         from cftc.features import engineer_cftc_features
         from cftc.arango_uploader import upsert_commodity_positions
+        # Import commodity company edge creator
+        from create_commodity_company_edges import create_commodity_company_edges
         CFTC_AVAILABLE = True
         logger.info("✓ CFTC pipeline available")
     except ImportError as e:
@@ -330,7 +332,7 @@ def run_cftc_pipeline():
 
     try:
         # Step 1: Fetch recent CFTC data (last 4 weeks)
-        logger.info("[1/3] Fetching recent CFTC data (last 4 weeks)...")
+        logger.info("[1/4] Fetching recent CFTC data (last 4 weeks)...")
         cftc_df = fetch_recent_cftc_data(weeks_back=4)
 
         if cftc_df.empty:
@@ -340,15 +342,24 @@ def run_cftc_pipeline():
         logger.info(f"✓ Fetched {len(cftc_df)} records")
 
         # Step 2: Engineer features
-        logger.info("[2/3] Engineering features...")
+        logger.info("[2/4] Engineering features...")
         cftc_df = engineer_cftc_features(cftc_df)
         logger.info(f"✓ Processed {len(cftc_df)} records")
 
         # Step 3: Upload to ArangoDB
-        logger.info("[3/3] Uploading to ArangoDB...")
+        logger.info("[3/4] Uploading to ArangoDB...")
         db = get_arango_connection()
         inserted, updated = upsert_commodity_positions(db, cftc_df)
         logger.info(f"✓ Inserted: {inserted}, Updated: {updated}")
+
+        # Step 4: Create Company → Commodity edges
+        logger.info("[4/4] Creating Company → Commodity edges...")
+        try:
+            edges = create_commodity_company_edges()
+            logger.info(f"✓ Created {len(edges):,} Company → futures_prices edges")
+        except Exception as e:
+            logger.warning(f"⚠️ Edge creation failed (non-fatal): {e}")
+            # Don't fail the whole pipeline if edge creation fails
 
         return True
 
