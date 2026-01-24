@@ -151,6 +151,23 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
     const selectedCategory = CATEGORIES.find(c => c.key === category)
     const sourceNode = source ? GRAPH_SCHEMA[source] : null
 
+    // Auto-add awards and SEC filings for company queries
+    useEffect(() => {
+        if (source === 'company' && sourceNode) {
+            // Always include awards and SEC filings for companies
+            const autoEnrichments: Enrichment[] = []
+            if (!enrichments.find(e => e.targetKey === 'awards')) {
+                autoEnrichments.push({ targetKey: 'awards' })
+            }
+            if (!enrichments.find(e => e.targetKey === 'sec')) {
+                autoEnrichments.push({ targetKey: 'sec' })
+            }
+            if (autoEnrichments.length > 0) {
+                setEnrichments([...enrichments, ...autoEnrichments])
+            }
+        }
+    }, [source, sourceNode])
+
     // Generate AQL whenever state changes
     useEffect(() => {
         if (!sourceNode) return

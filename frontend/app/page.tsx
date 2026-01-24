@@ -998,7 +998,7 @@ export default function HomePage() {
                 onClick={() => setExpandedMessageIdx(null)}
               >
                 <div
-                  className="bg-dark-800 border border-gold/30 rounded-xl w-full max-w-[85vw] h-[90vh] overflow-hidden flex flex-col shadow-2xl relative"
+                  className="bg-dark-800 border border-gold/30 rounded-xl w-full max-w-[96vw] h-[92vh] overflow-hidden flex flex-col shadow-2xl relative"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-center justify-between p-4 border-b border-gold/20 bg-dark-900/50">
@@ -1022,7 +1022,7 @@ export default function HomePage() {
             {/* Messages */}
             <div
               ref={chatScrollRef}
-              className="min-h-[400px] h-[60vh] md:h-[600px] lg:h-[700px] overflow-y-auto p-3 md:p-4 space-y-4 md:space-y-6 scroll-smooth"
+              className="min-h-[500px] h-[70vh] md:h-[75vh] lg:h-[78vh] overflow-y-auto p-3 md:p-4 space-y-4 md:space-y-6 scroll-smooth"
             >
               {/* Visual Query Builder - Show at top when in builder mode */}
               {isBuilderMode && (
@@ -1058,8 +1058,8 @@ export default function HomePage() {
                 >
                   <div
                     className={`max-w-[95%] md:max-w-[90%] rounded-2xl p-3 md:p-4 relative group transition-all duration-300 shadow-lg ${message.role === 'user'
-                      ? 'bg-gold/15 border border-gold/30 text-gray-100 rounded-tr-none'
-                      : 'bg-dark-900/50 border border-white/5 text-gray-300 rounded-tl-none'
+                      ? 'bg-gold/15 border border-gold/30 text-white rounded-tr-none'
+                      : 'bg-dark-800/90 border border-white/10 text-gray-50 rounded-tl-none'
                       }`}
                   >
                     {/* Expand/Maximize Button for AI results */}

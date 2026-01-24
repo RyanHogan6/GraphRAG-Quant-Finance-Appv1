@@ -23,6 +23,14 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
     const allSecFilings = data.sec_filings || []
     const polyMarkets = data.prediction_markets_polymarket || []
     const awards = data.Award || []
+    const optionsFlow = data.options_flow || []
+    const futuresPrices = data.futures_prices || []
+    const eiaData = {
+        crude: data.eia_crude_inventory || [],
+        natgasStorage: data.eia_natgas_storage || [],
+        natgasProduction: data.eia_natgas_production || [],
+        lng: data.eia_lng || []
+    }
 
     // Filter SEC filings by form type
     const secFilings = selectedFormType === 'all'
@@ -277,7 +285,7 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                     {/* Regulatory Column */}
                     <div className="bg-dark-900/40 border border-blue-500/10 rounded-2xl p-4 md:p-6 shadow-xl backdrop-blur-sm">
                         <div className="flex items-center justify-between mb-4 md:mb-6">
-                            <h3 className="text-[10px] md:text-xs font-bold text-blue-400 uppercase tracking-[0.2em] flex items-center gap-3">
+                            <h3 className="text-xs md:text-sm font-bold text-blue-400 uppercase tracking-[0.2em] flex items-center gap-3">
                                 <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
                                 SEC Intelligent Signals
                             </h3>
@@ -303,59 +311,122 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                                         onClick={() => setSelectedDetail({ type: 'SEC', data: f })}
                                         className="bg-black/30 rounded-xl p-4 border border-white/5 hover:border-blue-500/40 transition-all cursor-pointer group shadow-sm hover:shadow-blue-500/5"
                                     >
-                                        <div className="flex justify-between items-center text-[10px] mb-3">
-                                            <span className="text-gray-400 font-bold px-1.5 py-0.5 bg-dark-800 rounded">{f.type || f.form_type}</span>
-                                            <div className={`px-2 py-0.5 rounded-full text-[9px] ${(f.avg_finbert || 0) > 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'} font-black`}>
+                                        <div className="flex justify-between items-center text-xs mb-3">
+                                            <span className="text-gray-200 font-bold px-2 py-1 bg-dark-800 rounded">{f.type || f.form_type}</span>
+                                            <div className={`px-2 py-1 rounded-full text-xs ${(f.avg_finbert || 0) > 0 ? 'bg-green-500/10 text-green-300' : 'bg-red-500/10 text-red-300'} font-black`}>
                                                 BIAS: {(f.avg_finbert || 0).toFixed(3)}
                                             </div>
                                         </div>
-                                        <p className="text-[11px] text-gray-500 italic leading-snug line-clamp-3">
+                                        <p className="text-xs text-gray-300 italic leading-snug line-clamp-3">
                                             "{f.top_sentences?.[0]?.text || 'Click for filing details'}"
                                         </p>
-                                        <div className="mt-3 text-[9px] text-blue-400/60 font-mono text-right font-bold group-hover:text-blue-400 transition-colors">Details →</div>
+                                        <div className="mt-3 text-xs text-blue-400/60 font-mono text-right font-bold group-hover:text-blue-300 transition-colors">Details →</div>
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <div className="text-xs text-gray-600 italic py-8 text-center bg-dark-800/20 rounded-xl border border-dashed border-white/5">
-                                No regulatory telemetry in result set
+                            <div className="text-sm text-gray-500 italic py-8 text-center bg-dark-800/20 rounded-xl border border-dashed border-white/5">
+                                No SEC filings available
                             </div>
                         )}
                     </div>
 
-                    {/* Gov Awards Column */}
-                    <div className="bg-dark-900/40 border border-gold/10 rounded-2xl p-4 md:p-6 shadow-xl backdrop-blur-sm">
-                        <h3 className="text-[10px] md:text-xs font-bold text-gold uppercase tracking-[0.2em] mb-4 md:mb-6 flex items-center gap-3">
-                            <div className="w-1.5 h-1.5 rounded-full bg-gold shadow-[0_0_8px_rgba(255,215,0,0.5)]" />
-                            Federal Contract Awards
-                        </h3>
-                        {awards.length > 0 ? (
+                    {/* Options Flow Column */}
+                    {optionsFlow.length > 0 && (
+                        <div className="bg-dark-900/40 border border-green-500/10 rounded-2xl p-4 md:p-6 shadow-xl backdrop-blur-sm">
+                            <h3 className="text-xs md:text-sm font-bold text-green-400 uppercase tracking-[0.2em] mb-4 md:mb-6 flex items-center gap-3">
+                                <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                                Options Flow Activity
+                            </h3>
+                            <div className="space-y-3">
+                                {optionsFlow.slice(0, 3).map((opt: any, i: number) => (
+                                    <div key={i} className="bg-black/30 rounded-xl p-3 border border-white/5">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="text-sm text-gray-200">{opt.date}</span>
+                                            {opt.unusual_call_activity && (
+                                                <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded">Unusual Calls</span>
+                                            )}
+                                            {opt.unusual_put_activity && (
+                                                <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded">Unusual Puts</span>
+                                            )}
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 text-sm">
+                                            <div>
+                                                <span className="text-gray-400">Volume:</span>
+                                                <span className="text-gray-100 ml-1 font-mono">{opt.total_volume?.toLocaleString()}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-gray-400">P/C Ratio:</span>
+                                                <span className="text-gray-100 ml-1 font-mono">{opt.put_call_ratio?.toFixed(2)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Futures Prices Column */}
+                    {futuresPrices.length > 0 && (
+                        <div className="bg-dark-900/40 border border-amber-500/10 rounded-2xl p-4 md:p-6 shadow-xl backdrop-blur-sm">
+                            <h3 className="text-xs md:text-sm font-bold text-amber-400 uppercase tracking-[0.2em] mb-4 md:mb-6 flex items-center gap-3">
+                                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
+                                Commodity Futures
+                            </h3>
                             <div className="overflow-x-auto">
-                                <table className="w-full text-[10px]">
+                                <table className="w-full text-xs">
+                                    <thead>
+                                        <tr className="border-b border-amber-500/10">
+                                            <th className="text-left text-gray-300 font-semibold pb-2">Commodity</th>
+                                            <th className="text-right text-gray-300 font-semibold pb-2">Price</th>
+                                            <th className="text-right text-gray-300 font-semibold pb-2">Change</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {futuresPrices.slice(0, 6).map((f: any, i: number) => (
+                                            <tr key={i} className="border-b border-white/5 hover:bg-amber-500/5 transition-colors">
+                                                <td className="py-2 text-gray-100">{f.commodity_type}</td>
+                                                <td className="py-2 text-right text-amber-400 font-mono font-bold">${f.close?.toFixed(2)}</td>
+                                                <td className={`py-2 text-right font-mono ${f.price_change_pct > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {f.price_change_pct > 0 ? '+' : ''}{f.price_change_pct?.toFixed(2)}%
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Gov Awards Column */}
+                    {awards.length > 0 && (
+                        <div className="bg-dark-900/40 border border-gold/10 rounded-2xl p-4 md:p-6 shadow-xl backdrop-blur-sm">
+                            <h3 className="text-xs md:text-sm font-bold text-gold uppercase tracking-[0.2em] mb-4 md:mb-6 flex items-center gap-3">
+                                <div className="w-1.5 h-1.5 rounded-full bg-gold shadow-[0_0_8px_rgba(255,215,0,0.5)]" />
+                                Federal Contract Awards
+                            </h3>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-xs">
                                     <thead>
                                         <tr className="border-b border-gold/10">
-                                            <th className="text-left text-gray-400 font-semibold pb-2">Agency</th>
-                                            <th className="text-left text-gray-400 font-semibold pb-2">Year</th>
-                                            <th className="text-right text-gray-400 font-semibold pb-2">Amount</th>
+                                            <th className="text-left text-gray-300 font-semibold pb-2">Agency</th>
+                                            <th className="text-left text-gray-300 font-semibold pb-2">Year</th>
+                                            <th className="text-right text-gray-300 font-semibold pb-2">Amount</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {awards.slice(0, 6).map((a: any, i: number) => (
                                             <tr key={i} className="border-b border-white/5 hover:bg-gold/5 transition-colors">
-                                                <td className="py-2 text-gray-200 truncate max-w-[150px]">{a.awarding_agency}</td>
-                                                <td className="py-2 text-gray-400">FY-{a.contract_year || '26'}</td>
+                                                <td className="py-2 text-gray-100 truncate max-w-[150px]">{a.awarding_agency}</td>
+                                                <td className="py-2 text-gray-300">FY-{a.contract_year || '26'}</td>
                                                 <td className="py-2 text-right text-gold font-mono font-bold">${(a.award_amount_float / 1e6).toFixed(1)}M</td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
-                        ) : (
-                            <div className="text-xs text-gray-600 italic py-8 text-center bg-dark-800/20 rounded-xl border border-dashed border-white/5">
-                                No contract telemetry available
-                            </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
