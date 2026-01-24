@@ -10,14 +10,15 @@ from datetime import datetime, timedelta
 EIA_API_KEY = os.getenv('EIA_API_KEY')
 EIA_BASE_URL = "https://api.eia.gov/v2"
 
-def fetch_eia_series(series_id, frequency='weekly', weeks_back=4):
+def fetch_eia_series(series_id, frequency='weekly', years_back=None, weeks_back=4):
     """
     Generic EIA series fetcher
 
     Args:
         series_id: EIA series ID
         frequency: 'weekly' or 'monthly'
-        weeks_back: How many weeks of data to fetch
+        years_back: How many years of data to fetch (overrides weeks_back)
+        weeks_back: How many weeks of data to fetch (default 4)
     """
     if not EIA_API_KEY:
         print("⚠️  EIA_API_KEY not set")
@@ -25,7 +26,10 @@ def fetch_eia_series(series_id, frequency='weekly', weeks_back=4):
 
     # Calculate date range
     end_date = datetime.now()
-    start_date = end_date - timedelta(weeks=weeks_back)
+    if years_back:
+        start_date = end_date - timedelta(days=years_back * 365)
+    else:
+        start_date = end_date - timedelta(weeks=weeks_back)
 
     params = {
         'api_key': EIA_API_KEY,
@@ -57,7 +61,7 @@ def fetch_eia_series(series_id, frequency='weekly', weeks_back=4):
         return pd.DataFrame()
 
 
-def fetch_natgas_storage(weeks_back=4):
+def fetch_natgas_storage(years_back=None, weeks_back=4):
     """
     Fetch Natural Gas Underground Storage (Weekly)
     Most watched nat gas report - released Thursdays
@@ -68,6 +72,7 @@ def fetch_natgas_storage(weeks_back=4):
     df = fetch_eia_series(
         'natural-gas/stor/wkly/data',
         frequency='weekly',
+        years_back=years_back,
         weeks_back=weeks_back
     )
 
@@ -80,7 +85,7 @@ def fetch_natgas_storage(weeks_back=4):
     return df
 
 
-def fetch_crude_inventory(weeks_back=4):
+def fetch_crude_inventory(years_back=None, weeks_back=4):
     """
     Fetch Crude Oil & Petroleum Inventories (Weekly)
     Major market mover - released Wednesdays
@@ -91,6 +96,7 @@ def fetch_crude_inventory(weeks_back=4):
     df = fetch_eia_series(
         'petroleum/stoc/wstk/data',
         frequency='weekly',
+        years_back=years_back,
         weeks_back=weeks_back
     )
 
@@ -103,20 +109,18 @@ def fetch_crude_inventory(weeks_back=4):
     return df
 
 
-def fetch_lng_exports(weeks_back=8):
+def fetch_lng_exports(years_back=None, weeks_back=8):
     """
     Fetch LNG Exports (Monthly)
     Growing market importance
     """
     print("  Fetching LNG Exports (Monthly)...")
 
-    # Convert weeks to months for monthly data
-    months_back = max(2, weeks_back // 4)
-
     df = fetch_eia_series(
         'natural-gas/move/expc/data',
         frequency='monthly',
-        weeks_back=months_back * 4
+        years_back=years_back,
+        weeks_back=weeks_back
     )
 
     if df.empty:
@@ -128,19 +132,18 @@ def fetch_lng_exports(weeks_back=8):
     return df
 
 
-def fetch_natgas_production(weeks_back=8):
+def fetch_natgas_production(years_back=None, weeks_back=8):
     """
     Fetch Natural Gas Production (Monthly)
     Supply-side fundamentals
     """
     print("  Fetching Natural Gas Production (Monthly)...")
 
-    months_back = max(2, weeks_back // 4)
-
     df = fetch_eia_series(
         'natural-gas/prod/sum/data',
         frequency='monthly',
-        weeks_back=months_back * 4
+        years_back=years_back,
+        weeks_back=weeks_back
     )
 
     if df.empty:
@@ -152,15 +155,24 @@ def fetch_natgas_production(weeks_back=8):
     return df
 
 
-def fetch_all_eia_data(weeks_back=4):
-    """Fetch all EIA datasets"""
-    print("\nFetching EIA energy data...")
+def fetch_all_eia_data(years_back=None, weeks_back=4):
+    """
+    Fetch all EIA datasets
+
+    Args:
+        years_back: Fetch N years of historical data (for initial backfill)
+        weeks_back: Fetch N weeks of data (for incremental updates)
+    """
+    if years_back:
+        print(f"\nFetching EIA energy data (last {years_back} years)...")
+    else:
+        print(f"\nFetching EIA energy data (last {weeks_back} weeks)...")
 
     datasets = {
-        'natgas_storage': fetch_natgas_storage(weeks_back),
-        'crude_inventory': fetch_crude_inventory(weeks_back),
-        'lng_exports': fetch_lng_exports(weeks_back),
-        'natgas_production': fetch_natgas_production(weeks_back)
+        'natgas_storage': fetch_natgas_storage(years_back, weeks_back),
+        'crude_inventory': fetch_crude_inventory(years_back, weeks_back),
+        'lng_exports': fetch_lng_exports(years_back, weeks_back),
+        'natgas_production': fetch_natgas_production(years_back, weeks_back)
     }
 
     total_records = sum(len(df) for df in datasets.values() if not df.empty)

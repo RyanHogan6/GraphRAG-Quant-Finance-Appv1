@@ -34,7 +34,7 @@ def engineer_eia_features(df, dataset_name):
     # Calculate change from previous period
     if 'value' in df.columns:
         df['change_from_previous'] = df['value'].diff()
-        df['pct_change'] = df['value'].pct_change() * 100
+        df['pct_change'] = df['value'].pct_change(fill_method=None) * 100
 
     # Add metadata
     df['ingested_at'] = pd.Timestamp.now().isoformat()

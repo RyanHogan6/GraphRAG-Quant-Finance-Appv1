@@ -203,9 +203,16 @@ def run_eia_pipeline():
     logger.info("="*80)
 
     try:
-        # Step 1: Fetch all EIA datasets (last 4 weeks)
-        logger.info("[1/3] Fetching EIA energy data (last 4 weeks)...")
-        datasets = fetch_all_eia_data(weeks_back=4)
+        # Check for historical backfill mode
+        historical_years = os.getenv('EIA_HISTORICAL_YEARS')
+        if historical_years:
+            years = int(historical_years)
+            logger.info(f"[1/3] Fetching EIA energy data (last {years} years - HISTORICAL BACKFILL)...")
+            datasets = fetch_all_eia_data(years_back=years)
+        else:
+            # Step 1: Fetch all EIA datasets (last 4 weeks for incremental updates)
+            logger.info("[1/3] Fetching EIA energy data (last 4 weeks)...")
+            datasets = fetch_all_eia_data(weeks_back=4)
 
         total_records = sum(len(df) for df in datasets.values() if not df.empty)
         if total_records == 0:
