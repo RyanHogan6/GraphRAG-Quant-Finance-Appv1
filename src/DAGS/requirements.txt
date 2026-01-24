@@ -15,6 +15,6 @@ tqdm>=4.65.0
 openai>=1.0.0
 python-dotenv>=1.0.0
 
-# Awards pipeline (FinBERT embeddings)
-torch>=2.0.0
-transformers>=4.30.0
+# Awards pipeline (FinBERT embeddings) - COMMENTED OUT FOR NOW (large download)
+# torch>=2.0.0
+# transformers>=4.30.0

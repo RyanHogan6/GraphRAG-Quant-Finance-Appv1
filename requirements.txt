@@ -4,12 +4,13 @@ pandas
 numpy
 openai
 anthropic
-torch
+# torch  # COMMENTED OUT FOR NOW (large download)
 python-dotenv
-transformers
+# transformers  # COMMENTED OUT FOR NOW (large download)
 streamlit-searchbox
 fredapi>=0.5.0
 APScheduler>=3.10.0
 requests>=2.31.0
 tenacity>=8.2.0
 tqdm>=4.65.0
+yfinance>=0.2.0  # For CME futures data

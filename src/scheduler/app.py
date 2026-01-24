@@ -109,6 +109,17 @@ try:
         import traceback
         traceback.print_exc()
 
+    # CME Futures (optional)
+    try:
+        from cme.downloader import fetch_all_futures_data
+        from cme.features import engineer_futures_features
+        from cme.arango_uploader import upsert_futures_data
+        CME_AVAILABLE = True
+        logger.info("✓ CME Futures pipeline available")
+    except ImportError as e:
+        CME_AVAILABLE = False
+        logger.warning(f"⚠️ CME Futures pipeline not available (not deployed): {e}")
+
     logger.info("✓ Successfully imported all pipeline modules")
 except Exception as e:
     logger.error(f"✗ Failed to import pipeline modules: {e}")
@@ -346,6 +357,54 @@ def run_cftc_pipeline():
         return False
 
 
+def run_cme_pipeline():
+    """Execute CME/NYMEX Futures Prices ETL pipeline"""
+    logger.info("\n" + "="*80)
+    logger.info("CME/NYMEX FUTURES PRICES PIPELINE")
+    logger.info("="*80)
+
+    try:
+        # Check for historical backfill mode
+        historical_years = os.getenv('CME_HISTORICAL_YEARS')
+        if historical_years:
+            years = int(historical_years)
+            days = years * 365
+            logger.info(f"[1/3] Fetching futures data (last {years} years - HISTORICAL BACKFILL)...")
+            futures_df = fetch_all_futures_data(days_back=days)
+        else:
+            # Incremental: last 90 days (matches CFTC weekly updates)
+            logger.info("[1/3] Fetching futures data (last 90 days)...")
+            futures_df = fetch_all_futures_data(days_back=90)
+
+        if futures_df.empty:
+            logger.info("✓ No new futures data found")
+            return True
+
+        logger.info(f"✓ Fetched {len(futures_df)} records across {futures_df['commodity'].nunique()} commodities")
+
+        # Step 2: Engineer features (technical indicators, momentum, volatility)
+        logger.info("[2/3] Engineering features...")
+        futures_df = engineer_futures_features(futures_df)
+        logger.info(f"✓ Processed {len(futures_df)} records")
+
+        # Step 3: Upload to ArangoDB with graph edges
+        logger.info("[3/3] Uploading to ArangoDB and creating graph edges...")
+        db = get_arango_connection()
+        inserted, updated, edge_counts = upsert_futures_data(db, futures_df)
+
+        logger.info(f"✓ Inserted: {inserted}, Updated: {updated}")
+        for edge_type, count in edge_counts.items():
+            logger.info(f"  {edge_type}: {count}")
+
+        return True
+
+    except Exception as e:
+        logger.error(f"✗ CME pipeline failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
 def run_awards_pipeline():
     """Execute Awards (USASpending) ETL pipeline"""
     logger.info("\n" + "="*80)
@@ -546,7 +605,7 @@ def run_pipeline():
     logger.info("\n" + "="*80)
     logger.info(f"MASTER PIPELINE STARTED: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("="*80)
-    logger.info("Execution order: FRED → CFTC → EIA → Awards → Kalshi → Polymarket (Yahoo disabled)")
+    logger.info("Execution order: CME → FRED → CFTC → EIA → Awards → Kalshi → Polymarket (Yahoo disabled)")
     logger.info("="*80 + "\n")
 
     results = {
@@ -555,11 +614,20 @@ def run_pipeline():
         'polymarket': False,
         'awards': False,
         'cftc': False,
+        'cme': False,
         'eia': False,
         'fred': False
     }
 
-    # Pipeline 1: FRED Economic Data (run first - macro context for everything)
+    # Pipeline 1: CME Futures Prices (TESTING - run first)
+    if CME_AVAILABLE:
+        try:
+            results['cme'] = run_cme_pipeline()
+        except Exception as e:
+            logger.error(f"CME pipeline crashed: {e}")
+            results['cme'] = False
+
+    # Pipeline 2: FRED Economic Data (macro context for everything)
     if FRED_AVAILABLE:
         try:
             results['fred'] = run_fred_pipeline()
@@ -567,7 +635,7 @@ def run_pipeline():
             logger.error(f"FRED pipeline crashed: {e}")
             results['fred'] = False
 
-    # Pipeline 2: CFTC Commitments of Traders
+    # Pipeline 3: CFTC Commitments of Traders
     if CFTC_AVAILABLE:
         try:
             results['cftc'] = run_cftc_pipeline()
@@ -575,7 +643,7 @@ def run_pipeline():
             logger.error(f"CFTC pipeline crashed: {e}")
             results['cftc'] = False
 
-    # Pipeline 3: EIA Energy Data
+    # Pipeline 4: EIA Energy Data
     if EIA_AVAILABLE:
         try:
             results['eia'] = run_eia_pipeline()
@@ -583,7 +651,7 @@ def run_pipeline():
             logger.error(f"EIA pipeline crashed: {e}")
             results['eia'] = False
 
-    # Pipeline 4: Awards (USASpending)
+    # Pipeline 5: Awards (USASpending)
     if AWARDS_AVAILABLE:
         try:
             results['awards'] = run_awards_pipeline()
@@ -591,21 +659,21 @@ def run_pipeline():
             logger.error(f"Awards pipeline crashed: {e}")
             results['awards'] = False
 
-    # Pipeline 5: Kalshi
+    # Pipeline 6: Kalshi
     try:
         results['kalshi'] = run_kalshi_pipeline()
     except Exception as e:
         logger.error(f"Kalshi pipeline crashed: {e}")
         results['kalshi'] = False
 
-    # Pipeline 6: Polymarket (skip embeddings - use standalone script)
+    # Pipeline 7: Polymarket (skip embeddings - use standalone script)
     try:
         results['polymarket'] = run_polymarket_pipeline(skip_embeddings=True)
     except Exception as e:
         logger.error(f"Polymarket pipeline crashed: {e}")
         results['polymarket'] = False
 
-    # Pipeline 7: Yahoo MarketData (DISABLED - Railway IPs blocked by Yahoo)
+    # Pipeline 8: Yahoo MarketData (DISABLED - Railway IPs blocked by Yahoo)
     logger.info("Skipping Yahoo (blocked on Railway datacenter IPs)")
     results['yahoo'] = True  # Skip but don't fail pipeline
 
@@ -616,6 +684,8 @@ def run_pipeline():
     logger.info("\n" + "="*80)
     logger.info("MASTER PIPELINE COMPLETE")
     logger.info("="*80)
+    if CME_AVAILABLE:
+        logger.info(f"CME Futures: {'✓ SUCCESS' if results['cme'] else '✗ FAILED'}")
     if FRED_AVAILABLE:
         logger.info(f"FRED: {'✓ SUCCESS' if results['fred'] else '✗ FAILED'}")
     if CFTC_AVAILABLE:
