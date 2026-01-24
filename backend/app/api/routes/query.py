@@ -68,6 +68,7 @@ class QueryExecuteResponse(BaseModel):
     follow_up_questions: Optional[List[str]] = None
     query_intent: Optional[str] = None  # db_only, web_only, hybrid
     web_context: Optional[Dict[str, Any]] = None  # Web search results if hybrid/web_only
+    metadata: Optional[Dict[str, Any]] = None  # Query metadata (collections used, data types present)
 
 
 @router.post("/intent")
@@ -109,6 +110,98 @@ def plan_query(request: Request, body: QueryRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def analyze_query_metadata(aql_query: str, results: List[Dict]) -> Dict[str, Any]:
+    """
+    Analyze AQL query and results to determine what data types are present.
+    This enables frontend to conditionally render appropriate sections.
+
+    Returns metadata with:
+    - collections_used: List of collection names found in query
+    - data_types: Boolean flags for each data type (has_options, has_sec_filings, etc.)
+    """
+    import re
+
+    metadata = {
+        "collections_used": [],
+        "data_types": {
+            "has_options": False,
+            "has_sec_filings": False,
+            "has_form4_insider": False,  # Specific for Form 4/5 insider trades
+            "has_awards": False,
+            "has_futures": False,
+            "has_commodities": False,  # CFTC positions
+            "has_eia_data": False,
+            "has_prediction_markets": False,
+            "has_market_data": False
+        }
+    }
+
+    if not aql_query:
+        return metadata
+
+    # Extract collection names from AQL (FOR doc IN CollectionName)
+    collection_pattern = r'FOR\s+\w+\s+IN\s+(\w+)'
+    collections = re.findall(collection_pattern, aql_query, re.IGNORECASE)
+
+    # Also check OUTBOUND/INBOUND traversals (might reference collections)
+    traversal_pattern = r'(?:OUTBOUND|INBOUND)\s+\w+\s+(\w+)'
+    collections.extend(re.findall(traversal_pattern, aql_query, re.IGNORECASE))
+
+    # Remove duplicates and filter out common keywords
+    collections = list(set(c for c in collections if c.upper() not in ['FILTER', 'SORT', 'LIMIT', 'RETURN']))
+    metadata["collections_used"] = collections
+
+    # Set data type flags based on collections found
+    for coll in collections:
+        coll_lower = coll.lower()
+
+        if coll_lower == 'options_flow':
+            metadata["data_types"]["has_options"] = True
+
+        if coll_lower == 'sec_filings':
+            metadata["data_types"]["has_sec_filings"] = True
+            # Check if query filters for Form 4/5
+            if 'type' in aql_query and ('"4"' in aql_query or '"5"' in aql_query or '["4"' in aql_query):
+                metadata["data_types"]["has_form4_insider"] = True
+
+        if coll_lower == 'award':
+            metadata["data_types"]["has_awards"] = True
+
+        if coll_lower == 'futures_prices':
+            metadata["data_types"]["has_futures"] = True
+
+        if coll_lower == 'commodity_positions':
+            metadata["data_types"]["has_commodities"] = True
+
+        if coll_lower in ['eia_crude_inventory', 'eia_natgas_storage', 'eia_natgas_production', 'eia_lng_exports']:
+            metadata["data_types"]["has_eia_data"] = True
+
+        if coll_lower in ['prediction_markets_polymarket', 'prediction_markets_kalshi', 'polymarket_traders']:
+            metadata["data_types"]["has_prediction_markets"] = True
+
+        if coll_lower == 'marketdata':
+            metadata["data_types"]["has_market_data"] = True
+
+    # Also check results structure for nested data
+    if results:
+        sample = results[0] if isinstance(results, list) else results
+        if isinstance(sample, dict):
+            # Check for nested data structures
+            if 'options_flow' in sample or any('options' in str(k).lower() for k in sample.keys()):
+                metadata["data_types"]["has_options"] = True
+
+            if 'sec_filings' in sample or 'SEC_filings' in sample:
+                metadata["data_types"]["has_sec_filings"] = True
+
+            if 'awards' in sample or 'Award' in sample:
+                metadata["data_types"]["has_awards"] = True
+
+            if 'futures_prices' in sample:
+                metadata["data_types"]["has_futures"] = True
+
+    return metadata
 
 
 def execute_db_query(question: str, conversation_history: list = None):
@@ -408,6 +501,11 @@ def execute_query(request: Request, body: QueryRequest):
         if results:
             results = enrich_single_company_results(results, query_plan)
 
+        # Generate query metadata for frontend conditional rendering
+        aql_query = query_plan.get('aql_query', '') if query_plan else ''
+        query_metadata = analyze_query_metadata(aql_query, results)
+        print(f"[EXECUTE] Query metadata: {query_metadata}")
+
         return QueryExecuteResponse(
             results=results,
             count=len(results),
@@ -416,7 +514,8 @@ def execute_query(request: Request, body: QueryRequest):
             analysis=analysis,
             follow_up_questions=follow_ups,
             query_intent=query_intent,
-            web_context=web_context_data
+            web_context=web_context_data,
+            metadata=query_metadata
         )
 
     except Exception as e:
@@ -469,6 +568,7 @@ async def execute_query_stream(request: Request, body: QueryRequest):
                     'follow_up_questions': cached_result.get('follow_up_questions', []),
                     'query_intent': cached_result.get('query_intent', ''),
                     'web_context': cached_result.get('web_context', {}),
+                    'metadata': cached_result.get('metadata', {}),
                     'from_cache': True
                 }
                 yield f"data: {json.dumps(final_payload)}\n\n"
@@ -607,6 +707,11 @@ async def execute_query_stream(request: Request, body: QueryRequest):
             if results:
                 results = enrich_single_company_results(results, query_plan)
 
+            # Generate query metadata for frontend conditional rendering
+            aql_query = query_plan.get('aql_query', '') if query_plan else ''
+            query_metadata = analyze_query_metadata(aql_query, results)
+            print(f"[STREAM] Query metadata: {query_metadata}")
+
             # Step 6: Send complete payload
             final_payload = {
                 'type': 'complete',
@@ -619,7 +724,8 @@ async def execute_query_stream(request: Request, body: QueryRequest):
                 'web_context': {
                     'sources': web_context_data.get('sources', []),
                     'citations': web_context_data.get('citations', [])
-                }
+                },
+                'metadata': query_metadata
             }
 
             # Cache the complete result for future queries
@@ -633,7 +739,8 @@ async def execute_query_stream(request: Request, body: QueryRequest):
                 'web_context': {
                     'sources': web_context_data.get('sources', []),
                     'citations': web_context_data.get('citations', [])
-                }
+                },
+                'metadata': query_metadata
             }
             query_cache.set(body.question, cache_data)
 
