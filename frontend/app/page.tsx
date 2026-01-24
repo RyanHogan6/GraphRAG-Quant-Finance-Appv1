@@ -1050,7 +1050,8 @@ export default function HomePage() {
                 </div>
               )}
 
-              {messages.map((message, idx) => (
+              {/* Only show messages in LLM mode OR if there are actual messages in builder mode */}
+              {messages.filter((m, idx) => !isBuilderMode || idx > 0).map((message, idx) => (
                 <div
                   key={idx}
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}

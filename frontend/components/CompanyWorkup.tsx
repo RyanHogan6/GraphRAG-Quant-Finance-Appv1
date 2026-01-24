@@ -14,13 +14,25 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
     const [timeframe, setTimeframe] = useState<'1M' | '3M' | '6M' | '1Y' | '5Y'>('1M')
     const [showAllMetrics, setShowAllMetrics] = useState(false)
     const [selectedDetail, setSelectedDetail] = useState<{ type: 'SEC' | 'Award', data: any } | null>(null)
+    const [selectedFormType, setSelectedFormType] = useState<string>('all')
 
     // Extract nested data
     const company = data
     const marketData = data.MarketData || []
-    const secFilings = data.sec_filings || []
+    const allSecFilings = data.sec_filings || []
     const polyMarkets = data.prediction_markets_polymarket || []
     const awards = data.Award || []
+
+    // Filter SEC filings by form type
+    const secFilings = selectedFormType === 'all'
+        ? allSecFilings
+        : allSecFilings.filter((f: any) => (f.type || f.form_type) === selectedFormType)
+
+    // Get unique form types
+    const formTypes = useMemo(() => {
+        const types = new Set(allSecFilings.map((f: any) => f.type || f.form_type).filter(Boolean))
+        return ['all', ...Array.from(types).sort()]
+    }, [allSecFilings])
 
     const latestMarket = marketData[0] || {}
 
@@ -263,10 +275,25 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                 <div className="xl:col-span-4 space-y-8">
                     {/* Regulatory Column */}
                     <div className="bg-dark-900/40 border border-blue-500/10 rounded-2xl p-4 md:p-6 shadow-xl backdrop-blur-sm">
-                        <h3 className="text-[10px] md:text-xs font-bold text-blue-400 uppercase tracking-[0.2em] mb-4 md:mb-6 flex items-center gap-3">
-                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
-                            SEC Intelligent Signals
-                        </h3>
+                        <div className="flex items-center justify-between mb-4 md:mb-6">
+                            <h3 className="text-[10px] md:text-xs font-bold text-blue-400 uppercase tracking-[0.2em] flex items-center gap-3">
+                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                                SEC Intelligent Signals
+                            </h3>
+                            {allSecFilings.length > 0 && (
+                                <select
+                                    value={selectedFormType}
+                                    onChange={(e) => setSelectedFormType(e.target.value)}
+                                    className="text-[10px] bg-dark-800 border border-blue-500/20 rounded px-2 py-1 text-gray-300 focus:border-blue-500/50 outline-none"
+                                >
+                                    {formTypes.map((type) => (
+                                        <option key={type} value={type}>
+                                            {type === 'all' ? 'All Forms' : `Form ${type}`}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
+                        </div>
                         {secFilings.length > 0 ? (
                             <div className="space-y-4">
                                 {secFilings.slice(0, 3).map((f: any, i: number) => (
@@ -276,13 +303,13 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                                         className="bg-black/30 rounded-xl p-4 border border-white/5 hover:border-blue-500/40 transition-all cursor-pointer group shadow-sm hover:shadow-blue-500/5"
                                     >
                                         <div className="flex justify-between items-center text-[10px] mb-3">
-                                            <span className="text-gray-400 font-bold px-1.5 py-0.5 bg-dark-800 rounded">{f.form_type}</span>
-                                            <div className={`px-2 py-0.5 rounded-full text-[9px] ${f.avg_finbert > 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'} font-black`}>
-                                                BIAS: {f.avg_finbert?.toFixed(3)}
+                                            <span className="text-gray-400 font-bold px-1.5 py-0.5 bg-dark-800 rounded">{f.type || f.form_type}</span>
+                                            <div className={`px-2 py-0.5 rounded-full text-[9px] ${(f.avg_finbert || 0) > 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'} font-black`}>
+                                                BIAS: {(f.avg_finbert || 0).toFixed(3)}
                                             </div>
                                         </div>
                                         <p className="text-[11px] text-gray-500 italic leading-snug line-clamp-3">
-                                            "{f.top_sentences?.[0]?.text || 'Regulatory text parsing in progress...'}"
+                                            "{f.top_sentences?.[0]?.text || 'Click for filing details'}"
                                         </p>
                                         <div className="mt-3 text-[9px] text-blue-400/60 font-mono text-right font-bold group-hover:text-blue-400 transition-colors">Details →</div>
                                     </div>
@@ -302,20 +329,25 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                             Federal Contract Awards
                         </h3>
                         {awards.length > 0 ? (
-                            <div className="space-y-3">
-                                {awards.slice(0, 4).map((a: any, i: number) => (
-                                    <div
-                                        key={i}
-                                        onClick={() => setSelectedDetail({ type: 'Award', data: a })}
-                                        className="flex justify-between items-center text-[10px] bg-dark-900 border border-gold/5 p-4 rounded-xl hover:border-gold/30 transition-all cursor-pointer group shadow-sm"
-                                    >
-                                        <div className="max-w-[65%]">
-                                            <div className="text-gray-100 font-bold truncate mb-0.5">{a.awarding_agency}</div>
-                                            <div className="text-gray-500 truncate text-[9px] italic">FY-{a.contract_year || '26'}</div>
-                                        </div>
-                                        <div className="text-gold font-mono font-bold text-xs ring-1 ring-gold/10 px-2 py-1 rounded bg-gold/5">${(a.award_amount_float / 1e6).toFixed(1)}M</div>
-                                    </div>
-                                ))}
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-[10px]">
+                                    <thead>
+                                        <tr className="border-b border-gold/10">
+                                            <th className="text-left text-gray-400 font-semibold pb-2">Agency</th>
+                                            <th className="text-left text-gray-400 font-semibold pb-2">Year</th>
+                                            <th className="text-right text-gray-400 font-semibold pb-2">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {awards.slice(0, 6).map((a: any, i: number) => (
+                                            <tr key={i} className="border-b border-white/5 hover:bg-gold/5 transition-colors">
+                                                <td className="py-2 text-gray-200 truncate max-w-[150px]">{a.awarding_agency}</td>
+                                                <td className="py-2 text-gray-400">FY-{a.contract_year || '26'}</td>
+                                                <td className="py-2 text-right text-gold font-mono font-bold">${(a.award_amount_float / 1e6).toFixed(1)}M</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         ) : (
                             <div className="text-xs text-gray-600 italic py-8 text-center bg-dark-800/20 rounded-xl border border-dashed border-white/5">
@@ -326,9 +358,9 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                 </div>
             </div>
 
-            {/* Detail Modal Overlay (Nested Intelligence) */}
+            {/* SEC Detail Modal (Sentiment Analysis) */}
             <AnimatePresence>
-                {selectedDetail && (
+                {selectedDetail && selectedDetail.type === 'SEC' && (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -339,99 +371,57 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                         <motion.div
                             initial={{ scale: 0.95, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
-                            className="bg-dark-800 border border-gold/30 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-[0_0_50px_rgba(255,215,0,0.1)]"
+                            className="bg-dark-800 border border-blue-500/30 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-[0_0_50px_rgba(59,130,246,0.1)]"
                             onClick={e => e.stopPropagation()}
                         >
-                            <div className="p-6 border-b border-gold/20 flex justify-between items-center bg-dark-900/80">
+                            <div className="p-6 border-b border-blue-500/20 flex justify-between items-center bg-dark-900/80">
                                 <div>
-                                    <h4 className="text-gold font-bold uppercase tracking-[0.3em] text-[10px] mb-1">Telemetry Investigation</h4>
+                                    <h4 className="text-blue-400 font-bold uppercase tracking-[0.3em] text-[10px] mb-1">SEC Filing Analysis</h4>
                                     <div className="text-sm text-white font-bold">
-                                        {selectedDetail.type === 'SEC' ? `${selectedDetail.data.form_type} SEC ANALYSIS` : 'FEDERAL AWARD MANIFEST'}
+                                        Form {selectedDetail.data.type || selectedDetail.data.form_type}
                                     </div>
                                 </div>
                                 <button onClick={() => setSelectedDetail(null)} className="p-2 bg-dark-700 rounded-full text-gray-400 hover:text-white border border-white/10 transition-all">✕</button>
                             </div>
                             <div className="flex-1 overflow-y-auto p-8 space-y-8">
-                                {selectedDetail.type === 'SEC' ? (
-                                    <>
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <div className="text-3xl font-black text-white tracking-tighter">{selectedDetail.data.form_type}</div>
-                                                <div className="text-xs text-gray-400 mt-1 uppercase font-bold tracking-widest">Document Timestamp: {selectedDetail.data.filing_date}</div>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Sentiment Magnitude</div>
-                                                <div className={`text-2xl font-mono font-black ${selectedDetail.data.avg_finbert > 0 ? 'text-green-400 shadow-[0_0_20px_rgba(74,222,128,0.2)]' : 'text-red-400 shadow-[0_0_20px_rgba(248,113,113,0.2)]'}`}>
-                                                    {selectedDetail.data.avg_finbert?.toFixed(4)}
-                                                </div>
-                                            </div>
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <div className="text-3xl font-black text-white tracking-tighter">Form {selectedDetail.data.type || selectedDetail.data.form_type}</div>
+                                        <div className="text-xs text-gray-400 mt-1 uppercase font-bold tracking-widest">Filed: {selectedDetail.data.filing_date || 'Unknown'}</div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Sentiment Score</div>
+                                        <div className={`text-2xl font-mono font-black ${(selectedDetail.data.avg_finbert || 0) > 0 ? 'text-green-400 shadow-[0_0_20px_rgba(74,222,128,0.2)]' : 'text-red-400 shadow-[0_0_20px_rgba(248,113,113,0.2)]'}`}>
+                                            {(selectedDetail.data.avg_finbert || 0).toFixed(4)}
                                         </div>
-                                        <div className="space-y-5">
-                                            <h5 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] border-b border-blue-500/20 pb-2">High-Stakes Extraction</h5>
-                                            {selectedDetail.data.top_sentences?.map((s: any, j: number) => (
-                                                <div key={j} className="bg-dark-900/50 p-5 rounded-2xl border border-white/5 relative group">
-                                                    <div className="absolute top-0 left-0 w-1 h-0 bg-blue-500 group-hover:h-full transition-all duration-300" />
-                                                    <p className="text-xs text-gray-300 leading-relaxed italic">"{s.text}"</p>
-                                                    <div className="mt-3 flex items-center justify-between">
-                                                        <div className="text-[10px] text-blue-500 font-bold uppercase tracking-wider">AI Analysis Signal</div>
-                                                        <div className="text-[10px] text-gray-500 font-mono">Confidence: {(s.score * 100).toFixed(1)}%</div>
-                                                    </div>
+                                    </div>
+                                </div>
+                                <div className="space-y-5">
+                                    <h5 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] border-b border-blue-500/20 pb-2">Key Excerpts</h5>
+                                    {selectedDetail.data.top_sentences && selectedDetail.data.top_sentences.length > 0 ? (
+                                        selectedDetail.data.top_sentences.map((s: any, j: number) => (
+                                            <div key={j} className="bg-dark-900/50 p-5 rounded-2xl border border-white/5 relative group">
+                                                <div className="absolute top-0 left-0 w-1 h-0 bg-blue-500 group-hover:h-full transition-all duration-300" />
+                                                <p className="text-xs text-gray-300 leading-relaxed italic">"{s.text}"</p>
+                                                <div className="mt-3 flex items-center justify-between">
+                                                    <div className="text-[10px] text-blue-500 font-bold uppercase tracking-wider">Sentiment Signal</div>
+                                                    <div className="text-[10px] text-gray-500 font-mono">Score: {(s.score || 0).toFixed(3)}</div>
                                                 </div>
-                                            ))}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="text-xs text-gray-500 italic text-center py-8">
+                                            No sentence-level analysis available for this filing
                                         </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <div className="text-2xl font-black text-white tracking-tighter">{selectedDetail.data.awarding_agency}</div>
-                                                <div className="text-xs text-gray-400 mt-1 uppercase font-black">Fiscal Context: FY-{selectedDetail.data.contract_year || '26'}</div>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">Allocated Value</div>
-                                                <div className="text-2xl font-mono font-black text-gold shadow-[0_0_20px_rgba(255,215,0,0.2)]">
-                                                    ${selectedDetail.data.award_amount_float?.toLocaleString()}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="space-y-6">
-                                            <div>
-                                                <div className="border-b border-gold/20 pb-2 mb-6">
-                                                    <h5 className="text-[10px] font-black text-gold uppercase tracking-[0.2em]">Advanced Procurement Telemetry</h5>
-                                                </div>
-
-                                                <AwardHistory
-                                                    recipientName={selectedDetail.data.recipient_name || company.company}
-                                                    awardAmount={selectedDetail.data.award_amount_float}
-                                                    startDate={selectedDetail.data.start_date}
-                                                    agency={selectedDetail.data.awarding_agency}
-                                                />
-
-                                                <div className="mt-8 pt-6 border-t border-white/5">
-                                                    <div className="text-[10px] text-gray-500 uppercase font-bold mb-3 tracking-widest">Initial Grant Description</div>
-                                                    <div className="text-sm text-gray-300 leading-relaxed bg-black/20 p-6 rounded-2xl border border-white/5 font-medium italic">
-                                                        "{selectedDetail.data.description}"
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="bg-dark-900/80 p-4 rounded-xl border border-white/5 hover:border-gold/20 transition-all">
-                                                    <div className="text-[9px] text-gray-500 uppercase font-black mb-1">Entity Reference</div>
-                                                    <div className="text-xs text-gray-200 font-bold">{selectedDetail.data.matched_sp500_name || company.company}</div>
-                                                </div>
-                                                <div className="bg-dark-900/80 p-4 rounded-xl border border-white/5 hover:border-gold/20 transition-all">
-                                                    <div className="text-[9px] text-gray-500 uppercase font-black mb-1">Execution Start</div>
-                                                    <div className="text-xs text-gray-200 font-bold">{selectedDetail.data.start_date || 'N/A'}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
+                                    )}
+                                </div>
                             </div>
                         </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Award Modal Removed - Awards now displayed in table format (no popup needed) */}
         </div>
     )
 }
