@@ -19,7 +19,18 @@ type Enrichment = {
 }
 
 // Collection grouping structure
-const COLLECTION_GROUPS = {
+type CollectionGroup = {
+    label: string
+    icon: string
+    collections: string[]
+    subItems?: Array<{
+        key: string
+        label: string
+        filter: { field: string; operator: string; value: string } | null
+    }>
+}
+
+const COLLECTION_GROUPS: Record<string, CollectionGroup> = {
     core: {
         label: 'Core Data',
         icon: '📊',
