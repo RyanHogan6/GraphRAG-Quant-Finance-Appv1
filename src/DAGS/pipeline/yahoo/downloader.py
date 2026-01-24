@@ -22,6 +22,11 @@ def download_stock_data(tickers, period='1mo', batch_size=1, sleep_between_ticke
     import time
     import random
 
+    # Set user agent to avoid blocks
+    import requests
+    session = requests.Session()
+    session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+
     if period == '1mo':
         start_date = datetime.today().date() - timedelta(days=30)
     elif period == '6mo':
@@ -40,6 +45,9 @@ def download_stock_data(tickers, period='1mo', batch_size=1, sleep_between_ticke
     print(f"Rate limiting: {sleep_between_tickers}s between tickers (with random jitter)")
     print("This will take approximately {:.1f} minutes".format(len(tickers) * sleep_between_tickers / 60))
 
+    # Initial delay before first request
+    time.sleep(2)
+
     # Download one ticker at a time to avoid rate limiting
     for idx, ticker in enumerate(tickers, 1):
         try:
@@ -47,13 +55,14 @@ def download_stock_data(tickers, period='1mo', batch_size=1, sleep_between_ticke
             if idx % 50 == 0 or idx == len(tickers):
                 print(f"  Progress: {idx}/{len(tickers)} ({idx/len(tickers)*100:.1f}%) - Success: {len(all_records)}, Failed: {len(failed_tickers)}")
 
-            # Download single ticker
+            # Download single ticker with session
             data = yf.download(
                 ticker,
                 start=start_date,
                 end=end_date,
                 auto_adjust=True,
-                progress=False
+                progress=False,
+                session=session
             )
 
             # Check if data is empty

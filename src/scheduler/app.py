@@ -94,8 +94,8 @@ def run_yahoo_pipeline():
 
         # Step 2: Download data ONE TICKER AT A TIME to avoid rate limiting
         logger.info("[2/4] Downloading stock data (30 days)...")
-        logger.info(f"  Downloading one ticker at a time with 3.0s delay (~{len(tickers) * 3.0 / 60:.1f} min)")
-        data_df = download_stock_data(tickers, period='1mo', sleep_between_tickers=3.0)
+        logger.info(f"  Downloading one ticker at a time with 5.0s delay (~{len(tickers) * 5.0 / 60:.1f} min)")
+        data_df = download_stock_data(tickers, period='1mo', sleep_between_tickers=5.0)
         logger.info(f"✓ Downloaded {len(data_df)} rows")
 
         # Check if download succeeded
