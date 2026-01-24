@@ -1079,25 +1079,56 @@ Requires Embedding: false
 
 ---
 
-EXAMPLE 11 - Commodity Positions:
+EXAMPLE 11 - Companies with Commodity Exposure (Use COMPANY_TRADES_COMMODITY Edge):
 Question: "Show me companies with crude oil exposure"
 Intent: commodity_exposure
-Collections: ["commodity_positions"]
+Collections: ["Company", "futures_prices"]
 AQL:
-FOR doc IN commodity_positions
-  FILTER CONTAINS(LOWER(doc.Market_and_Exchange_Names), "crude oil")
-  FILTER doc.net_noncommercial_position != 0
-  SORT ABS(doc.net_noncommercial_position) DESC
-  LIMIT 20
+FOR company IN Company
+  FOR futures IN OUTBOUND company COMPANY_TRADES_COMMODITY
+    FILTER CONTAINS(LOWER(futures.commodity_type), "crude") OR futures.commodity_type == "CRUDE_OIL"
+    SORT futures.date DESC
+    LIMIT 1
+    RETURN DISTINCT {
+      ticker: company.ticker,
+      company_name: company.company,
+      commodity: futures.commodity_type,
+      latest_price: futures.close,
+      latest_date: futures.date,
+      sector: company.sector
+    }
+Bind Variables: {}
+Requires Embedding: false
+Why This Works: Uses COMPANY_TRADES_COMMODITY edge to find companies linked to commodity futures.
+Companies with exposure: XOM, CVX, COP (crude oil), FCX, NEM (copper/gold), ADM (agriculture)
+
+---
+
+EXAMPLE 11b - Mining Companies with Multiple Commodity Exposure:
+Question: "Find mining companies with exposure to gold and copper"
+Intent: multi_commodity_exposure
+Collections: ["Company", "futures_prices"]
+AQL:
+FOR company IN Company
+  FILTER company.sector == "Materials" OR company.industry IN ["Metals & Mining", "Gold"]
+  LET commodities = (
+    FOR futures IN OUTBOUND company COMPANY_TRADES_COMMODITY
+      FILTER futures.commodity_type IN ["GOLD", "COPPER"]
+      RETURN DISTINCT futures.commodity_type
+  )
+  FILTER LENGTH(commodities) >= 2
   RETURN {
-    ticker: doc.ticker,
-    commodity: doc.Market_and_Exchange_Names,
-    report_date: doc.as_of_date,
-    net_position: doc.net_noncommercial_position,
-    open_interest: doc.open_interest
+    ticker: company.ticker,
+    company: company.company,
+    sector: company.sector,
+    industry: company.industry,
+    commodities: commodities,
+    market_cap: company.marketCap
   }
 Bind Variables: {}
 Requires Embedding: false
+Why This Works: Filters for Materials sector, checks COMPANY_TRADES_COMMODITY edges for GOLD and COPPER.
+Known mining companies: FCX (Freeport-McMoRan - copper/gold), NEM (Newmont - gold), GOLD (Barrick - gold)
 
 ---
 
