@@ -85,6 +85,17 @@ try:
         CFTC_AVAILABLE = False
         logger.warning("⚠️ CFTC pipeline not available (not deployed)")
 
+    # EIA (optional)
+    try:
+        from eia.downloader import fetch_all_eia_data
+        from eia.features import engineer_eia_features
+        from eia.arango_uploader import upsert_all_eia_data
+        EIA_AVAILABLE = True
+        logger.info("✓ EIA pipeline available")
+    except ImportError:
+        EIA_AVAILABLE = False
+        logger.warning("⚠️ EIA pipeline not available (not deployed)")
+
     logger.info("✓ Successfully imported all pipeline modules")
 except Exception as e:
     logger.error(f"✗ Failed to import pipeline modules: {e}")
@@ -180,6 +191,52 @@ def run_kalshi_pipeline():
 
     except Exception as e:
         logger.error(f"✗ Kalshi pipeline failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def run_eia_pipeline():
+    """Execute EIA Energy Information Administration ETL pipeline"""
+    logger.info("\n" + "="*80)
+    logger.info("EIA ENERGY DATA PIPELINE")
+    logger.info("="*80)
+
+    try:
+        # Step 1: Fetch all EIA datasets (last 4 weeks)
+        logger.info("[1/3] Fetching EIA energy data (last 4 weeks)...")
+        datasets = fetch_all_eia_data(weeks_back=4)
+
+        total_records = sum(len(df) for df in datasets.values() if not df.empty)
+        if total_records == 0:
+            logger.info("✓ No new EIA data found")
+            return True
+
+        logger.info(f"✓ Fetched {total_records} total records")
+
+        # Step 2: Engineer features for each dataset
+        logger.info("[2/3] Engineering features...")
+        for dataset_key, df in datasets.items():
+            if not df.empty:
+                datasets[dataset_key] = engineer_eia_features(df, dataset_key)
+        logger.info(f"✓ Processed {total_records} records")
+
+        # Step 3: Upload to ArangoDB with graph edges
+        logger.info("[3/3] Uploading to ArangoDB and creating graph edges...")
+        db = get_arango_connection()
+        results = upsert_all_eia_data(db, datasets)
+
+        # Summary
+        total_inserted = sum(r['inserted'] for r in results.values())
+        total_updated = sum(r['updated'] for r in results.values())
+        total_edges = sum(r['edges'] for r in results.values())
+
+        logger.info(f"✓ Inserted: {total_inserted}, Updated: {total_updated}, Edges: {total_edges}")
+
+        return True
+
+    except Exception as e:
+        logger.error(f"✗ EIA pipeline failed: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -422,7 +479,7 @@ def run_pipeline():
     logger.info("\n" + "="*80)
     logger.info(f"MASTER PIPELINE STARTED: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("="*80)
-    logger.info("Execution order: CFTC → Awards → Kalshi → Polymarket (Yahoo disabled)")
+    logger.info("Execution order: CFTC → EIA → Awards → Kalshi → Polymarket (Yahoo disabled)")
     logger.info("="*80 + "\n")
 
     results = {
@@ -430,7 +487,8 @@ def run_pipeline():
         'kalshi': False,
         'polymarket': False,
         'awards': False,
-        'cftc': False
+        'cftc': False,
+        'eia': False
     }
 
     # Pipeline 1: CFTC Commitments of Traders
@@ -441,7 +499,15 @@ def run_pipeline():
             logger.error(f"CFTC pipeline crashed: {e}")
             results['cftc'] = False
 
-    # Pipeline 2: Awards (USASpending)
+    # Pipeline 2: EIA Energy Data
+    if EIA_AVAILABLE:
+        try:
+            results['eia'] = run_eia_pipeline()
+        except Exception as e:
+            logger.error(f"EIA pipeline crashed: {e}")
+            results['eia'] = False
+
+    # Pipeline 3: Awards (USASpending)
     if AWARDS_AVAILABLE:
         try:
             results['awards'] = run_awards_pipeline()
@@ -449,21 +515,21 @@ def run_pipeline():
             logger.error(f"Awards pipeline crashed: {e}")
             results['awards'] = False
 
-    # Pipeline 3: Kalshi
+    # Pipeline 4: Kalshi
     try:
         results['kalshi'] = run_kalshi_pipeline()
     except Exception as e:
         logger.error(f"Kalshi pipeline crashed: {e}")
         results['kalshi'] = False
 
-    # Pipeline 4: Polymarket (skip embeddings - use standalone script)
+    # Pipeline 5: Polymarket (skip embeddings - use standalone script)
     try:
         results['polymarket'] = run_polymarket_pipeline(skip_embeddings=True)
     except Exception as e:
         logger.error(f"Polymarket pipeline crashed: {e}")
         results['polymarket'] = False
 
-    # Pipeline 5: Yahoo MarketData (DISABLED - Railway IPs blocked by Yahoo)
+    # Pipeline 6: Yahoo MarketData (DISABLED - Railway IPs blocked by Yahoo)
     logger.info("Skipping Yahoo (blocked on Railway datacenter IPs)")
     results['yahoo'] = True  # Skip but don't fail pipeline
 
@@ -476,6 +542,8 @@ def run_pipeline():
     logger.info("="*80)
     if CFTC_AVAILABLE:
         logger.info(f"CFTC: {'✓ SUCCESS' if results['cftc'] else '✗ FAILED'}")
+    if EIA_AVAILABLE:
+        logger.info(f"EIA: {'✓ SUCCESS' if results['eia'] else '✗ FAILED'}")
     if AWARDS_AVAILABLE:
         logger.info(f"Awards: {'✓ SUCCESS' if results['awards'] else '✗ FAILED'}")
     logger.info(f"Kalshi: {'✓ SUCCESS' if results['kalshi'] else '✗ FAILED'}")
