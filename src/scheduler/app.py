@@ -422,7 +422,7 @@ def run_pipeline():
     logger.info("\n" + "="*80)
     logger.info(f"MASTER PIPELINE STARTED: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("="*80)
-    logger.info("Execution order: Yahoo → Kalshi → Polymarket → Awards → CFTC")
+    logger.info("Execution order: CFTC → Awards → Kalshi → Polymarket (Yahoo disabled)")
     logger.info("="*80 + "\n")
 
     results = {
@@ -433,39 +433,15 @@ def run_pipeline():
         'cftc': False
     }
 
-    # Pipeline 1: Yahoo MarketData (RUNS FIRST)
-    # Fixes applied:
-    #   ✓ Reduced to current S&P 500 only (~503 tickers, not 852 historical)
-    #   ✓ Download ONE TICKER AT A TIME (avoids batch rate limiting)
-    #   ✓ 0.5s delay between tickers with random jitter
-    #   ✓ Skip fundamentals to avoid extra API calls
-    #   ⏱ Estimated runtime: ~4-5 minutes for 503 tickers
-    try:
-        results['yahoo'] = run_yahoo_pipeline()
-    except Exception as e:
-        logger.error(f"Yahoo pipeline crashed: {e}")
-        results['yahoo'] = False
+    # Pipeline 1: CFTC Commitments of Traders
+    if CFTC_AVAILABLE:
+        try:
+            results['cftc'] = run_cftc_pipeline()
+        except Exception as e:
+            logger.error(f"CFTC pipeline crashed: {e}")
+            results['cftc'] = False
 
-    # Pipeline 2: Kalshi
-    # Memory fixes applied:
-    #   ✓ Reduced batch size from 250 → 100 (handles 102k records)
-    #   ✓ Process dataframe in chunks instead of building full docs list
-    #   ✓ Progress logging every 10k records
-    #   ✓ Memory cleanup between batches
-    try:
-        results['kalshi'] = run_kalshi_pipeline()
-    except Exception as e:
-        logger.error(f"Kalshi pipeline crashed: {e}")
-        results['kalshi'] = False
-
-    # Pipeline 3: Polymarket (skip embeddings - use standalone script)
-    try:
-        results['polymarket'] = run_polymarket_pipeline(skip_embeddings=True)
-    except Exception as e:
-        logger.error(f"Polymarket pipeline crashed: {e}")
-        results['polymarket'] = False
-
-    # Pipeline 4: Awards (USASpending)
+    # Pipeline 2: Awards (USASpending)
     if AWARDS_AVAILABLE:
         try:
             results['awards'] = run_awards_pipeline()
@@ -473,13 +449,23 @@ def run_pipeline():
             logger.error(f"Awards pipeline crashed: {e}")
             results['awards'] = False
 
-    # Pipeline 5: CFTC Commitments of Traders
-    if CFTC_AVAILABLE:
-        try:
-            results['cftc'] = run_cftc_pipeline()
-        except Exception as e:
-            logger.error(f"CFTC pipeline crashed: {e}")
-            results['cftc'] = False
+    # Pipeline 3: Kalshi
+    try:
+        results['kalshi'] = run_kalshi_pipeline()
+    except Exception as e:
+        logger.error(f"Kalshi pipeline crashed: {e}")
+        results['kalshi'] = False
+
+    # Pipeline 4: Polymarket (skip embeddings - use standalone script)
+    try:
+        results['polymarket'] = run_polymarket_pipeline(skip_embeddings=True)
+    except Exception as e:
+        logger.error(f"Polymarket pipeline crashed: {e}")
+        results['polymarket'] = False
+
+    # Pipeline 5: Yahoo MarketData (DISABLED - Railway IPs blocked by Yahoo)
+    logger.info("Skipping Yahoo (blocked on Railway datacenter IPs)")
+    results['yahoo'] = True  # Skip but don't fail pipeline
 
     # Summary
     end_time = datetime.now()
@@ -488,13 +474,13 @@ def run_pipeline():
     logger.info("\n" + "="*80)
     logger.info("MASTER PIPELINE COMPLETE")
     logger.info("="*80)
-    logger.info(f"Yahoo: {'✓ SUCCESS' if results['yahoo'] else '✗ FAILED'}")
-    logger.info(f"Kalshi: {'✓ SUCCESS' if results['kalshi'] else '✗ FAILED'}")
-    logger.info(f"Polymarket: {'✓ SUCCESS' if results['polymarket'] else '✗ FAILED'}")
-    if AWARDS_AVAILABLE:
-        logger.info(f"Awards: {'✓ SUCCESS' if results['awards'] else '✗ FAILED'}")
     if CFTC_AVAILABLE:
         logger.info(f"CFTC: {'✓ SUCCESS' if results['cftc'] else '✗ FAILED'}")
+    if AWARDS_AVAILABLE:
+        logger.info(f"Awards: {'✓ SUCCESS' if results['awards'] else '✗ FAILED'}")
+    logger.info(f"Kalshi: {'✓ SUCCESS' if results['kalshi'] else '✗ FAILED'}")
+    logger.info(f"Polymarket: {'✓ SUCCESS' if results['polymarket'] else '✗ FAILED'}")
+    logger.info(f"Yahoo: SKIPPED (blocked on Railway)")
     logger.info(f"Duration: {duration:.1f}s ({duration/60:.1f}min)")
     logger.info("="*80)
 
