@@ -1024,6 +1024,32 @@ export default function HomePage() {
               ref={chatScrollRef}
               className="min-h-[400px] h-[60vh] md:h-[600px] lg:h-[700px] overflow-y-auto p-3 md:p-4 space-y-4 md:space-y-6 scroll-smooth"
             >
+              {/* Visual Query Builder - Show at top when in builder mode */}
+              {isBuilderMode && (
+                <div className="space-y-4 mb-6">
+                  <QueryBuilder
+                    onQueryChange={(aql, desc) => setBuiltQuery({ aql, description: desc })}
+                  />
+
+                  {/* AQL Preview */}
+                  {builtQuery.aql && (
+                    <div className="bg-dark-900 border border-green-500/20 rounded-lg p-3">
+                      <details>
+                        <summary className="text-[10px] text-green-400 font-mono cursor-pointer hover:text-green-300 select-none flex items-center gap-1.5 transition-colors">
+                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                          </svg>
+                          Generated AQL Query
+                        </summary>
+                        <pre className="mt-2 text-[9px] md:text-xs text-gray-300 font-mono overflow-x-auto whitespace-pre-wrap max-h-[200px] bg-black/30 p-2 rounded">
+                          {builtQuery.aql}
+                        </pre>
+                      </details>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {messages.map((message, idx) => (
                 <div
                   key={idx}
@@ -1299,36 +1325,14 @@ export default function HomePage() {
                 </div>
               </div>
               {isBuilderMode ? (
-                <div className="mb-2 md:mb-4">
-                  <QueryBuilder
-                    onQueryChange={(aql, desc) => setBuiltQuery({ aql, description: desc })}
-                  />
-
-                  {/* AQL Preview */}
-                  {builtQuery.aql && (
-                    <div className="mt-2 bg-dark-900 border border-green-500/20 rounded-lg p-2">
-                      <details>
-                        <summary className="text-[10px] text-green-400 font-mono cursor-pointer hover:text-green-300 select-none flex items-center gap-1.5 transition-colors">
-                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                          </svg>
-                          Generated AQL
-                        </summary>
-                        <pre className="mt-1.5 text-[9px] md:text-xs text-gray-300 font-mono overflow-x-auto whitespace-pre-wrap max-h-[100px] bg-black/30 p-1.5 rounded">
-                          {builtQuery.aql}
-                        </pre>
-                      </details>
-                    </div>
-                  )}
-                  <div className="mt-2 flex justify-end">
-                    <button
-                      onClick={handleSubmit}
-                      disabled={isLoading || !builtQuery.aql}
-                      className="px-3 py-1.5 bg-gold/20 border border-gold/40 rounded-md text-[11px] text-gold hover:bg-gold/30 hover:border-gold/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-bold uppercase tracking-wider shadow-sm"
-                    >
-                      Execute AQL Query
-                    </button>
-                  </div>
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleSubmit}
+                    disabled={isLoading || !builtQuery.aql}
+                    className="px-4 py-2 bg-gold/20 border border-gold/40 rounded-md text-xs text-gold hover:bg-gold/30 hover:border-gold/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-bold uppercase tracking-wider shadow-sm"
+                  >
+                    Execute Query
+                  </button>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="flex flex-col md:flex-row md:space-x-2 space-y-2 md:space-y-0">
