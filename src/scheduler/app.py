@@ -96,6 +96,17 @@ try:
         EIA_AVAILABLE = False
         logger.warning("⚠️ EIA pipeline not available (not deployed)")
 
+    # FRED (optional)
+    try:
+        from fred.downloader import fetch_all_fred_data
+        from fred.features import engineer_fred_features
+        from fred.arango_uploader import upsert_fred_data
+        FRED_AVAILABLE = True
+        logger.info("✓ FRED pipeline available")
+    except ImportError:
+        FRED_AVAILABLE = False
+        logger.warning("⚠️ FRED pipeline not available (not deployed)")
+
     logger.info("✓ Successfully imported all pipeline modules")
 except Exception as e:
     logger.error(f"✗ Failed to import pipeline modules: {e}")
@@ -191,6 +202,53 @@ def run_kalshi_pipeline():
 
     except Exception as e:
         logger.error(f"✗ Kalshi pipeline failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def run_fred_pipeline():
+    """Execute FRED Federal Reserve Economic Data ETL pipeline"""
+    logger.info("\n" + "="*80)
+    logger.info("FRED ECONOMIC DATA PIPELINE")
+    logger.info("="*80)
+
+    try:
+        # Check for historical backfill mode
+        historical_years = os.getenv('FRED_HISTORICAL_YEARS')
+        if historical_years:
+            years = int(historical_years)
+            logger.info(f"[1/3] Fetching FRED data (last {years} years - HISTORICAL BACKFILL)...")
+            fred_df = fetch_all_fred_data(years_back=years)
+        else:
+            # Incremental: last 90 days (catches all monthly releases)
+            logger.info("[1/3] Fetching FRED data (last 90 days)...")
+            fred_df = fetch_all_fred_data(days_back=90)
+
+        if fred_df.empty:
+            logger.info("✓ No new FRED data found")
+            return True
+
+        logger.info(f"✓ Fetched {len(fred_df)} records")
+
+        # Step 2: Engineer features (pivot to wide format)
+        logger.info("[2/3] Engineering features...")
+        fred_df = engineer_fred_features(fred_df)
+        logger.info(f"✓ Processed {len(fred_df)} dates")
+
+        # Step 3: Upload to ArangoDB with graph edges
+        logger.info("[3/3] Uploading to ArangoDB and creating graph edges...")
+        db = get_arango_connection()
+        inserted, updated, edge_counts = upsert_fred_data(db, fred_df)
+
+        logger.info(f"✓ Inserted: {inserted}, Updated: {updated}")
+        for edge_type, count in edge_counts.items():
+            logger.info(f"  {edge_type}: {count}")
+
+        return True
+
+    except Exception as e:
+        logger.error(f"✗ FRED pipeline failed: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -486,7 +544,7 @@ def run_pipeline():
     logger.info("\n" + "="*80)
     logger.info(f"MASTER PIPELINE STARTED: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("="*80)
-    logger.info("Execution order: CFTC → EIA → Awards → Kalshi → Polymarket (Yahoo disabled)")
+    logger.info("Execution order: FRED → CFTC → EIA → Awards → Kalshi → Polymarket (Yahoo disabled)")
     logger.info("="*80 + "\n")
 
     results = {
@@ -495,10 +553,19 @@ def run_pipeline():
         'polymarket': False,
         'awards': False,
         'cftc': False,
-        'eia': False
+        'eia': False,
+        'fred': False
     }
 
-    # Pipeline 1: CFTC Commitments of Traders
+    # Pipeline 1: FRED Economic Data (run first - macro context for everything)
+    if FRED_AVAILABLE:
+        try:
+            results['fred'] = run_fred_pipeline()
+        except Exception as e:
+            logger.error(f"FRED pipeline crashed: {e}")
+            results['fred'] = False
+
+    # Pipeline 2: CFTC Commitments of Traders
     if CFTC_AVAILABLE:
         try:
             results['cftc'] = run_cftc_pipeline()
@@ -506,7 +573,7 @@ def run_pipeline():
             logger.error(f"CFTC pipeline crashed: {e}")
             results['cftc'] = False
 
-    # Pipeline 2: EIA Energy Data
+    # Pipeline 3: EIA Energy Data
     if EIA_AVAILABLE:
         try:
             results['eia'] = run_eia_pipeline()
@@ -514,7 +581,7 @@ def run_pipeline():
             logger.error(f"EIA pipeline crashed: {e}")
             results['eia'] = False
 
-    # Pipeline 3: Awards (USASpending)
+    # Pipeline 4: Awards (USASpending)
     if AWARDS_AVAILABLE:
         try:
             results['awards'] = run_awards_pipeline()
@@ -522,21 +589,21 @@ def run_pipeline():
             logger.error(f"Awards pipeline crashed: {e}")
             results['awards'] = False
 
-    # Pipeline 4: Kalshi
+    # Pipeline 5: Kalshi
     try:
         results['kalshi'] = run_kalshi_pipeline()
     except Exception as e:
         logger.error(f"Kalshi pipeline crashed: {e}")
         results['kalshi'] = False
 
-    # Pipeline 5: Polymarket (skip embeddings - use standalone script)
+    # Pipeline 6: Polymarket (skip embeddings - use standalone script)
     try:
         results['polymarket'] = run_polymarket_pipeline(skip_embeddings=True)
     except Exception as e:
         logger.error(f"Polymarket pipeline crashed: {e}")
         results['polymarket'] = False
 
-    # Pipeline 6: Yahoo MarketData (DISABLED - Railway IPs blocked by Yahoo)
+    # Pipeline 7: Yahoo MarketData (DISABLED - Railway IPs blocked by Yahoo)
     logger.info("Skipping Yahoo (blocked on Railway datacenter IPs)")
     results['yahoo'] = True  # Skip but don't fail pipeline
 
@@ -547,6 +614,8 @@ def run_pipeline():
     logger.info("\n" + "="*80)
     logger.info("MASTER PIPELINE COMPLETE")
     logger.info("="*80)
+    if FRED_AVAILABLE:
+        logger.info(f"FRED: {'✓ SUCCESS' if results['fred'] else '✗ FAILED'}")
     if CFTC_AVAILABLE:
         logger.info(f"CFTC: {'✓ SUCCESS' if results['cftc'] else '✗ FAILED'}")
     if EIA_AVAILABLE:
