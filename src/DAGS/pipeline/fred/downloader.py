@@ -38,11 +38,26 @@ FRED_SERIES = {
     # Markets
     'SP500': 'S&P 500 Index',
     'VIXCLS': 'VIX Volatility Index',
-    'DCOILWTICO': 'Crude Oil Price (WTI)',
 
     # Money Supply
     'M2SL': 'M2 Money Supply',
     'WALCL': 'Fed Balance Sheet Size',
+
+    # Commodity Prices (Energy)
+    'DCOILWTICO': 'Crude Oil WTI',
+    'DCOILBRENTEU': 'Crude Oil Brent',
+    'GASREGW': 'Natural Gas Henry Hub',
+    'DPROPANEMBTX': 'Propane Price',
+
+    # Commodity Prices (Metals)
+    'GOLDAMGBD228NLBM': 'Gold London Fixing',
+    'SLVPRUSD': 'Silver Price',
+    'PCOPPUSDM': 'Copper Price',
+
+    # Commodity Prices (Agriculture)
+    'PWHEAMTUSDM': 'Wheat Price',
+    'PMAIZMTUSDM': 'Corn Price',
+    'PSOYBUSDQ': 'Soybeans Price',
 }
 
 def fetch_fred_series(series_id, nice_name, years_back=None, days_back=None):

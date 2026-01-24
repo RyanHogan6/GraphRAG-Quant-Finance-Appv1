@@ -109,16 +109,18 @@ try:
         import traceback
         traceback.print_exc()
 
-    # CME Futures (optional)
-    try:
-        from cme.downloader import fetch_all_futures_data
-        from cme.features import engineer_futures_features
-        from cme.arango_uploader import upsert_futures_data
-        CME_AVAILABLE = True
-        logger.info("✓ CME Futures pipeline available")
-    except ImportError as e:
-        CME_AVAILABLE = False
-        logger.warning(f"⚠️ CME Futures pipeline not available (not deployed): {e}")
+    # CME Futures (DISABLED - Yahoo Finance blocks Railway IPs)
+    # Commodity prices now come from FRED instead (see fred/downloader.py)
+    CME_AVAILABLE = False
+    # try:
+    #     from cme.downloader import fetch_all_futures_data
+    #     from cme.features import engineer_futures_features
+    #     from cme.arango_uploader import upsert_futures_data
+    #     CME_AVAILABLE = True
+    #     logger.info("✓ CME Futures pipeline available")
+    # except ImportError as e:
+    #     CME_AVAILABLE = False
+    #     logger.warning(f"⚠️ CME Futures pipeline not available (not deployed): {e}")
 
     logger.info("✓ Successfully imported all pipeline modules")
 except Exception as e:
@@ -605,7 +607,8 @@ def run_pipeline():
     logger.info("\n" + "="*80)
     logger.info(f"MASTER PIPELINE STARTED: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("="*80)
-    logger.info("Execution order: CME → FRED → CFTC → EIA → Awards → Kalshi → Polymarket (Yahoo disabled)")
+    logger.info("Execution order: FRED (includes commodity prices) → CFTC → EIA → Awards → Kalshi → Polymarket")
+    logger.info("Note: Yahoo & CME disabled (Railway IPs blocked)")
     logger.info("="*80 + "\n")
 
     results = {
@@ -614,20 +617,11 @@ def run_pipeline():
         'polymarket': False,
         'awards': False,
         'cftc': False,
-        'cme': False,
         'eia': False,
         'fred': False
     }
 
-    # Pipeline 1: CME Futures Prices (TESTING - run first)
-    if CME_AVAILABLE:
-        try:
-            results['cme'] = run_cme_pipeline()
-        except Exception as e:
-            logger.error(f"CME pipeline crashed: {e}")
-            results['cme'] = False
-
-    # Pipeline 2: FRED Economic Data (macro context for everything)
+    # Pipeline 1: FRED Economic Data (includes macro + commodity prices)
     if FRED_AVAILABLE:
         try:
             results['fred'] = run_fred_pipeline()
@@ -684,10 +678,8 @@ def run_pipeline():
     logger.info("\n" + "="*80)
     logger.info("MASTER PIPELINE COMPLETE")
     logger.info("="*80)
-    if CME_AVAILABLE:
-        logger.info(f"CME Futures: {'✓ SUCCESS' if results['cme'] else '✗ FAILED'}")
     if FRED_AVAILABLE:
-        logger.info(f"FRED: {'✓ SUCCESS' if results['fred'] else '✗ FAILED'}")
+        logger.info(f"FRED (with commodity prices): {'✓ SUCCESS' if results['fred'] else '✗ FAILED'}")
     if CFTC_AVAILABLE:
         logger.info(f"CFTC: {'✓ SUCCESS' if results['cftc'] else '✗ FAILED'}")
     if EIA_AVAILABLE:
@@ -696,7 +688,7 @@ def run_pipeline():
         logger.info(f"Awards: {'✓ SUCCESS' if results['awards'] else '✗ FAILED'}")
     logger.info(f"Kalshi: {'✓ SUCCESS' if results['kalshi'] else '✗ FAILED'}")
     logger.info(f"Polymarket: {'✓ SUCCESS' if results['polymarket'] else '✗ FAILED'}")
-    logger.info(f"Yahoo: SKIPPED (blocked on Railway)")
+    logger.info(f"Yahoo & CME: SKIPPED (Railway IPs blocked)")
     logger.info(f"Duration: {duration:.1f}s ({duration/60:.1f}min)")
     logger.info("="*80)
 

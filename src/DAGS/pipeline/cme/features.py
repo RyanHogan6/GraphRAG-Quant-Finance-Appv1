@@ -15,10 +15,8 @@ def calculate_returns(df):
     # Weekly returns (5-day)
     df['weekly_return'] = df.groupby('commodity')['close'].pct_change(periods=5)
 
-    # Month-to-date return
-    df['mtd_return'] = df.groupby(['commodity', pd.Grouper(key='date', freq='M')])['close'].apply(
-        lambda x: (x.iloc[-1] / x.iloc[0] - 1) if len(x) > 0 else 0
-    )
+    # Monthly returns (20-day approximation)
+    df['monthly_return'] = df.groupby('commodity')['close'].pct_change(periods=20)
 
     return df
 

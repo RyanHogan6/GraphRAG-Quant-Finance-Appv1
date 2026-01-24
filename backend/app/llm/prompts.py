@@ -60,9 +60,11 @@ CRITICAL_AQL_RULES = """
 4. COLLECTION NAMES (case-sensitive):
    ✅ Award, Company, MarketData, EconomicData
    ✅ sec_filings, sec_sections, sec_sentences
-   ✅ commodity_positions, prediction_markets_polymarket, prediction_markets_kalshi
+   ✅ commodity_positions, futures_prices, options_flow
+   ✅ prediction_markets_polymarket, prediction_markets_kalshi
    ✅ polymarket_traders, polymarket_positions
-   ❌ awards, companies, market_data
+   ✅ eia_crude_inventory, eia_natgas_storage, eia_natgas_production, eia_lng_exports
+   ❌ awards, companies, market_data, futures, options
 
 5. CRITICAL FIELD NAMES:
    Award: award_amount_float (for math), start_date, description_embedding (for semantic search)
@@ -74,11 +76,17 @@ CRITICAL_AQL_RULES = """
    Polymarket Traders: total_volume, total_profit, is_whale, activity_level (NO embeddings!)
    Polymarket Positions: market_question, size, average_price, realized_profit, unrealizedProfit
    Kalshi: title, yes_price, volume, status (NO embeddings!)
+   Futures: commodity, contract_symbol, sma_20, rsi_14, volatility_30d, daily_return
+   Options: call_volume, put_volume, put_call_volume_ratio, iv_rank, call_volume_unusual, potential_call_sweep, unusual_total_activity
+   EIA Crude: crude_stocks, crude_stocks_change, cushing_stocks, refinery_utilization
+   EIA NatGas Storage: total_stocks, stocks_change, stocks_vs_5yr_pct
+   Commodity Positions: Market_and_Exchange_Names (Capital M!), net_noncommercial_position
 
 6. SEMANTIC SEARCH - CRITICAL RULES:
    ✅ Award: HAS description_embedding - use COSINE_SIMILARITY(doc.description_embedding, @query_vector)
    ✅ Polymarket: HAS question_embedding - use COSINE_SIMILARITY(doc.question_embedding, @query_vector)
    ❌ OTHER COLLECTIONS: NO embeddings - use CONTAINS(LOWER(field), 'keyword')
+   ❌ NO embeddings: SEC, Kalshi, Futures, Options, EIA, Commodity Positions
 
    Examples:
    - Award semantic: LET sim = COSINE_SIMILARITY(doc.description_embedding, @query_vector) FILTER sim >= 0.7
@@ -169,6 +177,12 @@ Commodity:
 - Use "sec_sections" (with underscores)
 - Use "sec_sentences" (with underscores)
 - commodity_positions (NOT "commodity_position" or "CommodityPositions")
+- futures_prices (NOT "futures" or "cme_futures")
+- options_flow (NOT "options" or "options_activity")
+- eia_crude_inventory (NOT "crude_inventory" or "eia_crude")
+- eia_natgas_storage (NOT "natgas_storage" or "eia_gas")
+- eia_natgas_production (NOT "natgas_production")
+- eia_lng_exports (NOT "lng_exports")
 - prediction_markets_polymarket (NOT "polymarket" or "prediction_market")
 - prediction_markets_kalshi (NOT "kalshi" or "kalshi_markets")
 
@@ -283,8 +297,101 @@ DOCUMENT COLLECTIONS:
    - open_interest (int): Total open interest
    - commodity_count (int): Number of commodity types tracked for this ticker
    - total_position_size (int): Total position size across all commodities
-   
+
    ⚠️ Use Case: Track commodity exposure for energy, agriculture, mining companies
+
+6. futures_prices (CME commodity futures prices)
+   - _key (string): Unique ID (format: "{commodity}_{date}")
+   - commodity (string): Commodity type (e.g., "CRUDE_OIL", "NATURAL_GAS", "GOLD", "CORN")
+   - date (string): Trading date YYYY-MM-DD
+   - open, high, low, close (float): OHLCV price data
+   - volume (int): Trading volume (contracts)
+   - contract_symbol (string): Futures contract symbol (e.g., "CL=F", "NG=F", "GC=F")
+   - unit (string): Price unit (e.g., "USD/barrel", "USD/MMBtu", "USD/oz")
+
+   Technical Indicators:
+   - sma_20, sma_50 (float): Simple moving averages
+   - rsi_14 (float): Relative Strength Index (0-100)
+   - volatility_30d (float): 30-day volatility
+   - dist_from_52w_high, dist_from_52w_low (float): Distance from 52-week extremes
+   - macd, macd_signal (float): MACD indicator
+
+   Momentum & Returns:
+   - daily_return, weekly_return, monthly_return (float): Price returns
+   - above_sma20, above_sma50 (int): 1 if above SMA, else 0
+
+   ⚠️ Use Case: Commodity price tracking, correlation with CFTC positions, macro trend analysis
+   ⚠️ Links to: CFTC positions, EIA inventory data, EconomicData
+
+7. options_flow (Daily options activity for insider trading detection)
+   - _key (string): Unique ID (format: "{ticker}_{date}")
+   - ticker (string): Stock ticker
+   - date (string): Trading date YYYY-MM-DD
+   - stock_price (float): Underlying stock price
+
+   Volume Metrics:
+   - call_volume, put_volume, total_volume (int): Options volume
+   - call_open_interest, put_open_interest, total_open_interest (int): Open interest
+   - put_call_volume_ratio, put_call_oi_ratio (float): Put/call ratios
+
+   Implied Volatility:
+   - call_iv_avg, put_iv_avg (float): Average IV for near-the-money options
+   - iv_rank (float): IV percentile vs 52-week range (0-1)
+
+   Premium Flow:
+   - call_premium, put_premium (float): Total premium ($) traded
+   - call_contracts, put_contracts (int): Number of contracts
+
+   Unusual Activity Detection (requires 20+ days of history):
+   - call_volume_unusual, put_volume_unusual (float): Volume vs 20-day average
+   - unusual_total_activity (int): 1 if total volume > 2x average, else 0
+   - unusual_call_activity (int): 1 if call volume unusually high
+   - unusual_put_activity (int): 1 if put volume unusually high
+
+   Sentiment Signals:
+   - bullish_signal (int): 1 if high call volume + low P/C ratio
+   - bearish_signal (int): 1 if high put volume + high P/C ratio
+   - potential_call_sweep (int): 1 if extreme call buying (>3x avg, P/C < 0.5)
+   - potential_put_sweep (int): 1 if extreme put buying (>3x avg, P/C > 2.0)
+
+   ⚠️ Use Case: Detect unusual options activity before contract announcements, insider trading signals
+   ⚠️ Links to: Company, MarketData, Award (for pre-announcement activity), sec_filings (for pre-filing activity)
+
+8. eia_crude_inventory (EIA Crude Oil Inventory - Weekly)
+   - date (string): Report week ending YYYY-MM-DD
+   - crude_stocks (float): Crude oil stocks (million barrels)
+   - crude_stocks_change (float): Weekly change (million barrels)
+   - cushing_stocks (float): Cushing, OK storage (key delivery point)
+   - gasoline_stocks (float): Gasoline stocks (million barrels)
+   - distillate_stocks (float): Distillate (diesel) stocks
+   - refinery_utilization (float): Refinery utilization rate (%)
+
+   ⚠️ Use Case: Fundamental analysis for crude oil futures, supply/demand analysis
+   ⚠️ Links to: futures_prices (CRUDE_OIL)
+
+9. eia_natgas_storage (EIA Natural Gas Storage - Weekly)
+   - date (string): Report week ending YYYY-MM-DD
+   - total_stocks (float): Natural gas in storage (Bcf - billion cubic feet)
+   - stocks_change (float): Weekly injection/withdrawal (Bcf)
+   - stocks_vs_5yr_avg (float): Deviation from 5-year average (Bcf)
+   - stocks_vs_5yr_pct (float): % vs 5-year average
+
+   ⚠️ Use Case: Natural gas supply analysis, seasonal storage patterns
+   ⚠️ Links to: futures_prices (NATURAL_GAS)
+
+10. eia_natgas_production (EIA Natural Gas Production - Monthly)
+    - date (string): Month YYYY-MM-DD
+    - dry_production (float): Dry natural gas production (Bcf)
+    - marketed_production (float): Gross marketed production (Bcf)
+
+    ⚠️ Use Case: Long-term production trends, supply forecasting
+
+11. eia_lng_exports (EIA LNG Exports - Monthly)
+    - date (string): Month YYYY-MM-DD
+    - lng_exports (float): LNG exports (Bcf)
+    - lng_export_terminals (int): Number of active export terminals
+
+    ⚠️ Use Case: Global LNG demand tracking, export capacity analysis
 
 6. prediction_markets_polymarket (Polymarket prediction market data)
    - _key (string): Unique market ID (condition_id)
@@ -514,8 +621,74 @@ EDGE COLLECTIONS (Graph Relationships):
     Usage: FOR section IN OUTBOUND filing has_section
 
 11. has_sentence: sec_sections -> sec_sentences
-    
+
     Usage: FOR sentence IN OUTBOUND section has_sentence
+
+12. POSITION_ON_COMMODITY: commodity_positions -> futures_prices
+    - commodity_name (string): Commodity type
+    - as_of_date (string): CFTC report date
+
+    Usage: FOR price IN OUTBOUND position POSITION_ON_COMMODITY
+
+    ⚠️ Use Case: Link CFTC trader positions to actual futures prices
+
+13. INVENTORY_AFFECTS_PRICE: eia_crude_inventory -> futures_prices
+    - inventory_date (string): EIA report date
+    - commodity_type (string): "CRUDE_OIL"
+
+    Usage: FOR price IN OUTBOUND inventory INVENTORY_AFFECTS_PRICE
+
+    ⚠️ Use Case: Analyze crude oil price response to inventory changes
+
+14. STORAGE_AFFECTS_PRICE: eia_natgas_storage -> futures_prices
+    - storage_date (string): EIA report date
+    - commodity_type (string): "NATURAL_GAS"
+
+    Usage: FOR price IN OUTBOUND storage STORAGE_AFFECTS_PRICE
+
+    ⚠️ Use Case: Analyze natural gas price response to storage levels
+
+15. MACRO_IMPACTS_COMMODITY: EconomicData -> futures_prices
+    - economic_date (string): Date
+    - commodity_type (string): Affected commodity
+
+    Usage: FOR price IN OUTBOUND econ MACRO_IMPACTS_COMMODITY
+
+    ⚠️ Use Case: Macro correlation analysis (inflation → commodities, dollar → gold)
+
+16. HAS_OPTIONS_ACTIVITY: MarketData -> options_flow
+    - date (string): Trading date
+
+    Usage: FOR options IN OUTBOUND market HAS_OPTIONS_ACTIVITY
+
+    ⚠️ Use Case: Link stock price movement to options activity
+
+17. COMPANY_HAS_OPTIONS: Company -> options_flow
+    - ticker (string): Stock ticker
+
+    Usage: FOR options IN OUTBOUND company COMPANY_HAS_OPTIONS
+
+    ⚠️ Use Case: Query all options activity for a company
+
+18. OPTIONS_BEFORE_AWARD: options_flow -> Award
+    - days_before (int): Days between options activity and award announcement
+    - unusual_activity (bool): True if unusual volume detected
+    - activity_type (string): "call_sweep" | "put_sweep" | "high_volume"
+
+    Usage: FOR award IN OUTBOUND options OPTIONS_BEFORE_AWARD
+
+    ⚠️ Use Case: INSIDER TRADING DETECTION - Find unusual options activity 1-90 days before contract announcements
+    ⚠️ Only created for UNUSUAL activity (volume > 2x average or call/put sweeps)
+
+19. OPTIONS_BEFORE_FILING: options_flow -> sec_filings
+    - days_before (int): Days between options activity and filing
+    - filing_type (string): Filing type ("8-K", "10-Q", etc.)
+    - unusual_activity (bool): True if unusual volume detected
+
+    Usage: FOR filing IN OUTBOUND options OPTIONS_BEFORE_FILING
+
+    ⚠️ Use Case: INSIDER TRADING DETECTION - Find unusual options activity 1-30 days before SEC filings (especially 8-K)
+    ⚠️ Only created for UNUSUAL activity before significant filings
 
 GRAPHS:
 - QUANT_v3_FinanceGraph: Company-centric financial data graph
@@ -1449,6 +1622,303 @@ Strategy:
 
 ---
 
+EXAMPLE 17 - Futures Prices with CFTC Positions:
+Question: "Show me crude oil futures prices when speculators had large long positions"
+Intent: commodity_correlation_analysis
+Collections: ["commodity_positions", "futures_prices"]
+Edges: ["POSITION_ON_COMMODITY"]
+AQL:
+FOR position IN commodity_positions
+  FILTER CONTAINS(LOWER(position.Market_and_Exchange_Names), "crude oil")
+  FILTER position.net_noncommercial_position > 100000
+  FOR price IN OUTBOUND position POSITION_ON_COMMODITY
+    FILTER price.commodity == "CRUDE_OIL"
+    SORT price.date DESC
+    LIMIT 20
+    RETURN {
+      date: price.date,
+      crude_price: price.close,
+      net_spec_position: position.net_noncommercial_position,
+      open_interest: position.open_interest,
+      price_change_pct: price.daily_return,
+      rsi: price.rsi_14
+    }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ Use graph edge POSITION_ON_COMMODITY to link CFTC data to prices
+✅ Filter positions first (smaller dataset), then traverse to prices
+✅ Combines trader positioning with actual price movement
+⚠️ CFTC data is weekly, futures prices are daily
+
+---
+
+EXAMPLE 18 - Crude Oil Inventory Impact on Prices:
+Question: "How do crude oil prices respond to large inventory builds?"
+Intent: fundamental_price_analysis
+Collections: ["eia_crude_inventory", "futures_prices"]
+Edges: ["INVENTORY_AFFECTS_PRICE"]
+AQL:
+FOR inventory IN eia_crude_inventory
+  FILTER inventory.crude_stocks_change > 5
+  FOR price IN OUTBOUND inventory INVENTORY_AFFECTS_PRICE
+    FILTER price.commodity == "CRUDE_OIL"
+    SORT inventory.date DESC
+    LIMIT 15
+    RETURN {
+      report_date: inventory.date,
+      inventory_build: inventory.crude_stocks_change,
+      crude_price: price.close,
+      price_change_pct: price.weekly_return,
+      total_stocks: inventory.crude_stocks,
+      cushing_stocks: inventory.cushing_stocks
+    }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ Filter for significant inventory builds (>5 million barrels)
+✅ Traverse to corresponding futures prices
+✅ Track price response to supply changes
+💡 Typical pattern: Large builds → price decline (bearish for oil)
+
+---
+
+EXAMPLE 19 - Unusual Options Activity (Insider Trading Signals):
+Question: "Show me stocks with unusual call buying yesterday"
+Intent: options_screening
+Collections: ["options_flow"]
+AQL:
+FOR opt IN options_flow
+  FILTER opt.date >= DATE_SUBTRACT(DATE_NOW(), 2, "day")
+  FILTER opt.potential_call_sweep == 1 OR opt.unusual_call_activity == 1
+  FILTER opt.total_volume > 1000
+  SORT opt.call_volume_unusual DESC
+  LIMIT 20
+  RETURN {
+    ticker: opt.ticker,
+    date: opt.date,
+    stock_price: opt.stock_price,
+    call_volume: opt.call_volume,
+    unusual_ratio: opt.call_volume_unusual,
+    put_call_ratio: opt.put_call_volume_ratio,
+    call_premium: opt.call_premium,
+    iv_rank: opt.iv_rank,
+    signal: opt.potential_call_sweep == 1 ? "🚨 CALL SWEEP" : "⚠️ HIGH CALL VOLUME"
+  }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ Filter by unusual activity flags (pre-calculated in pipeline)
+✅ potential_call_sweep = extreme buying (>3x average, P/C < 0.5)
+✅ unusual_call_activity = high call volume (>2x average)
+⚠️ Requires 20+ days of data for baseline averages
+💡 Call sweeps before earnings/contracts may indicate insider knowledge
+
+---
+
+EXAMPLE 20 - Options Activity Before Contract Announcements (Insider Trading):
+Question: "Find unusual options activity before defense contract awards"
+Intent: insider_trading_detection
+Collections: ["Company", "options_flow", "Award"]
+Edges: ["COMPANY_HAS_OPTIONS", "OPTIONS_BEFORE_AWARD"]
+AQL:
+FOR company IN Company
+  FILTER company.ticker IN ["LMT", "RTX", "NOC", "BA", "GD"]
+  FOR options IN OUTBOUND company COMPANY_HAS_OPTIONS
+    FOR award IN OUTBOUND options OPTIONS_BEFORE_AWARD
+      FILTER award.award_amount_float > 10000000
+      FILTER award.awarding_agency LIKE "%Defense%"
+      SORT award.start_date DESC
+      LIMIT 15
+      RETURN {
+        ticker: company.ticker,
+        options_date: options.date,
+        award_date: award.start_date,
+        days_before: DATE_DIFF(award.start_date, options.date, "day"),
+        award_amount: award.award_amount_float,
+        call_volume: options.call_volume,
+        unusual_ratio: options.call_volume_unusual,
+        put_call_ratio: options.put_call_volume_ratio,
+        activity_type: options.potential_call_sweep == 1 ? "Call Sweep" : "High Volume",
+        award_description: SUBSTRING(award.description, 0, 200)
+      }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ Uses OPTIONS_BEFORE_AWARD edge (only created for unusual activity)
+✅ Filters defense contractors and large awards (>$10M)
+✅ Shows days_before to identify timing patterns
+⚠️ Edge only created for activity 1-90 days before award announcement
+💡 Pattern: Unusual call buying 30-60 days before major contract = potential insider tip
+
+---
+
+EXAMPLE 21 - Options Activity Before SEC Filings:
+Question: "Show me unusual options activity before 8-K filings"
+Intent: insider_trading_detection
+Collections: ["options_flow", "sec_filings"]
+Edges: ["OPTIONS_BEFORE_FILING"]
+AQL:
+FOR options IN options_flow
+  FILTER options.potential_call_sweep == 1 OR options.potential_put_sweep == 1
+  FOR filing IN OUTBOUND options OPTIONS_BEFORE_FILING
+    FILTER filing.type == "8-K"
+    SORT filing.filing_date DESC
+    LIMIT 20
+    RETURN {
+      ticker: options.ticker,
+      options_date: options.date,
+      filing_date: filing.filing_date,
+      days_before: DATE_DIFF(filing.filing_date, options.date, "day"),
+      filing_type: filing.type,
+      sentiment: filing.avg_finbert,
+      call_volume: options.call_volume,
+      put_volume: options.put_volume,
+      unusual_call: options.call_volume_unusual,
+      unusual_put: options.put_volume_unusual,
+      signal: options.potential_call_sweep == 1 ? "🟢 Call Sweep" : "🔴 Put Sweep"
+    }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ Uses OPTIONS_BEFORE_FILING edge (only unusual activity)
+✅ Focuses on 8-K filings (material events, M&A, earnings)
+✅ Call sweeps before positive news, put sweeps before negative
+⚠️ Edge only created for activity 1-30 days before filing
+💡 Call sweep + positive 8-K sentiment = potential insider trading
+
+---
+
+EXAMPLE 22 - Natural Gas Storage vs Prices:
+Question: "Show me natural gas prices when storage was below 5-year average"
+Intent: commodity_fundamental_analysis
+Collections: ["eia_natgas_storage", "futures_prices"]
+Edges: ["STORAGE_AFFECTS_PRICE"]
+AQL:
+FOR storage IN eia_natgas_storage
+  FILTER storage.stocks_vs_5yr_pct < -10
+  FOR price IN OUTBOUND storage STORAGE_AFFECTS_PRICE
+    FILTER price.commodity == "NATURAL_GAS"
+    SORT storage.date DESC
+    LIMIT 20
+    RETURN {
+      date: storage.date,
+      natgas_price: price.close,
+      total_stocks: storage.total_stocks,
+      vs_5yr_avg: storage.stocks_vs_5yr_pct,
+      weekly_change: storage.stocks_change,
+      price_change: price.weekly_return
+    }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ Filter for low storage (<-10% vs 5-year average)
+✅ Link to natural gas futures prices
+💡 Pattern: Low storage → higher prices (supply tightness)
+💡 Seasonal: Injections (summer), withdrawals (winter)
+
+---
+
+EXAMPLE 23 - Multi-Commodity Price Comparison:
+Question: "Compare crude oil and gold prices over the last 90 days"
+Intent: multi_commodity_analysis
+Collections: ["futures_prices"]
+AQL:
+LET start_date = DATE_SUBTRACT(DATE_NOW(), 90, "day")
+
+FOR commodity IN ["CRUDE_OIL", "GOLD"]
+  LET prices = (
+    FOR price IN futures_prices
+      FILTER price.commodity == commodity
+      FILTER price.date >= start_date
+      SORT price.date ASC
+      RETURN price
+  )
+
+  LET first = FIRST(prices)
+  LET last = LAST(prices)
+
+  RETURN {
+    commodity: commodity,
+    current_price: last.close,
+    starting_price: first.close,
+    change_pct: FLOOR(((last.close - first.close) / first.close) * 100 * 100) / 100,
+    high_90d: MAX(prices[*].high),
+    low_90d: MIN(prices[*].low),
+    avg_volume: ROUND(AVG(prices[*].volume)),
+    volatility: FIRST(prices).volatility_30d,
+    rsi: last.rsi_14
+  }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ Loop through commodity array for separate summaries
+✅ Calculate 90-day performance for each
+✅ Includes technical indicators (RSI, volatility)
+💡 Use for flight-to-safety analysis (gold up when oil down)
+
+---
+
+EXAMPLE 24 - Company Options + Stock Price + Awards (Multi-Source):
+Question: "Show me RTX's options activity around recent contract awards"
+Intent: multi_source_insider_analysis
+Collections: ["Company", "options_flow", "MarketData", "Award"]
+Edges: ["COMPANY_HAS_OPTIONS", "OPTIONS_BEFORE_AWARD", "HAS_MARKETDATA"]
+AQL:
+FOR company IN Company
+  FILTER company.ticker == @ticker
+
+  FOR options IN OUTBOUND company COMPANY_HAS_OPTIONS
+    FILTER options.date >= DATE_SUBTRACT(DATE_NOW(), 180, "day")
+    FILTER options.unusual_total_activity == 1
+
+    LET market = FIRST(
+      FOR m IN OUTBOUND company HAS_MARKETDATA
+        FILTER m.date == options.date
+        RETURN m
+    )
+
+    LET awards = (
+      FOR award IN OUTBOUND options OPTIONS_BEFORE_AWARD
+        FILTER award.award_amount_float > 5000000
+        RETURN award
+    )
+
+    FILTER LENGTH(awards) > 0
+
+    SORT options.date DESC
+    LIMIT 10
+
+    RETURN {
+      date: options.date,
+      stock_price: market.close,
+      stock_change: market.close - market.open,
+      options_volume: options.total_volume,
+      unusual_ratio: options.call_volume_unusual,
+      put_call: options.put_call_volume_ratio,
+      awards_announced: LENGTH(awards),
+      total_award_value: SUM(awards[*].award_amount_float),
+      days_until_awards: awards[0].start_date
+    }
+Bind Variables: {"ticker": "RTX"}
+Requires Embedding: false
+
+Strategy:
+✅ Combines options, stock prices, and awards for single ticker
+✅ Filters for unusual activity only
+✅ Uses subquery for awards (may be multiple per options date)
+✅ Shows complete picture: options spike → award announcement
+💡 Pattern detection: Unusual buying 30-90 days before multi-million dollar contracts
+
+---
+
 ⚠️ FIELD NAME CHEAT SHEET (Common Mistakes):
 
 WRONG → CORRECT
@@ -1460,6 +1930,34 @@ WRONG → CORRECT
 - polymarket → prediction_markets_polymarket
 - kalshi → prediction_markets_kalshi
 - commodity_position → commodity_positions
+- futures → futures_prices
+- options → options_flow
+- eia_crude → eia_crude_inventory
+- eia_natgas → eia_natgas_storage (for storage data)
+- eia_gas_production → eia_natgas_production
+
+⚠️ NEW COLLECTIONS FIELD NAMES:
+
+futures_prices:
+- commodity (string): "CRUDE_OIL", "NATURAL_GAS", "GOLD", "CORN", etc.
+- contract_symbol (string): "CL=F", "NG=F", "GC=F" (Yahoo Finance symbols)
+- volume (int): Trading volume in contracts (NOT volume_24h)
+- Technical: sma_20, rsi_14, volatility_30d, macd
+
+options_flow:
+- call_volume, put_volume, total_volume (int): Options volume
+- put_call_volume_ratio, put_call_oi_ratio (float): Ratios
+- call_iv_avg, put_iv_avg (float): Implied volatility
+- iv_rank (float): IV percentile (0-1)
+- call_volume_unusual, put_volume_unusual (float): vs 20-day average
+- potential_call_sweep, potential_put_sweep (int): 1 or 0
+- unusual_total_activity (int): 1 if volume > 2x average
+
+EIA Collections:
+- eia_crude_inventory: crude_stocks, crude_stocks_change, cushing_stocks, refinery_utilization
+- eia_natgas_storage: total_stocks, stocks_change, stocks_vs_5yr_avg, stocks_vs_5yr_pct
+- eia_natgas_production: dry_production, marketed_production
+- eia_lng_exports: lng_exports, lng_export_terminals
 
 ⚠️ TERMINOLOGY DISAMBIGUATION (CRITICAL!):
 
@@ -1502,9 +2000,13 @@ EDGES:
 
 ⚠️ SEMANTIC SEARCH RULES:
 - Award descriptions: ✅ Has description_embedding (use COSINE_SIMILARITY)
+- Polymarket questions: ✅ Has question_embedding (use COSINE_SIMILARITY)
 - SEC content: ❌ NO embeddings (use CONTAINS() text filters + finbert_score instead)
-- Polymarket: ❌ NO embeddings (use CONTAINS() on question/description)
 - Kalshi: ❌ NO embeddings (use CONTAINS() on title)
+- Futures prices: ❌ NO embeddings (use CONTAINS() on commodity field or exact match)
+- Options flow: ❌ NO embeddings (filter by ticker, date, or unusual activity flags)
+- EIA data: ❌ NO embeddings (use date/value filters)
+- Commodity positions: ❌ NO embeddings (use CONTAINS() on Market_and_Exchange_Names)
 - Trigger words for semantic: "related to", "about", "similar to", "involving"
 - Concepts that need semantic: "AI", "cybersecurity", "renewable energy", "blockchain"
 

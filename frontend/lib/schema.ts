@@ -30,6 +30,7 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
             { target: 'marketdata', edge: 'HAS_MARKETDATA', direction: 'OUTBOUND', type: 'direct' },
             { target: 'awards', edge: 'HAS_AWARD', direction: 'OUTBOUND', type: 'direct' },
             { target: 'sec', edge: 'HAS_FILING', direction: 'OUTBOUND', type: 'direct' },
+            { target: 'options', edge: 'COMPANY_HAS_OPTIONS', direction: 'OUTBOUND', type: 'direct' },
             { target: 'predictionmarkets', edge: 'market_mentions_company_polymarket', direction: 'INBOUND', type: 'direct' },
             { target: 'kalshi', edge: 'market_mentions_company_kalshi', direction: 'INBOUND', type: 'direct' }
         ],
@@ -53,7 +54,8 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
             "totalCash", "totalDebt", "tr", "trailingEps", "trailingPE", "twoHundredDayAverage", "volume", "year"
         ],
         connections: [
-            { target: 'company', edge: 'HAS_MARKETDATA', direction: 'INBOUND', type: 'direct' }
+            { target: 'company', edge: 'HAS_MARKETDATA', direction: 'INBOUND', type: 'direct' },
+            { target: 'options', edge: 'HAS_OPTIONS_ACTIVITY', direction: 'OUTBOUND', type: 'direct' }
         ],
         exampleQuery: 'FOR m IN MarketData FILTER m.ticker == "AAPL" RETURN m'
     },
@@ -67,7 +69,8 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
             "start_date", "ticker"
         ],
         connections: [
-            { target: 'company', edge: 'HAS_AWARD', direction: 'INBOUND', type: 'direct' }
+            { target: 'company', edge: 'HAS_AWARD', direction: 'INBOUND', type: 'direct' },
+            { target: 'options', edge: 'OPTIONS_BEFORE_AWARD', direction: 'INBOUND', type: 'direct' }
         ],
         exampleQuery: 'FOR a IN Award FILTER a.recipient_name == "LOCKHEED" RETURN a'
     },
@@ -83,7 +86,9 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
             "initial_jobless_claims", "m2_money_supply", "nasdaq_composite", "nonfarm_payrolls", "real_gdp",
             "retail_sales", "sandp_500_index", "unemployment_rate", "vix_volatility_index", "yield_curve_inverted", "yield_curve_slope"
         ],
-        connections: [],
+        connections: [
+            { target: 'futures', edge: 'MACRO_IMPACTS_COMMODITY', direction: 'OUTBOUND', type: 'direct' }
+        ],
         exampleQuery: 'FOR e IN EconomicData FILTER e.date > "2023-01-01" RETURN e'
     },
     sec: {
@@ -97,7 +102,8 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
         connections: [
             { target: 'sec_sections', edge: 'has_section', direction: 'OUTBOUND', type: 'direct' },
             { target: 'sec_sentences', edge: 'has_section', direction: 'OUTBOUND', type: 'multi_hop' },
-            { target: 'company', edge: 'HAS_FILING', direction: 'INBOUND', type: 'direct' }
+            { target: 'company', edge: 'HAS_FILING', direction: 'INBOUND', type: 'direct' },
+            { target: 'options', edge: 'OPTIONS_BEFORE_FILING', direction: 'INBOUND', type: 'direct' }
         ],
         exampleQuery: 'FOR f IN sec_filings FILTER f.ticker == "TSLA" RETURN f'
     },
@@ -154,6 +160,88 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
         ],
         exampleQuery: 'FOR k IN prediction_markets_kalshi RETURN k'
     },
+    futures: {
+        name: 'Futures Prices',
+        collection: 'futures_prices',
+        description: 'CME Commodity Futures',
+        keyFields: [
+            "commodity", "date", "open", "high", "low", "close", "volume", "contract_symbol", "unit",
+            "sma_20", "sma_50", "rsi_14", "volatility_30d", "dist_from_52w_high", "dist_from_52w_low",
+            "macd", "macd_signal", "daily_return", "weekly_return", "monthly_return", "above_sma20", "above_sma50"
+        ],
+        connections: [
+            { target: 'cftc', edge: 'POSITION_ON_COMMODITY', direction: 'INBOUND', type: 'direct' },
+            { target: 'eia_crude', edge: 'INVENTORY_AFFECTS_PRICE', direction: 'INBOUND', type: 'direct' },
+            { target: 'eia_natgas_storage', edge: 'STORAGE_AFFECTS_PRICE', direction: 'INBOUND', type: 'direct' },
+            { target: 'economicdata', edge: 'MACRO_IMPACTS_COMMODITY', direction: 'INBOUND', type: 'direct' }
+        ],
+        exampleQuery: 'FOR f IN futures_prices FILTER f.commodity == "CRUDE_OIL" RETURN f'
+    },
+    options: {
+        name: 'Options Flow',
+        collection: 'options_flow',
+        description: 'Daily Options Activity',
+        keyFields: [
+            "ticker", "date", "stock_price", "call_volume", "put_volume", "total_volume",
+            "call_open_interest", "put_open_interest", "total_open_interest", "put_call_volume_ratio",
+            "put_call_oi_ratio", "call_iv_avg", "put_iv_avg", "iv_rank", "call_premium", "put_premium",
+            "call_contracts", "put_contracts", "call_volume_unusual", "put_volume_unusual",
+            "unusual_total_activity", "unusual_call_activity", "unusual_put_activity", "bullish_signal",
+            "bearish_signal", "potential_call_sweep", "potential_put_sweep"
+        ],
+        connections: [
+            { target: 'company', edge: 'COMPANY_HAS_OPTIONS', direction: 'INBOUND', type: 'direct' },
+            { target: 'marketdata', edge: 'HAS_OPTIONS_ACTIVITY', direction: 'INBOUND', type: 'direct' },
+            { target: 'awards', edge: 'OPTIONS_BEFORE_AWARD', direction: 'OUTBOUND', type: 'direct' },
+            { target: 'sec', edge: 'OPTIONS_BEFORE_FILING', direction: 'OUTBOUND', type: 'direct' }
+        ],
+        exampleQuery: 'FOR o IN options_flow FILTER o.potential_call_sweep == 1 RETURN o'
+    },
+    eia_crude: {
+        name: 'EIA Crude Inventory',
+        collection: 'eia_crude_inventory',
+        description: 'Weekly Crude Oil Stocks',
+        keyFields: [
+            "date", "crude_stocks", "crude_stocks_change", "cushing_stocks", "gasoline_stocks",
+            "distillate_stocks", "refinery_utilization"
+        ],
+        connections: [
+            { target: 'futures', edge: 'INVENTORY_AFFECTS_PRICE', direction: 'OUTBOUND', type: 'direct' }
+        ],
+        exampleQuery: 'FOR e IN eia_crude_inventory FILTER e.crude_stocks_change > 5 RETURN e'
+    },
+    eia_natgas_storage: {
+        name: 'EIA NatGas Storage',
+        collection: 'eia_natgas_storage',
+        description: 'Weekly Natural Gas Stocks',
+        keyFields: [
+            "date", "total_stocks", "stocks_change", "stocks_vs_5yr_avg", "stocks_vs_5yr_pct"
+        ],
+        connections: [
+            { target: 'futures', edge: 'STORAGE_AFFECTS_PRICE', direction: 'OUTBOUND', type: 'direct' }
+        ],
+        exampleQuery: 'FOR e IN eia_natgas_storage FILTER e.stocks_vs_5yr_pct < -10 RETURN e'
+    },
+    eia_natgas_production: {
+        name: 'EIA NatGas Production',
+        collection: 'eia_natgas_production',
+        description: 'Monthly Natural Gas Output',
+        keyFields: [
+            "date", "dry_production", "marketed_production"
+        ],
+        connections: [],
+        exampleQuery: 'FOR e IN eia_natgas_production RETURN e'
+    },
+    eia_lng: {
+        name: 'EIA LNG Exports',
+        collection: 'eia_lng_exports',
+        description: 'Monthly LNG Export Volumes',
+        keyFields: [
+            "date", "lng_exports", "lng_export_terminals"
+        ],
+        connections: [],
+        exampleQuery: 'FOR e IN eia_lng_exports RETURN e'
+    },
     cftc: {
         name: 'CFTC Positions',
         collection: 'commodity_positions',
@@ -202,7 +290,9 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
             "Traders_Total_Reportable_Short_All", "Traders_Total_Reportable_Short_Old", "Traders_Total_Reportable_Short_Other",
             "as_of_date", "commodity_code", "data_source", "source_file"
         ],
-        connections: [],
+        connections: [
+            { target: 'futures', edge: 'POSITION_ON_COMMODITY', direction: 'OUTBOUND', type: 'direct' }
+        ],
         exampleQuery: 'FOR p IN commodity_positions RETURN p'
     },
     polymarket_traders: {
