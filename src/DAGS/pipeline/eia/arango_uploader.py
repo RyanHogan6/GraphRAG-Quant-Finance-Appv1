@@ -118,12 +118,17 @@ def upsert_eia_dataset(db, df, dataset_key):
 
     for _, row in df.iterrows():
         report_date = str(row.get('report_date', '')).strip()
+        series_id = str(row.get('series', '')).strip()
 
         if not report_date:
             continue
 
-        # Create unique key from date
-        key = report_date.replace('-', '_')
+        # Create unique key from series + date (multiple series per date)
+        if series_id:
+            key = f"{series_id}_{report_date}".replace('-', '_')
+        else:
+            # Fallback to date only if no series ID
+            key = report_date.replace('-', '_')
 
         # Build document with cleaned values
         doc = {
