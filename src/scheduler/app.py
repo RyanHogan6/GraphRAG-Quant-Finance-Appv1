@@ -63,6 +63,11 @@ try:
     from kalshi.features import engineer_market_features as engineer_kalshi_features
     from kalshi.arango_uploader import upsert_markets as upsert_kalshi_markets
 
+    # Awards
+    from awards.downloader import fetch_recent_awards
+    from awards.features import generate_embeddings
+    from awards.arango_uploader import get_arango_connection, upsert_awards
+
     logger.info("✓ Successfully imported all pipeline modules")
 except Exception as e:
     logger.error(f"✗ Failed to import pipeline modules: {e}")
@@ -83,8 +88,8 @@ def run_yahoo_pipeline():
 
         # Step 2: Download data ONE TICKER AT A TIME to avoid rate limiting
         logger.info("[2/4] Downloading stock data (30 days)...")
-        logger.info(f"  Downloading one ticker at a time with 2.0s delay (~{len(tickers) * 2.0 / 60:.1f} min)")
-        data_df = download_stock_data(tickers, period='1mo', sleep_between_tickers=2.0)
+        logger.info(f"  Downloading one ticker at a time with 3.0s delay (~{len(tickers) * 3.0 / 60:.1f} min)")
+        data_df = download_stock_data(tickers, period='1mo', sleep_between_tickers=3.0)
         logger.info(f"✓ Downloaded {len(data_df)} rows")
 
         # Check if download succeeded
@@ -158,6 +163,43 @@ def run_kalshi_pipeline():
 
     except Exception as e:
         logger.error(f"✗ Kalshi pipeline failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def run_awards_pipeline():
+    """Execute Awards (USASpending) ETL pipeline"""
+    logger.info("\n" + "="*80)
+    logger.info("AWARDS (USASPENDING) PIPELINE")
+    logger.info("="*80)
+
+    try:
+        # Step 1: Fetch recent awards (last 2 days to ensure we don't miss any)
+        logger.info("[1/3] Fetching recent awards (last 2 days)...")
+        awards_df = fetch_recent_awards(days_back=2)
+
+        if awards_df.empty:
+            logger.info("✓ No new awards found")
+            return True
+
+        logger.info(f"✓ Fetched {len(awards_df)} awards")
+
+        # Step 2: Generate embeddings
+        logger.info("[2/3] Generating FinBERT embeddings...")
+        awards_df = generate_embeddings(awards_df, batch_size=64)
+        logger.info(f"✓ Generated embeddings for {len(awards_df)} awards")
+
+        # Step 3: Upload to ArangoDB
+        logger.info("[3/3] Uploading to ArangoDB...")
+        db = get_arango_connection()
+        inserted, updated, edges = upsert_awards(db, awards_df)
+        logger.info(f"✓ Inserted: {inserted}, Updated: {updated}, Edges: {edges}")
+
+        return True
+
+    except Exception as e:
+        logger.error(f"✗ Awards pipeline failed: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -326,13 +368,14 @@ def run_pipeline():
     logger.info("\n" + "="*80)
     logger.info(f"MASTER PIPELINE STARTED: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("="*80)
-    logger.info("Execution order: Yahoo → Kalshi → Polymarket (no embeddings)")
+    logger.info("Execution order: Yahoo → Kalshi → Polymarket → Awards")
     logger.info("="*80 + "\n")
 
     results = {
         'yahoo': False,
         'kalshi': False,
-        'polymarket': False
+        'polymarket': False,
+        'awards': False
     }
 
     # Pipeline 1: Yahoo MarketData (RUNS FIRST)
@@ -367,6 +410,13 @@ def run_pipeline():
         logger.error(f"Polymarket pipeline crashed: {e}")
         results['polymarket'] = False
 
+    # Pipeline 4: Awards (USASpending)
+    try:
+        results['awards'] = run_awards_pipeline()
+    except Exception as e:
+        logger.error(f"Awards pipeline crashed: {e}")
+        results['awards'] = False
+
     # Summary
     end_time = datetime.now()
     duration = (end_time - start_time).total_seconds()
@@ -377,6 +427,7 @@ def run_pipeline():
     logger.info(f"Yahoo: {'✓ SUCCESS' if results['yahoo'] else '✗ FAILED'}")
     logger.info(f"Kalshi: {'✓ SUCCESS' if results['kalshi'] else '✗ FAILED'}")
     logger.info(f"Polymarket: {'✓ SUCCESS' if results['polymarket'] else '✗ FAILED'}")
+    logger.info(f"Awards: {'✓ SUCCESS' if results['awards'] else '✗ FAILED'}")
     logger.info(f"Duration: {duration:.1f}s ({duration/60:.1f}min)")
     logger.info("="*80)
 
