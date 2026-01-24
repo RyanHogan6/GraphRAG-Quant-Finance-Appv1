@@ -63,10 +63,16 @@ try:
     from kalshi.features import engineer_market_features as engineer_kalshi_features
     from kalshi.arango_uploader import upsert_markets as upsert_kalshi_markets
 
-    # Awards
-    from awards.downloader import fetch_recent_awards
-    from awards.features import generate_embeddings
-    from awards.arango_uploader import get_arango_connection, upsert_awards
+    # Awards (optional - may not be deployed yet)
+    try:
+        from awards.downloader import fetch_recent_awards
+        from awards.features import generate_embeddings
+        from awards.arango_uploader import upsert_awards
+        AWARDS_AVAILABLE = True
+        logger.info("✓ Awards pipeline available")
+    except ImportError:
+        AWARDS_AVAILABLE = False
+        logger.warning("⚠️ Awards pipeline not available (not deployed)")
 
     logger.info("✓ Successfully imported all pipeline modules")
 except Exception as e:

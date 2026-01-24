@@ -85,15 +85,15 @@ def download_stock_data(tickers, period='1mo', batch_size=1, sleep_between_ticke
 
             # Rate limiting with random jitter to appear more human-like
             if idx < len(tickers):
-                # Add random 10-30% variation to sleep time
-                jitter = random.uniform(0.9, 1.3)
+                # Add random 20-50% variation to sleep time
+                jitter = random.uniform(1.2, 1.5)
                 time.sleep(sleep_between_tickers * jitter)
 
         except Exception as e:
             # Silently fail individual tickers (yfinance logs errors)
             failed_tickers.append(ticker)
-            # Small delay on error
-            time.sleep(0.2)
+            # Longer delay on error to avoid cascading rate limits
+            time.sleep(2.0)
             continue
 
     # Combine all successful downloads
