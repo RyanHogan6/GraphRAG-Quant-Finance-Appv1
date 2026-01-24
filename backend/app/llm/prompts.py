@@ -483,22 +483,61 @@ DOCUMENT COLLECTIONS:
 
    ⚠️ Use Case: Track what whales are betting on, position analysis, portfolio exposure
 
-10. sec_filings (SEC document metadata)
+10. sec_filings (SEC document metadata - 36,175 total filings)
    - ticker (string): Company ticker
-   - type (string): Filing type ("10-K", "10-Q", "8-K", etc.)
+   - type (string): Filing type - 12 types available:
+     • "10-K" (4,960 filings) - Annual report with audited financials
+     • "10-Q" (5,019 filings) - Quarterly report
+     • "8-K" (5,025 filings) - Material events (M&A, earnings, leadership changes)
+     • "4" (6,120 filings) - Insider ownership changes (buy/sell transactions) ⚠️ HAS TRADES FIELD
+     • "5" (3,593 filings) - Annual insider ownership report ⚠️ HAS TRADES FIELD
+     • "6-K" (134 filings) - Foreign issuer current report
+     • "S-1" (317 filings) - IPO registration statement
+     • "SC 13D" (1,685 filings) - Beneficial ownership >5% with intent to influence
+     • "SC 13G" (5,801 filings) - Passive beneficial ownership >5%
+     • "13F-HR" (756 filings) - Institutional investor holdings (quarterly)
+     • "DEF 14A" (2,469 filings) - Proxy statement (shareholder meetings)
+     • "424B4" (301 filings) - Prospectus filed pursuant to Rule 424(b)(4)
+
    - accession (string): SEC accession number (unique ID)
    - file_name (string): Source file name
    - filing_date (string): Date filed YYYY-MM-DD
    - fiscal_year (int): Fiscal year
-   
-   Sentiment Metrics (aggregated from sentences):
+
+   ⚠️ FORM 4/5 ONLY - Insider Transaction Data (CRITICAL!):
+   - trades (array of objects): Structured insider transaction data
+     • type (string): "non-derivative" (stock) or "derivative" (options)
+     • code (string): Transaction code
+       - "P" = Purchase (INSIDER BUYING - BULLISH SIGNAL)
+       - "S" = Sale (INSIDER SELLING - BEARISH SIGNAL)
+       - "F" = Tax withholding (automatic, NOT informed trade)
+       - "M" = Exercise of options
+       - "A" = Grant/Award (compensation)
+     • shares (int): Number of shares (negative = sold, positive = bought)
+     • price (float): Transaction price per share
+     • post_shares (float): Total shares held AFTER transaction
+     • is_informed (bool): true = informed trade (P/S), false = automatic (F/M/A)
+
+   ⚠️ INSIDER BUYING DETECTION:
+   FILTER filing.type == "4"
+   FILTER filing.trades[? ANY.code == "P"]  ← Purchases only
+   FILTER filing.trades[? ANY.is_informed == true]  ← Exclude tax withholding
+
+   ⚠️ INSIDER SELLING DETECTION:
+   FILTER filing.type == "4"
+   FILTER filing.trades[? ANY.code == "S"]  ← Sales only
+   FILTER filing.trades[? ANY.is_informed == true]
+
+   Sentiment Metrics (10-K, 10-Q, 8-K, etc. - aggregated from sentences):
    - avg_finbert (float): Average FinBERT sentiment (-1 to +1)
    - avg_uncertainty (float): Uncertainty score per 1000 words
    - avg_positive (float): Positive words per 1000
    - avg_negative (float): Negative words per 1000
    - sentence_count (int): Total sentences in filing
-   
+
    ⚠️ NO CONTENT FIELD: Full text is NOT stored here. Use sec_sections or sec_sentences.
+   ⚠️ INSIDER TRADING SIGNALS: Form 4/5 have `trades` field with buy/sell data, SC 13D/G show large institutional positions
+   ⚠️ IPO/OFFERING DATA: S-1 and 424B4 for new offerings
 
 9. sec_sections (sections within filings)
    - filing_id (string): Parent filing ID (format: "sec_filings/{ticker}_{type}_{accession}_{filename}")
@@ -1919,6 +1958,157 @@ Strategy:
 
 ---
 
+EXAMPLE 25 - Insider Buying/Selling (Form 4 Filings):
+Question: "Show me recent insider buying for tech companies"
+Intent: insider_trading_analysis
+Collections: ["sec_filings", "Company"]
+Edges: ["HAS_FILING"]
+AQL:
+FOR filing IN sec_filings
+  FILTER filing.type == "4"
+  FILTER filing.filing_date >= DATE_SUBTRACT(DATE_NOW(), 90, "day")
+  FILTER filing.trades != null
+
+  LET purchases = filing.trades[* FILTER CURRENT.code == "P" AND CURRENT.is_informed == true]
+  FILTER LENGTH(purchases) > 0
+
+  FOR company IN Company
+    FILTER company.ticker == filing.ticker
+    FILTER company.sector == "Technology"
+
+    LET total_shares_bought = SUM(purchases[*].shares)
+    LET avg_price = AVG(purchases[*].price)
+    LET total_value = SUM(purchases[*].shares * purchases[*].price)
+
+    SORT filing.filing_date DESC
+    LIMIT 20
+
+    RETURN {
+      ticker: filing.ticker,
+      company_name: company.company,
+      filing_date: filing.filing_date,
+      shares_bought: total_shares_bought,
+      avg_price: avg_price,
+      total_value: total_value,
+      num_transactions: LENGTH(purchases),
+      accession: filing.accession
+    }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ Form 4 = Insider ownership changes with structured `trades` data
+✅ Filter for code == "P" (Purchase) to find insider BUYING
+✅ Filter is_informed == true to exclude automatic tax withholdings (code "F")
+✅ Calculate total shares, average price, total dollar value
+💡 Correlation opportunity: Check if unusual options activity preceded this Form 4 filing
+⚠️ Form 4 filed within 2 business days of transaction
+⚠️ Large insider purchases (>$100k) are strong bullish signals
+
+---
+
+EXAMPLE 26 - Institutional Holdings (13F-HR Filings):
+Question: "What are the most recent 13F filings showing large tech holdings?"
+Intent: institutional_holdings_analysis
+Collections: ["sec_filings", "sec_sentences"]
+Edges: ["has_section", "has_sentence"]
+AQL:
+FOR filing IN sec_filings
+  FILTER filing.type == "13F-HR"
+  FILTER filing.filing_date >= DATE_SUBTRACT(DATE_NOW(), 120, "day")
+
+  FOR section IN 1..1 OUTBOUND filing has_section
+    FOR sentence IN 1..1 OUTBOUND section has_sentence
+      FILTER CONTAINS(LOWER(sentence.text), "apple")
+        OR CONTAINS(LOWER(sentence.text), "microsoft")
+        OR CONTAINS(LOWER(sentence.text), "nvidia")
+
+      COLLECT
+        ticker = filing.ticker,
+        filing_date = filing.filing_date,
+        accession = filing.accession
+      INTO sentences = sentence.text
+
+      SORT filing_date DESC
+      LIMIT 10
+
+      RETURN {
+        institution_ticker: ticker,
+        filing_date: filing_date,
+        accession: accession,
+        mentions: LENGTH(sentences),
+        sample_text: sentences[0]
+      }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ 13F-HR = Quarterly institutional holdings reports (hedge funds, asset managers)
+✅ Filed by institutions managing >$100M in assets
+✅ Shows what "smart money" is holding (Buffett's Berkshire, Bridgewater, etc.)
+💡 Cross-reference: Compare 13F positions with prediction market sentiment
+⚠️ 13F filed 45 days after quarter end (Q4 2025 filings due mid-Feb 2026)
+
+---
+
+EXAMPLE 27 - Insider Buying with Options Correlation:
+Question: "Find stocks where insiders bought shares and there was unusual call buying beforehand"
+Intent: advanced_insider_trading_detection
+Collections: ["sec_filings", "options_flow", "Company"]
+Edges: ["COMPANY_HAS_OPTIONS"]
+AQL:
+FOR filing IN sec_filings
+  FILTER filing.type == "4"
+  FILTER filing.filing_date >= DATE_SUBTRACT(DATE_NOW(), 90, "day")
+  FILTER filing.trades != null
+
+  LET purchases = filing.trades[* FILTER CURRENT.code == "P" AND CURRENT.is_informed == true]
+  FILTER LENGTH(purchases) > 0
+
+  FOR company IN Company
+    FILTER company.ticker == filing.ticker
+
+    FOR options IN OUTBOUND company COMPANY_HAS_OPTIONS
+      FILTER options.date >= DATE_SUBTRACT(filing.filing_date, 30, "day")
+      FILTER options.date < filing.filing_date
+      FILTER options.unusual_call_activity == 1
+
+      LET total_shares_bought = SUM(purchases[*].shares)
+      LET total_purchase_value = SUM(purchases[*].shares * purchases[*].price)
+      LET days_before_filing = DATE_DIFF(options.date, filing.filing_date, "day")
+
+      SORT filing.filing_date DESC
+      LIMIT 10
+
+      RETURN {
+        ticker: filing.ticker,
+        company_name: company.company,
+        sector: company.sector,
+        insider_filing_date: filing.filing_date,
+        shares_bought: total_shares_bought,
+        purchase_value: total_purchase_value,
+        options_date: options.date,
+        days_before_insider: ABS(days_before_filing),
+        call_volume: options.call_volume,
+        call_unusual_ratio: options.call_volume_unusual,
+        put_call_ratio: options.put_call_volume_ratio,
+        potential_call_sweep: options.potential_call_sweep,
+        signal_strength: "STRONG"
+      }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ Find Form 4 with insider purchases (code == "P")
+✅ Look back 30 days for unusual call buying BEFORE insider filing
+✅ Unusual call activity + subsequent insider buying = potential insider knowledge
+💡 STRONG SIGNAL: Insider buys shares after unusual call buying (likely same person/connected)
+💡 Timeframe: Options activity typically 1-30 days before Form 4 filing
+⚠️ This pattern suggests informed trading (bullish)
+⚠️ Cross-reference with 8-K filings for material events announced after
+
+---
+
 ⚠️ FIELD NAME CHEAT SHEET (Common Mistakes):
 
 WRONG → CORRECT
@@ -1935,6 +2125,38 @@ WRONG → CORRECT
 - eia_crude → eia_crude_inventory
 - eia_natgas → eia_natgas_storage (for storage data)
 - eia_gas_production → eia_natgas_production
+
+⚠️ SEC FORM TYPES (Use Case Guide):
+
+sec_filings.type values and when to use them:
+- "10-K" → Annual reports, full financials, risk factors, strategy (most comprehensive)
+- "10-Q" → Quarterly updates, interim financials
+- "8-K" → Material events (M&A, earnings releases, CEO changes, lawsuits)
+- "4" → Insider buy/sell transactions (detect insider sentiment, use with options_flow for correlation)
+- "5" → Annual insider holdings summary
+- "SC 13D" → Activist investor positions >5% (intent to influence company)
+- "SC 13G" → Passive institutional positions >5% (no activist intent)
+- "13F-HR" → Hedge fund/institutional holdings (quarterly snapshots, e.g., Buffett's Berkshire)
+- "S-1" → IPO filings (pre-IPO financials, risk factors, use case)
+- "6-K" → Foreign company reports (non-US headquarters)
+- "DEF 14A" → Proxy statements (executive comp, shareholder proposals)
+- "424B4" → Final prospectus for offerings
+
+⚠️ INSIDER TRADING DETECTION STRATEGY:
+1. Form 4 trades field → Parse structured buy/sell data (code "P" = buy, "S" = sell)
+2. Filter is_informed == true → Exclude automatic tax withholdings
+3. Correlate with options_flow → Unusual call buying 1-30 days before insider buying = STRONG SIGNAL
+4. Correlate with 8-K filings → Material events announced shortly after insider activity
+5. SC 13D filings → Activist campaigns, often followed by stock price movement
+6. Calculate purchase value: SUM(trades[*].shares * trades[*].price)
+
+⚠️ FORM 4/5 TRADES FIELD SYNTAX:
+- Get all purchases: filing.trades[* FILTER CURRENT.code == "P"]
+- Get all sales: filing.trades[* FILTER CURRENT.code == "S"]
+- Get informed trades only: filing.trades[* FILTER CURRENT.is_informed == true]
+- Total shares bought: SUM(filing.trades[*].shares)
+- Average price: AVG(filing.trades[*].price)
+- Total value: SUM(filing.trades[*].shares * filing.trades[*].price)
 
 ⚠️ NEW COLLECTIONS FIELD NAMES:
 
