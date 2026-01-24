@@ -4,17 +4,28 @@ Awards Feature Engineering - FinBERT Embeddings
 import torch
 from transformers import AutoTokenizer, AutoModel
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+_tokenizer = None
+_model = None
 
-# Load FinBERT
-tokenizer = AutoTokenizer.from_pretrained("ProsusAI/finbert")
-model = AutoModel.from_pretrained("ProsusAI/finbert").to(device)
-model.eval()
+def _get_finbert():
+    """Lazy load FinBERT model"""
+    global _tokenizer, _model
+
+    if _tokenizer is None or _model is None:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        _tokenizer = AutoTokenizer.from_pretrained("ProsusAI/finbert")
+        _model = AutoModel.from_pretrained("ProsusAI/finbert").to(device)
+        _model.eval()
+
+    return _tokenizer, _model
 
 def generate_embeddings(df, batch_size=64):
     """Generate FinBERT embeddings for award descriptions"""
     if df.empty or 'Description' not in df.columns:
         return df
+
+    tokenizer, model = _get_finbert()
+    device = next(model.parameters()).device
 
     descriptions = df['Description'].fillna('').tolist()
     embeddings = []
