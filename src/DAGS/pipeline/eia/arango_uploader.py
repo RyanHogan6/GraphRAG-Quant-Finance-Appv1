@@ -145,17 +145,24 @@ def upsert_eia_dataset(db, df, dataset_key):
 
     # Batch upsert documents
     if docs:
+        print(f"  Total docs to upsert: {len(docs)}")
         for i in range(0, len(docs), 500):
             batch = docs[i:i+500]
-            result = db.aql.execute(
-                f"FOR doc IN @docs UPSERT {{_key: doc._key}} INSERT doc UPDATE doc IN {collection_name} RETURN {{new: NEW, old: OLD}}",
-                bind_vars={'docs': batch}
-            )
-            for r in result:
-                if r['old']:
-                    updated += 1
-                else:
-                    inserted += 1
+            try:
+                result = db.aql.execute(
+                    f"FOR doc IN @docs UPSERT {{_key: doc._key}} INSERT doc UPDATE doc IN {collection_name} RETURN {{new: NEW, old: OLD}}",
+                    bind_vars={'docs': batch}
+                )
+                for r in result:
+                    if r['old']:
+                        updated += 1
+                    else:
+                        inserted += 1
+            except Exception as e:
+                print(f"  ✗ Batch upsert error: {e}")
+                # Try individual inserts to identify bad records
+                for doc in batch[:5]:  # Sample first 5
+                    print(f"    Sample doc key: {doc.get('_key')}, date: {doc.get('report_date')}")
 
     # Create graph edges: commodity_positions -> eia_data
     # Links CFTC positioning to EIA fundamentals
