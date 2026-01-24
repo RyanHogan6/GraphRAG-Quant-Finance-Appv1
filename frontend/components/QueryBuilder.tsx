@@ -409,6 +409,7 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                                 />
                                 <datalist id="company-suggestions">
                                     {companies
+                                        .filter(c => c.ticker && c.company)
                                         .filter(c =>
                                             c.ticker.toLowerCase().includes(companySearch.toLowerCase()) ||
                                             c.company.toLowerCase().includes(companySearch.toLowerCase())
