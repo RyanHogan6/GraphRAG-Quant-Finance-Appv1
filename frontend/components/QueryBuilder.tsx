@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { GRAPH_SCHEMA, SchemaNode, isValidConnection } from '@/lib/schema'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -18,6 +18,55 @@ type Enrichment = {
     targetKey: string // Key in GRAPH_SCHEMA (e.g., 'marketdata', 'predictionmarkets')
 }
 
+// Collection grouping structure
+type CollectionGroup = {
+    label: string
+    icon: string
+    collections: string[]
+    subItems?: Array<{
+        key: string
+        label: string
+        filter: { field: string; operator: string; value: string } | null
+    }>
+}
+
+const COLLECTION_GROUPS: Record<string, CollectionGroup> = {
+    core: {
+        label: 'Core Data',
+        icon: '📊',
+        collections: ['company', 'marketdata', 'economicdata']
+    },
+    sec: {
+        label: 'SEC Filings',
+        icon: '📄',
+        collections: ['sec'],
+        subItems: [
+            { key: 'sec-all', label: 'All SEC Filings', filter: null },
+            { key: 'sec-form4', label: 'Form 4/5 - Insider Trades', filter: { field: 'type', operator: 'IN', value: '["4", "5"]' } },
+            { key: 'sec-10k', label: '10-K - Annual Reports', filter: { field: 'type', operator: '==', value: '10-K' } },
+            { key: 'sec-8k', label: '8-K - Material Events', filter: { field: 'type', operator: '==', value: '8-K' } },
+            { key: 'sec-10q', label: '10-Q - Quarterly Reports', filter: { field: 'type', operator: '==', value: '10-Q' } },
+            { key: 'sec-13d', label: 'SC 13D/G - Institutional', filter: { field: 'type', operator: 'IN', value: '["SC 13D", "SC 13G"]' } },
+            { key: 'sec-13f', label: '13F-HR - Hedge Funds', filter: { field: 'type', operator: '==', value: '13F-HR' } }
+        ]
+    },
+    markets: {
+        label: 'Prediction Markets',
+        icon: '🎲',
+        collections: ['predictionmarkets', 'kalshi', 'polymarket_traders', 'polymarket_positions', 'polymarket_price_history']
+    },
+    commodities: {
+        label: 'Commodities & Energy',
+        icon: '🌾',
+        collections: ['futures', 'cftc', 'eia_crude', 'eia_natgas_storage', 'eia_natgas_production', 'eia_lng']
+    },
+    options: {
+        label: 'Options & Contracts',
+        icon: '📈',
+        collections: ['options', 'awards']
+    }
+}
+
 export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
     // Steps: 0 = Source, 1 = Filter, 2 = Enrich
     const [step, setStep] = useState(0)
@@ -27,6 +76,11 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
     const [filters, setFilters] = useState<Filter[]>([])
     const [enrichments, setEnrichments] = useState<Enrichment[]>([])
     const [limit, setLimit] = useState(20)
+
+    // Dropdown state
+    const [dropdownOpen, setDropdownOpen] = useState(false)
+    const [searchQuery, setSearchQuery] = useState('')
+    const dropdownRef = useRef<HTMLDivElement>(null)
 
     // Company suggestions for autofill
     const [companies, setCompanies] = useState<{ ticker: string, company: string }[]>([])
@@ -44,6 +98,17 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
             }
         }
         fetchCompanies()
+    }, [])
+
+    // Close dropdown on click outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setDropdownOpen(false)
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
     }, [])
 
     // Derived
@@ -182,34 +247,164 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
     return (
         <div className="bg-dark-900 border border-gold/20 p-3 rounded-lg space-y-3 shadow-2xl">
 
-            {/* Step 1: Source Selection */}
-            <div className="space-y-1.5">
+            {/* Step 1: Source Selection - Smart Dropdown */}
+            <div className="space-y-1.5 relative" ref={dropdownRef}>
                 <label className="text-[10px] text-gold/60 font-bold uppercase tracking-widest pl-1">1. START WITH</label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5">
-                    {Object.entries(GRAPH_SCHEMA)
-                        .filter(([key]) => key !== 'sec' && key !== 'sec_sections')
-                        // Only show nodes that act as roots/sources (usually Company)
-                        // Or let user pick anything? For now, stick to user's flow
-                        .map(([key, node]) => (
-                            <button
-                                key={key}
-                                onClick={() => {
-                                    setSource(key)
-                                    setFilters([])
-                                    setEnrichments([])
-                                    setStep(1)
-                                }}
-                                className={`p-1.5 rounded-md text-[11px] border transition-all truncate text-left
-                ${source === key
-                                        ? 'bg-gold/20 border-gold/60 text-gold shadow-[0_0_10px_rgba(212,175,55,0.1)]'
-                                        : 'bg-dark-800 border-gold/10 text-gray-400 hover:border-gold/30'
-                                    }`}
-                            >
-                                <div className="font-bold tracking-tight">{node.name}</div>
-                                <div className="text-[9px] opacity-50 truncate leading-tight">{node.description}</div>
-                            </button>
-                        ))}
-                </div>
+
+                {/* Dropdown Button */}
+                <button
+                    onClick={() => setDropdownOpen(!dropdownOpen)}
+                    className="w-full p-3 rounded-lg text-left border border-gold/20 bg-dark-800 hover:border-gold/40 transition-all flex items-center justify-between group"
+                >
+                    <div className="flex-1">
+                        {source ? (
+                            <div>
+                                <div className="text-sm font-semibold text-gold">{sourceNode?.name}</div>
+                                <div className="text-xs text-gray-400 truncate">{sourceNode?.description}</div>
+                            </div>
+                        ) : (
+                            <div className="text-sm text-gray-400">Select a collection...</div>
+                        )}
+                    </div>
+                    <svg className={`w-5 h-5 text-gold transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+
+                {/* Dropdown Menu */}
+                {dropdownOpen && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="absolute z-50 mt-1 left-0 right-0 bg-dark-800 border border-gold/20 rounded-lg shadow-2xl max-h-96 overflow-hidden"
+                    >
+                        {/* Search Bar */}
+                        <div className="sticky top-0 bg-dark-900 border-b border-gold/10 p-3">
+                            <input
+                                type="text"
+                                placeholder="🔍 Search collections..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full bg-dark-800 text-gray-200 text-sm px-3 py-2 rounded border border-gray-700 focus:border-gold/50 outline-none"
+                                autoFocus
+                            />
+                        </div>
+
+                        {/* Collections List */}
+                        <div className="overflow-y-auto max-h-80">
+                            {Object.entries(COLLECTION_GROUPS).map(([groupKey, group]) => {
+                                // Filter collections based on search
+                                const visibleCollections = group.collections.filter(key => {
+                                    const node = GRAPH_SCHEMA[key]
+                                    if (!node) return false
+                                    const searchLower = searchQuery.toLowerCase()
+                                    return (
+                                        node.name.toLowerCase().includes(searchLower) ||
+                                        node.description.toLowerCase().includes(searchLower) ||
+                                        node.collection.toLowerCase().includes(searchLower)
+                                    )
+                                })
+
+                                if (visibleCollections.length === 0 && searchQuery) return null
+
+                                return (
+                                    <div key={groupKey} className="border-b border-gold/10 last:border-0">
+                                        {/* Group Header */}
+                                        <div className="px-4 py-2 bg-dark-900/50 text-xs font-semibold text-gold/60 uppercase tracking-wider flex items-center gap-2">
+                                            <span>{group.icon}</span>
+                                            <span>{group.label}</span>
+                                        </div>
+
+                                        {/* Collections in Group */}
+                                        {visibleCollections.map(key => {
+                                            const node = GRAPH_SCHEMA[key]
+                                            if (!node) return null
+
+                                            return (
+                                                <div key={key}>
+                                                    {/* Main Collection */}
+                                                    <button
+                                                        onClick={() => {
+                                                            setSource(key)
+                                                            setFilters([])
+                                                            setEnrichments([])
+                                                            setStep(1)
+                                                            setDropdownOpen(false)
+                                                            setSearchQuery('')
+                                                        }}
+                                                        className={`w-full px-4 py-2.5 text-left hover:bg-gold/10 transition-colors flex items-center justify-between group
+                                                            ${source === key ? 'bg-gold/20' : ''}`}
+                                                    >
+                                                        <div className="flex-1">
+                                                            <div className={`text-sm font-medium ${source === key ? 'text-gold' : 'text-gray-200'}`}>
+                                                                {node.name}
+                                                            </div>
+                                                            <div className="text-xs text-gray-400 truncate">
+                                                                {node.description}
+                                                            </div>
+                                                        </div>
+                                                        {source === key && (
+                                                            <svg className="w-5 h-5 text-gold" fill="currentColor" viewBox="0 0 20 20">
+                                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                            </svg>
+                                                        )}
+                                                    </button>
+
+                                                    {/* SEC Sub-Items (Quick Filters) */}
+                                                    {key === 'sec' && group.subItems && (
+                                                        <div className="bg-dark-900/30">
+                                                            {group.subItems.map(subItem => (
+                                                                <button
+                                                                    key={subItem.key}
+                                                                    onClick={() => {
+                                                                        setSource('sec')
+                                                                        if (subItem.filter) {
+                                                                            setFilters([subItem.filter])
+                                                                        } else {
+                                                                            setFilters([])
+                                                                        }
+                                                                        setEnrichments([])
+                                                                        setStep(1)
+                                                                        setDropdownOpen(false)
+                                                                        setSearchQuery('')
+                                                                    }}
+                                                                    className="w-full px-8 py-2 text-left hover:bg-gold/5 transition-colors"
+                                                                >
+                                                                    <div className="text-xs text-gray-300 hover:text-gold transition-colors flex items-center gap-2">
+                                                                        <span className="text-gold/40">└─</span>
+                                                                        <span>{subItem.label}</span>
+                                                                    </div>
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                )
+                            })}
+
+                            {/* No Results */}
+                            {searchQuery && Object.entries(COLLECTION_GROUPS).every(([_, group]) =>
+                                group.collections.every(key => {
+                                    const node = GRAPH_SCHEMA[key]
+                                    if (!node) return true
+                                    const searchLower = searchQuery.toLowerCase()
+                                    return !(
+                                        node.name.toLowerCase().includes(searchLower) ||
+                                        node.description.toLowerCase().includes(searchLower) ||
+                                        node.collection.toLowerCase().includes(searchLower)
+                                    )
+                                })
+                            ) && (
+                                <div className="px-4 py-8 text-center text-gray-500 text-sm">
+                                    No collections found for "{searchQuery}"
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+                )}
             </div>
 
             {sourceNode && (
