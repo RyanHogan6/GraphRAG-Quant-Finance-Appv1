@@ -265,8 +265,8 @@ def create_futures_edges(db, futures_docs):
                 # Find EIA inventory records (approximate date match)
                 query = """
                 FOR inv IN eia_crude_inventory
-                    FILTER inv.date >= DATE_SUBTRACT(@date, 7, 'day')
-                    FILTER inv.date <= DATE_ADD(@date, 7, 'day')
+                    FILTER inv.report_date >= DATE_SUBTRACT(@date, 7, 'day')
+                    FILTER inv.report_date <= DATE_ADD(@date, 7, 'day')
                     LIMIT 5
                     RETURN inv._key
                 """
@@ -303,8 +303,8 @@ def create_futures_edges(db, futures_docs):
 
                 query = """
                 FOR storage IN eia_natgas_storage
-                    FILTER storage.date >= DATE_SUBTRACT(@date, 7, 'day')
-                    FILTER storage.date <= DATE_ADD(@date, 7, 'day')
+                    FILTER storage.report_date >= DATE_SUBTRACT(@date, 7, 'day')
+                    FILTER storage.report_date <= DATE_ADD(@date, 7, 'day')
                     LIMIT 5
                     RETURN storage._key
                 """

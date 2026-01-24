@@ -94,10 +94,11 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
     sec: {
         name: 'SEC Filings',
         collection: 'sec_filings',
-        description: '10-K/10-Q Filings',
+        description: '12 Form Types: 10-K, 10-Q, 8-K, Form 4/5 (Insider Trades), SC 13D/G (Institutional), 13F-HR, S-1, 6-K, DEF 14A, 424B4',
         keyFields: [
             "accession", "avg_finbert", "avg_negative", "avg_positive", "avg_uncertainty", "file_name",
-            "filing_date", "fiscal_year", "sentence_count", "ticker", "type"
+            "filing_date", "fiscal_year", "sentence_count", "ticker", "type",
+            "trades (Form 4/5 only: array of {code, shares, price, post_shares, is_informed})"
         ],
         connections: [
             { target: 'sec_sections', edge: 'has_section', direction: 'OUTBOUND', type: 'direct' },
