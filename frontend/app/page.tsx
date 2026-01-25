@@ -928,29 +928,29 @@ export default function HomePage() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
-        className="flex flex-col items-center pt-4 pb-2"
+        className="flex flex-col items-center pt-2 pb-1 md:pt-4 md:pb-2"
       >
-        {/* KARGA Logo - No scaling needed, already correct size */}
+        {/* KARGA Logo - Smaller on mobile */}
         <AnimatedLogo />
 
-        {/* Tagline - Close to logo */}
-        <p className="text-sm md:text-base text-gray-400 mt-1">
+        {/* Tagline - Smaller on mobile */}
+        <p className="text-xs md:text-base text-gray-400 mt-0.5 md:mt-1">
           Financial Intelligence Powered by Knowledge Graphs
         </p>
       </motion.div>
 
       {/* Chat Container - Large and Central */}
-      <section id="query" className="px-4 pb-8">
+      <section id="query" className="px-2 md:px-4 pb-4 md:pb-8">
         <div className="container mx-auto max-w-[1600px]">
-          {/* Intelligence Terminal Label - Left aligned */}
+          {/* Intelligence Terminal Label - Left aligned, smaller on mobile */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="mb-2 text-left"
+            className="mb-1 md:mb-2 text-left"
           >
-            <h2 className="text-sm md:text-base font-bold text-gold tracking-tight flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-gold rounded-full animate-pulse" />
+            <h2 className="text-xs md:text-base font-bold text-gold tracking-tight flex items-center gap-1.5">
+              <span className="w-1 h-1 md:w-1.5 md:h-1.5 bg-gold rounded-full animate-pulse" />
               Intelligence Terminal
             </h2>
           </motion.div>
@@ -959,7 +959,7 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
-            className="bg-dark-700/95 border border-gold/30 rounded-xl shadow-2xl p-4 md:p-5"
+            className="bg-dark-700/95 border border-gold/30 rounded-xl shadow-2xl p-2 md:p-5"
           >
             {/* Expanded Message Overlay */}
             {expandedMessageIdx !== null && (
@@ -992,8 +992,8 @@ export default function HomePage() {
             {/* Messages */}
             <div
               ref={chatScrollRef}
-              className="overflow-y-auto py-4 space-y-4 md:space-y-6 scroll-smooth"
-              style={{ height: 'calc(100vh - 400px)' }}
+              className="overflow-y-auto py-2 md:py-4 space-y-3 md:space-y-6 scroll-smooth"
+              style={{ height: 'calc(100vh - 420px)' }}
             >
               {/* Visual Query Builder - Show at top when in builder mode */}
               {isBuilderMode && (
@@ -1024,12 +1024,12 @@ export default function HomePage() {
               {/* Empty State - Show suggested questions when no messages */}
               {messages.length === 0 && !isBuilderMode && (
                 <div className="flex items-center justify-center h-full">
-                  <div className="max-w-4xl w-full space-y-4 px-2">
-                    <div className="text-center mb-4">
-                      <h3 className="text-lg md:text-xl font-semibold text-gold mb-2">What can I help you discover?</h3>
-                      <p className="text-sm text-gray-400">Ask about markets, companies, contracts, commodities, or options flow</p>
+                  <div className="max-w-4xl w-full space-y-2 md:space-y-4 px-2">
+                    <div className="text-center mb-2 md:mb-4">
+                      <h3 className="text-sm md:text-xl font-semibold text-gold mb-1 md:mb-2">What can I help you discover?</h3>
+                      <p className="text-xs md:text-sm text-gray-400">Ask about markets, companies, contracts, commodities, or options flow</p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-3 gap-1.5 md:gap-3">
                       {suggestedQuestions.slice(0, 3).map((question, idx) => (
                         <button
                           key={idx}
@@ -1037,7 +1037,7 @@ export default function HomePage() {
                             setInput(question)
                             setIsBuilderMode(false)
                           }}
-                          className="bg-dark-600/60 border border-gold/30 rounded-lg p-3 text-left text-sm text-gray-200 hover:border-gold/50 hover:bg-dark-600 hover:text-gold transition-all shadow-sm"
+                          className="bg-dark-600/60 border border-gold/30 rounded-md md:rounded-lg p-1.5 md:p-3 text-left text-[9px] md:text-sm text-gray-200 hover:border-gold/50 hover:bg-dark-600 hover:text-gold transition-all shadow-sm leading-tight"
                         >
                           {question}
                         </button>
@@ -1267,20 +1267,20 @@ export default function HomePage() {
             </div>
 
             {/* Input Area */}
-            <div className="sticky bottom-0 z-[40] md:relative bg-dark-800 border-t border-gold/20 p-3 md:p-4 backdrop-blur-md">
+            <div className="sticky bottom-0 z-[40] md:relative bg-dark-800 border-t border-gold/20 p-2 md:p-4 backdrop-blur-md">
               {/* Tab Switcher */}
-              <div className="flex items-center justify-between mb-3 gap-3 px-1">
-                <div className="flex items-center gap-1 bg-dark-900 p-1 rounded-lg border border-gray-700">
+              <div className="flex items-center justify-between mb-2 md:mb-3 gap-1 md:gap-3">
+                <div className="flex items-center gap-0.5 bg-dark-900 p-0.5 md:p-1 rounded border border-gray-700">
                   {/* LLM Interface Tab */}
                   <button
                     onClick={() => setIsBuilderMode(false)}
-                    className={`px-3 py-1 rounded text-[10px] font-medium transition-all ${
+                    className={`px-1.5 py-0.5 md:px-3 md:py-1 rounded text-[8px] md:text-[10px] font-medium transition-all ${
                       !isBuilderMode
                         ? 'bg-gold text-dark-900'
                         : 'text-gray-400 hover:text-gray-200'
                     }`}
                   >
-                    LLM Interface
+                    LLM
                   </button>
 
                   {/* Visual Query Builder Tab */}
@@ -1289,29 +1289,28 @@ export default function HomePage() {
                       setIsBuilderMode(true)
                       setShowAdvancedMode(true)
                     }}
-                    className={`px-3 py-1 rounded text-[10px] font-medium transition-all ${
+                    className={`px-1.5 py-0.5 md:px-3 md:py-1 rounded text-[8px] md:text-[10px] font-medium transition-all ${
                       isBuilderMode
                         ? 'bg-gold text-dark-900'
                         : 'text-gray-400 hover:text-gray-200'
                     }`}
                   >
-                    Visual Query Builder
+                    VQB
                   </button>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 md:gap-3">
                   {/* Complex Queries Toggle */}
                   <button
                     onClick={() => setShowComplexQueries(!showComplexQueries)}
-                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+                    className={`px-2 py-1 md:px-4 md:py-1.5 rounded text-[9px] md:text-xs font-bold transition-all flex items-center gap-1 ${
                       showComplexQueries
-                        ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50 shadow-lg'
-                        : 'bg-dark-800 text-purple-300 border border-purple-500/30 hover:bg-purple-500/10 hover:border-purple-500/50'
+                        ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50'
+                        : 'bg-dark-800 text-purple-300 border border-purple-500/30'
                     }`}
                   >
-                    <span>🧠</span>
-                    <span className="hidden sm:inline">Complex Queries</span>
-                    <span className="sm:hidden">Gallery</span>
+                    <span className="text-xs">🧠</span>
+                    <span className="hidden md:inline">Gallery</span>
                   </button>
                   {/* Advanced Mode Toggle (only for LLM mode) */}
                   {!isBuilderMode && (
@@ -1323,14 +1322,14 @@ export default function HomePage() {
                           onChange={(e) => setShowAdvancedMode(e.target.checked)}
                           className="sr-only"
                         />
-                        <div className={`block w-6 h-3.5 md:w-8 md:h-4.5 rounded-full transition ${showAdvancedMode ? 'bg-purple-500' : 'bg-gray-600'}`}></div>
-                        <div className={`dot absolute left-0.5 top-0.5 md:left-0.5 md:top-0.5 bg-white w-2.5 h-2.5 md:w-3.5 md:h-3.5 rounded-full transition ${showAdvancedMode ? 'transform translate-x-2.5 md:translate-x-3.5' : ''}`}></div>
+                        <div className={`block w-6 h-3 md:w-8 md:h-4 rounded-full transition ${showAdvancedMode ? 'bg-purple-500' : 'bg-gray-600'}`}></div>
+                        <div className={`dot absolute left-0.5 top-0.5 bg-white w-2 h-2 md:w-3 md:h-3 rounded-full transition ${showAdvancedMode ? 'transform translate-x-3 md:translate-x-4' : ''}`}></div>
                       </div>
-                      <span className="text-[9px] md:text-[10px] text-gray-400 ml-1.5 font-medium group-hover:text-purple-400 transition-colors">Advanced</span>
+                      <span className="text-[8px] md:text-[10px] text-gray-400 ml-1 font-medium">Adv</span>
                     </label>
                   )}
 
-                  <div className="text-[9px] md:text-[10px] text-gray-500 font-mono tracking-tighter">
+                  <div className="hidden md:block text-[9px] md:text-[10px] text-gray-500 font-mono tracking-tighter">
                     QUERY_ENGINE_V1.2
                   </div>
                 </div>
@@ -1346,7 +1345,7 @@ export default function HomePage() {
                   </button>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="flex flex-col md:flex-row md:space-x-2 space-y-2 md:space-y-0">
+                <form onSubmit={handleSubmit} className="flex flex-col md:flex-row md:space-x-2 space-y-1.5 md:space-y-0">
                   <textarea
                     value={input}
                     onChange={(e) => {
@@ -1363,13 +1362,13 @@ export default function HomePage() {
                     }}
                     placeholder="Ask about markets, companies, contracts, commodities, options flow..."
                     rows={1}
-                    className="flex-1 bg-black border border-gold/50 rounded-lg px-4 py-3 text-sm md:text-base text-white placeholder-gray-400 focus:outline-none focus:border-gold/80 focus:ring-2 focus:ring-gold/40 resize-y min-h-[48px] max-h-[140px]"
+                    className="flex-1 bg-black border border-gold/50 rounded-lg px-2 py-2 md:px-4 md:py-3 text-xs md:text-base text-white placeholder-gray-400 placeholder:text-xs md:placeholder:text-sm focus:outline-none focus:border-gold/80 focus:ring-1 md:focus:ring-2 focus:ring-gold/40 resize-y min-h-[40px] md:min-h-[48px] max-h-[100px] md:max-h-[140px]"
                     disabled={isLoading}
                   />
                   <button
                     type="submit"
                     disabled={isLoading || !input.trim()}
-                    className="w-full md:w-auto px-4 py-1.5 bg-gold/20 border border-gold/40 rounded-md text-[11px] text-gold hover:bg-gold/30 hover:border-gold/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-bold uppercase tracking-wider md:self-end shadow-md"
+                    className="w-full md:w-auto px-3 py-1.5 md:px-4 md:py-1.5 bg-gold/20 border border-gold/40 rounded-md text-[10px] md:text-[11px] text-gold hover:bg-gold/30 hover:border-gold/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-bold uppercase tracking-wider md:self-end shadow-md"
                   >
                     Send Query
                   </button>
