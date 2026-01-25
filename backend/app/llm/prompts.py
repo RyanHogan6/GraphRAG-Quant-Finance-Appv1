@@ -1382,6 +1382,76 @@ RETURN {
 Bind Variables: {}
 Requires Embedding: false
 
+---
+
+EXAMPLE 16b - Comprehensive Company Workup (WITH SEC FILINGS + TOP SENTENCES):
+Question: "Show me a complete analysis of AAPL" OR "Tell me about Tesla" OR "Show me NVDA"
+Intent: company_comprehensive_workup
+Collections: ["Company", "MarketData", "sec_filings", "sec_sections", "sec_sentences", "Award", "options_flow"]
+Edges: ["HAS_MARKETDATA", "HAS_FILING", "has_section", "has_sentence", "HAS_AWARD", "COMPANY_HAS_OPTIONS"]
+AQL:
+FOR company IN Company
+  FILTER company.ticker == @ticker
+  LIMIT 1
+
+  LET market_data = (
+    FOR m IN OUTBOUND company HAS_MARKETDATA
+      SORT m.date DESC
+      LIMIT 365
+      RETURN m
+  )
+
+  LET sec_filings = (
+    FOR filing IN OUTBOUND company HAS_FILING
+      SORT filing.filing_date DESC
+      LIMIT 20
+      LET top_sentences = (
+        FOR section IN OUTBOUND filing has_section
+          FOR sentence IN OUTBOUND section has_sentence
+            FILTER sentence.finbertscore != null
+            SORT ABS(sentence.finbertscore) DESC
+            LIMIT 5
+            RETURN {
+              text: sentence.text,
+              score: sentence.finbertscore
+            }
+      )
+      RETURN MERGE(filing, { top_sentences: top_sentences })
+  )
+
+  LET awards = (
+    FOR award IN OUTBOUND company HAS_AWARD
+      SORT award.start_date DESC
+      LIMIT 20
+      RETURN award
+  )
+
+  LET options_flow = (
+    FOR opt IN OUTBOUND company COMPANY_HAS_OPTIONS
+      SORT opt.date DESC
+      LIMIT 20
+      RETURN opt
+  )
+
+  RETURN MERGE(company, {
+    MarketData: market_data,
+    sec_filings: sec_filings,
+    Award: awards,
+    options_flow: options_flow
+  })
+Bind Variables: {"ticker": "AAPL"}
+Requires_Embedding: false
+
+Strategy:
+✅ CRITICAL: Use LET subqueries to fetch related data (NOT nested FOR loops in RETURN)
+✅ For SEC filings: Fetch top_sentences using nested traversal (filing -> section -> sentence)
+✅ Sort sentences by ABS(finbertscore) to get most extreme sentiment
+✅ Use MERGE() to combine company data with nested collections
+✅ This query structure matches what CompanyWorkup component expects
+⚠️ This query enables full company overview with clickable SEC filings that show sentiment excerpts
+
+---
+
 --- EXAMPLE: SEC Text Search with Date + Company Data ---
 Question: Show me cybersecurity risks in 2022 with company details
 Intent: sec_text_search_with_date_and_company

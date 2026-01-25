@@ -93,11 +93,36 @@ def get_stock_overview(ticker: str):
         """
         awards_results, _ = execute_aql(awards_query, {"ticker": ticker})
 
+        # Get SEC filings with top sentences (sentiment analysis)
+        sec_query = """
+        FOR company IN Company
+            FILTER company.ticker == @ticker
+            FOR filing IN OUTBOUND company HAS_FILING
+                SORT filing.filing_date DESC
+                LIMIT 20
+                LET top_sentences = (
+                    FOR section IN OUTBOUND filing has_section
+                        FOR sentence IN OUTBOUND section has_sentence
+                            FILTER sentence.finbertscore != null
+                            SORT ABS(sentence.finbertscore) DESC
+                            LIMIT 5
+                            RETURN {
+                                text: sentence.text,
+                                score: sentence.finbertscore
+                            }
+                )
+                RETURN MERGE(filing, {
+                    top_sentences: top_sentences
+                })
+        """
+        sec_results, _ = execute_aql(sec_query, {"ticker": ticker})
+
         return {
             "ticker": ticker,
             "company": company,
             "latest_market_data": latest_market,
-            "awards": awards_results
+            "awards": awards_results,
+            "sec_filings": sec_results
         }
 
     except Exception as e:
