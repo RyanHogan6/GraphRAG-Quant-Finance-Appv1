@@ -652,6 +652,58 @@ RETURN {{
   percent_change: ROUND(((last.close - first.open) / first.open) * 100 * 100) / 100
 }}
 
+Example 5: "Show me Apple" OR "Tell me about TSLA" OR "NVDA overview" (COMPREHENSIVE COMPANY WORKUP)
+⚠️ CRITICAL: Use this pattern for ANY company overview/analysis question!
+FOR company IN Company
+  FILTER company.ticker == @ticker
+  LIMIT 1
+
+  LET market_data = (
+    FOR m IN OUTBOUND company HAS_MARKETDATA
+      SORT m.date DESC
+      LIMIT 365
+      RETURN m
+  )
+
+  LET sec_filings = (
+    FOR filing IN OUTBOUND company HAS_FILING
+      SORT filing.filing_date DESC
+      LIMIT 20
+      LET top_sentences = (
+        FOR section IN OUTBOUND filing has_section
+          FOR sentence IN OUTBOUND section has_sentence
+            FILTER sentence.finbertscore != null
+            SORT ABS(sentence.finbertscore) DESC
+            LIMIT 5
+            RETURN {{
+              text: sentence.text,
+              score: sentence.finbertscore
+            }}
+      )
+      RETURN MERGE(filing, {{ top_sentences: top_sentences }})
+  )
+
+  LET awards = (
+    FOR award IN OUTBOUND company HAS_AWARD
+      SORT award.start_date DESC
+      LIMIT 20
+      RETURN award
+  )
+
+  LET options_flow = (
+    FOR opt IN OUTBOUND company COMPANY_HAS_OPTIONS
+      SORT opt.date DESC
+      LIMIT 20
+      RETURN opt
+  )
+
+  RETURN MERGE(company, {{
+    MarketData: market_data,
+    sec_filings: sec_filings,
+    Award: awards,
+    options_flow: options_flow
+  }})
+
 Example 5: "Compare AAPL vs MSFT vs GOOGL" (Multi-ticker)
 FOR ticker IN ["AAPL", "MSFT", "GOOGL"]
   LET data = (
