@@ -15,6 +15,7 @@ import WhaleTracker from '@/components/WhaleTracker'
 import CompanyWorkup from '@/components/CompanyWorkup'
 import CompanyCompare from '@/components/CompanyCompare'
 import Navigation from '@/components/Navigation'
+import DataSourceAttribution from '@/components/DataSourceAttribution'
 import { Market } from '@/lib/types'
 
 interface Message {
@@ -186,6 +187,12 @@ export default function HomePage() {
                 return <ResultsTable data={message.results} />;
               }
             })()}
+
+            {/* Data Source Attribution */}
+            <DataSourceAttribution
+              collectionsUsed={message.metadata?.collections || []}
+              queryIntent={message.metadata?.queryIntent}
+            />
           </div>
         )}
 
@@ -922,7 +929,7 @@ export default function HomePage() {
             Financial Intelligence Powered by Knowledge Graphs
           </p>
           <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-400 max-w-3xl mx-auto font-light leading-relaxed">
-            Uncover deep insights with <span className="text-gold font-semibold">GraphRAG</span>. By connecting <span className="text-gold font-semibold">S&P 500 stocks, options flow, commodity futures, EIA energy data, SEC filings, government contracts, prediction markets, and CFTC positioning</span> into one unified knowledge graph, we reveal the hidden connections driving markets—from insider trading signals to commodity correlations.
+            Uncover deep insights with <span className="text-gold font-semibold">GraphRAG</span>. By unqifying <span className="text-gold font-semibold">S&P 500 equities, options flow, commodity futures, EIA energy data, SEC filings, government contracts, prediction markets, and CFTC positioning</span> into one unified knowledge graph, we reveal the hidden connections driving markets—from insider trading signals to commodity correlations.
           </p>
         </motion.div>
 

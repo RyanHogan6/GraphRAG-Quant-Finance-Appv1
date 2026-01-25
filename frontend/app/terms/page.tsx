@@ -108,7 +108,7 @@ export default function TermsOfService() {
             <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-6 my-4">
               <p className="font-semibold text-yellow-300 mb-2">IMPORTANT LEGAL NOTICE</p>
               <p className="text-sm">
-                TO THE MAXIMUM EXTENT PERMITTED BY LAW, GRAPHRAG MARKETS SHALL NOT BE LIABLE FOR
+                TO THE MAXIMUM EXTENT PERMITTED BY LAW, KARGA SHALL NOT BE LIABLE FOR
                 ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES,
                 INCLUDING BUT NOT LIMITED TO LOSS OF PROFITS, DATA, OR GOODWILL, ARISING FROM:
               </p>

@@ -103,7 +103,46 @@ export default function Disclaimer() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold text-gold mb-4">5. Do Your Own Research</h2>
+            <h2 className="text-2xl font-semibold text-gold mb-4">5. Unusual Activity & Pattern Detection</h2>
+            <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-6 my-4">
+              <p className="font-semibold text-yellow-300 mb-2">Not Evidence of Wrongdoing</p>
+              <p className="text-sm mb-4">
+                KARGA may display alerts about unusual options activity, trading patterns, or
+                correlations between securities filings and market activity. These alerts are:
+              </p>
+              <ul className="list-disc pl-6 space-y-2 text-sm">
+                <li>
+                  <strong>For informational purposes only:</strong> They do not constitute evidence
+                  of insider trading or other securities violations
+                </li>
+                <li>
+                  <strong>Not investment recommendations:</strong> Unusual activity does not mean
+                  you should buy or sell any security
+                </li>
+                <li>
+                  <strong>Statistical observations:</strong> Based on mathematical patterns, not
+                  investigations or insider knowledge
+                </li>
+                <li>
+                  <strong>May be coincidental:</strong> Correlations between events do not prove
+                  causation or wrongdoing
+                </li>
+                <li>
+                  <strong>Not regulatory findings:</strong> We are not a regulatory body and do
+                  not conduct investigations
+                </li>
+              </ul>
+            </div>
+            <p className="text-sm text-gray-400 mt-4">
+              If you suspect actual securities violations, report them to the SEC at{' '}
+              <a href="https://www.sec.gov/tcr" className="text-gold hover:underline" target="_blank" rel="noopener noreferrer">
+                www.sec.gov/tcr
+              </a>
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-semibold text-gold mb-4">6. Do Your Own Research</h2>
             <p className="mb-4">
               Before making any investment decisions, you should:
             </p>
@@ -117,7 +156,7 @@ export default function Disclaimer() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold text-gold mb-4">6. No Relationship Created</h2>
+            <h2 className="text-2xl font-semibold text-gold mb-4">7. No Relationship Created</h2>
             <p>
               Use of this website does not create an advisor-client, attorney-client, or any
               other professional relationship. We are not responsible for any decisions you make
@@ -126,7 +165,7 @@ export default function Disclaimer() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold text-gold mb-4">7. Forward-Looking Statements</h2>
+            <h2 className="text-2xl font-semibold text-gold mb-4">8. Forward-Looking Statements</h2>
             <p>
               Any forward-looking statements, predictions, or projections are inherently uncertain
               and subject to risks and uncertainties. Actual results may differ materially from
@@ -135,7 +174,7 @@ export default function Disclaimer() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold text-gold mb-4">8. Regulatory Compliance</h2>
+            <h2 className="text-2xl font-semibold text-gold mb-4">9. Regulatory Compliance</h2>
             <p className="mb-4">
               This website is not regulated by:
             </p>
@@ -152,7 +191,7 @@ export default function Disclaimer() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold text-gold mb-4">9. International Users</h2>
+            <h2 className="text-2xl font-semibold text-gold mb-4">10. International Users</h2>
             <p>
               If you access this website from outside the United States, you are responsible for
               compliance with local laws and regulations. Some information or services may not be
@@ -161,7 +200,7 @@ export default function Disclaimer() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold text-gold mb-4">10. Changes to Disclaimer</h2>
+            <h2 className="text-2xl font-semibold text-gold mb-4">11. Changes to Disclaimer</h2>
             <p>
               We reserve the right to modify this disclaimer at any time. Changes will be posted
               with an updated date. Your continued use constitutes acceptance of changes.
@@ -169,7 +208,7 @@ export default function Disclaimer() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold text-gold mb-4">11. Questions?</h2>
+            <h2 className="text-2xl font-semibold text-gold mb-4">12. Questions?</h2>
             <p>
               If you have questions about this disclaimer or need clarification, contact us at:
             </p>

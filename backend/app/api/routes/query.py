@@ -16,6 +16,10 @@ from app.database.connection import get_db, execute_aql, fix_aql_query
 from app.llm.planning import plan_query_with_llm, quick_intent_check, get_query_embedding, generate_follow_up_questions, analyze_results_with_llm
 from app.llm.web_search import classify_query_intent, search_web_context, synthesize_hybrid_response
 from app.cache import query_cache
+from app.analytics import log_user_query, get_daily_spend
+from app.utils.cost_estimator import estimate_query_cost_simple
+from app.utils.query_validator import validate_aql_query
+import config
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -385,9 +389,10 @@ def enrich_single_company_results(results: List[Dict], query_plan: Dict) -> List
             company_info = company_future.result()
         
         # Build enriched structure matching CompanyWorkup expectations
+        # Merge all company fields (sector, industry, etc.) into enriched result
         enriched = {
+            **company_info,  # Spread all company fields (company, sector, industry, city, country, etc.)
             "ticker": ticker,
-            "company": company_info.get('company', ticker),
             "MarketData": market_data,
             "sec_filings": sec_data,
             "Award": award_data,
@@ -534,6 +539,24 @@ async def execute_query_stream(request: Request, body: QueryRequest):
     - Final results payload
     """
 
+    # Check daily API budget BEFORE processing query
+    try:
+        current_spend = get_daily_spend()
+        if current_spend >= config.DAILY_API_BUDGET:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Daily API budget exceeded (${current_spend:.2f} / ${config.DAILY_API_BUDGET:.2f}). Please try again tomorrow or contact support."
+            )
+
+        # Warn if close to limit (90%)
+        if current_spend >= config.DAILY_API_BUDGET * 0.9:
+            print(f"[WARNING] Daily API budget at {(current_spend/config.DAILY_API_BUDGET)*100:.1f}% (${current_spend:.2f} / ${config.DAILY_API_BUDGET:.2f})")
+    except HTTPException:
+        raise  # Re-raise budget exceeded error
+    except Exception as budget_error:
+        # Log error but don't block request if budget check fails
+        print(f"[WARNING] Budget check failed: {budget_error}")
+
     async def generate():
         try:
             start_time = time.time()
@@ -571,15 +594,46 @@ async def execute_query_stream(request: Request, body: QueryRequest):
                     'metadata': cached_result.get('metadata', {}),
                     'from_cache': True
                 }
+
+                # Log cache hit (no API cost, instant response)
+                try:
+                    log_user_query(
+                        question=body.question,
+                        response_time=time.time() - start_time,
+                        result_count=cached_result.get('count', 0),
+                        was_successful=True,
+                        ip_address=request.client.host if request.client else "unknown",
+                        query_intent=cached_result.get('query_intent', 'unknown'),
+                        error=None,
+                        aql_query=cached_result.get('query_plan', {}).get('aql_query'),
+                        collections_used=cached_result.get('metadata', {}).get('collections_used', []),
+                        api_cost=0.0,  # No cost for cache hits
+                        from_cache=True
+                    )
+                except Exception as log_error:
+                    print(f"[WARNING] Cache hit logging failed: {log_error}")
+
                 yield f"data: {json.dumps(final_payload)}\n\n"
                 yield "data: [DONE]\n\n"
                 return
 
             # Step 1: Analyzing question (cache miss)
             if body.forced_plan_aql:
-                yield f"data: {json.dumps({'type': 'progress', 'stage': 'analyzing', 'message': 'Executing Builder Query...', 'details': 'Bypassing LLM Planner'})}\n\n"
+                # VALIDATE builder query for safety and complexity
+                is_valid, validation_error = validate_aql_query(body.forced_plan_aql)
+                if not is_valid:
+                    error_payload = {
+                        'type': 'error',
+                        'message': f'Query validation failed: {validation_error}',
+                        'details': 'Your manual query does not meet safety requirements. Please adjust and try again.'
+                    }
+                    yield f"data: {json.dumps(error_payload)}\n\n"
+                    yield "data: [DONE]\n\n"
+                    return
+
+                yield f"data: {json.dumps({'type': 'progress', 'stage': 'analyzing', 'message': 'Executing Builder Query...', 'details': 'Query validated ✓'})}\n\n"
                 await asyncio.sleep(0.1)
-                
+
                 # Run AQL in thread to avoid blocking event loop
                 loop = asyncio.get_event_loop()
                 with ThreadPoolExecutor(max_workers=1) as executor:
@@ -744,6 +798,31 @@ async def execute_query_stream(request: Request, body: QueryRequest):
             }
             query_cache.set(body.question, cache_data)
 
+            # Log query for analytics (async, won't block stream)
+            try:
+                estimated_cost = estimate_query_cost_simple(
+                    question_length=len(body.question),
+                    result_count=len(results),
+                    has_web_search=(query_intent in ['hybrid', 'web_only']),
+                    model="gpt-4o-mini"
+                )
+
+                log_user_query(
+                    question=body.question,
+                    response_time=execution_time,
+                    result_count=len(results),
+                    was_successful=(not db_error),
+                    ip_address=request.client.host if request.client else "unknown",
+                    query_intent=query_intent,
+                    error=db_error,
+                    aql_query=query_plan.get('aql_query') if query_plan else None,
+                    collections_used=query_metadata.get('collections_used', []),
+                    api_cost=estimated_cost,
+                    from_cache=False
+                )
+            except Exception as log_error:
+                print(f"[WARNING] Query logging failed: {log_error}")
+
             yield f"data: {json.dumps(final_payload)}\n\n"
 
             # End stream
@@ -780,3 +859,28 @@ def clear_cache():
     """Clear query cache (admin only in production)"""
     query_cache.clear()
     return {"message": "Cache cleared successfully"}
+
+
+@router.get("/analytics/stats")
+def get_analytics_stats(hours: int = 24):
+    """
+    Get query analytics for the last N hours
+    Shows: total queries, success rate, costs, popular collections
+    """
+    from app.analytics import get_query_stats
+    return get_query_stats(hours=hours)
+
+
+@router.get("/analytics/budget")
+def get_budget_status():
+    """Get current daily API spend vs budget"""
+    current_spend = get_daily_spend()
+    budget = config.DAILY_API_BUDGET
+    return {
+        "current_spend": round(current_spend, 2),
+        "daily_budget": budget,
+        "remaining": round(budget - current_spend, 2),
+        "percent_used": round((current_spend / budget) * 100, 1) if budget > 0 else 0,
+        "is_near_limit": current_spend >= budget * 0.9,
+        "is_over_budget": current_spend >= budget
+    }

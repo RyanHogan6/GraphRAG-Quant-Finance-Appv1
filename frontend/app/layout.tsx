@@ -20,8 +20,51 @@ const ibmPlexMono = IBM_Plex_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'KARGA',
-  description: 'AI-powered prediction markets and financial data explorer',
+  title: 'KARGA - Intelligence Terminal for Financial Data',
+  description: 'Natural language financial intelligence platform. Query 19 interconnected data sources: stocks, commodities, SEC filings, government contracts, prediction markets, and options flow. Built on ArangoDB graph database.',
+  keywords: 'financial data, prediction markets, stock analysis, SEC filings, government contracts, options flow, commodities, natural language query, graph database',
+  authors: [{ name: 'KARGA Analytics' }],
+  creator: 'KARGA Analytics',
+  publisher: 'KARGA Analytics',
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: 'https://karga.io',
+    siteName: 'KARGA Intelligence Terminal',
+    title: 'KARGA - Intelligence Terminal for Financial Data',
+    description: 'Natural language financial intelligence platform. Query stocks, commodities, SEC filings, contracts, prediction markets, and options flow in plain English.',
+    images: [
+      {
+        url: 'https://karga.io/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'KARGA Intelligence Terminal - Financial Data Graph Database',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'KARGA - Intelligence Terminal for Financial Data',
+    description: 'Ask questions in plain English. Get answers from 19 interconnected financial data sources.',
+    images: ['https://karga.io/og-image.png'],
+    creator: '@karga_io',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  verification: {
+    // Add these when you have them:
+    // google: 'your-google-verification-code',
+    // yandex: 'your-yandex-verification-code',
+  },
 }
 
 export default function RootLayout({

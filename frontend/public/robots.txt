@@ -1,0 +1,17 @@
+# KARGA Intelligence Terminal - robots.txt
+# Allow all search engines to index public pages
+
+User-agent: *
+Allow: /
+Allow: /markets
+Allow: /database
+Allow: /about
+Allow: /disclaimer
+Allow: /terms
+Allow: /privacy
+
+# Disallow crawling of API endpoints
+Disallow: /api/
+
+# Sitemap location
+Sitemap: https://karga.io/sitemap.xml

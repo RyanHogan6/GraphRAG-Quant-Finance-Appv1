@@ -30,6 +30,14 @@ FASTAPI_HOST = os.getenv("FASTAPI_HOST", "0.0.0.0")
 FASTAPI_PORT = int(os.getenv("FASTAPI_PORT", "8000"))
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
 
+# Error Tracking & Monitoring
+SENTRY_DSN = os.getenv("SENTRY_DSN", "")  # Sentry error tracking
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")  # development, staging, production
+
+# Cost & Abuse Protection
+DAILY_API_BUDGET = float(os.getenv("DAILY_API_BUDGET", "50.0"))  # $50/day default
+MAX_QUERY_COMPLEXITY = int(os.getenv("MAX_QUERY_COMPLEXITY", "3"))  # Max FOR loops in builder mode
+
 # Document Collections
 COMPANY_COL = "Company"
 MARKETDATA_COL = "MarketData"

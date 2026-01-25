@@ -11,6 +11,30 @@ import config
 
 from app.api.routes import query, markets, database
 
+# Initialize Sentry for error tracking (production only)
+if config.SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.starlette import StarletteIntegration
+
+    sentry_sdk.init(
+        dsn=config.SENTRY_DSN,
+        integrations=[
+            FastApiIntegration(),
+            StarletteIntegration(),
+        ],
+        # Set traces_sample_rate to 1.0 to capture 100% of transactions
+        # Lower in production (0.1 = 10%)
+        traces_sample_rate=0.1,
+        # Capture 100% of errors
+        profiles_sample_rate=1.0,
+        environment=config.ENVIRONMENT,
+        release=f"karga-backend@2.0.0",
+    )
+    print(f"[SENTRY] Initialized for environment: {config.ENVIRONMENT}")
+else:
+    print("[SENTRY] Disabled (no DSN configured)")
+
 # Rate limiter setup
 limiter = Limiter(key_func=get_remote_address)
 
