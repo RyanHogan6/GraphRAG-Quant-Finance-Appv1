@@ -1035,22 +1035,22 @@ export default function HomePage() {
         <div className="w-[70%] border-t-2 border-dashed border-gold/10"></div>
       </div>
 
-      {/* Chat Interface Section - FULL WIDTH */}
-      <section id="query" className="snap-start px-0 py-6 md:py-8 relative overflow-hidden w-full" >
+      {/* Chat Interface Section - CENTERED */}
+      <section id="query" className="snap-start px-4 py-8 md:py-12 relative overflow-hidden flex items-center justify-center min-h-screen" >
         {/* Animated background grid */}
         <motion.div
           className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
           style={{ opacity: gridOpacity2 }}
         />
-        <div className="w-full relative z-10" >
+        <div className="container mx-auto max-w-5xl relative z-10" >
           <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.8 }}
-            className="mb-3 md:mb-4 text-left px-4 md:px-6"
+            className="mb-6 md:mb-8 text-center"
           >
-            <h2 className="text-lg md:text-xl font-bold text-gold tracking-tight flex items-center gap-2">
+            <h2 className="text-2xl md:text-3xl font-bold text-gold tracking-tight flex items-center justify-center gap-2">
               <span className="w-2 h-2 bg-gold rounded-full animate-pulse" />
               Intelligence Terminal
             </h2>
@@ -1062,7 +1062,7 @@ export default function HomePage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.2 }}
             transition={{ duration: 0.8 }}
-            className="bg-dark-800 border-x-0 border-y border-gold/20 shadow-xl mb-0 mx-0 px-4 md:px-6"
+            className="bg-dark-800 border border-gold/20 rounded-xl shadow-2xl mb-6 p-4 md:p-6"
           >
             {/* Expanded Message Overlay */}
             {expandedMessageIdx !== null && (
@@ -1095,7 +1095,7 @@ export default function HomePage() {
             {/* Messages */}
             <div
               ref={chatScrollRef}
-              className="min-h-[600px] h-[80vh] md:h-[85vh] lg:h-[88vh] overflow-y-auto py-4 md:py-6 space-y-6 md:space-y-8 scroll-smooth"
+              className="min-h-[500px] h-[60vh] md:h-[65vh] overflow-y-auto py-4 md:py-6 space-y-6 md:space-y-8 scroll-smooth"
             >
               {/* Visual Query Builder - Show at top when in builder mode */}
               {isBuilderMode && (
