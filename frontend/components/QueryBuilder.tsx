@@ -306,14 +306,14 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
     return (
         <div className="space-y-8 max-w-7xl mx-auto">
             {/* Step 1: Category Selection - Horizontal Cards */}
-            <div className="bg-dark-800/50 border-2 border-gold/20 rounded-xl p-6">
-                <div className="flex items-center gap-3 mb-5">
-                    <div className="w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center">
-                        <span className="text-gold font-bold text-sm">1</span>
+            <div className="bg-dark-800/50 border-2 border-gold/20 rounded-xl p-3">
+                <div className="flex items-center gap-2 mb-3">
+                    <div className="w-6 h-6 rounded-full bg-gold/20 flex items-center justify-center">
+                        <span className="text-gold font-bold text-xs">1</span>
                     </div>
-                    <div className="text-sm text-gray-300 uppercase tracking-wider font-bold">Select Data Category</div>
+                    <div className="text-xs text-gray-300 uppercase tracking-wider font-bold">Select Data Category</div>
                 </div>
-                <div className="grid grid-cols-5 gap-4">
+                <div className="grid grid-cols-5 gap-2">
                     {CATEGORIES.map(cat => {
                         const colors = COLOR_VARIANTS[cat.color]
                         const isSelected = category === cat.key
@@ -330,27 +330,27 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                                     setCompanySearch('')
                                     setSelectedFormTypes(['all'])
                                 }}
-                                className={`relative p-5 rounded-xl border-2 transition-all ${
+                                className={`relative p-2 rounded-lg border-2 transition-all ${
                                     isSelected
                                         ? `${colors.border} ${colors.bg} ${colors.glow} border-3`
                                         : 'border-gray-600 bg-dark-900/50 hover:border-gray-500 hover:bg-dark-800'
                                 }`}
                             >
                                 {/* Icon */}
-                                <div className={`mb-3 ${isSelected ? colors.text : 'text-gray-500'}`}>
-                                    <svg className="w-10 h-10 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div className={`mb-1 ${isSelected ? colors.text : 'text-gray-500'}`}>
+                                    <svg className="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={cat.icon} />
                                     </svg>
                                 </div>
                                 {/* Label */}
-                                <div className={`text-sm font-bold ${isSelected ? colors.text : 'text-gray-400'}`}>
+                                <div className={`text-xs font-bold ${isSelected ? colors.text : 'text-gray-400'}`}>
                                     {cat.label}
                                 </div>
                                 {/* Selected Indicator */}
                                 {isSelected && (
                                     <motion.div
                                         layoutId="categoryIndicator"
-                                        className={`absolute top-3 right-3 w-3 h-3 rounded-full ${colors.text.replace('text-', 'bg-')}`}
+                                        className={`absolute top-2 right-2 w-2 h-2 rounded-full ${colors.text.replace('text-', 'bg-')}`}
                                     />
                                 )}
                             </motion.button>
@@ -366,15 +366,15 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="bg-dark-800/50 border-2 border-blue-500/20 rounded-xl p-6"
+                        className="bg-dark-800/50 border-2 border-blue-500/20 rounded-xl p-3"
                     >
-                        <div className="flex items-center gap-3 mb-5">
-                            <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
-                                <span className="text-blue-400 font-bold text-sm">2</span>
+                        <div className="flex items-center gap-2 mb-3">
+                            <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center">
+                                <span className="text-blue-400 font-bold text-xs">2</span>
                             </div>
-                            <div className="text-sm text-gray-300 uppercase tracking-wider font-bold">Choose Collection</div>
+                            <div className="text-xs text-gray-300 uppercase tracking-wider font-bold">Choose Collection</div>
                         </div>
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-3 gap-2">
                             {selectedCategory.collections.map(key => {
                                 const node = GRAPH_SCHEMA[key]
                                 if (!node) return null
@@ -391,16 +391,16 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                                             setCompanySearch('')
                                             setSelectedFormTypes(['all'])
                                         }}
-                                        className={`p-4 rounded-xl border-2 text-left transition-all ${
+                                        className={`p-2 rounded-lg border-2 text-left transition-all ${
                                             isSelected
                                                 ? `${colors.border} ${colors.bg} ${colors.glow}`
                                                 : 'border-gray-600 bg-dark-900/50 hover:border-gray-500 hover:bg-dark-800'
                                         }`}
                                     >
-                                        <div className={`text-base font-bold mb-2 ${isSelected ? colors.text : 'text-gray-300'}`}>
+                                        <div className={`text-sm font-bold mb-1 ${isSelected ? colors.text : 'text-gray-300'}`}>
                                             {displayName}
                                         </div>
-                                        <div className="text-xs text-gray-500 line-clamp-2">
+                                        <div className="text-[10px] text-gray-500 line-clamp-1">
                                             {node.description}
                                         </div>
                                     </button>
@@ -413,16 +413,16 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                             <motion.div
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
-                                className="mt-5 pt-5 border-t border-gray-700"
+                                className="mt-3 pt-3 border-t border-gray-700"
                             >
-                                <label className="text-sm text-gray-400 mb-2 block font-semibold">Search for a company ticker:</label>
+                                <label className="text-xs text-gray-400 mb-1.5 block font-semibold">Search for a company ticker:</label>
                                 <input
                                     type="text"
                                     value={companySearch}
                                     onChange={(e) => setCompanySearch(e.target.value)}
                                     list="company-suggestions"
                                     placeholder="e.g., AAPL, MSFT, TSLA..."
-                                    className="w-full bg-dark-900 text-gray-200 text-base p-3 rounded-lg border-2 border-gray-600 focus:border-gold outline-none"
+                                    className="w-full bg-dark-900 text-gray-200 text-sm p-2 rounded-lg border-2 border-gray-600 focus:border-gold outline-none"
                                 />
                                 <datalist id="company-suggestions">
                                     {companies
@@ -449,8 +449,8 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                                 animate={{ opacity: 1, height: 'auto' }}
                                 className="mt-5 pt-5 border-t border-gray-700"
                             >
-                                <label className="text-sm text-gray-400 mb-3 block font-semibold">Select Form Types:</label>
-                                <div className="grid grid-cols-3 gap-3">
+                                <label className="text-xs text-gray-400 mb-2 block font-semibold">Select Form Types:</label>
+                                <div className="grid grid-cols-3 gap-2">
                                     {SEC_FORM_TYPES.map(form => {
                                         const isSelected = selectedFormTypes.includes(form.value)
                                         return (
@@ -469,14 +469,14 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                                                         }
                                                     }
                                                 }}
-                                                className={`p-3 rounded-lg border-2 text-left transition-all ${
+                                                className={`p-2 rounded-lg border-2 text-left transition-all ${
                                                     isSelected
                                                         ? 'border-blue-500 bg-blue-500/20 text-blue-300'
                                                         : 'border-gray-600 bg-dark-900/50 hover:border-gray-500 text-gray-400'
                                                 }`}
                                             >
-                                                <div className="font-bold text-sm mb-1">{form.label}</div>
-                                                <div className="text-xs opacity-70">{form.description}</div>
+                                                <div className="font-bold text-xs mb-0.5">{form.label}</div>
+                                                <div className="text-[10px] opacity-70 line-clamp-1">{form.description}</div>
                                             </button>
                                         )
                                     })}
@@ -494,15 +494,15 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="bg-dark-800/50 border-2 border-purple-500/20 rounded-xl p-6"
+                        className="bg-dark-800/50 border-2 border-purple-500/20 rounded-xl p-3"
                     >
-                        <div className="flex items-center gap-3 mb-5">
-                            <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center">
-                                <span className="text-purple-400 font-bold text-sm">3</span>
+                        <div className="flex items-center gap-2 mb-3">
+                            <div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center">
+                                <span className="text-purple-400 font-bold text-xs">3</span>
                             </div>
-                            <div className="text-sm text-gray-300 uppercase tracking-wider font-bold">Add Graph Connections (Optional)</div>
+                            <div className="text-xs text-gray-300 uppercase tracking-wider font-bold">Add Graph Connections (Optional)</div>
                         </div>
-                        <div className="grid grid-cols-3 gap-3 mb-6">
+                        <div className="grid grid-cols-3 gap-2 mb-3">
                             {sourceNode.connections.map(conn => {
                                 const target = GRAPH_SCHEMA[conn.target]
                                 if (!target) return null
@@ -511,13 +511,13 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                                     <button
                                         key={conn.target}
                                         onClick={() => toggleEnrichment(conn.target)}
-                                        className={`p-4 rounded-xl border-2 text-left transition-all ${
+                                        className={`p-2 rounded-lg border-2 text-left transition-all ${
                                             isSelected
                                                 ? 'bg-purple-500/20 border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.1)]'
                                                 : 'bg-dark-900/50 border-gray-600 hover:border-purple-400/30 hover:bg-dark-800'
                                         }`}
                                     >
-                                        <div className={`text-sm font-bold mb-2 ${isSelected ? 'text-purple-300' : 'text-gray-300'}`}>
+                                        <div className={`text-xs font-bold mb-1 ${isSelected ? 'text-purple-300' : 'text-gray-300'}`}>
                                             {target.name}
                                         </div>
                                         <div className="text-xs text-gray-600 font-mono">
@@ -607,16 +607,16 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="bg-dark-800/50 border-2 border-purple-500/20 rounded-xl p-6"
+                        className="bg-dark-800/50 border-2 border-purple-500/20 rounded-xl p-3"
                     >
                         {/* Filters */}
                         <div>
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center">
-                                        <span className="text-purple-400 font-bold text-sm">3</span>
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center">
+                                        <span className="text-purple-400 font-bold text-xs">3</span>
                                     </div>
-                                    <div className="text-sm text-gray-300 uppercase tracking-wider font-bold">Additional Filters (Optional)</div>
+                                    <div className="text-xs text-gray-300 uppercase tracking-wider font-bold">Additional Filters (Optional)</div>
                                 </div>
                                 <button
                                     onClick={addFilter}
