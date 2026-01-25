@@ -223,13 +223,24 @@ export default function HomePage() {
   // Collection name translations
   const collectionDisplayNames: Record<string, string> = {
     'Company': 'S&P 500 Companies',
-    'MarketData': 'Stock Prices',
+    'MarketData': 'Stock Prices & Indicators',
     'Award': 'Government Contract Awards',
     'EconomicData': 'FRED Economic Indicators',
-    'commodity_positions': 'Commodities & Futures',
-    'prediction_markets_polymarket': 'Polymarket',
-    'prediction_markets_kalshi': 'Kalshi',
-    'sec_sentences': '10-K Sentiment Analysis',
+    'sec_filings': 'SEC Filings (12 Form Types)',
+    'sec_sentences': 'SEC Sentiment Analysis',
+    'sec_sections': 'SEC Filing Sections',
+    'options_flow': 'Options Flow Activity',
+    'futures_prices': 'Commodity Futures Prices',
+    'commodity_positions': 'CFTC Trader Positions',
+    'eia_crude_inventory': 'EIA Crude Oil Inventory',
+    'eia_natgas_storage': 'EIA Natural Gas Storage',
+    'eia_natgas_production': 'EIA Natural Gas Production',
+    'eia_lng_exports': 'EIA LNG Exports',
+    'prediction_markets_polymarket': 'Polymarket Prediction Markets',
+    'prediction_markets_kalshi': 'Kalshi Event Contracts',
+    'polymarket_traders': 'Polymarket Whale Traders',
+    'polymarket_positions': 'Polymarket Trader Positions',
+    'polymarket_price_history': 'Polymarket Price History',
   }
 
   // Collection icons mapping
@@ -271,7 +282,62 @@ export default function HomePage() {
     ),
     'sec_sentences': (
       <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+      </svg>
+    ),
+    'sec_filings': (
+      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+    'sec_sections': (
+      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+      </svg>
+    ),
+    'options_flow': (
+      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+      </svg>
+    ),
+    'futures_prices': (
+      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+      </svg>
+    ),
+    'eia_crude_inventory': (
+      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+      </svg>
+    ),
+    'eia_natgas_storage': (
+      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+      </svg>
+    ),
+    'eia_natgas_production': (
+      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+    ),
+    'eia_lng_exports': (
+      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+      </svg>
+    ),
+    'polymarket_traders': (
+      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+    ),
+    'polymarket_positions': (
+      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+      </svg>
+    ),
+    'polymarket_price_history': (
+      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     ),
   }
@@ -1502,7 +1568,7 @@ export default function HomePage() {
               </div>
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-2 md:p-4">
                 <div className="text-gray-400 text-xs md:text-sm mb-1">Edge Collections</div>
-                <div className="text-lg md:text-2xl font-bold text-gold">15</div>
+                <div className="text-lg md:text-2xl font-bold text-gold">22</div>
               </div>
             </div>
           </motion.div>
