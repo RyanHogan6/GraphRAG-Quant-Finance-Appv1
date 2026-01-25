@@ -373,13 +373,20 @@ export default function HomePage() {
         console.error('Failed to fetch collections:', error)
         // Fallback to static data if API fails
         setCollections([
-          { name: 'Company', count: 852, description: 'S&P 500 companies with fundamentals' },
-          { name: 'MarketData', count: 2100000, description: 'Daily OHLCV + technical indicators' },
-          { name: 'Award', count: 500000, description: 'Federal contracts with embeddings' },
+          { name: 'Company', count: 612, description: 'S&P 500 companies with fundamentals' },
+          { name: 'MarketData', count: 2100000, description: 'Daily OHLCV + 40+ technical/fundamental indicators' },
+          { name: 'Award', count: 500000, description: 'Federal contracts with 1536-dim embeddings' },
+          { name: 'options_flow', count: 612, description: 'Daily options activity (insider trading detection)' },
+          { name: 'futures_prices', count: 64000, description: 'CME commodity futures (18 commodities)' },
+          { name: 'sec_filings', count: 7495, description: '12 SEC form types with sentiment scores' },
           { name: 'sec_sentences', count: 890000, description: 'Filing sentences with FinBERT scores' },
-          { name: 'prediction_markets_polymarket', count: 12968, description: 'Polymarket prediction data' },
+          { name: 'prediction_markets_polymarket', count: 12968, description: 'Polymarket prediction markets with embeddings' },
           { name: 'prediction_markets_kalshi', count: 5432, description: 'Kalshi event contracts' },
-          { name: 'EconomicData', count: 8900, description: 'Macro indicators & rates' },
+          { name: 'polymarket_traders', count: 500, description: 'Whale traders and profit makers' },
+          { name: 'commodity_positions', count: 5000, description: 'CFTC Commitments of Traders (weekly)' },
+          { name: 'eia_crude_inventory', count: 200, description: 'EIA crude oil inventory (weekly)' },
+          { name: 'eia_natgas_storage', count: 200, description: 'EIA natural gas storage (weekly)' },
+          { name: 'EconomicData', count: 8900, description: 'FRED macro indicators & rates' },
         ])
       } finally {
         setLoadingCollections(false)
@@ -921,7 +928,7 @@ export default function HomePage() {
             Financial Intelligence Powered by Knowledge Graphs
           </p>
           <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-400 max-w-3xl mx-auto font-light leading-relaxed">
-            Uncover deep insights with <span className="text-gold font-semibold">GraphRAG</span>. By bridging <span className="text-gold font-semibold">Prediction Markets, SEC Filings, government awards, and S&P 500 market</span> data directly into professional financial schemas, we reveal the hidden connections driving markets.
+            Uncover deep insights with <span className="text-gold font-semibold">GraphRAG</span>. By connecting <span className="text-gold font-semibold">S&P 500 stocks, options flow, commodity futures, EIA energy data, SEC filings, government contracts, prediction markets, and CFTC positioning</span> into one unified knowledge graph, we reveal the hidden connections driving markets—from insider trading signals to commodity correlations.
           </p>
         </motion.div>
 
@@ -978,7 +985,7 @@ export default function HomePage() {
             {[
               {
                 title: 'Connected Data',
-                description: 'Every company links to market data, government contracts, SEC filings, and prediction markets',
+                description: 'Every company links to market data, options flow, government contracts, SEC filings, commodity futures, EIA energy data, and prediction markets—19 collections, 22 edge types',
                 delay: 0.2,
                 icon: (
                   <svg className="w-6 h-6 md:w-8 md:h-8 text-gold mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -988,7 +995,7 @@ export default function HomePage() {
               },
               {
                 title: 'Semantic Search',
-                description: 'Find contracts mentioning "AI" or "cybersecurity" using vector embeddings, not just keywords',
+                description: 'Find contracts mentioning "AI" or "cybersecurity" using 1536-dim vector embeddings and cosine similarity—no keywords, pure meaning',
                 delay: 0.4,
                 icon: (
                   <svg className="w-6 h-6 md:w-8 md:h-8 text-gold mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -998,7 +1005,7 @@ export default function HomePage() {
               },
               {
                 title: 'Hybrid Intelligence',
-                description: 'Combine historical database queries with real-time web search for complete context',
+                description: 'ArangoDB graph queries + Perplexity web search run in parallel. Historical data meets real-time news in under 3 seconds',
                 delay: 0.6,
                 icon: (
                   <svg className="w-6 h-6 md:w-8 md:h-8 text-gold mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1028,22 +1035,22 @@ export default function HomePage() {
         <div className="w-[70%] border-t-2 border-dashed border-gold/10"></div>
       </div>
 
-      {/* Chat Interface Section */}
-      <section id="query" className="snap-start flex items-center justify-center px-4 py-6 md:px-6 md:py-8 relative overflow-hidden" >
+      {/* Chat Interface Section - FULL WIDTH */}
+      <section id="query" className="snap-start px-0 py-6 md:py-8 relative overflow-hidden w-full" >
         {/* Animated background grid */}
         <motion.div
           className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
           style={{ opacity: gridOpacity2 }}
         />
-        <div className="container mx-auto max-w-[1400px] relative z-10" >
+        <div className="w-full relative z-10" >
           <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.8 }}
-            className="mb-3 md:mb-4 text-left px-2"
+            className="mb-3 md:mb-4 text-left px-4 md:px-6"
           >
-            <h2 className="text-lg md:text-xl font-bold text-gold/80 tracking-tight flex items-center gap-2">
+            <h2 className="text-lg md:text-xl font-bold text-gold tracking-tight flex items-center gap-2">
               <span className="w-2 h-2 bg-gold rounded-full animate-pulse" />
               Intelligence Terminal
             </h2>
@@ -1055,7 +1062,7 @@ export default function HomePage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.2 }}
             transition={{ duration: 0.8 }}
-            className="bg-dark-800 border border-gold/20 rounded-lg shadow-xl mb-4 md:mb-6"
+            className="bg-dark-800 border-x-0 border-y border-gold/20 shadow-xl mb-0 mx-0 px-4 md:px-6"
           >
             {/* Expanded Message Overlay */}
             {expandedMessageIdx !== null && (
@@ -1088,7 +1095,7 @@ export default function HomePage() {
             {/* Messages */}
             <div
               ref={chatScrollRef}
-              className="min-h-[500px] h-[70vh] md:h-[75vh] lg:h-[78vh] overflow-y-auto p-3 md:p-4 space-y-4 md:space-y-6 scroll-smooth"
+              className="min-h-[600px] h-[80vh] md:h-[85vh] lg:h-[88vh] overflow-y-auto py-4 md:py-6 space-y-6 md:space-y-8 scroll-smooth"
             >
               {/* Visual Query Builder - Show at top when in builder mode */}
               {isBuilderMode && (
@@ -1123,9 +1130,9 @@ export default function HomePage() {
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[95%] md:max-w-[90%] rounded-2xl p-3 md:p-4 relative group transition-all duration-300 shadow-lg ${message.role === 'user'
-                      ? 'bg-gold/15 border border-gold/30 text-white rounded-tr-none'
-                      : 'bg-dark-800/90 border border-white/10 text-gray-50 rounded-tl-none'
+                    className={`max-w-[95%] md:max-w-[90%] rounded-2xl p-4 md:p-5 relative group transition-all duration-300 shadow-lg ${message.role === 'user'
+                      ? 'bg-gold/20 border border-gold/40 text-white rounded-tr-none'
+                      : 'bg-dark-800 border border-white/20 text-gray-100 rounded-tl-none'
                       }`}
                   >
                     {/* Expand/Maximize Button for AI results */}
@@ -1151,11 +1158,11 @@ export default function HomePage() {
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <div className="text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-tight mb-1 flex items-center gap-2">
+                        <div className="text-xs md:text-sm font-bold text-gray-400 uppercase tracking-tight mb-2 flex items-center gap-2">
                           {message.role === 'user' ? 'Market Analyst' : 'KARGA Intelligence'}
                           {message.role === 'assistant' && <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />}
                         </div>
-                        <div className="text-sm md:text-base mb-1.5 md:mb-2 leading-relaxed text-gray-200">
+                        <div className="text-base md:text-lg mb-2 md:mb-3 leading-relaxed text-gray-100">
                           {message.useMarkdown ? (
                             <MarkdownRenderer content={message.content} />
                           ) : (
@@ -1417,9 +1424,9 @@ export default function HomePage() {
                         handleSubmit(e)
                       }
                     }}
-                    placeholder="Ask markets, companies, or contracts..."
+                    placeholder="Ask about markets, companies, contracts, commodities, options flow..."
                     rows={1}
-                    className="flex-1 bg-dark-700 border border-gold/30 rounded-lg px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold/60 focus:ring-2 focus:ring-gold/20 resize-y min-h-[40px] max-h-[120px]"
+                    className="flex-1 bg-dark-700 border border-gold/40 rounded-lg px-3 py-2 md:px-4 md:py-3 text-sm md:text-base text-gray-100 placeholder-gray-400 focus:outline-none focus:border-gold/70 focus:ring-2 focus:ring-gold/30 resize-y min-h-[48px] max-h-[140px]"
                     disabled={isLoading}
                   />
                   <button
@@ -1851,10 +1858,10 @@ export default function HomePage() {
               {/* Overview */}
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-8">
                 <p className="text-lg md:text-xl text-gray-300 leading-relaxed mb-4 font-light">
-                  KARGA combines <span className="text-gold font-semibold">Knowledge Graphs</span>, <span className="text-gold font-semibold">Retrieval Augmented Generation</span>, and <span className="text-gold font-semibold">Semantic Search</span> to provide AI-powered financial intelligence.
+                  KARGA combines <span className="text-gold font-semibold">Knowledge Graphs</span>, <span className="text-gold font-semibold">Retrieval Augmented Generation</span>, and <span className="text-gold font-semibold">Semantic Search</span> to provide AI-powered financial intelligence across equities, commodities, options, contracts, filings, and prediction markets.
                 </p>
                 <p className="text-base md:text-lg text-gray-400 leading-relaxed font-light">
-                  Ask questions in natural language, and GPT-4 generates precise database queries across interconnected financial data sources—no hallucinations, only real data.
+                  Ask questions in natural language, and GPT-4 generates precise AQL graph queries across 19 interconnected collections (2M+ documents, 22 edge types)—no hallucinations, only real data. Detect insider trading with daily options flow monitoring, correlate commodity prices with company exposure via direct graph edges, analyze sentiment from 7.5K SEC filings, and track whale positioning across 18K prediction markets.
                 </p>
               </div>
 
@@ -1864,7 +1871,7 @@ export default function HomePage() {
                   <div className="text-3xl mb-3">📊</div>
                   <h3 className="text-lg font-semibold text-gold mb-2">Multi-Source Data</h3>
                   <p className="text-sm text-gray-400 font-light leading-relaxed">
-                    S&P 500 stocks, government contracts, prediction markets, SEC filings, economic indicators, and commodities—all in one graph.
+                    S&P 500 stocks (2M+ OHLCV records), government contracts (500K+), options flow (612 tickers daily), commodity futures (64K CME prices), EIA energy data (crude/natgas inventory), SEC filings (12 form types), prediction markets (18K+ Polymarket/Kalshi), CFTC positioning, and FRED economic indicators—19 collections connected by 22 edge types in one unified knowledge graph.
                   </p>
                 </div>
 
@@ -1872,7 +1879,7 @@ export default function HomePage() {
                   <div className="text-3xl mb-3">🤖</div>
                   <h3 className="text-lg font-semibold text-gold mb-2">AI Query Generation</h3>
                   <p className="text-sm text-gray-400 font-light leading-relaxed">
-                    GPT-4 converts your questions into optimized graph queries with semantic search, multi-hop traversals, and parallel execution.
+                    GPT-4 converts natural language into optimized AQL graph queries with semantic search (cosine similarity on 1536-dim embeddings), multi-hop traversals across 22 edge types (e.g., Company → COMPANY_TRADES_COMMODITY → futures_prices → INVENTORY_AFFECTS_PRICE → eia_crude_inventory), insider trading detection via OPTIONS_BEFORE_AWARD/FILING edges, and parallel web search execution.
                   </p>
                 </div>
 
@@ -1880,7 +1887,7 @@ export default function HomePage() {
                   <div className="text-3xl mb-3">⚡</div>
                   <h3 className="text-lg font-semibold text-gold mb-2">Blazing Fast</h3>
                   <p className="text-sm text-gray-400 font-light leading-relaxed">
-                    Query 2M+ documents with 50ms graph traversals. Parallel DB + web search delivers results in under 3 seconds.
+                    Query 2M+ OHLCV records, 500K+ government contracts, 64K commodity futures, 7.5K SEC filings, 18K+ prediction markets, and 612 daily options flow records with 50ms graph traversals. ArangoDB parallel execution + Perplexity web search delivers complete answers in under 3 seconds.
                   </p>
                 </div>
               </div>
@@ -1892,25 +1899,37 @@ export default function HomePage() {
                   <div className="flex items-start">
                     <span className="text-green-400 font-semibold mr-3 mt-1">1.</span>
                     <div>
-                      <strong className="text-gray-300">Intent Detection:</strong> GPT-4 classifies your query (ticker vs. concept)
+                      <strong className="text-gray-300">Intent Detection:</strong> GPT-4 classifies your query (ticker lookup, concept search, multi-hop graph traversal, insider trading detection, commodity correlation, etc.)
                     </div>
                   </div>
                   <div className="flex items-start">
                     <span className="text-blue-400 font-semibold mr-3 mt-1">2.</span>
                     <div>
-                      <strong className="text-gray-300">Query Planning:</strong> AI generates optimized AQL with semantic embeddings
+                      <strong className="text-gray-300">Query Planning:</strong> AI generates optimized AQL (ArangoDB Query Language) with graph traversals across 22 edge types, semantic search using cosine similarity on 1536-dim embeddings (Award descriptions, Polymarket questions), and joins across 19 collections
                     </div>
                   </div>
                   <div className="flex items-start">
                     <span className="text-purple-400 font-semibold mr-3 mt-1">3.</span>
                     <div>
-                      <strong className="text-gray-300">Parallel Execution:</strong> Database query + web search run simultaneously
+                      <strong className="text-gray-300">Parallel Execution:</strong> ArangoDB graph query (50ms traversals across 2M+ docs) + Perplexity web search run simultaneously. Graph queries use OUTBOUND/INBOUND edges (e.g., Company → COMPANY_TRADES_COMMODITY → futures_prices → INVENTORY_AFFECTS_PRICE → eia_crude_inventory)
                     </div>
                   </div>
                   <div className="flex items-start">
                     <span className="text-orange-400 font-semibold mr-3 mt-1">4.</span>
                     <div>
-                      <strong className="text-gray-300">Synthesis:</strong> GPT-4 combines results with analysis and insights
+                      <strong className="text-gray-300">Synthesis:</strong> GPT-4 merges database results (historical data, graph relationships, sentiment scores, positioning data) with real-time web context, providing analysis, insights, and follow-up questions
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="text-amber-400 font-semibold mr-3 mt-1">5.</span>
+                    <div>
+                      <strong className="text-gray-300">Insider Trading Detection:</strong> Options flow pipeline tracks 612 tickers daily, building 20-day baselines to detect unusual call/put activity before contract awards (OPTIONS_BEFORE_AWARD edge) and SEC filings (OPTIONS_BEFORE_FILING edge)
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="text-teal-400 font-semibold mr-3 mt-1">6.</span>
+                    <div>
+                      <strong className="text-gray-300">Commodity Analysis:</strong> Direct company-to-commodity links via COMPANY_TRADES_COMMODITY (501K edges, 49 companies), enriched with CFTC positioning data, EIA inventory reports (crude oil, natural gas, LNG), and FRED macro indicators
                     </div>
                   </div>
                 </div>
