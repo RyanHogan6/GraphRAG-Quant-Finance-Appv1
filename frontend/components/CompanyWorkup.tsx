@@ -16,6 +16,7 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
     const [showAllMetrics, setShowAllMetrics] = useState(false)
     const [selectedDetail, setSelectedDetail] = useState<{ type: 'SEC' | 'Award', data: any } | null>(null)
     const [selectedFormType, setSelectedFormType] = useState<string>('all')
+    const [secSortBy, setSecSortBy] = useState<'negative' | 'positive' | 'recent'>('negative')
 
     // Extract nested data
     const company = data
@@ -32,10 +33,26 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
         lng: data.eia_lng || []
     }
 
-    // Filter SEC filings by form type
-    const secFilings = selectedFormType === 'all'
-        ? allSecFilings
-        : allSecFilings.filter((f: any) => (f.type || f.form_type) === selectedFormType)
+    // Filter and sort SEC filings by form type and sentiment
+    const secFilings = useMemo(() => {
+        let filtered = selectedFormType === 'all'
+            ? allSecFilings
+            : allSecFilings.filter((f: any) => (f.type || f.form_type) === selectedFormType)
+
+        // Sort by selected criterion
+        const sorted = [...filtered].sort((a: any, b: any) => {
+            if (secSortBy === 'negative') {
+                return (a.avg_finbert || 0) - (b.avg_finbert || 0) // Most negative first
+            } else if (secSortBy === 'positive') {
+                return (b.avg_finbert || 0) - (a.avg_finbert || 0) // Most positive first
+            } else {
+                // Most recent first
+                return new Date(b.filing_date || 0).getTime() - new Date(a.filing_date || 0).getTime()
+            }
+        })
+
+        return sorted
+    }, [allSecFilings, selectedFormType, secSortBy])
 
     // Get unique form types
     const formTypes = useMemo(() => {
@@ -284,23 +301,36 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                 <div className="xl:col-span-5 space-y-4">
                     {/* Regulatory Column */}
                     <div className="bg-dark-900/40 border border-blue-500/10 rounded-xl p-3 md:p-4 shadow-xl backdrop-blur-sm">
-                        <div className="flex items-center justify-between mb-3 md:mb-4">
-                            <h3 className="text-xs md:text-sm font-bold text-blue-400 uppercase tracking-[0.2em] flex items-center gap-3">
-                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
-                                SEC Intelligent Signals
-                            </h3>
+                        <div className="flex flex-col gap-2 mb-3 md:mb-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-xs md:text-sm font-bold text-blue-400 uppercase tracking-[0.2em] flex items-center gap-3">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                                    SEC Intelligent Signals
+                                </h3>
+                            </div>
                             {allSecFilings.length > 0 && (
-                                <select
-                                    value={selectedFormType}
-                                    onChange={(e) => setSelectedFormType(e.target.value)}
-                                    className="text-[10px] bg-dark-800 border border-blue-500/20 rounded px-2 py-1 text-gray-300 focus:border-blue-500/50 outline-none"
-                                >
-                                    {formTypes.map((type) => (
-                                        <option key={type} value={type}>
-                                            {type === 'all' ? 'All Forms' : `Form ${type}`}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className="flex gap-2">
+                                    <select
+                                        value={selectedFormType}
+                                        onChange={(e) => setSelectedFormType(e.target.value)}
+                                        className="text-[10px] bg-dark-800 border border-blue-500/20 rounded px-2 py-1 text-gray-300 focus:border-blue-500/50 outline-none flex-1"
+                                    >
+                                        {formTypes.map((type) => (
+                                            <option key={type} value={type}>
+                                                {type === 'all' ? 'All Forms' : `Form ${type}`}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <select
+                                        value={secSortBy}
+                                        onChange={(e) => setSecSortBy(e.target.value as any)}
+                                        className="text-[10px] bg-dark-800 border border-blue-500/20 rounded px-2 py-1 text-gray-300 focus:border-blue-500/50 outline-none flex-1"
+                                    >
+                                        <option value="negative">Most Negative</option>
+                                        <option value="positive">Most Positive</option>
+                                        <option value="recent">Most Recent</option>
+                                    </select>
+                                </div>
                             )}
                         </div>
                         {secFilings.length > 0 ? (
@@ -431,7 +461,11 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                                     </thead>
                                     <tbody>
                                         {awards.slice(0, 6).map((a: any, i: number) => (
-                                            <tr key={i} className="border-b border-white/5 hover:bg-gold/5 transition-colors">
+                                            <tr
+                                                key={i}
+                                                onClick={() => setSelectedDetail({ type: 'Award', data: a })}
+                                                className="border-b border-white/5 hover:bg-gold/10 transition-colors cursor-pointer"
+                                            >
                                                 <td className="py-2 text-gray-100 truncate max-w-[150px]">{a.awarding_agency}</td>
                                                 <td className="py-2 text-gray-300">FY-{a.contract_year || '26'}</td>
                                                 <td className="py-2 text-right text-gold font-mono font-bold">${(a.award_amount_float / 1e6).toFixed(1)}M</td>
@@ -508,7 +542,85 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                 )}
             </AnimatePresence>
 
-            {/* Award Modal Removed - Awards now displayed in table format (no popup needed) */}
+            {/* Award Detail Modal */}
+            <AnimatePresence>
+                {selectedDetail && selectedDetail.type === 'Award' && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[150] flex items-center justify-center p-4 md:p-8"
+                        onClick={() => setSelectedDetail(null)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="bg-dark-800 border border-gold/30 rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-[0_0_50px_rgba(255,215,0,0.1)]"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="p-6 border-b border-gold/20 flex justify-between items-center bg-dark-900/80">
+                                <div>
+                                    <h4 className="text-gold font-bold uppercase tracking-[0.3em] text-[10px] mb-1">Federal Contract Award</h4>
+                                    <div className="text-sm text-white font-bold">
+                                        {selectedDetail.data.awarding_agency}
+                                    </div>
+                                </div>
+                                <button onClick={() => setSelectedDetail(null)} className="p-2 bg-dark-700 rounded-full text-gray-400 hover:text-white border border-white/10 transition-all">✕</button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-8 space-y-6">
+                                <div className="flex justify-between items-start">
+                                    <div className="flex-1">
+                                        <div className="text-2xl font-black text-white tracking-tight mb-2">
+                                            {selectedDetail.data.description || 'Contract Award'}
+                                        </div>
+                                        <div className="text-xs text-gray-400 uppercase font-bold tracking-widest">
+                                            FY-{selectedDetail.data.contract_year || '2026'}
+                                        </div>
+                                    </div>
+                                    <div className="text-right ml-6">
+                                        <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Award Amount</div>
+                                        <div className="text-3xl font-mono font-black text-gold shadow-[0_0_20px_rgba(255,215,0,0.2)]">
+                                            ${(selectedDetail.data.award_amount_float / 1e6).toFixed(2)}M
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-dark-900/50 p-4 rounded-xl border border-white/5">
+                                        <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-2">Awarding Agency</div>
+                                        <div className="text-sm text-gray-200 font-semibold">{selectedDetail.data.awarding_agency}</div>
+                                    </div>
+                                    <div className="bg-dark-900/50 p-4 rounded-xl border border-white/5">
+                                        <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-2">Contract Year</div>
+                                        <div className="text-sm text-gray-200 font-semibold">FY-{selectedDetail.data.contract_year || '2026'}</div>
+                                    </div>
+                                    {selectedDetail.data.award_date && (
+                                        <div className="bg-dark-900/50 p-4 rounded-xl border border-white/5">
+                                            <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-2">Award Date</div>
+                                            <div className="text-sm text-gray-200 font-semibold">{selectedDetail.data.award_date}</div>
+                                        </div>
+                                    )}
+                                    {selectedDetail.data.naics_description && (
+                                        <div className="bg-dark-900/50 p-4 rounded-xl border border-white/5">
+                                            <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-2">Industry (NAICS)</div>
+                                            <div className="text-sm text-gray-200 font-semibold">{selectedDetail.data.naics_description}</div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {selectedDetail.data.description && (
+                                    <div>
+                                        <h5 className="text-[10px] font-black text-gold uppercase tracking-[0.2em] border-b border-gold/20 pb-2 mb-4">Contract Description</h5>
+                                        <div className="bg-dark-900/50 p-5 rounded-2xl border border-white/5">
+                                            <p className="text-sm text-gray-300 leading-relaxed">{selectedDetail.data.description}</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     )
 }

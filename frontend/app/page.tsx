@@ -1042,10 +1042,10 @@ export default function HomePage() {
             whileInView={{ opacity: 1 }}
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.8 }}
-            className="mb-6 md:mb-8 text-center"
+            className="mb-4 text-left"
           >
-            <h2 className="text-2xl md:text-3xl font-bold text-gold tracking-tight flex items-center justify-center gap-2">
-              <span className="w-2 h-2 bg-gold rounded-full animate-pulse" />
+            <h2 className="text-base md:text-lg font-bold text-gold tracking-tight flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-gold rounded-full animate-pulse" />
               Intelligence Terminal
             </h2>
           </motion.div>
