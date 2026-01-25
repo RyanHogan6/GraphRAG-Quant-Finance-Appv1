@@ -923,38 +923,33 @@ export default function HomePage() {
 
   return (
     <div className="relative z-10">
-      {/* Logo Section - Small margin from top */}
+      {/* Logo Section at Top Center */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
-        className="flex flex-col items-center pt-3"
+        className="flex flex-col items-center pt-4"
       >
-        {/* KARGA Logo - Medium size */}
-        <div className="scale-[0.5] md:scale-[0.55]">
+        {/* KARGA Logo */}
+        <div className="scale-[0.5] md:scale-[0.55] -mb-20 md:-mb-28">
           <AnimatedLogo />
         </div>
-        <p className="text-sm md:text-base text-gray-400 -mt-24 md:-mt-32">
+
+        {/* Tagline - Close to logo */}
+        <p className="text-sm md:text-base text-gray-400 mb-4">
           Financial Intelligence Powered by Knowledge Graphs
         </p>
+
+        {/* Intelligence Terminal Label */}
+        <h2 className="text-sm md:text-base font-bold text-gold tracking-tight flex items-center gap-2 mb-3">
+          <span className="w-1.5 h-1.5 bg-gold rounded-full animate-pulse" />
+          Intelligence Terminal
+        </h2>
       </motion.div>
 
-      {/* Chat Interface Section - Directly below logo */}
-      <section id="query" className="px-4 pt-4 pb-8">
+      {/* Chat Container - Large and Central */}
+      <section id="query" className="px-4 pb-8">
         <div className="container mx-auto max-w-[1600px]">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="mb-2 text-left"
-          >
-            <h2 className="text-sm md:text-base font-bold text-gold tracking-tight flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-gold rounded-full animate-pulse" />
-              Intelligence Terminal
-            </h2>
-          </motion.div>
-
-          {/* Chat Container */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -992,7 +987,7 @@ export default function HomePage() {
             {/* Messages */}
             <div
               ref={chatScrollRef}
-              className="h-[600px] md:h-[65vh] overflow-y-auto py-4 space-y-4 md:space-y-6 scroll-smooth"
+              className="h-[70vh] overflow-y-auto py-4 space-y-4 md:space-y-6 scroll-smooth"
             >
               {/* Visual Query Builder - Show at top when in builder mode */}
               {isBuilderMode && (
