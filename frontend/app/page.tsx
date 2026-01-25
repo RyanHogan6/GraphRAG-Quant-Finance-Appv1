@@ -1426,7 +1426,6 @@ export default function HomePage() {
             </div>
           </motion.div>
           )}
-        </div>
       </section>
 
       {/* Section Divider */}
