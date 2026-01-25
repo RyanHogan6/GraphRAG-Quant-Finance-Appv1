@@ -992,7 +992,7 @@ export default function HomePage() {
             {/* Messages */}
             <div
               ref={chatScrollRef}
-              className="overflow-y-auto py-4 space-y-4 md:space-y-6 scroll-smooth max-h-[45vh]"
+              className="overflow-y-auto py-4 space-y-4 md:space-y-6 scroll-smooth max-h-[55vh]"
             >
               {/* Visual Query Builder - Show at top when in builder mode */}
               {isBuilderMode && (
