@@ -14,4 +14,4 @@ Allow: /privacy
 Disallow: /api/
 
 # Sitemap location
-Sitemap: https://graph-rag-quant-finance-appv1-on4u.vercel.app/sitemap.xml
+Sitemap: https://karga-ai.com/sitemap.xml
