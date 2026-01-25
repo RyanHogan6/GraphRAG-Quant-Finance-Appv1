@@ -928,26 +928,33 @@ export default function HomePage() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
-        className="flex flex-col items-center pt-6 pb-2"
+        className="flex flex-col items-center pt-6 pb-3"
       >
         {/* KARGA Logo - No scaling needed, already correct size */}
         <AnimatedLogo />
 
         {/* Tagline - Close to logo */}
-        <p className="text-sm md:text-base text-gray-400 mt-1 mb-3">
+        <p className="text-sm md:text-base text-gray-400 mt-1">
           Financial Intelligence Powered by Knowledge Graphs
         </p>
-
-        {/* Intelligence Terminal Label */}
-        <h2 className="text-sm md:text-base font-bold text-gold tracking-tight flex items-center gap-2 mb-2">
-          <span className="w-1.5 h-1.5 bg-gold rounded-full animate-pulse" />
-          Intelligence Terminal
-        </h2>
       </motion.div>
 
       {/* Chat Container - Large and Central */}
       <section id="query" className="px-4 pb-8">
         <div className="container mx-auto max-w-[1600px]">
+          {/* Intelligence Terminal Label - Left aligned */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="mb-2 text-left"
+          >
+            <h2 className="text-sm md:text-base font-bold text-gold tracking-tight flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-gold rounded-full animate-pulse" />
+              Intelligence Terminal
+            </h2>
+          </motion.div>
+
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -985,8 +992,7 @@ export default function HomePage() {
             {/* Messages */}
             <div
               ref={chatScrollRef}
-              className="overflow-y-auto py-4 space-y-4 md:space-y-6 scroll-smooth"
-              style={{ height: 'calc(100vh - 350px)' }}
+              className="overflow-y-auto py-4 space-y-4 md:space-y-6 scroll-smooth max-h-[45vh]"
             >
               {/* Visual Query Builder - Show at top when in builder mode */}
               {isBuilderMode && (
