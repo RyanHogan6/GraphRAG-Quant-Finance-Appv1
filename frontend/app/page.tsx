@@ -928,7 +928,7 @@ export default function HomePage() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
-        className="flex flex-col items-center pt-6 pb-3"
+        className="flex flex-col items-center pt-4 pb-2"
       >
         {/* KARGA Logo - No scaling needed, already correct size */}
         <AnimatedLogo />
@@ -993,7 +993,7 @@ export default function HomePage() {
             <div
               ref={chatScrollRef}
               className="overflow-y-auto py-4 space-y-4 md:space-y-6 scroll-smooth"
-              style={{ height: 'calc(100vh - 450px)' }}
+              style={{ height: 'calc(100vh - 400px)' }}
             >
               {/* Visual Query Builder - Show at top when in builder mode */}
               {isBuilderMode && (
