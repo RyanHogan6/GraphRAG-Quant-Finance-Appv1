@@ -1404,22 +1404,22 @@ export default function HomePage() {
                   >
                     Visual Query Builder
                   </button>
-
-                  {/* Complex Queries Toggle */}
-                  <button
-                    onClick={() => setShowComplexQueries(!showComplexQueries)}
-                    className={`px-3 py-1 rounded text-[10px] font-medium transition-all flex items-center gap-1.5 ${
-                      showComplexQueries
-                        ? 'bg-purple-500/20 text-purple-400 border border-purple-500/40'
-                        : 'text-gray-400 hover:text-purple-400 border border-transparent'
-                    }`}
-                  >
-                    <span>🧠</span>
-                    Complex Queries
-                  </button>
                 </div>
 
                 <div className="flex items-center gap-3">
+                  {/* Complex Queries Toggle */}
+                  <button
+                    onClick={() => setShowComplexQueries(!showComplexQueries)}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+                      showComplexQueries
+                        ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50 shadow-lg'
+                        : 'bg-dark-800 text-purple-300 border border-purple-500/30 hover:bg-purple-500/10 hover:border-purple-500/50'
+                    }`}
+                  >
+                    <span>🧠</span>
+                    <span className="hidden sm:inline">Complex Queries</span>
+                    <span className="sm:hidden">Gallery</span>
+                  </button>
                   {/* Advanced Mode Toggle (only for LLM mode) */}
                   {!isBuilderMode && (
                     <label className="flex items-center cursor-pointer group">
