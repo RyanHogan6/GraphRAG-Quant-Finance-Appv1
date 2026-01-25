@@ -177,39 +177,11 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                 </div>
             </div>
 
-            {/* AI Intelligence Summary */}
-            <div className="bg-gradient-to-br from-gold/10 to-transparent border border-gold/20 rounded-xl p-3 md:p-4 relative overflow-hidden group shadow-2xl">
-                <div className="absolute top-0 left-0 w-1 h-full bg-gold/50" />
-                <div className="absolute -right-12 -top-12 w-48 h-48 bg-gold/5 rounded-full blur-3xl group-hover:bg-gold/10 transition-all" />
-                <h3 className="text-[9px] md:text-[10px] font-bold text-gold uppercase tracking-[0.2em] mb-2 md:mb-3 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" />
-                    Deep Intelligence Synthesis
-                </h3>
-                <div className="space-y-2 relative z-10">
-                    {aiSummary.map((s: string, i: number) => (
-                        <p key={i} className="text-[13px] md:text-sm text-gray-300 leading-relaxed font-medium">
-                            {s}
-                            {i === 1 && secFilings.length > 0 && (
-                                <span
-                                    onClick={() => setSelectedDetail({ type: 'SEC', data: secFilings[0] })}
-                                    className="ml-1 text-[10px] text-blue-400 font-mono cursor-pointer hover:underline bg-blue-500/10 px-1 rounded"
-                                >
-                                    [SEC-{secFilings[0].filing_date}]
-                                </span>
-                            )}
-                            {i === 3 && polyMarkets.length > 0 && (
-                                <span className="ml-1 text-[10px] text-purple-400 font-mono cursor-pointer hover:underline bg-purple-500/10 px-1 rounded">[BIAS-{(polyMarkets[0].yes_probability * 100).toFixed(0)}%]</span>
-                            )}
-                        </p>
-                    ))}
-                </div>
-            </div>
-
             {/* Main Content Sections with Zero Collisions */}
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
 
-                {/* Left Area: Chart & Fundamental Checklist (8 Cols) */}
-                <div className="xl:col-span-8 space-y-4">
+                {/* Left Area: Chart & Fundamental Checklist (7 Cols) */}
+                <div className="xl:col-span-7 space-y-4">
                     {/* Chart Section */}
                     <div className="bg-dark-900/40 border border-gold/10 rounded-xl p-3 md:p-4 shadow-xl backdrop-blur-sm">
                         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-3 md:mb-4 gap-3">
@@ -278,10 +250,38 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                             ))}
                         </div>
                     </div>
+
+                    {/* AI Intelligence Summary - Moved below chart */}
+                    <div className="bg-gradient-to-br from-gold/10 to-transparent border border-gold/20 rounded-xl p-3 md:p-4 relative overflow-hidden group shadow-2xl">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-gold/50" />
+                        <div className="absolute -right-12 -top-12 w-48 h-48 bg-gold/5 rounded-full blur-3xl group-hover:bg-gold/10 transition-all" />
+                        <h3 className="text-[9px] md:text-[10px] font-bold text-gold uppercase tracking-[0.2em] mb-2 md:mb-3 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" />
+                            Deep Intelligence Synthesis
+                        </h3>
+                        <div className="space-y-2 relative z-10">
+                            {aiSummary.map((s: string, i: number) => (
+                                <p key={i} className="text-[13px] md:text-sm text-gray-300 leading-relaxed font-medium">
+                                    {s}
+                                    {i === 1 && secFilings.length > 0 && (
+                                        <span
+                                            onClick={() => setSelectedDetail({ type: 'SEC', data: secFilings[0] })}
+                                            className="ml-1 text-[10px] text-blue-400 font-mono cursor-pointer hover:underline bg-blue-500/10 px-1 rounded"
+                                        >
+                                            [SEC-{secFilings[0].filing_date}]
+                                        </span>
+                                    )}
+                                    {i === 3 && polyMarkets.length > 0 && (
+                                        <span className="ml-1 text-[10px] text-purple-400 font-mono cursor-pointer hover:underline bg-purple-500/10 px-1 rounded">[BIAS-{(polyMarkets[0].yes_probability * 100).toFixed(0)}%]</span>
+                                    )}
+                                </p>
+                            ))}
+                        </div>
+                    </div>
                 </div>
 
-                {/* Right Area: Signals (4 Cols) */}
-                <div className="xl:col-span-4 space-y-4">
+                {/* Right Area: Signals (5 Cols) */}
+                <div className="xl:col-span-5 space-y-4">
                     {/* Regulatory Column */}
                     <div className="bg-dark-900/40 border border-blue-500/10 rounded-xl p-3 md:p-4 shadow-xl backdrop-blur-sm">
                         <div className="flex items-center justify-between mb-3 md:mb-4">
