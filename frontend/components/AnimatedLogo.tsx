@@ -11,18 +11,11 @@ export default function AnimatedLogo() {
       className="flex items-center justify-center"
     >
       <img
-        src="/nice-fade.png"
+        src="/updated-logo2.2.png"
         alt="KARGA"
-        className="w-auto h-auto max-w-[95%] md:max-w-6xl lg:max-w-7xl object-contain"
-        style={{ maxHeight: '405px', transform: 'translateX(-8%)' }}
+        className="w-auto h-auto object-contain"
+        style={{ maxHeight: '100px' }}
       />
-      <style jsx>{`
-        @media (min-width: 768px) {
-          img {
-            max-height: 840px !important;
-          }
-        }
-      `}</style>
     </motion.div>
   )
 }

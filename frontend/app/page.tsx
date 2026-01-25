@@ -928,20 +928,18 @@ export default function HomePage() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
-        className="flex flex-col items-center pt-4"
+        className="flex flex-col items-center pt-6 pb-2"
       >
-        {/* KARGA Logo */}
-        <div className="scale-[0.5] md:scale-[0.55] -mb-20 md:-mb-28">
-          <AnimatedLogo />
-        </div>
+        {/* KARGA Logo - No scaling needed, already correct size */}
+        <AnimatedLogo />
 
         {/* Tagline - Close to logo */}
-        <p className="text-sm md:text-base text-gray-400 mb-4">
+        <p className="text-sm md:text-base text-gray-400 mt-1 mb-3">
           Financial Intelligence Powered by Knowledge Graphs
         </p>
 
         {/* Intelligence Terminal Label */}
-        <h2 className="text-sm md:text-base font-bold text-gold tracking-tight flex items-center gap-2 mb-3">
+        <h2 className="text-sm md:text-base font-bold text-gold tracking-tight flex items-center gap-2 mb-2">
           <span className="w-1.5 h-1.5 bg-gold rounded-full animate-pulse" />
           Intelligence Terminal
         </h2>
@@ -987,7 +985,8 @@ export default function HomePage() {
             {/* Messages */}
             <div
               ref={chatScrollRef}
-              className="h-[70vh] overflow-y-auto py-4 space-y-4 md:space-y-6 scroll-smooth"
+              className="overflow-y-auto py-4 space-y-4 md:space-y-6 scroll-smooth"
+              style={{ height: 'calc(100vh - 350px)' }}
             >
               {/* Visual Query Builder - Show at top when in builder mode */}
               {isBuilderMode && (
