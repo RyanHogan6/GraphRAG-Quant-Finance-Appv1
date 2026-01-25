@@ -17,6 +17,9 @@ import CompanyCompare from '@/components/CompanyCompare'
 import Navigation from '@/components/Navigation'
 import DataSourceAttribution from '@/components/DataSourceAttribution'
 import ComplexQueryGallery from '@/components/ComplexQueryGallery'
+import InsiderTradingSignal from '@/components/InsiderTradingSignal'
+import SentimentDivergence from '@/components/SentimentDivergence'
+import AnomalyHighlight from '@/components/AnomalyHighlight'
 import { Market } from '@/lib/types'
 
 interface Message {
@@ -37,6 +40,7 @@ interface Message {
     queryIntent?: string
     resultCount?: number
   }
+  presentationType?: string
   queryPlan?: {
     aql_query?: string
     bind_vars?: any
@@ -173,6 +177,16 @@ export default function HomePage() {
         {message.results && message.results.length > 0 && (
           <div className="mt-3 md:mt-4 space-y-3 md:space-y-4">
             {(() => {
+              // Check for specialized presentation types first
+              if (message.presentationType === 'insider_trading') {
+                return <InsiderTradingSignal signals={message.results} />;
+              }
+
+              if (message.presentationType === 'sentiment_divergence') {
+                return <SentimentDivergence signals={message.results} />;
+              }
+
+              // Then check for company workups
               const isWorkup = (r: any) =>
                 r.MarketData || r.sec_filings || r.Award || r.prediction_markets_polymarket;
 
@@ -566,6 +580,11 @@ export default function HomePage() {
                       queryIntent: parsed.query_intent,
                       resultCount: parsed.count || parsed.results.length
                     }
+                  }
+
+                  // Store presentation type for specialized rendering
+                  if (parsed.presentation_type) {
+                    lastMsg.presentationType = parsed.presentation_type
                   }
 
                   return newMessages
@@ -1493,9 +1512,10 @@ export default function HomePage() {
                   className="mt-4"
                 >
                   <ComplexQueryGallery
-                    onQuerySelect={(query) => {
-                      setInput(query)
-                      setIsBuilderMode(false)
+                    onQuerySelect={(naturalLanguage, aql) => {
+                      setInput(naturalLanguage)
+                      setBuiltQuery({ aql: aql, description: naturalLanguage })
+                      setIsBuilderMode(true)
                       setShowComplexQueries(false)
                       setTimeout(() => {
                         const fakeEvent = { preventDefault: () => {} } as React.FormEvent

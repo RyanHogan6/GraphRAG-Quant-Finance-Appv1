@@ -88,15 +88,24 @@ CRITICAL_AQL_RULES = """
    ❌ OTHER COLLECTIONS: NO embeddings - use CONTAINS(LOWER(field), 'keyword')
    ❌ NO embeddings: SEC, Kalshi, Futures, Options, EIA, Commodity Positions
 
-   Examples:
-   - Award semantic: LET sim = COSINE_SIMILARITY(doc.description_embedding, @query_vector) FILTER sim >= 0.7
-   - Polymarket semantic: LET sim = COSINE_SIMILARITY(doc.question_embedding, @query_vector) FILTER sim >= 0.65
-   - SEC text: FILTER CONTAINS(LOWER(doc.text), 'cybersecurity')
-   - Kalshi text: FILTER CONTAINS(LOWER(doc.title), 'football')
+   🚨 PERFORMANCE - ALWAYS PRE-FILTER BEFORE COSINE_SIMILARITY:
+   ✅ CORRECT (Fast):
+   FOR doc IN Award
+     FILTER doc.award_amount_float > 500000    ← Pre-filter first!
+     FILTER doc.description_embedding != null
+     LIMIT 3000                                 ← Limit docs before similarity calc!
+     LET sim = COSINE_SIMILARITY(doc.description_embedding, @query_vector)
+     FILTER sim >= 0.72
+     LIMIT 15
+
+   ❌ WRONG (Times out after 60 seconds):
+   FOR doc IN Award
+     LET sim = COSINE_SIMILARITY(doc.description_embedding, @query_vector)  ← Scans ALL docs!
+     FILTER sim >= 0.70
 
    ⚠️ Similarity thresholds:
-   - Award: >= 0.70 (longer descriptions, stricter matching)
-   - Polymarket: >= 0.65 (shorter questions, more lenient)
+   - Award: >= 0.72 (not 0.70 - higher = faster + better matches)
+   - Polymarket: >= 0.68 (not 0.65 - higher = faster)
 
    ❌ NEVER use embeddings on: SEC, Kalshi, Company, MarketData, EconomicData
 
@@ -831,17 +840,19 @@ Requires Embedding: false
 
 ---
 
-EXAMPLE 4 - Award Semantic Search:
+EXAMPLE 4 - Award Semantic Search (OPTIMIZED FOR PERFORMANCE):
 Question: "Find awards related to artificial intelligence"
 Intent: semantic_search
 Collections: ["Award"]
 AQL:
 FOR doc IN Award
+  FILTER doc.award_amount_float > 500000
   FILTER doc.description_embedding != null
+  LIMIT 3000
   LET similarity = COSINE_SIMILARITY(doc.description_embedding, @query_vector)
-  FILTER similarity >= 0.70
+  FILTER similarity >= 0.72
   SORT similarity DESC
-  LIMIT 10
+  LIMIT 15
   RETURN {
     recipient: doc.recipient_name,
     ticker: doc.ticker,
@@ -853,6 +864,18 @@ FOR doc IN Award
 Bind Variables: {"query_vector": [0.123, ...]}
 Requires Embedding: true
 Embedding Text: "artificial intelligence AI machine learning deep learning neural networks"
+
+⚠️ CRITICAL PERFORMANCE OPTIMIZATION:
+✅ ALWAYS pre-filter BEFORE COSINE_SIMILARITY to reduce documents scanned
+✅ Add LIMIT 3000 after filter, BEFORE similarity calculation (prevents timeout)
+✅ Use award_amount_float > 500000 to focus on substantial contracts
+✅ Increase similarity threshold to 0.72 (not 0.70) to get better matches
+✅ Final LIMIT 15 (not 20) to return focused results
+
+❌ NEVER DO THIS (causes timeout):
+FOR doc IN Award
+  LET sim = COSINE_SIMILARITY(doc.description_embedding, @query_vector)  ← Scans ALL awards!
+  FILTER sim >= 0.70
 
 ---
 
@@ -1180,18 +1203,19 @@ Requires Embedding: false
 
 ---
 
-EXAMPLE 12c - Polymarket Semantic Search:
+EXAMPLE 12c - Polymarket Semantic Search (OPTIMIZED FOR PERFORMANCE):
 Question: "Find prediction markets about artificial intelligence and technology"
 Intent: semantic_prediction_market_search
 Collections: ["prediction_markets_polymarket"]
 AQL:
 FOR market IN prediction_markets_polymarket
-  FILTER market.question_embedding != null
-  LET similarity = COSINE_SIMILARITY(market.question_embedding, @query_vector)
-  FILTER similarity >= 0.65
   FILTER market.closed == false
+  FILTER market.question_embedding != null
+  LIMIT 2000
+  LET similarity = COSINE_SIMILARITY(market.question_embedding, @query_vector)
+  FILTER similarity >= 0.68
   SORT similarity DESC
-  LIMIT 10
+  LIMIT 12
   RETURN {
     question: market.question,
     yes_probability: market.yes_probability,
@@ -1204,11 +1228,15 @@ Bind Variables: {"query_vector": [0.123, ...]}
 Requires Embedding: true
 Embedding Text: "artificial intelligence AI technology machine learning GPT robots automation software"
 
+⚠️ CRITICAL PERFORMANCE OPTIMIZATION:
+✅ Pre-filter closed markets FIRST (reduces docs from ~thousands to hundreds)
+✅ Add LIMIT 2000 BEFORE COSINE_SIMILARITY (prevents timeout on large collections)
+✅ Increased threshold to 0.68 (from 0.65) for better quality matches
+✅ Final LIMIT 12 to return focused results
+
 💡 Strategy:
 - Use semantic search when user asks about concepts/topics (not specific keywords)
-- Threshold 0.65 for Polymarket (lower than Award's 0.70 because questions are shorter)
 - Filter out closed markets unless user explicitly wants historical data
-- Combine question + description embeddings for richer matching
 - Returns similarity score for transparency
 
 ⚠️ When to use semantic vs keyword:

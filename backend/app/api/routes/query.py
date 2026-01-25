@@ -116,6 +116,35 @@ def plan_query(request: Request, body: QueryRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def detect_presentation_type(aql_query: str, results: list, question: str) -> str:
+    """Detect what kind of specialized presentation to use based on query pattern"""
+    if not results:
+        return 'table'
+
+    q_lower = question.lower() if question else ''
+    aql_lower = aql_query.lower() if aql_query else ''
+
+    # Insider trading signals - options activity before filings/awards
+    if ('options_before' in aql_lower or 'unusual' in q_lower) and ('filing' in aql_lower or 'award' in aql_lower):
+        if any('days_before' in str(r) or 'options_date' in str(r) for r in results):
+            return 'insider_trading'
+
+    # Sentiment divergence - multiple sentiment sources
+    if 'divergence' in q_lower or ('sentiment' in q_lower and ('sec' in q_lower or 'market' in q_lower)):
+        if any(('sec_sentiment' in str(r) or 'market_sentiment' in str(r) or 'sentiment_change' in str(r)) for r in results):
+            return 'sentiment_divergence'
+
+    # CFTC positioning - speculator vs commercial
+    if ('cftc' in q_lower or 'speculator' in q_lower or 'commercial' in q_lower) and 'position' in q_lower:
+        return 'cftc_positioning'
+
+    # Whale trader analysis
+    if 'whale' in q_lower or ('trader' in q_lower and 'profit' in q_lower):
+        return 'whale_analysis'
+
+    return 'table'
+
+
 def analyze_query_metadata(aql_query: str, results: List[Dict]) -> Dict[str, Any]:
     """
     Analyze AQL query and results to determine what data types are present.
@@ -766,6 +795,10 @@ async def execute_query_stream(request: Request, body: QueryRequest):
             query_metadata = analyze_query_metadata(aql_query, results)
             print(f"[STREAM] Query metadata: {query_metadata}")
 
+            # Detect specialized presentation type
+            presentation_type = detect_presentation_type(aql_query, results, body.question)
+            print(f"[STREAM] Presentation type: {presentation_type}")
+
             # Step 6: Send complete payload
             final_payload = {
                 'type': 'complete',
@@ -775,6 +808,7 @@ async def execute_query_stream(request: Request, body: QueryRequest):
                 'query_plan': query_plan,
                 'follow_up_questions': follow_ups,
                 'query_intent': query_intent,
+                'presentation_type': presentation_type,
                 'web_context': {
                     'sources': web_context_data.get('sources', []),
                     'citations': web_context_data.get('citations', [])
