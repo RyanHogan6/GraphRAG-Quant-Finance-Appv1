@@ -922,32 +922,25 @@ export default function HomePage() {
   }
 
   return (
-    <div className="relative z-10">
-      {/* Compact Header with Logo */}
-      <motion.header
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
-        className="pt-8 pb-6 px-6 text-center"
+    <div className="relative z-10 min-h-screen flex flex-col">
+      {/* Centered Logo Section */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 1 }}
+        className="flex-1 flex flex-col items-center justify-center px-6 pt-20"
       >
-        {/* Smaller KARGA Logo */}
-        <div className="flex justify-center mb-3">
-          <div className="scale-[0.35] md:scale-[0.4] origin-center">
-            <AnimatedLogo />
-          </div>
+        {/* Large KARGA Logo */}
+        <div className="mb-8">
+          <AnimatedLogo />
         </div>
-        <p className="text-sm md:text-base text-gray-400 max-w-2xl mx-auto">
+        <p className="text-lg md:text-xl text-gray-400">
           Financial Intelligence Powered by Knowledge Graphs
         </p>
-      </motion.header>
+      </motion.div>
 
-      {/* Chat Interface Section - IMMEDIATELY VISIBLE */}
-      <section id="query" className="px-4 py-4 md:py-6 relative overflow-hidden" >
-        {/* Animated background grid */}
-        <motion.div
-          className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
-          style={{ opacity: gridOpacity2 }}
-        />
+      {/* Chat Interface Section - AT BOTTOM */}
+      <section id="query" className="px-4 pb-8 pt-4 relative" >
         <div className="container mx-auto max-w-[1800px] relative z-10" >
           <motion.div
             initial={{ opacity: 0 }}
@@ -1001,7 +994,7 @@ export default function HomePage() {
             {/* Messages */}
             <div
               ref={chatScrollRef}
-              className="min-h-[500px] h-[60vh] md:h-[65vh] overflow-y-auto py-4 md:py-6 space-y-6 md:space-y-8 scroll-smooth"
+              className="min-h-[300px] h-[40vh] md:h-[45vh] overflow-y-auto py-4 md:py-6 space-y-6 md:space-y-8 scroll-smooth"
             >
               {/* Visual Query Builder - Show at top when in builder mode */}
               {isBuilderMode && (
@@ -1032,13 +1025,13 @@ export default function HomePage() {
               {/* Empty State - Show suggested questions when no messages */}
               {messages.length === 0 && !isBuilderMode && (
                 <div className="flex items-center justify-center h-full">
-                  <div className="max-w-3xl w-full space-y-4 px-4">
-                    <div className="text-center mb-8">
+                  <div className="max-w-5xl w-full space-y-4 px-4">
+                    <div className="text-center mb-6">
                       <h3 className="text-xl md:text-2xl font-semibold text-gold mb-2">What can I help you discover?</h3>
                       <p className="text-sm md:text-base text-gray-400">Ask about markets, companies, contracts, commodities, or options flow</p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {suggestedQuestions.slice(0, 6).map((question, idx) => (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {suggestedQuestions.slice(0, 3).map((question, idx) => (
                         <button
                           key={idx}
                           onClick={() => {
