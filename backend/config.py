@@ -36,7 +36,7 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "development")  # development, staging, p
 
 # Cost & Abuse Protection
 DAILY_API_BUDGET = float(os.getenv("DAILY_API_BUDGET", "50.0"))  # $50/day default
-MAX_QUERY_COMPLEXITY = int(os.getenv("MAX_QUERY_COMPLEXITY", "3"))  # Max FOR loops in builder mode
+MAX_QUERY_COMPLEXITY = int(os.getenv("MAX_QUERY_COMPLEXITY", "5"))  # Max FOR loops in builder mode (increased for multi-hop graph traversals)
 
 # Document Collections
 COMPANY_COL = "Company"
