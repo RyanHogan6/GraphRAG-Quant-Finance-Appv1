@@ -922,44 +922,45 @@ export default function HomePage() {
   }
 
   return (
-    <div className="relative z-10 h-screen flex flex-col px-4 py-4">
-      {/* Logo and Tagline - Compact Top Section */}
+    <div className="relative z-10">
+      {/* Logo Section - Small margin from top */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
-        className="flex flex-col items-center pt-4 pb-3"
+        className="flex flex-col items-center pt-6 pb-2"
       >
-        {/* Medium KARGA Logo */}
-        <div className="scale-[0.45] md:scale-[0.5] origin-center -mb-12 md:-mb-14">
+        {/* KARGA Logo - Medium size */}
+        <div className="scale-[0.5] md:scale-[0.55] -mb-10 md:-mb-12">
           <AnimatedLogo />
         </div>
-        <p className="text-sm md:text-base text-gray-400">
+        <p className="text-sm md:text-base text-gray-400 mt-2">
           Financial Intelligence Powered by Knowledge Graphs
         </p>
       </motion.div>
 
-      {/* Chat Interface Section - Compact, All Visible */}
-      <section id="query" className="flex-1 flex flex-col max-w-[1600px] mx-auto w-full min-h-0">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
-          className="mb-2 text-left"
-        >
-          <h2 className="text-xs md:text-sm font-bold text-gold tracking-tight flex items-center gap-2">
-            <span className="w-1.5 h-1.5 bg-gold rounded-full animate-pulse" />
-            Intelligence Terminal
-          </h2>
-        </motion.div>
+      {/* Chat Interface Section - Directly below logo */}
+      <section id="query" className="px-4 pt-4 pb-8">
+        <div className="container mx-auto max-w-[1600px]">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="mb-3 text-left"
+          >
+            <h2 className="text-sm md:text-base font-bold text-gold tracking-tight flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-gold rounded-full animate-pulse" />
+              Intelligence Terminal
+            </h2>
+          </motion.div>
 
-        {/* Chat Container - Compact */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.3 }}
-          className="bg-dark-700/95 border border-gold/30 rounded-xl shadow-2xl p-3 md:p-4 flex-1 flex flex-col min-h-0"
-        >
+          {/* Chat Container */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+            className="bg-dark-700/95 border border-gold/30 rounded-xl shadow-2xl p-4 md:p-5"
+          >
             {/* Expanded Message Overlay */}
             {expandedMessageIdx !== null && (
               <div
@@ -991,7 +992,7 @@ export default function HomePage() {
             {/* Messages */}
             <div
               ref={chatScrollRef}
-              className="flex-1 overflow-y-auto py-2 md:py-3 space-y-3 md:space-y-4 scroll-smooth min-h-0"
+              className="h-[400px] overflow-y-auto py-4 space-y-4 md:space-y-6 scroll-smooth"
             >
               {/* Visual Query Builder - Show at top when in builder mode */}
               {isBuilderMode && (
@@ -1021,13 +1022,13 @@ export default function HomePage() {
 
               {/* Empty State - Show suggested questions when no messages */}
               {messages.length === 0 && !isBuilderMode && (
-                <div className="flex items-center justify-center h-full py-4">
-                  <div className="max-w-5xl w-full space-y-3">
-                    <div className="text-center mb-3">
-                      <h3 className="text-base md:text-lg font-semibold text-gold mb-1">What can I help you discover?</h3>
-                      <p className="text-xs md:text-sm text-gray-400">Ask about markets, companies, contracts, commodities, or options flow</p>
+                <div className="flex items-center justify-center h-full">
+                  <div className="max-w-4xl w-full space-y-4 px-2">
+                    <div className="text-center mb-4">
+                      <h3 className="text-lg md:text-xl font-semibold text-gold mb-2">What can I help you discover?</h3>
+                      <p className="text-sm text-gray-400">Ask about markets, companies, contracts, commodities, or options flow</p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       {suggestedQuestions.slice(0, 3).map((question, idx) => (
                         <button
                           key={idx}
@@ -1035,7 +1036,7 @@ export default function HomePage() {
                             setInput(question)
                             setIsBuilderMode(false)
                           }}
-                          className="bg-dark-600/60 border border-gold/30 rounded-lg p-2.5 md:p-3 text-left text-xs md:text-sm text-gray-200 hover:border-gold/50 hover:bg-dark-600 hover:text-gold transition-all shadow-sm"
+                          className="bg-dark-600/60 border border-gold/30 rounded-lg p-3 text-left text-sm text-gray-200 hover:border-gold/50 hover:bg-dark-600 hover:text-gold transition-all shadow-sm"
                         >
                           {question}
                         </button>
@@ -1264,10 +1265,10 @@ export default function HomePage() {
               }
             </div>
 
-            {/* Input Area - Sticky on Mobile */}
-            <div className="sticky bottom-0 z-[40] md:relative bg-dark-800 border-t border-gold/20 p-2 md:p-3 backdrop-blur-md mt-auto">
+            {/* Input Area */}
+            <div className="sticky bottom-0 z-[40] md:relative bg-dark-800 border-t border-gold/20 p-3 md:p-4 backdrop-blur-md">
               {/* Tab Switcher */}
-              <div className="flex items-center justify-between mb-2 gap-2 px-1">
+              <div className="flex items-center justify-between mb-3 gap-3 px-1">
                 <div className="flex items-center gap-1 bg-dark-900 p-1 rounded-lg border border-gray-700">
                   {/* LLM Interface Tab */}
                   <button
@@ -1361,7 +1362,7 @@ export default function HomePage() {
                     }}
                     placeholder="Ask about markets, companies, contracts, commodities, options flow..."
                     rows={1}
-                    className="flex-1 bg-black border border-gold/50 rounded-lg px-3 py-2 md:px-4 md:py-2.5 text-sm md:text-base text-white placeholder-gray-400 focus:outline-none focus:border-gold/80 focus:ring-2 focus:ring-gold/40 resize-y min-h-[42px] max-h-[120px]"
+                    className="flex-1 bg-black border border-gold/50 rounded-lg px-4 py-3 text-sm md:text-base text-white placeholder-gray-400 focus:outline-none focus:border-gold/80 focus:ring-2 focus:ring-gold/40 resize-y min-h-[48px] max-h-[140px]"
                     disabled={isLoading}
                   />
                   <button
@@ -1426,6 +1427,7 @@ export default function HomePage() {
             </div>
           </motion.div>
           )}
+        </div>
       </section>
 
       {/* Section Divider */}
