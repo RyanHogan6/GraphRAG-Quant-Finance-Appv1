@@ -29,13 +29,13 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://karga.io',
+    url: 'https://graph-rag-quant-finance-appv1-on4u.vercel.app',
     siteName: 'KARGA Intelligence Terminal',
     title: 'KARGA - Intelligence Terminal for Financial Data',
     description: 'Natural language financial intelligence platform. Query stocks, commodities, SEC filings, contracts, prediction markets, and options flow in plain English.',
     images: [
       {
-        url: 'https://karga.io/og-image.png',
+        url: 'https://graph-rag-quant-finance-appv1-on4u.vercel.app/og-image.png',
         width: 1200,
         height: 630,
         alt: 'KARGA Intelligence Terminal - Financial Data Graph Database',
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'KARGA - Intelligence Terminal for Financial Data',
     description: 'Ask questions in plain English. Get answers from 19 interconnected financial data sources.',
-    images: ['https://karga.io/og-image.png'],
+    images: ['https://graph-rag-quant-finance-appv1-on4u.vercel.app/og-image.png'],
     creator: '@karga_io',
   },
   robots: {
