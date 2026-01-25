@@ -16,6 +16,7 @@ import CompanyWorkup from '@/components/CompanyWorkup'
 import CompanyCompare from '@/components/CompanyCompare'
 import Navigation from '@/components/Navigation'
 import DataSourceAttribution from '@/components/DataSourceAttribution'
+import ComplexQueryGallery from '@/components/ComplexQueryGallery'
 import { Market } from '@/lib/types'
 
 interface Message {
@@ -62,6 +63,9 @@ export default function HomePage() {
   const [isBuilderMode, setIsBuilderMode] = useState(false)
   const [builtQuery, setBuiltQuery] = useState({ aql: '', description: '' })
   const [expandedMessageIdx, setExpandedMessageIdx] = useState<number | null>(null)
+
+  // Complex Query Gallery State
+  const [showComplexQueries, setShowComplexQueries] = useState(false)
 
   // Ref for auto-scroll
   const chatScrollRef = useRef<HTMLDivElement>(null)
@@ -1400,6 +1404,19 @@ export default function HomePage() {
                   >
                     Visual Query Builder
                   </button>
+
+                  {/* Complex Queries Toggle */}
+                  <button
+                    onClick={() => setShowComplexQueries(!showComplexQueries)}
+                    className={`px-3 py-1 rounded text-[10px] font-medium transition-all flex items-center gap-1.5 ${
+                      showComplexQueries
+                        ? 'bg-purple-500/20 text-purple-400 border border-purple-500/40'
+                        : 'text-gray-400 hover:text-purple-400 border border-transparent'
+                    }`}
+                  >
+                    <span>🧠</span>
+                    Complex Queries
+                  </button>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -1464,6 +1481,29 @@ export default function HomePage() {
                     Send Query
                   </button>
                 </form>
+              )}
+
+              {/* Complex Query Gallery */}
+              {showComplexQueries && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="mt-4"
+                >
+                  <ComplexQueryGallery
+                    onQuerySelect={(query) => {
+                      setInput(query)
+                      setIsBuilderMode(false)
+                      setShowComplexQueries(false)
+                      setTimeout(() => {
+                        const fakeEvent = { preventDefault: () => {} } as React.FormEvent
+                        handleSubmit(fakeEvent)
+                      }, 100)
+                    }}
+                  />
+                </motion.div>
               )}
             </div>
           </motion.div>
