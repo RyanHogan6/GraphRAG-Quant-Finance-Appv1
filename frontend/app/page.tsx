@@ -993,7 +993,7 @@ export default function HomePage() {
             <div
               ref={chatScrollRef}
               className="overflow-y-auto py-2 md:py-4 space-y-3 md:space-y-6 scroll-smooth"
-              style={{ height: 'calc(100vh - 420px)' }}
+              style={{ height: 'calc(100vh - 470px)' }}
             >
               {/* Visual Query Builder - Show at top when in builder mode */}
               {isBuilderMode && (
