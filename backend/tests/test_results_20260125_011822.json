@@ -1,0 +1,446 @@
+{
+  "summary": {
+    "timestamp": "2026-01-25T01:18:22.161586",
+    "total_tests": 24,
+    "passed": 0,
+    "failed": 24,
+    "pass_rate": 0.0,
+    "avg_execution_time_ms": 86.72,
+    "categories": {
+      "Company Lookup": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Market Data": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Awards": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Award Semantic": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Polymarket Semantic": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Company \u2192 Awards": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Company \u2192 SEC Filings": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Company \u2192 Market Data": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Deep Traversal": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Golden Cross": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "RSI Screening": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Polymarket Volume": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Whale Traders": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Company Sentiment": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "CFTC Positions": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Futures Prices": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Defense + Prediction Markets": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "SEC Sentiment vs Price": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Sector Analysis": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Total Contract Value": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Date Range": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Recent Filings": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Ambiguous Query": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Complex Multi-Hop": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      }
+    }
+  },
+  "results": [
+    {
+      "id": "basic_001",
+      "category": "Company Lookup",
+      "question": "Show me Apple company info",
+      "passed": false,
+      "error": "Planning error: OPENAI_API_KEY not configured",
+      "execution_time_ms": 0,
+      "result_count": 0,
+      "expected_min_results": 1,
+      "max_time_ms": 2000,
+      "warnings": [],
+      "aql_preview": null
+    },
+    {
+      "id": "basic_002",
+      "category": "Market Data",
+      "question": "What was Tesla's closing price on January 5, 2024?",
+      "passed": false,
+      "error": "Planning error: OPENAI_API_KEY not configured",
+      "execution_time_ms": 0,
+      "result_count": 0,
+      "expected_min_results": 0,
+      "max_time_ms": 2000,
+      "warnings": [],
+      "aql_preview": null
+    },
+    {
+      "id": "basic_003",
+      "category": "Awards",
+      "question": "Show me the top 10 largest government contracts",
+      "passed": false,
+      "error": "Planning error: OPENAI_API_KEY not configured",
+      "execution_time_ms": 0,
+      "result_count": 0,
+      "expected_min_results": 10,
+      "max_time_ms": 3000,
+      "warnings": [],
+      "aql_preview": null
+    },
+    {
+      "id": "semantic_001",
+      "category": "Award Semantic",
+      "question": "Find government contracts related to artificial intelligence",
+      "passed": false,
+      "error": "Planning error: OPENAI_API_KEY not configured",
+      "execution_time_ms": 0,
+      "result_count": 0,
+      "expected_min_results": 5,
+      "max_time_ms": 8000,
+      "warnings": [],
+      "aql_preview": null
+    },
+    {
+      "id": "semantic_002",
+      "category": "Polymarket Semantic",
+      "question": "Find prediction markets about climate change",
+      "passed": false,
+      "error": "Planning error: OPENAI_API_KEY not configured",
+      "execution_time_ms": 0,
+      "result_count": 0,
+      "expected_min_results": 3,
+      "max_time_ms": 8000,
+      "warnings": [],
+      "aql_preview": null
+    },
+    {
+      "id": "graph_001",
+      "category": "Company \u2192 Awards",
+      "question": "Show me Lockheed Martin's government contracts",
+      "passed": false,
+      "error": "Planning error: OPENAI_API_KEY not configured",
+      "execution_time_ms": 0,
+      "result_count": 0,
+      "expected_min_results": 1,
+      "max_time_ms": 3000,
+      "warnings": [],
+      "aql_preview": null
+    },
+    {
+      "id": "graph_002",
+      "category": "Company \u2192 SEC Filings",
+      "question": "Show me Microsoft's most recent 10-K filings",
+      "passed": false,
+      "error": "Planning error: OPENAI_API_KEY not configured",
+      "execution_time_ms": 0,
+      "result_count": 0,
+      "expected_min_results": 1,
+      "max_time_ms": 3000,
+      "warnings": [],
+      "aql_preview": null
+    },
+    {
+      "id": "graph_003",
+      "category": "Company \u2192 Market Data",
+      "question": "Show me energy sector stocks from the last 30 days",
+      "passed": false,
+      "error": "Planning error: OPENAI_API_KEY not configured",
+      "execution_time_ms": 0,
+      "result_count": 0,
+      "expected_min_results": 5,
+      "max_time_ms": 5000,
+      "warnings": [],
+      "aql_preview": null
+    },
+    {
+      "id": "graph_004",
+      "category": "Deep Traversal",
+      "question": "Find negative sentiment in Apple's SEC filings",
+      "passed": false,
+      "error": "Planning error: OPENAI_API_KEY not configured",
+      "execution_time_ms": 0,
+      "result_count": 0,
+      "expected_min_results": 1,
+      "max_time_ms": 5000,
+      "warnings": [],
+      "aql_preview": null
+    },
+    {
+      "id": "technical_001",
+      "category": "Golden Cross",
+      "question": "Which stocks are in a golden cross?",
+      "passed": false,
+      "error": "Planning error: OPENAI_API_KEY not configured",
+      "execution_time_ms": 0,
+      "result_count": 0,
+      "expected_min_results": 0,
+      "max_time_ms": 4000,
+      "warnings": [],
+      "aql_preview": null
+    },
+    {
+      "id": "technical_002",
+      "category": "RSI Screening",
+      "question": "Find stocks with RSI above 70",
+      "passed": false,
+      "error": "Execution error: [HTTP 401][ERR 11] not authorized to execute this request",
+      "execution_time_ms": 2078.13,
+      "result_count": 0,
+      "expected_min_results": 0,
+      "max_time_ms": 4000,
+      "warnings": [],
+      "aql_preview": "FOR doc IN MarketData FILTER doc.ticker == @ticker SORT doc.date DESC LIMIT 100 RETURN doc"
+    },
+    {
+      "id": "prediction_001",
+      "category": "Polymarket Volume",
+      "question": "What are the most active Polymarket markets?",
+      "passed": false,
+      "error": "Planning error: OPENAI_API_KEY not configured",
+      "execution_time_ms": 0,
+      "result_count": 0,
+      "expected_min_results": 5,
+      "max_time_ms": 3000,
+      "warnings": [],
+      "aql_preview": null
+    },
+    {
+      "id": "prediction_002",
+      "category": "Whale Traders",
+      "question": "Show me the most profitable Polymarket whale traders",
+      "passed": false,
+      "error": "Execution error: [HTTP 401][ERR 11] not authorized to execute this request",
+      "execution_time_ms": 1.67,
+      "result_count": 0,
+      "expected_min_results": 1,
+      "max_time_ms": 3000,
+      "warnings": [],
+      "aql_preview": "FOR t IN polymarket_traders FILTER t.is_whale == true SORT t.total_volume DESC LIMIT 20 RETURN t"
+    },
+    {
+      "id": "prediction_003",
+      "category": "Company Sentiment",
+      "question": "Find prediction markets about Tesla",
+      "passed": false,
+      "error": "Planning error: OPENAI_API_KEY not configured",
+      "execution_time_ms": 0,
+      "result_count": 0,
+      "expected_min_results": 0,
+      "max_time_ms": 4000,
+      "warnings": [],
+      "aql_preview": null
+    },
+    {
+      "id": "commodity_001",
+      "category": "CFTC Positions",
+      "question": "Show me companies with crude oil positions",
+      "passed": false,
+      "error": "Planning error: OPENAI_API_KEY not configured",
+      "execution_time_ms": 0,
+      "result_count": 0,
+      "expected_min_results": 1,
+      "max_time_ms": 4000,
+      "warnings": [],
+      "aql_preview": null
+    },
+    {
+      "id": "commodity_002",
+      "category": "Futures Prices",
+      "question": "Show me recent gold futures prices",
+      "passed": false,
+      "error": "Planning error: OPENAI_API_KEY not configured",
+      "execution_time_ms": 0,
+      "result_count": 0,
+      "expected_min_results": 1,
+      "max_time_ms": 3000,
+      "warnings": [],
+      "aql_preview": null
+    },
+    {
+      "id": "multi_001",
+      "category": "Defense + Prediction Markets",
+      "question": "Defense contractors with bullish prediction market sentiment",
+      "passed": false,
+      "error": "Planning error: OPENAI_API_KEY not configured",
+      "execution_time_ms": 0,
+      "result_count": 0,
+      "expected_min_results": 0,
+      "max_time_ms": 6000,
+      "warnings": [],
+      "aql_preview": null
+    },
+    {
+      "id": "multi_002",
+      "category": "SEC Sentiment vs Price",
+      "question": "Companies with negative SEC sentiment but rising stock prices",
+      "passed": false,
+      "error": "Planning error: OPENAI_API_KEY not configured",
+      "execution_time_ms": 0,
+      "result_count": 0,
+      "expected_min_results": 0,
+      "max_time_ms": 6000,
+      "warnings": [],
+      "aql_preview": null
+    },
+    {
+      "id": "agg_001",
+      "category": "Sector Analysis",
+      "question": "Show me average P/E ratio by sector",
+      "passed": false,
+      "error": "Planning error: OPENAI_API_KEY not configured",
+      "execution_time_ms": 0,
+      "result_count": 0,
+      "expected_min_results": 5,
+      "max_time_ms": 5000,
+      "warnings": [],
+      "aql_preview": null
+    },
+    {
+      "id": "agg_002",
+      "category": "Total Contract Value",
+      "question": "Total government contract value by company",
+      "passed": false,
+      "error": "Planning error: OPENAI_API_KEY not configured",
+      "execution_time_ms": 0,
+      "result_count": 0,
+      "expected_min_results": 5,
+      "max_time_ms": 5000,
+      "warnings": [],
+      "aql_preview": null
+    },
+    {
+      "id": "date_001",
+      "category": "Date Range",
+      "question": "Show me Tesla stock prices for January 2024",
+      "passed": false,
+      "error": "Planning error: OPENAI_API_KEY not configured",
+      "execution_time_ms": 0,
+      "result_count": 0,
+      "expected_min_results": 0,
+      "max_time_ms": 4000,
+      "warnings": [],
+      "aql_preview": null
+    },
+    {
+      "id": "date_002",
+      "category": "Recent Filings",
+      "question": "SEC filings from the last 30 days",
+      "passed": false,
+      "error": "Planning error: OPENAI_API_KEY not configured",
+      "execution_time_ms": 0,
+      "result_count": 0,
+      "expected_min_results": 0,
+      "max_time_ms": 4000,
+      "warnings": [],
+      "aql_preview": null
+    },
+    {
+      "id": "edge_001",
+      "category": "Ambiguous Query",
+      "question": "Show me markets",
+      "passed": false,
+      "error": "Planning error: OPENAI_API_KEY not configured",
+      "execution_time_ms": 0,
+      "result_count": 0,
+      "expected_min_results": 1,
+      "max_time_ms": 4000,
+      "warnings": [],
+      "aql_preview": null
+    },
+    {
+      "id": "edge_002",
+      "category": "Complex Multi-Hop",
+      "question": "Energy companies with commodity positions and recent contracts",
+      "passed": false,
+      "error": "Execution error: [HTTP 401][ERR 11] not authorized to execute this request",
+      "execution_time_ms": 1.56,
+      "result_count": 0,
+      "expected_min_results": 0,
+      "max_time_ms": 6000,
+      "warnings": [],
+      "aql_preview": "FOR doc IN Award SORT doc.start_date DESC LIMIT 20 RETURN doc"
+    }
+  ]
+}

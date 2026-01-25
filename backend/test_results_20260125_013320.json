@@ -1,0 +1,502 @@
+{
+  "summary": {
+    "timestamp": "2026-01-25T01:33:20.172366",
+    "total_tests": 24,
+    "passed": 18,
+    "failed": 6,
+    "pass_rate": 75.0,
+    "avg_execution_time_ms": 19693.88,
+    "categories": {
+      "Company Lookup": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "Market Data": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "Awards": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "Award Semantic": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "Polymarket Semantic": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "Company \u2192 Awards": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Company \u2192 SEC Filings": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "Company \u2192 Market Data": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "Deep Traversal": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "Golden Cross": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "RSI Screening": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "Polymarket Volume": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "Whale Traders": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "Company Sentiment": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "CFTC Positions": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Futures Prices": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "Defense + Prediction Markets": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "SEC Sentiment vs Price": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "Sector Analysis": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Total Contract Value": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Date Range": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "Recent Filings": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "Ambiguous Query": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "Complex Multi-Hop": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      }
+    }
+  },
+  "results": [
+    {
+      "id": "basic_001",
+      "category": "Company Lookup",
+      "question": "Show me Apple company info",
+      "passed": true,
+      "error": null,
+      "execution_time_ms": 5272.72,
+      "result_count": 1,
+      "expected_min_results": 1,
+      "max_time_ms": 2000,
+      "warnings": [
+        "Missing expected pattern: ticker.*AAPL",
+        "Slow execution: 5273ms > 2000ms"
+      ],
+      "aql_preview": "FOR company IN Company FILTER company.ticker == @ticker LIMIT 1 LET MarketData = (FOR m IN OUTBOUND company HAS_MARKETDATA SORT m.date DESC LIMIT 365 RETURN m) RETURN MERGE(company, {MarketData: Marke"
+    },
+    {
+      "id": "basic_002",
+      "category": "Market Data",
+      "question": "What was Tesla's closing price on January 5, 2024?",
+      "passed": true,
+      "error": null,
+      "execution_time_ms": 2731.46,
+      "result_count": 1,
+      "expected_min_results": 0,
+      "max_time_ms": 2000,
+      "warnings": [
+        "Missing expected pattern: ticker.*TSLA",
+        "Slow execution: 2731ms > 2000ms"
+      ],
+      "aql_preview": "FOR doc IN MarketData FILTER doc.ticker == @ticker FILTER doc.date >= '2024-01-05' AND doc.date < '2024-01-06' SORT doc.date DESC LIMIT 1 RETURN { date: doc.date, close: doc.close }"
+    },
+    {
+      "id": "basic_003",
+      "category": "Awards",
+      "question": "Show me the top 10 largest government contracts",
+      "passed": true,
+      "error": null,
+      "execution_time_ms": 3743.42,
+      "result_count": 10,
+      "expected_min_results": 10,
+      "max_time_ms": 3000,
+      "warnings": [
+        "Slow execution: 3743ms > 3000ms"
+      ],
+      "aql_preview": "FOR doc IN Award\n  FILTER doc.award_amount_float != null\n  SORT doc.award_amount_float DESC\n  LIMIT 10\n  RETURN {\n    recipient: doc.recipient_name,\n    amount: doc.award_amount_float,\n    agency: doc"
+    },
+    {
+      "id": "semantic_001",
+      "category": "Award Semantic",
+      "question": "Find government contracts related to artificial intelligence",
+      "passed": true,
+      "error": null,
+      "execution_time_ms": 26510.06,
+      "result_count": 20,
+      "expected_min_results": 5,
+      "max_time_ms": 8000,
+      "warnings": [
+        "Slow execution: 26510ms > 8000ms"
+      ],
+      "aql_preview": "FOR doc IN Award FILTER doc.description_embedding != null FILTER CONTAINS(LOWER(doc.description), 'artificial intelligence') SORT doc.award_amount_float DESC LIMIT 20 RETURN doc"
+    },
+    {
+      "id": "semantic_002",
+      "category": "Polymarket Semantic",
+      "question": "Find prediction markets about climate change",
+      "passed": true,
+      "error": null,
+      "execution_time_ms": 16297.76,
+      "result_count": 0,
+      "expected_min_results": 3,
+      "max_time_ms": 8000,
+      "warnings": [
+        "Expected embedding but query doesn't use it",
+        "Insufficient results: 0 < 3",
+        "Slow execution: 16298ms > 8000ms"
+      ],
+      "aql_preview": "FOR market IN prediction_markets_polymarket FILTER market.closed == false AND CONTAINS(LOWER(market.question), 'climate change') SORT market.volume_24h DESC LIMIT 20 RETURN { question: market.question"
+    },
+    {
+      "id": "graph_001",
+      "category": "Company \u2192 Awards",
+      "question": "Show me Lockheed Martin's government contracts",
+      "passed": false,
+      "error": "Execution error: HTTPConnectionPool(host='104.131.190.249', port=8529): Read timed out. (read timeout=60)",
+      "execution_time_ms": 63894.99,
+      "result_count": 0,
+      "expected_min_results": 1,
+      "max_time_ms": 3000,
+      "warnings": [],
+      "aql_preview": "FOR doc IN Award FILTER doc.recipient_name == @recipient_name SORT doc.award_amount_float DESC LIMIT 20 RETURN { award_id: doc.award_id, amount: doc.award_amount_float, agency: doc.awarding_agency, st"
+    },
+    {
+      "id": "graph_002",
+      "category": "Company \u2192 SEC Filings",
+      "question": "Show me Microsoft's most recent 10-K filings",
+      "passed": true,
+      "error": null,
+      "execution_time_ms": 5088.88,
+      "result_count": 10,
+      "expected_min_results": 1,
+      "max_time_ms": 3000,
+      "warnings": [
+        "Missing expected collection: Company",
+        "Missing expected pattern: HAS_FILING",
+        "Slow execution: 5089ms > 3000ms"
+      ],
+      "aql_preview": "FOR f IN sec_filings FILTER f.ticker == @ticker AND f.type == '10-K' SORT f.filing_date DESC LIMIT 10 RETURN f"
+    },
+    {
+      "id": "graph_003",
+      "category": "Company \u2192 Market Data",
+      "question": "Show me energy sector stocks from the last 30 days",
+      "passed": true,
+      "error": null,
+      "execution_time_ms": 4596.47,
+      "result_count": 50,
+      "expected_min_results": 5,
+      "max_time_ms": 5000,
+      "warnings": [
+        "Missing expected collection: Company",
+        "Missing expected pattern: HAS_MARKETDATA"
+      ],
+      "aql_preview": "FOR doc IN MarketData FILTER doc.date >= DATE_SUBTRACT(DATE_NOW(), 30, 'day') SORT doc.date DESC LIMIT 50 RETURN { date: doc.date, ticker: doc.ticker, open: doc.open, close: doc.close, high: doc.high,"
+    },
+    {
+      "id": "graph_004",
+      "category": "Deep Traversal",
+      "question": "Find negative sentiment in Apple's SEC filings",
+      "passed": true,
+      "error": null,
+      "execution_time_ms": 4607.19,
+      "result_count": 5,
+      "expected_min_results": 1,
+      "max_time_ms": 5000,
+      "warnings": [
+        "Missing expected collection: Company",
+        "Missing expected pattern: finbert"
+      ],
+      "aql_preview": "FOR filing IN sec_filings FILTER filing.ticker == @ticker AND filing.type == '10-K' AND filing.avg_negative < 0 LIMIT 20 RETURN filing"
+    },
+    {
+      "id": "technical_001",
+      "category": "Golden Cross",
+      "question": "Which stocks are in a golden cross?",
+      "passed": true,
+      "error": null,
+      "execution_time_ms": 46571.37,
+      "result_count": 0,
+      "expected_min_results": 0,
+      "max_time_ms": 4000,
+      "warnings": [
+        "Slow execution: 46571ms > 4000ms"
+      ],
+      "aql_preview": "FOR doc IN MarketData FILTER doc.golden_cross == true SORT doc.ticker RETURN doc"
+    },
+    {
+      "id": "technical_002",
+      "category": "RSI Screening",
+      "question": "Find stocks with RSI above 70",
+      "passed": true,
+      "error": null,
+      "execution_time_ms": 22.2,
+      "result_count": 0,
+      "expected_min_results": 0,
+      "max_time_ms": 4000,
+      "warnings": [
+        "Missing expected pattern: rsi"
+      ],
+      "aql_preview": "FOR doc IN MarketData FILTER doc.ticker == @ticker SORT doc.date DESC LIMIT 100 RETURN doc"
+    },
+    {
+      "id": "prediction_001",
+      "category": "Polymarket Volume",
+      "question": "What are the most active Polymarket markets?",
+      "passed": true,
+      "error": null,
+      "execution_time_ms": 27114.14,
+      "result_count": 10,
+      "expected_min_results": 5,
+      "max_time_ms": 3000,
+      "warnings": [
+        "Slow execution: 27114ms > 3000ms"
+      ],
+      "aql_preview": "FOR market IN prediction_markets_polymarket FILTER market.closed == false SORT market.volume_24h DESC LIMIT 10 RETURN { question: market.question, volume_24h: market.volume_24h, yes_probability: marke"
+    },
+    {
+      "id": "prediction_002",
+      "category": "Whale Traders",
+      "question": "Show me the most profitable Polymarket whale traders",
+      "passed": true,
+      "error": null,
+      "execution_time_ms": 48.53,
+      "result_count": 20,
+      "expected_min_results": 1,
+      "max_time_ms": 3000,
+      "warnings": [],
+      "aql_preview": "FOR t IN polymarket_traders FILTER t.is_whale == true SORT t.total_volume DESC LIMIT 20 RETURN t"
+    },
+    {
+      "id": "prediction_003",
+      "category": "Company Sentiment",
+      "question": "Find prediction markets about Tesla",
+      "passed": true,
+      "error": null,
+      "execution_time_ms": 6913.35,
+      "result_count": 20,
+      "expected_min_results": 0,
+      "max_time_ms": 4000,
+      "warnings": [
+        "Missing expected collection: Company",
+        "Missing expected pattern: market_mentions_company",
+        "Slow execution: 6913ms > 4000ms"
+      ],
+      "aql_preview": "FOR market IN prediction_markets_polymarket FILTER market.closed == false AND CONTAINS(LOWER(market.question), 'tesla') SORT market.volume_24h DESC LIMIT 20 RETURN { question: market.question, volume_"
+    },
+    {
+      "id": "commodity_001",
+      "category": "CFTC Positions",
+      "question": "Show me companies with crude oil positions",
+      "passed": false,
+      "error": null,
+      "execution_time_ms": 8405.99,
+      "result_count": 0,
+      "expected_min_results": 1,
+      "max_time_ms": 4000,
+      "warnings": [
+        "Missing expected collection: Company",
+        "Missing expected pattern: HAS_COMMODITY_POSITION",
+        "Insufficient results: 0 < 1",
+        "Slow execution: 8406ms > 4000ms"
+      ],
+      "aql_preview": "FOR c IN commodity_positions FILTER c.ticker == @ticker SORT c.as_of_date DESC LIMIT 50 RETURN c"
+    },
+    {
+      "id": "commodity_002",
+      "category": "Futures Prices",
+      "question": "Show me recent gold futures prices",
+      "passed": true,
+      "error": null,
+      "execution_time_ms": 5104.73,
+      "result_count": 0,
+      "expected_min_results": 1,
+      "max_time_ms": 3000,
+      "warnings": [
+        "Insufficient results: 0 < 1",
+        "Slow execution: 5105ms > 3000ms"
+      ],
+      "aql_preview": "FOR doc IN futures_prices FILTER doc.commodity == 'gold' SORT doc.date DESC LIMIT 50 RETURN { date: doc.date, price: doc.contract_symbol, volume: doc.sma_20 }"
+    },
+    {
+      "id": "multi_001",
+      "category": "Defense + Prediction Markets",
+      "question": "Defense contractors with bullish prediction market sentiment",
+      "passed": false,
+      "error": "Execution error: HTTPConnectionPool(host='104.131.190.249', port=8529): Read timed out. (read timeout=60)",
+      "execution_time_ms": 71213.89,
+      "result_count": 0,
+      "expected_min_results": 0,
+      "max_time_ms": 6000,
+      "warnings": [],
+      "aql_preview": "FOR award IN Award FILTER award.description_embedding != null LET sim = COSINE_SIMILARITY(award.description_embedding, @query_vector) FILTER sim >= 0.72 LIMIT 20 FOR market IN prediction_markets_polym"
+    },
+    {
+      "id": "multi_002",
+      "category": "SEC Sentiment vs Price",
+      "question": "Companies with negative SEC sentiment but rising stock prices",
+      "passed": true,
+      "error": null,
+      "execution_time_ms": 8572.15,
+      "result_count": 40,
+      "expected_min_results": 0,
+      "max_time_ms": 6000,
+      "warnings": [
+        "Missing expected collection: Company",
+        "Missing expected pattern: finbert.*HAS_MARKETDATA",
+        "Slow execution: 8572ms > 6000ms"
+      ],
+      "aql_preview": "FOR filing IN sec_filings FILTER filing.avg_negative > 0 SORT filing.filing_date DESC LIMIT 100 LET ticker = filing.ticker LET MarketData = ( FOR m IN MarketData FILTER m.ticker == ticker FILTER m.dat"
+    },
+    {
+      "id": "agg_001",
+      "category": "Sector Analysis",
+      "question": "Show me average P/E ratio by sector",
+      "passed": false,
+      "error": "Execution error: [HTTP 404][ERR 1203] AQL: collection or view not found: sectors (while parsing)",
+      "execution_time_ms": 5054.17,
+      "result_count": 0,
+      "expected_min_results": 5,
+      "max_time_ms": 5000,
+      "warnings": [],
+      "aql_preview": "FOR sector IN sectors\n  LET average_pe = (FOR company IN Company FILTER company.sector == sector.name RETURN company.pe_ratio)\n  FILTER LENGTH(average_pe) > 0\n  RETURN { sector: sector.name, average_p"
+    },
+    {
+      "id": "agg_002",
+      "category": "Total Contract Value",
+      "question": "Total government contract value by company",
+      "passed": false,
+      "error": "Execution error: Can't connect to host(s) within limit (3)",
+      "execution_time_ms": 131414.61,
+      "result_count": 0,
+      "expected_min_results": 5,
+      "max_time_ms": 5000,
+      "warnings": [],
+      "aql_preview": "FOR doc IN Award FILTER doc.award_amount_float != null COLLECT recipient = doc.recipient_name INTO group RETURN { recipient: recipient, total_value: SUM(group[*].doc.award_amount_float) }"
+    },
+    {
+      "id": "date_001",
+      "category": "Date Range",
+      "question": "Show me Tesla stock prices for January 2024",
+      "passed": false,
+      "error": "Execution error: Can't connect to host(s) within limit (3)",
+      "execution_time_ms": 10284.0,
+      "result_count": 0,
+      "expected_min_results": 0,
+      "max_time_ms": 4000,
+      "warnings": [],
+      "aql_preview": "FOR doc IN MarketData\n  FILTER doc.ticker == @ticker\n  FILTER doc.date >= '2024-01-01' AND doc.date < '2024-02-01'\n  SORT doc.date ASC\n  LIMIT 50\n  RETURN {\n    date: doc.date,\n    open: doc.open,\n   "
+    },
+    {
+      "id": "date_002",
+      "category": "Recent Filings",
+      "question": "SEC filings from the last 30 days",
+      "passed": true,
+      "error": null,
+      "execution_time_ms": 6285.55,
+      "result_count": 20,
+      "expected_min_results": 0,
+      "max_time_ms": 4000,
+      "warnings": [
+        "Slow execution: 6286ms > 4000ms"
+      ],
+      "aql_preview": "FOR f IN sec_filings FILTER f.filing_date >= DATE_SUBTRACT(DATE_NOW(), 30, 'day') SORT f.filing_date DESC LIMIT 20 RETURN f"
+    },
+    {
+      "id": "edge_001",
+      "category": "Ambiguous Query",
+      "question": "Show me markets",
+      "passed": true,
+      "error": null,
+      "execution_time_ms": 12804.69,
+      "result_count": 0,
+      "expected_min_results": 1,
+      "max_time_ms": 4000,
+      "warnings": [
+        "Missing expected collection: prediction_markets_polymarket",
+        "Insufficient results: 0 < 1",
+        "Slow execution: 12805ms > 4000ms"
+      ],
+      "aql_preview": "FOR m IN MarketData FILTER m.volume_24h > 0 SORT m.volume_24h DESC LIMIT 10 RETURN { ticker: m.ticker, date: m.date, volume: m.volume_24h }"
+    },
+    {
+      "id": "edge_002",
+      "category": "Complex Multi-Hop",
+      "question": "Energy companies with commodity positions and recent contracts",
+      "passed": true,
+      "error": null,
+      "execution_time_ms": 100.85,
+      "result_count": 20,
+      "expected_min_results": 0,
+      "max_time_ms": 6000,
+      "warnings": [
+        "Missing expected collection: Company",
+        "Missing expected collection: commodity_positions",
+        "Missing expected pattern: sector.*Energy"
+      ],
+      "aql_preview": "FOR doc IN Award SORT doc.start_date DESC LIMIT 20 RETURN doc"
+    }
+  ]
+}

@@ -84,7 +84,6 @@ export default function HomePage() {
   }, [])
 
   // Refs for scroll animations
-  const heroRef = useRef(null)
   const whyGraphsRef = useRef(null)
   const statsRef = useRef(null)
   const graphVizRef = useRef(null)
@@ -94,8 +93,6 @@ export default function HomePage() {
   const isGraphVizInView = useInView(graphVizRef, { once: true, amount: 0.2 })
 
   const { scrollYProgress } = useScroll()
-  const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0])
-  const scale = useTransform(scrollYProgress, [0, 0.2], [1, 0.8])
 
   // Grid pattern opacity that increases as you scroll
   const gridOpacity1 = useTransform(scrollYProgress, [0, 0.2], [0.08, 0.15])
@@ -926,141 +923,26 @@ export default function HomePage() {
 
   return (
     <div className="relative z-10">
-      {/* Hero Section */}
-      <motion.section
-        ref={heroRef}
-        style={{ opacity, scale }}
-        className="min-h-screen snap-start flex flex-col items-center justify-start pt-[15vh] md:pt-[20vh] px-6 relative overflow-hidden"
+      {/* Compact Header with Logo */}
+      <motion.header
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8 }}
+        className="pt-8 pb-6 px-6 text-center"
       >
-        {/* Animated background grid */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
-
-        {/* Smooth gradient overlay at bottom for transition */}
-        <div className="absolute bottom-0 left-0 right-0 h-64 bg-gradient-to-b from-transparent via-dark-900/50 to-dark-900 pointer-events-none" />
-
-        <motion.div
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.2 }}
-          className="text-center z-10 px-4"
-        >
-          {/* Animated KARGA Logo */}
-          <div className="-mb-4 md:-mb-10">
+        {/* Smaller KARGA Logo */}
+        <div className="flex justify-center mb-3">
+          <div className="scale-[0.35] md:scale-[0.4] origin-center">
             <AnimatedLogo />
           </div>
-          <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl text-gray-200 mb-3 md:mb-4 font-light leading-tight">
-            Financial Intelligence Powered by Knowledge Graphs
-          </p>
-          <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-400 max-w-3xl mx-auto font-light leading-relaxed">
-            Uncover deep insights with <span className="text-gold font-semibold">GraphRAG</span>. By unqifying <span className="text-gold font-semibold">S&P 500 equities, options flow, commodity futures, EIA energy data, SEC filings, government contracts, prediction markets, and CFTC positioning</span> into one unified knowledge graph, we reveal the hidden connections driving markets—from insider trading signals to commodity correlations.
-          </p>
-        </motion.div>
-
-        {/* Scroll indicator */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.5, duration: 1 }}
-          className="absolute bottom-10 z-10"
-        >
-          <div className="flex flex-col items-center">
-            <p className="text-sm text-gray-500 mb-2">Scroll to explore</p>
-            <motion.div
-              animate={{ y: [0, 10, 0] }}
-              transition={{ repeat: Infinity, duration: 1.5 }}
-              className="w-6 h-10 border-2 border-gold/30 rounded-full p-2"
-            >
-              <motion.div className="w-1.5 h-1.5 bg-gold rounded-full mx-auto" />
-            </motion.div>
-          </div>
-        </motion.div>
-      </motion.section>
-
-      {/* Section Divider */}
-      <div className="w-full flex items-center justify-center py-8" >
-        <div className="w-[70%] border-t-2 border-dashed border-gold/10"></div>
-      </div>
-
-      {/* Why Graphs Section */}
-      <section
-        ref={whyGraphsRef}
-        className="snap-start px-4 md:px-6 py-8 md:py-12 relative overflow-hidden"
-      >
-        {/* Animated background grid */}
-        <motion.div
-          className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
-          style={{ opacity: gridOpacity1 }
-          }
-        />
-        <div className="max-w-7xl mx-auto relative z-10" >
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={isWhyGraphsInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-6"
-          >
-            <h2 className="text-2xl md:text-3xl font-bold text-gold mb-2">Why Knowledge Graphs?</h2>
-            <p className="text-sm md:text-base text-gray-400 max-w-2xl mx-auto">
-              Traditional databases see data in silos. Graphs see connections.
-            </p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-3 gap-3 md:gap-4">
-            {[
-              {
-                title: 'Connected Data',
-                description: 'Every company links to market data, options flow, government contracts, SEC filings, commodity futures, EIA energy data, and prediction markets—19 collections, 22 edge types',
-                delay: 0.2,
-                icon: (
-                  <svg className="w-6 h-6 md:w-8 md:h-8 text-gold mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                  </svg>
-                ),
-              },
-              {
-                title: 'Semantic Search',
-                description: 'Find contracts mentioning "AI" or "cybersecurity" using 1536-dim vector embeddings and cosine similarity—no keywords, pure meaning',
-                delay: 0.4,
-                icon: (
-                  <svg className="w-6 h-6 md:w-8 md:h-8 text-gold mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                  </svg>
-                ),
-              },
-              {
-                title: 'Hybrid Intelligence',
-                description: 'ArangoDB graph queries + Perplexity web search run in parallel. Historical data meets real-time news in under 3 seconds',
-                delay: 0.6,
-                icon: (
-                  <svg className="w-6 h-6 md:w-8 md:h-8 text-gold mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                ),
-              },
-            ].map((item, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 50 }}
-                animate={isWhyGraphsInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.8, delay: item.delay }}
-                className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all"
-              >
-                {item.icon}
-                <h3 className="text-base md:text-lg font-semibold text-gold mb-2">{item.title}</h3>
-                <p className="text-gray-400 text-xs md:text-sm leading-relaxed">{item.description}</p>
-              </motion.div>
-            ))}
-          </div>
         </div>
-      </section>
+        <p className="text-sm md:text-base text-gray-400 max-w-2xl mx-auto">
+          Financial Intelligence Powered by Knowledge Graphs
+        </p>
+      </motion.header>
 
-      {/* Section Divider */}
-      <div className="w-full flex items-center justify-center py-8" >
-        <div className="w-[70%] border-t-2 border-dashed border-gold/10"></div>
-      </div>
-
-      {/* Chat Interface Section - CENTERED */}
-      <section id="query" className="snap-start px-4 py-8 md:py-12 relative overflow-hidden flex items-center justify-center min-h-screen" >
+      {/* Chat Interface Section - IMMEDIATELY VISIBLE */}
+      <section id="query" className="px-4 py-4 md:py-6 relative overflow-hidden" >
         {/* Animated background grid */}
         <motion.div
           className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
@@ -1554,6 +1436,83 @@ export default function HomePage() {
             </div>
           </motion.div>
           )}
+        </div>
+      </section>
+
+      {/* Section Divider */}
+      <div className="w-full flex items-center justify-center py-8" >
+        <div className="w-[70%] border-t-2 border-dashed border-gold/10"></div>
+      </div>
+
+      {/* Why Graphs Section */}
+      <section
+        ref={whyGraphsRef}
+        className="snap-start px-4 md:px-6 py-8 md:py-12 relative overflow-hidden"
+      >
+        {/* Animated background grid */}
+        <motion.div
+          className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
+          style={{ opacity: gridOpacity1 }}
+        />
+        <div className="max-w-7xl mx-auto relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={isWhyGraphsInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.8 }}
+            className="text-center mb-6"
+          >
+            <h2 className="text-2xl md:text-3xl font-bold text-gold mb-2">Why Knowledge Graphs?</h2>
+            <p className="text-sm md:text-base text-gray-400 max-w-2xl mx-auto">
+              Traditional databases see data in silos. Graphs see connections.
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-3 md:gap-4">
+            {[
+              {
+                title: 'Connected Data',
+                description: 'Every company links to market data, options flow, government contracts, SEC filings, commodity futures, EIA energy data, and prediction markets—19 collections, 22 edge types',
+                delay: 0.2,
+                icon: (
+                  <svg className="w-6 h-6 md:w-8 md:h-8 text-gold mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                  </svg>
+                ),
+              },
+              {
+                title: 'Semantic Search',
+                description: 'Find contracts mentioning "AI" or "cybersecurity" using 1536-dim vector embeddings and cosine similarity—no keywords, pure meaning',
+                delay: 0.4,
+                icon: (
+                  <svg className="w-6 h-6 md:w-8 md:h-8 text-gold mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                  </svg>
+                ),
+              },
+              {
+                title: 'Hybrid Intelligence',
+                description: 'ArangoDB graph queries + Perplexity web search run in parallel. Historical data meets real-time news in under 3 seconds',
+                delay: 0.6,
+                icon: (
+                  <svg className="w-6 h-6 md:w-8 md:h-8 text-gold mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                ),
+              },
+            ].map((item, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 50 }}
+                animate={isWhyGraphsInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.8, delay: item.delay }}
+                className="bg-dark-800 border border-gold/20 rounded-lg p-3 md:p-5 hover:border-gold/40 transition-all"
+              >
+                {item.icon}
+                <h3 className="text-base md:text-lg font-semibold text-gold mb-2">{item.title}</h3>
+                <p className="text-gray-400 text-xs md:text-sm leading-relaxed">{item.description}</p>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 

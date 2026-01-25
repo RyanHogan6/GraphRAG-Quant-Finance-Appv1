@@ -4,10 +4,12 @@ Backend configuration - loads from environment variables
 import os
 from dotenv import load_dotenv
 
+# Simple load_dotenv like introspect_schema.py - works from current directory
 load_dotenv()
 
 # ArangoDB Configuration
-ARANGO_URL = os.getenv("ARANGO_URL", "http://localhost:8529")
+# Support both ARANGO_URL and ARANGO_HOST for compatibility
+ARANGO_URL = os.getenv("ARANGO_URL") or os.getenv("ARANGO_HOST", "http://localhost:8529")
 GRAPH_NAME = "QUANT_v3_FinanceGraph"
 DB_NAME = os.getenv("ARANGO_DB", "QUANT_v3")
 USERNAME = os.getenv("ARANGO_USERNAME", "root")
