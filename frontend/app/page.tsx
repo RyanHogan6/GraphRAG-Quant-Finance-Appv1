@@ -52,13 +52,7 @@ interface Message {
 }
 
 export default function HomePage() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: 'Welcome to KARGA. Ask me anything about financial markets, SEC filings, prediction markets, or run complex queries across our knowledge graph.',
-      timestamp: new Date(),
-    },
-  ])
+  const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [showAdvancedMode, setShowAdvancedMode] = useState(false)
@@ -1042,7 +1036,7 @@ export default function HomePage() {
           className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
           style={{ opacity: gridOpacity2 }}
         />
-        <div className="container mx-auto max-w-5xl relative z-10" >
+        <div className="container mx-auto max-w-[1400px] relative z-10" >
           <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
@@ -1062,7 +1056,7 @@ export default function HomePage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.2 }}
             transition={{ duration: 0.8 }}
-            className="bg-dark-800 border border-gold/20 rounded-xl shadow-2xl mb-6 p-4 md:p-6"
+            className="bg-dark-800/90 border border-gold/20 rounded-xl shadow-2xl mb-6 p-4 md:p-6"
           >
             {/* Expanded Message Overlay */}
             {expandedMessageIdx !== null && (
@@ -1120,6 +1114,32 @@ export default function HomePage() {
                       </details>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Empty State - Show suggested questions when no messages */}
+              {messages.length === 0 && !isBuilderMode && (
+                <div className="flex items-center justify-center h-full">
+                  <div className="max-w-3xl w-full space-y-4 px-4">
+                    <div className="text-center mb-8">
+                      <h3 className="text-xl md:text-2xl font-semibold text-gold mb-2">What can I help you discover?</h3>
+                      <p className="text-sm md:text-base text-gray-400">Ask about markets, companies, contracts, commodities, or options flow</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {suggestedQuestions.slice(0, 6).map((question, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setInput(question)
+                            setIsBuilderMode(false)
+                          }}
+                          className="bg-dark-700/50 border border-gold/20 rounded-xl p-4 text-left text-sm text-gray-300 hover:border-gold/40 hover:bg-dark-700 hover:text-gold transition-all shadow-sm"
+                        >
+                          {question}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1441,7 +1461,8 @@ export default function HomePage() {
             </div>
           </motion.div>
 
-          {/* Suggested Questions */}
+          {/* Suggested Questions - Only show when there are messages */}
+          {messages.length > 0 && (
           <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
@@ -1465,6 +1486,7 @@ export default function HomePage() {
               ))}
             </div>
           </motion.div>
+          )}
         </div>
       </section>
 
