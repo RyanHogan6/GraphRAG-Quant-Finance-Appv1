@@ -1453,7 +1453,7 @@ export default function HomePage() {
                     }}
                     placeholder="Ask about markets, companies, contracts, commodities, options flow..."
                     rows={1}
-                    className="flex-1 bg-dark-600 border border-gold/50 rounded-lg px-3 py-2 md:px-4 md:py-3 text-sm md:text-base text-gray-50 placeholder-gray-300 focus:outline-none focus:border-gold/80 focus:ring-2 focus:ring-gold/40 resize-y min-h-[48px] max-h-[140px]"
+                    className="flex-1 bg-black border border-gold/50 rounded-lg px-3 py-2 md:px-4 md:py-3 text-sm md:text-base text-white placeholder-gray-400 focus:outline-none focus:border-gold/80 focus:ring-2 focus:ring-gold/40 resize-y min-h-[48px] max-h-[140px]"
                     disabled={isLoading}
                   />
                   <button
