@@ -147,7 +147,7 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
     }
 
     return (
-        <div className="w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
+        <div className="w-full space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-6">
             {/* Header Info */}
             <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-gold/20 pb-4 gap-4">
                 <div>
@@ -178,14 +178,14 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
             </div>
 
             {/* AI Intelligence Summary */}
-            <div className="bg-gradient-to-br from-gold/10 to-transparent border border-gold/20 rounded-2xl p-4 md:p-6 relative overflow-hidden group shadow-2xl">
+            <div className="bg-gradient-to-br from-gold/10 to-transparent border border-gold/20 rounded-xl p-3 md:p-4 relative overflow-hidden group shadow-2xl">
                 <div className="absolute top-0 left-0 w-1 h-full bg-gold/50" />
                 <div className="absolute -right-12 -top-12 w-48 h-48 bg-gold/5 rounded-full blur-3xl group-hover:bg-gold/10 transition-all" />
-                <h3 className="text-[9px] md:text-[10px] font-bold text-gold uppercase tracking-[0.2em] mb-3 md:mb-4 flex items-center gap-2">
+                <h3 className="text-[9px] md:text-[10px] font-bold text-gold uppercase tracking-[0.2em] mb-2 md:mb-3 flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" />
                     Deep Intelligence Synthesis
                 </h3>
-                <div className="space-y-3 relative z-10">
+                <div className="space-y-2 relative z-10">
                     {aiSummary.map((s: string, i: number) => (
                         <p key={i} className="text-[13px] md:text-sm text-gray-300 leading-relaxed font-medium">
                             {s}
@@ -209,10 +209,10 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
 
                 {/* Left Area: Chart & Fundamental Checklist (8 Cols) */}
-                <div className="xl:col-span-8 space-y-8">
+                <div className="xl:col-span-8 space-y-4">
                     {/* Chart Section */}
-                    <div className="bg-dark-900/40 border border-gold/10 rounded-2xl p-4 md:p-6 shadow-xl backdrop-blur-sm">
-                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 md:mb-6 gap-4">
+                    <div className="bg-dark-900/40 border border-gold/10 rounded-xl p-3 md:p-4 shadow-xl backdrop-blur-sm">
+                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-3 md:mb-4 gap-3">
                             <div>
                                 <h3 className="text-[10px] md:text-xs font-bold text-gold uppercase tracking-widest mb-1">Market Performance Hub</h3>
                                 <div className="text-[9px] md:text-[10px] text-gray-500 font-mono italic">Structural Momentum Analysis</div>
@@ -230,7 +230,7 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                             </div>
                         </div>
                         {chartData.values.length > 0 ? (
-                            <div className="h-[380px] w-full mt-4">
+                            <div className="h-[280px] w-full mt-3">
                                 <TimeSeriesChart
                                     dates={chartData.dates}
                                     values={chartData.values}
@@ -239,15 +239,15 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                                 />
                             </div>
                         ) : (
-                            <div className="h-[380px] flex items-center justify-center text-gray-600 text-sm border border-dashed border-white/10 rounded-2xl bg-dark-900/20">
+                            <div className="h-[280px] flex items-center justify-center text-gray-600 text-sm border border-dashed border-white/10 rounded-xl bg-dark-900/20">
                                 No historical price action in dataset
                             </div>
                         )}
                     </div>
 
                     {/* Moneycontain Fundamental Checklist */}
-                    <div className="bg-dark-900/60 border border-white/5 rounded-2xl overflow-hidden shadow-lg">
-                        <div className="p-5 border-b border-white/5 flex justify-between items-center bg-dark-800/40">
+                    <div className="bg-dark-900/60 border border-white/5 rounded-xl overflow-hidden shadow-lg">
+                        <div className="p-3 border-b border-white/5 flex justify-between items-center bg-dark-800/40">
                             <div className="flex items-center gap-3">
                                 <h3 className="text-xs font-bold text-gray-200 uppercase tracking-widest">13 Point Fundamental Checklist</h3>
                                 <span className="text-[9px] text-gray-500 font-mono py-0.5 px-2 bg-black/40 rounded border border-white/10">Industry Standard Benchmarking</span>
@@ -259,7 +259,7 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                                 {showAllMetrics ? 'Core View' : 'All Metrics'}
                             </button>
                         </div>
-                        <div className="p-4 md:p-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-y-6 gap-x-4 md:gap-y-8 md:gap-x-6">
+                        <div className="p-3 md:p-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-y-4 gap-x-3 md:gap-y-5 md:gap-x-4">
                             {fundamentalMetrics.slice(0, showAllMetrics ? undefined : 8).map((m: any, i: number) => (
                                 <div key={i} className="group border-l border-white/5 pl-3 md:pl-4 hover:border-gold/30 transition-all">
                                     <div className="flex items-center justify-between mb-1">
@@ -281,10 +281,10 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                 </div>
 
                 {/* Right Area: Signals (4 Cols) */}
-                <div className="xl:col-span-4 space-y-8">
+                <div className="xl:col-span-4 space-y-4">
                     {/* Regulatory Column */}
-                    <div className="bg-dark-900/40 border border-blue-500/10 rounded-2xl p-4 md:p-6 shadow-xl backdrop-blur-sm">
-                        <div className="flex items-center justify-between mb-4 md:mb-6">
+                    <div className="bg-dark-900/40 border border-blue-500/10 rounded-xl p-3 md:p-4 shadow-xl backdrop-blur-sm">
+                        <div className="flex items-center justify-between mb-3 md:mb-4">
                             <h3 className="text-xs md:text-sm font-bold text-blue-400 uppercase tracking-[0.2em] flex items-center gap-3">
                                 <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
                                 SEC Intelligent Signals
@@ -309,18 +309,33 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                                     <div
                                         key={i}
                                         onClick={() => setSelectedDetail({ type: 'SEC', data: f })}
-                                        className="bg-black/30 rounded-xl p-4 border border-white/5 hover:border-blue-500/40 transition-all cursor-pointer group shadow-sm hover:shadow-blue-500/5"
+                                        className="bg-black/40 rounded-xl p-3 border border-white/10 hover:border-blue-500/50 transition-all cursor-pointer group shadow-sm hover:shadow-blue-500/10"
                                     >
-                                        <div className="flex justify-between items-center text-xs mb-3">
-                                            <span className="text-gray-200 font-bold px-2 py-1 bg-dark-800 rounded">{f.type || f.form_type}</span>
-                                            <div className={`px-2 py-1 rounded-full text-xs ${(f.avg_finbert || 0) > 0 ? 'bg-green-500/10 text-green-300' : 'bg-red-500/10 text-red-300'} font-black`}>
+                                        <div className="flex justify-between items-center text-xs mb-2">
+                                            <span className="text-gray-100 font-bold px-2 py-1 bg-dark-800/70 rounded">{f.type || f.form_type}</span>
+                                            <div className={`px-2 py-1 rounded-full text-xs ${(f.avg_finbert || 0) > 0 ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'} font-black`}>
                                                 BIAS: {(f.avg_finbert || 0).toFixed(3)}
                                             </div>
                                         </div>
-                                        <p className="text-xs text-gray-300 italic leading-snug line-clamp-3">
-                                            "{f.top_sentences?.[0]?.text || 'Click for filing details'}"
-                                        </p>
-                                        <div className="mt-3 text-xs text-blue-400/60 font-mono text-right font-bold group-hover:text-blue-300 transition-colors">Details →</div>
+                                        <div className="text-xs text-gray-300 space-y-1">
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-400">Filed:</span>
+                                                <span className="font-mono">{f.filing_date || 'N/A'}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-400">Sentiment:</span>
+                                                <span className={`font-mono ${(f.avg_finbert || 0) > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {(f.avg_finbert || 0) > 0 ? 'Bullish' : 'Bearish'} ({f.avg_positive || 0} pos / {f.avg_negative || 0} neg)
+                                                </span>
+                                            </div>
+                                            {f.sentence_count && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-400">Sentences:</span>
+                                                    <span className="font-mono">{f.sentence_count.toLocaleString()}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="mt-2 text-xs text-blue-400/70 font-mono text-right font-bold group-hover:text-blue-300 transition-colors">Details →</div>
                                     </div>
                                 ))}
                             </div>
@@ -333,7 +348,7 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
 
                     {/* Options Flow Column */}
                     {optionsFlow.length > 0 && (
-                        <div className="bg-dark-900/40 border border-green-500/10 rounded-2xl p-4 md:p-6 shadow-xl backdrop-blur-sm">
+                        <div className="bg-dark-900/40 border border-green-500/10 rounded-xl p-3 md:p-4 shadow-xl backdrop-blur-sm">
                             <h3 className="text-xs md:text-sm font-bold text-green-400 uppercase tracking-[0.2em] mb-4 md:mb-6 flex items-center gap-3">
                                 <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
                                 Options Flow Activity
@@ -368,7 +383,7 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
 
                     {/* Futures Prices Column */}
                     {futuresPrices.length > 0 && (
-                        <div className="bg-dark-900/40 border border-amber-500/10 rounded-2xl p-4 md:p-6 shadow-xl backdrop-blur-sm">
+                        <div className="bg-dark-900/40 border border-amber-500/10 rounded-xl p-3 md:p-4 shadow-xl backdrop-blur-sm">
                             <h3 className="text-xs md:text-sm font-bold text-amber-400 uppercase tracking-[0.2em] mb-4 md:mb-6 flex items-center gap-3">
                                 <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
                                 Commodity Futures
@@ -400,8 +415,8 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
 
                     {/* Gov Awards Column */}
                     {awards.length > 0 && (
-                        <div className="bg-dark-900/40 border border-gold/10 rounded-2xl p-4 md:p-6 shadow-xl backdrop-blur-sm">
-                            <h3 className="text-xs md:text-sm font-bold text-gold uppercase tracking-[0.2em] mb-4 md:mb-6 flex items-center gap-3">
+                        <div className="bg-dark-900/40 border border-gold/10 rounded-xl p-3 md:p-4 shadow-xl backdrop-blur-sm">
+                            <h3 className="text-xs md:text-sm font-bold text-gold uppercase tracking-[0.2em] mb-3 md:mb-4 flex items-center gap-3">
                                 <div className="w-1.5 h-1.5 rounded-full bg-gold shadow-[0_0_8px_rgba(255,215,0,0.5)]" />
                                 Federal Contract Awards
                             </h3>

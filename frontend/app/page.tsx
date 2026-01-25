@@ -1056,7 +1056,7 @@ export default function HomePage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.2 }}
             transition={{ duration: 0.8 }}
-            className="bg-dark-800/90 border border-gold/20 rounded-xl shadow-2xl mb-6 p-4 md:p-6"
+            className="bg-dark-700/95 border border-gold/30 rounded-xl shadow-2xl mb-6 p-4 md:p-6"
           >
             {/* Expanded Message Overlay */}
             {expandedMessageIdx !== null && (
@@ -1133,7 +1133,7 @@ export default function HomePage() {
                             setInput(question)
                             setIsBuilderMode(false)
                           }}
-                          className="bg-dark-700/50 border border-gold/20 rounded-xl p-4 text-left text-sm text-gray-300 hover:border-gold/40 hover:bg-dark-700 hover:text-gold transition-all shadow-sm"
+                          className="bg-dark-600/60 border border-gold/30 rounded-xl p-4 text-left text-sm text-gray-200 hover:border-gold/50 hover:bg-dark-600 hover:text-gold transition-all shadow-sm"
                         >
                           {question}
                         </button>
@@ -1151,8 +1151,8 @@ export default function HomePage() {
                 >
                   <div
                     className={`max-w-[95%] md:max-w-[90%] rounded-2xl p-4 md:p-5 relative group transition-all duration-300 shadow-lg ${message.role === 'user'
-                      ? 'bg-gold/20 border border-gold/40 text-white rounded-tr-none'
-                      : 'bg-dark-800 border border-white/20 text-gray-100 rounded-tl-none'
+                      ? 'bg-gold/25 border border-gold/50 text-white rounded-tr-none'
+                      : 'bg-dark-700/80 border border-white/30 text-gray-50 rounded-tl-none'
                       }`}
                   >
                     {/* Expand/Maximize Button for AI results */}
@@ -1446,7 +1446,7 @@ export default function HomePage() {
                     }}
                     placeholder="Ask about markets, companies, contracts, commodities, options flow..."
                     rows={1}
-                    className="flex-1 bg-dark-700 border border-gold/40 rounded-lg px-3 py-2 md:px-4 md:py-3 text-sm md:text-base text-gray-100 placeholder-gray-400 focus:outline-none focus:border-gold/70 focus:ring-2 focus:ring-gold/30 resize-y min-h-[48px] max-h-[140px]"
+                    className="flex-1 bg-dark-600 border border-gold/50 rounded-lg px-3 py-2 md:px-4 md:py-3 text-sm md:text-base text-gray-50 placeholder-gray-300 focus:outline-none focus:border-gold/80 focus:ring-2 focus:ring-gold/40 resize-y min-h-[48px] max-h-[140px]"
                     disabled={isLoading}
                   />
                   <button
