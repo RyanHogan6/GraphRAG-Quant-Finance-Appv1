@@ -928,13 +928,13 @@ export default function HomePage() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
-        className="flex flex-col items-center pt-6 pb-2"
+        className="flex flex-col items-center pt-3"
       >
         {/* KARGA Logo - Medium size */}
-        <div className="scale-[0.5] md:scale-[0.55] -mb-10 md:-mb-12">
+        <div className="scale-[0.5] md:scale-[0.55]">
           <AnimatedLogo />
         </div>
-        <p className="text-sm md:text-base text-gray-400 mt-2">
+        <p className="text-sm md:text-base text-gray-400 -mt-24 md:-mt-32">
           Financial Intelligence Powered by Knowledge Graphs
         </p>
       </motion.div>
@@ -946,7 +946,7 @@ export default function HomePage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="mb-3 text-left"
+            className="mb-2 text-left"
           >
             <h2 className="text-sm md:text-base font-bold text-gold tracking-tight flex items-center gap-2">
               <span className="w-1.5 h-1.5 bg-gold rounded-full animate-pulse" />
@@ -992,7 +992,7 @@ export default function HomePage() {
             {/* Messages */}
             <div
               ref={chatScrollRef}
-              className="h-[400px] overflow-y-auto py-4 space-y-4 md:space-y-6 scroll-smooth"
+              className="h-[600px] md:h-[65vh] overflow-y-auto py-4 space-y-4 md:space-y-6 scroll-smooth"
             >
               {/* Visual Query Builder - Show at top when in builder mode */}
               {isBuilderMode && (
