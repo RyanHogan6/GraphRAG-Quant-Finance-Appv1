@@ -957,6 +957,100 @@ Strategy:
 
 ---
 
+EXAMPLE 3e - SEC Insider Trading Detection (CRITICAL: Form 4 has trades array!):
+Question: "Show me recent insider buying in tech stocks"
+Intent: insider_trading_detection
+Collections: ["Company", "sec_filings"]
+Edges: ["HAS_FILING"]
+AQL:
+FOR company IN Company
+  FILTER company.sector == "Technology"
+  FOR filing IN OUTBOUND company HAS_FILING
+    FILTER filing.type == "4"
+    FILTER filing.filing_date >= DATE_SUBTRACT(DATE_NOW(), 90, "day")
+    FILTER LENGTH(filing.trades) > 0
+    LET purchases = (
+      FOR trade IN filing.trades
+        FILTER trade.code == "P"
+        FILTER trade.is_informed == true
+        RETURN trade
+    )
+    FILTER LENGTH(purchases) > 0
+    LET total_purchased = SUM(purchases[*].shares)
+    LET total_value = SUM(purchases[*].shares * purchases[*].price)
+    FILTER total_value > 100000
+    SORT total_value DESC
+    LIMIT 20
+    RETURN {
+      ticker: company.ticker,
+      company: company.company,
+      filing_date: filing.filing_date,
+      shares_purchased: total_purchased,
+      purchase_value: total_value,
+      trades: purchases
+    }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ Form 4 filings have `trades` array with insider buy/sell data
+✅ Filter trade.code == "P" for purchases (BULLISH SIGNAL)
+✅ Filter trade.code == "S" for sales (BEARISH SIGNAL)
+✅ Filter trade.is_informed == true to exclude tax withholding (code "F")
+✅ Insider buying > $100K is a strong bullish signal
+✅ Recent (90 days) shows current conviction
+💡 This is GOLD for finding informed buying before price moves
+
+---
+
+EXAMPLE 3f - SEC Text Search (CRITICAL: Use sec_sentences + JOIN for performance!):
+Question: "Find SEC filings mentioning supply chain issues in energy sector"
+Intent: sec_text_search
+Collections: ["Company", "sec_filings", "sec_sentences"]
+Edges: ["HAS_FILING", "has_section"]
+AQL:
+FOR company IN Company
+  FILTER company.sector == "Energy"
+  FOR filing IN OUTBOUND company HAS_FILING
+    FILTER filing.type IN ["10-K", "10-Q"]
+    FILTER filing.filing_date >= "2024-01-01"
+    LET sentences = (
+      FOR section IN OUTBOUND filing has_section
+        FOR sentence IN OUTBOUND section has_sentence
+          FILTER CONTAINS(LOWER(sentence.text), "supply chain")
+          FILTER CONTAINS(LOWER(sentence.text), "risk") OR CONTAINS(LOWER(sentence.text), "challenge")
+          FILTER sentence.finbert_score < -0.2
+          LIMIT 3
+          RETURN {
+            text: SUBSTRING(sentence.text, 0, 300),
+            sentiment: sentence.finbert_score,
+            negative: sentence.negative_per_1k
+          }
+    )
+    FILTER LENGTH(sentences) > 0
+    SORT filing.filing_date DESC
+    LIMIT 10
+    RETURN {
+      ticker: company.ticker,
+      company: company.company,
+      filing_type: filing.type,
+      filing_date: filing.filing_date,
+      matching_sentences: sentences
+    }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ ALWAYS filter by Company/sector FIRST (reduces sentence scan)
+✅ ALWAYS filter by filing date FIRST (indexed field)
+✅ Use LIMIT on inner sentence loops (3-5 sentences per filing max)
+✅ Combine multiple CONTAINS() for concept search
+✅ Use finbert_score to filter for negative/concerning mentions
+✅ SUBSTRING(text, 0, 300) to avoid returning huge text blocks
+⚠️ WARNING: Text search is SLOW - keep LIMIT low (10-20 max results)
+
+---
+
 EXAMPLE 4 - Award Semantic Search (OPTIMIZED FOR PERFORMANCE):
 Question: "Find awards related to artificial intelligence"
 Intent: semantic_search

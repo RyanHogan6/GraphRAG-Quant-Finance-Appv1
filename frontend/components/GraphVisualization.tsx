@@ -561,7 +561,6 @@ export default function GraphVisualization() {
           }}
         >
           <Background color="#D4AF37" gap={20} size={1.5} style={{ opacity: 0.15 }} />
-          <Background color="#FFD700" gap={80} size={2} variant="dots" style={{ opacity: 0.08 }} />
         </ReactFlow>
       </div>
 

@@ -66,8 +66,18 @@ COLLECTION_KEYWORDS = {
         'priority': 2
     },
     'sec_filings': {
-        'keywords': ['sec filing', '10-k', '10-q', '8-k', 'form 4', '13f',
-                     'sec', 'filing'],
+        'keywords': ['sec filing', '10-k', '10-q', '8-k', 'form 4', 'form 5', '13f',
+                     'sec', 'filing', 'annual report', 'quarterly report', 'insider',
+                     'insider trading', 'insider buying', 'insider selling', 'sc 13d',
+                     'sc 13g', 'activist', 'institutional', 'proxy', 's-1', 'ipo',
+                     'material event', 'earnings release', 'sentiment', 'negative sentiment',
+                     'risk factors', 'supply chain', 'regulation', 'litigation'],
+        'priority': 1  # High priority - rich dataset
+    },
+    'sec_sentences': {
+        'keywords': ['sec text', 'filing text', 'sec search', 'find in filings',
+                     'risk factors', 'md&a', 'management discussion', 'supply chain',
+                     'regulation', 'litigation', 'material', 'uncertainty'],
         'priority': 2
     },
     'prediction_markets_polymarket': {
@@ -322,6 +332,47 @@ def get_collection_specific_rules(collections: List[str]) -> str:
 - NEVER use exact match == on recipient_name (names have variations)
 - Use award_amount_float (NOT award_amount) for math operations
 - Indexed fields: ticker, start_date, award_amount_float
+""")
+
+    if 'sec_filings' in collections:
+        rules.append("""
+**SEC FILINGS COLLECTION RULES:**
+- 12 form types available: "10-K", "10-Q", "8-K", "4", "5", "SC 13D", "SC 13G", "13F-HR", "6-K", "S-1", "DEF 14A", "424B4"
+- INSIDER TRADING SIGNALS:
+  - Form 4/5 have `trades` array with buy/sell data
+  - Check: doc.trades[? ANY.code == "P"] for insider BUYING (bullish)
+  - Check: doc.trades[? ANY.code == "S"] for insider SELLING (bearish)
+  - Filter: doc.trades[? ANY.is_informed == true] to exclude tax withholding
+- SENTIMENT ANALYSIS:
+  - Use avg_finbert (-1 to +1) for overall filing sentiment
+  - Use avg_negative, avg_uncertainty for specific tone metrics
+- CRITICAL: sec_filings has NO text content - only metadata/sentiment
+  - For text search, use sec_sentences collection with CONTAINS()
+- Indexed fields: ticker, type, filing_date
+""")
+
+    if 'sec_sentences' in collections:
+        rules.append("""
+**SEC SENTENCES COLLECTION RULES:**
+- This is where actual SEC filing TEXT lives
+- Use CONTAINS(LOWER(doc.text), 'keyword') for text search
+- NO EMBEDDINGS: Cannot use semantic/vector search
+- Use finbert_score for sentiment filtering (< -0.3 for negative)
+- Available metrics: negative_per_1k, uncertainty_per_1k, litigious_per_1k
+- PERFORMANCE: Text search is SLOW on millions of sentences
+  - Always add ticker filter when possible (via JOIN to sec_filings)
+  - Always add date range filter when possible
+  - Keep results LIMIT low (10-20 max)
+""")
+
+    if 'commodity_positions' in collections:
+        rules.append("""
+**COMMODITY POSITIONS (CFTC) COLLECTION RULES:**
+- Use for CFTC Commitments of Traders data (weekly reports)
+- Field: Market_and_Exchange_Names contains commodity type
+- Use CONTAINS() for commodity matching (NOT exact ==)
+- Traverse from Company via HAS_COMMODITY_POSITION edge
+- Shows speculator vs commercial positioning
 """)
 
     return '\n'.join(rules)

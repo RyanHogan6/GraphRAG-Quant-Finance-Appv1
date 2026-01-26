@@ -1017,7 +1017,7 @@ def analyze_results_with_llm(user_question: str, results: list, query_plan: dict
         response = client.chat.completions.create(
             model=config.LLM_MODEL,
             messages=[{"role": "user", "content": analysis_prompt}],
-            max_tokens=2000,  # Increased for context-aware analysis with synthesis
+            max_tokens=3000,  # Increased for comprehensive analysis with SEC/insider signals
             temperature=0.3
         )
 
@@ -1124,7 +1124,7 @@ Response:"""
         response = client.chat.completions.create(
             model=config.LLM_MODEL,
             messages=[{"role": "user", "content": fallback_prompt}],
-            max_tokens=2500,
+            max_tokens=3000,
             temperature=0.6
         )
 

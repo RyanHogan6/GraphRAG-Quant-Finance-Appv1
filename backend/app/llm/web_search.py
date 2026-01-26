@@ -125,7 +125,7 @@ def search_web_context(question: str, focus_areas: list = None) -> dict:
             }
         ],
         temperature=0.2,
-        max_tokens=1000
+        max_tokens=3000
     )
 
     content = response.choices[0].message.content
@@ -279,7 +279,7 @@ Response:"""
         model="gpt-4o",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.3,
-        max_tokens=1500  # Increased for table + analysis
+        max_tokens=3000  # Increased for comprehensive synthesis with tables
     )
 
     synthesized = response.choices[0].message.content
