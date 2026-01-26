@@ -1386,14 +1386,23 @@ export default function HomePage() {
                 >
                   <ComplexQueryGallery
                     onQuerySelect={(naturalLanguage, aql) => {
-                      setInput(naturalLanguage)
-                      setBuiltQuery({ aql: aql, description: naturalLanguage })
-                      setIsBuilderMode(true)
+                      // Close the gallery
                       setShowComplexQueries(false)
+
+                      // Set the input text so user can see the question
+                      setInput(naturalLanguage)
+
+                      // Store the AQL for builder mode but DON'T enable builder mode yet
+                      setBuiltQuery({ aql: aql, description: naturalLanguage })
+
+                      // Smooth scroll to top to show the input
+                      window.scrollTo({ top: 0, behavior: 'smooth' })
+
+                      // Submit the query after scroll animation
                       setTimeout(() => {
                         const fakeEvent = { preventDefault: () => {} } as React.FormEvent
                         handleSubmit(fakeEvent)
-                      }, 100)
+                      }, 400)
                     }}
                   />
                 </motion.div>

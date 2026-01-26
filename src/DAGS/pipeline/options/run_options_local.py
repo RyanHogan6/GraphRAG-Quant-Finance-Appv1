@@ -12,8 +12,9 @@ import os
 from datetime import datetime
 import argparse
 
-# Add pipeline directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'pipeline'))
+# Add pipeline directory to path (parent of options/)
+# This allows: from options.downloader import ...
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 def main():
     parser = argparse.ArgumentParser(description='Fetch options flow data locally and upload to ArangoDB')

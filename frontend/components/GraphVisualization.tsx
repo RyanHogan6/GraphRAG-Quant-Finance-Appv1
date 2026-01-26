@@ -205,28 +205,59 @@ const collectionData = {
   },
 }
 
-// Custom node component with click handler
+// Custom node component with dramatic styling
 function CustomNode({ data }: NodeProps) {
   const label = data.label as string
   const count = data.count as string
   const isCenter = data.isCenter as boolean
 
+  if (isCenter) {
+    // Center hub - Extra dramatic
+    return (
+      <div
+        className="px-8 py-5 rounded-xl border-4 shadow-2xl cursor-pointer transition-all hover:scale-110 hover:rotate-1 relative overflow-hidden"
+        style={{
+          background: 'linear-gradient(135deg, #D4AF37 0%, #F4D03F 50%, #D4AF37 100%)',
+          color: '#1a1a1a',
+          borderColor: '#FFD700',
+          minWidth: '200px',
+          boxShadow: '0 0 40px rgba(212, 175, 55, 0.6), 0 0 80px rgba(212, 175, 55, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.1)',
+        }}
+      >
+        <Handle type="target" position={Position.Top} style={{ background: '#FFD700', width: '12px', height: '12px', boxShadow: '0 0 10px rgba(255, 215, 0, 0.8)' }} />
+        <div className="text-center relative z-10">
+          <div className="font-black text-xl mb-1 tracking-wide drop-shadow-sm">{label}</div>
+          <div className="text-sm font-bold opacity-80">{count}</div>
+        </div>
+        <Handle type="source" position={Position.Bottom} style={{ background: '#FFD700', width: '12px', height: '12px', boxShadow: '0 0 10px rgba(255, 215, 0, 0.8)' }} />
+        {/* Animated glow pulse */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
+      </div>
+    )
+  }
+
+  // Regular nodes - Enhanced with glow
   return (
     <div
-      className="px-6 py-4 rounded-lg border-2 shadow-lg cursor-pointer transition-all hover:scale-105 hover:shadow-xl"
+      className="px-5 py-3 rounded-lg border-2 shadow-lg cursor-pointer transition-all hover:scale-110 hover:shadow-2xl relative"
       style={{
-        background: isCenter ? '#D4AF37' : '#2a2a2a',
-        color: isCenter ? '#1a1a1a' : '#D4AF37',
-        borderColor: isCenter ? '#D4AF37' : 'rgba(212, 175, 55, 0.4)',
-        minWidth: isCenter ? '180px' : '160px',
+        background: 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)',
+        color: '#D4AF37',
+        borderColor: 'rgba(212, 175, 55, 0.5)',
+        minWidth: '160px',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(212, 175, 55, 0.15)',
       }}
     >
-      <Handle type="target" position={Position.Top} style={{ background: '#D4AF37' }} />
-      <div className="text-center">
-        <div className="font-bold text-base mb-1">{label}</div>
-        <div className="text-xs opacity-70">{count}</div>
+      <Handle type="target" position={Position.Top} style={{ background: '#D4AF37', width: '10px', height: '10px', boxShadow: '0 0 8px rgba(212, 175, 55, 0.6)' }} />
+      <div className="text-center relative z-10">
+        <div className="font-bold text-base mb-1 drop-shadow-sm">{label}</div>
+        <div className="text-xs opacity-70 font-medium">{count}</div>
       </div>
-      <Handle type="source" position={Position.Bottom} style={{ background: '#D4AF37' }} />
+      <Handle type="source" position={Position.Bottom} style={{ background: '#D4AF37', width: '10px', height: '10px', boxShadow: '0 0 8px rgba(212, 175, 55, 0.6)' }} />
+      {/* Subtle hover glow */}
+      <div className="absolute inset-0 rounded-lg transition-opacity opacity-0 hover:opacity-100" style={{
+        background: 'radial-gradient(circle at center, rgba(212, 175, 55, 0.1) 0%, transparent 70%)'
+      }} />
     </div>
   )
 }
@@ -328,10 +359,10 @@ export default function GraphVisualization() {
       target: 'company',
       label: 'enriches queries',
       animated: true,
-      style: { stroke: '#D4AF37', strokeWidth: 2, strokeDasharray: '5 5' },
-      labelStyle: { fill: '#D4AF37', fontSize: 9, fontWeight: 600 },
-      labelBgStyle: { fill: '#1a1a1a', fillOpacity: 0.8 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: '#D4AF37' },
+      style: { stroke: '#D4AF37', strokeWidth: 3, strokeDasharray: '5 5', filter: 'drop-shadow(0 0 4px rgba(212, 175, 55, 0.6))' },
+      labelStyle: { fill: '#FFD700', fontSize: 10, fontWeight: 700 },
+      labelBgStyle: { fill: '#000000', fillOpacity: 0.9 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: '#FFD700', width: 20, height: 20 },
     },
     // Company → Core Data
     {
@@ -340,10 +371,10 @@ export default function GraphVisualization() {
       target: 'marketdata',
       label: 'HAS_MARKETDATA',
       animated: true,
-      style: { stroke: '#D4AF37', strokeWidth: 2 },
-      labelStyle: { fill: '#D4AF37', fontSize: 9, fontWeight: 600 },
-      labelBgStyle: { fill: '#1a1a1a', fillOpacity: 0.8 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: '#D4AF37' },
+      style: { stroke: '#D4AF37', strokeWidth: 3, filter: 'drop-shadow(0 0 4px rgba(212, 175, 55, 0.6))' },
+      labelStyle: { fill: '#FFD700', fontSize: 10, fontWeight: 700 },
+      labelBgStyle: { fill: '#000000', fillOpacity: 0.9 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: '#FFD700', width: 20, height: 20 },
     },
     {
       id: 'company-awards',
@@ -529,7 +560,8 @@ export default function GraphVisualization() {
             type: 'smoothstep',
           }}
         >
-          <Background color="#D4AF37" gap={16} size={1} />
+          <Background color="#D4AF37" gap={20} size={1.5} style={{ opacity: 0.15 }} />
+          <Background color="#FFD700" gap={80} size={2} variant="dots" style={{ opacity: 0.08 }} />
         </ReactFlow>
       </div>
 

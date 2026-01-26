@@ -30,8 +30,7 @@ def validate_query_syntax(aql_query: str, bind_vars: dict = None) -> Tuple[bool,
         explain_result = db.aql.explain(
             aql_query,
             bind_vars=bind_vars,
-            all_plans=False,  # Only get optimal plan
-            optimizer_rules=['+all']  # Enable all optimizer rules
+            all_plans=False  # Only get optimal plan
         )
 
         print(f"[VALIDATION] ✓ Syntax valid")

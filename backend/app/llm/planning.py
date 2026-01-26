@@ -1124,7 +1124,7 @@ Response:"""
         response = client.chat.completions.create(
             model=config.LLM_MODEL,
             messages=[{"role": "user", "content": fallback_prompt}],
-            max_tokens=1000,
+            max_tokens=2500,
             temperature=0.6
         )
 

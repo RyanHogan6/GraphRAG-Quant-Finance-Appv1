@@ -393,11 +393,11 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                                         }}
                                         className={`p-2 rounded-lg border-2 text-left transition-all ${
                                             isSelected
-                                                ? `${colors.border} ${colors.bg} ${colors.glow}`
+                                                ? 'border-blue-500 bg-blue-500/20 shadow-[0_0_20px_rgba(59,130,246,0.3)]'
                                                 : 'border-gray-600 bg-dark-900/50 hover:border-gray-500 hover:bg-dark-800'
                                         }`}
                                     >
-                                        <div className={`text-sm font-bold mb-1 ${isSelected ? colors.text : 'text-gray-300'}`}>
+                                        <div className={`text-sm font-bold mb-1 ${isSelected ? 'text-blue-400' : 'text-gray-300'}`}>
                                             {displayName}
                                         </div>
                                         <div className="text-[10px] text-gray-500 line-clamp-1">
