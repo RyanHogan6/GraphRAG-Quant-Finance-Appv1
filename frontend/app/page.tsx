@@ -71,6 +71,18 @@ export default function HomePage() {
   // Complex Query Gallery State
   const [showComplexQueries, setShowComplexQueries] = useState(false)
 
+  // Peer Comparison State
+  const [peerComparisonData, setPeerComparisonData] = useState<{
+    primaryTicker: string
+    peerTicker: string | null
+    peerData: any | null
+  }>({
+    primaryTicker: '',
+    peerTicker: null,
+    peerData: null
+  })
+  const [isPeerLoading, setIsPeerLoading] = useState(false)
+
   // Ref for auto-scroll
   const chatScrollRef = useRef<HTMLDivElement>(null)
 
@@ -197,7 +209,25 @@ export default function HomePage() {
                   />
                 );
               } else if (workupResults.length === 1) {
-                return <CompanyWorkup data={workupResults[0]} />;
+                const primaryData = workupResults[0];
+                const isInComparisonMode = peerComparisonData.primaryTicker === primaryData.ticker && peerComparisonData.peerData;
+
+                return (
+                  <div className="relative">
+                    {isPeerLoading && (
+                      <div className="absolute top-4 right-4 z-10 bg-dark-800 border border-blue-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-xs text-blue-400">Loading peer data...</span>
+                      </div>
+                    )}
+                    <CompanyWorkup
+                      data={primaryData}
+                      onCompare={(ticker) => handlePeerCompare(primaryData.ticker, ticker)}
+                      peerData={isInComparisonMode ? peerComparisonData.peerData : null}
+                      comparisonMode={isInComparisonMode}
+                    />
+                  </div>
+                );
               } else {
                 return <ResultsTable data={message.results} />;
               }
@@ -411,6 +441,67 @@ export default function HomePage() {
 
     fetchCollections()
   }, [])
+
+  // Handle peer comparison - fetch peer company data
+  const handlePeerCompare = async (primaryTicker: string, peerTicker: string) => {
+    // If peerTicker is empty or same as primary, exit comparison mode
+    if (!peerTicker || peerTicker === primaryTicker) {
+      setPeerComparisonData({
+        primaryTicker: '',
+        peerTicker: null,
+        peerData: null
+      })
+      return
+    }
+
+    setIsPeerLoading(true)
+
+    try {
+      // Fetch peer company workup data
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/query/execute`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          question: `company workup for ${peerTicker}`,
+          conversation_history: []
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch peer data: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      // Extract the workup data from results
+      if (data.results && data.results.length > 0) {
+        const peerWorkup = data.results[0]
+        setPeerComparisonData({
+          primaryTicker,
+          peerTicker,
+          peerData: peerWorkup
+        })
+      } else {
+        console.error('No peer data returned')
+        setPeerComparisonData({
+          primaryTicker: '',
+          peerTicker: null,
+          peerData: null
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching peer comparison data:', error)
+      setPeerComparisonData({
+        primaryTicker: '',
+        peerTicker: null,
+        peerData: null
+      })
+    } finally {
+      setIsPeerLoading(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -1153,12 +1244,27 @@ export default function HomePage() {
                           }
 
                           if (singleWorkup) {
+                            const isInComparisonMode = peerComparisonData.primaryTicker === result.ticker && peerComparisonData.peerData;
+
                             return (
                               <div className="mt-2">
                                 <div className="text-[10px] text-gold uppercase font-bold tracking-widest opacity-70 mb-4">
                                   The KARGA Financial Workup
                                 </div>
-                                <CompanyWorkup data={result} />
+                                <div className="relative">
+                                  {isPeerLoading && (
+                                    <div className="absolute top-4 right-4 z-10 bg-dark-800 border border-blue-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
+                                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                      <span className="text-xs text-blue-400">Loading peer data...</span>
+                                    </div>
+                                  )}
+                                  <CompanyWorkup
+                                    data={result}
+                                    onCompare={(ticker) => handlePeerCompare(result.ticker, ticker)}
+                                    peerData={isInComparisonMode ? peerComparisonData.peerData : null}
+                                    comparisonMode={isInComparisonMode}
+                                  />
+                                </div>
                               </div>
                             );
                           }

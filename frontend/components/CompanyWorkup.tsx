@@ -9,14 +9,24 @@ import type { Key } from 'react'
 interface CompanyWorkupProps {
     data: any
     onCompare?: (ticker: string) => void
+    peerData?: any  // Peer company data for comparison
+    comparisonMode?: boolean  // Enable comparison view
 }
 
-export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
+export default function CompanyWorkup({ data, onCompare, peerData, comparisonMode = false }: CompanyWorkupProps) {
     const [timeframe, setTimeframe] = useState<'1M' | '3M' | '6M' | '1Y' | '5Y'>('1M')
     const [showAllMetrics, setShowAllMetrics] = useState(false)
     const [selectedDetail, setSelectedDetail] = useState<{ type: 'SEC' | 'Award', data: any } | null>(null)
     const [selectedFormType, setSelectedFormType] = useState<string>('all')
     const [secSortBy, setSecSortBy] = useState<'negative' | 'positive' | 'recent'>('negative')
+    const [showPeerSelector, setShowPeerSelector] = useState(false)
+    const [peerSearchTerm, setPeerSearchTerm] = useState('')
+
+    // S&P 500 tickers for peer selection (sample - should come from backend)
+    const availablePeers = useMemo(() => {
+        const sp500Tickers = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'BRK.B', 'V', 'JPM', 'WMT', 'XOM', 'UNH', 'MA', 'PG', 'JNJ', 'HD', 'CVX', 'MRK', 'ABBV', 'PEP', 'KO', 'COST', 'AVGO', 'LLY', 'TMO', 'ADBE', 'MCD', 'CSCO', 'ACN', 'NFLX', 'ABT', 'CRM', 'DHR', 'NKE', 'WFC', 'VZ', 'TXN', 'PM', 'ORCL', 'NEE', 'RTX', 'UPS', 'MS', 'BMY', 'QCOM', 'LOW', 'HON', 'INTU', 'T', 'UNP', 'AMD', 'IBM', 'BA', 'SPGI', 'GE', 'SBUX', 'CAT', 'DE', 'AXP', 'GS', 'PLD', 'MDT', 'BLK', 'AMGN', 'GILD', 'AMAT', 'LMT', 'ISRG', 'SYK', 'ADI', 'MMM', 'TJX', 'CI', 'MDLZ', 'CB', 'ADP', 'C', 'VRTX', 'SO', 'BKNG', 'ZTS', 'CME', 'SCHW', 'REGN', 'FISV', 'MMC', 'DUK', 'PGR', 'TMUS', 'MO', 'BDX', 'CVS', 'USB', 'PNC', 'NOC', 'COP', 'ITW', 'EOG', 'TGT']
+        return sp500Tickers.filter(t => t !== company.ticker && t.toLowerCase().includes(peerSearchTerm.toLowerCase()))
+    }, [company.ticker, peerSearchTerm])
 
     // Extract nested data
     const company = data
@@ -64,26 +74,53 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
 
     // Prepare chart data based on timeframe
     const chartData = useMemo(() => {
-        let filtered = [...marketData]
+        // Helper to filter and sort market data by timeframe
+        const prepareSeriesData = (data: any[], ticker: string, color: string) => {
+            let filtered = [...data]
 
-        // Filter by timeframe
-        const now = new Date()
-        const filterDate = new Date()
-        if (timeframe === '1M') filterDate.setMonth(now.getMonth() - 1)
-        else if (timeframe === '3M') filterDate.setMonth(now.getMonth() - 3)
-        else if (timeframe === '6M') filterDate.setMonth(now.getMonth() - 6)
-        else if (timeframe === '1Y') filterDate.setFullYear(now.getFullYear() - 1)
-        else if (timeframe === '5Y') filterDate.setFullYear(now.getFullYear() - 5)
+            // Filter by timeframe
+            const now = new Date()
+            const filterDate = new Date()
+            if (timeframe === '1M') filterDate.setMonth(now.getMonth() - 1)
+            else if (timeframe === '3M') filterDate.setMonth(now.getMonth() - 3)
+            else if (timeframe === '6M') filterDate.setMonth(now.getMonth() - 6)
+            else if (timeframe === '1Y') filterDate.setFullYear(now.getFullYear() - 1)
+            else if (timeframe === '5Y') filterDate.setFullYear(now.getFullYear() - 5)
 
-        filtered = filtered.filter(d => new Date(d.date) >= filterDate)
+            filtered = filtered.filter(d => new Date(d.date) >= filterDate)
+            const sorted = filtered.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
-        const sorted = filtered.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+            return {
+                dates: sorted.map(d => d.date),
+                values: sorted.map(d => d.close),
+                label: ticker,
+                color,
+                ticker
+            }
+        }
+
+        // Primary company data
+        const primarySeries = prepareSeriesData(marketData, company.ticker, '#D4AF37')
+
+        // If in comparison mode with peer data, create multi-series array
+        if (comparisonMode && peerData?.MarketData) {
+            const peerSeries = prepareSeriesData(peerData.MarketData, peerData.ticker, '#3B82F6')
+            return {
+                series: [primarySeries, peerSeries],
+                // Legacy fields for backward compatibility
+                dates: primarySeries.dates,
+                values: primarySeries.values,
+                ticker: company.ticker
+            }
+        }
+
+        // Single company mode - return legacy format
         return {
-            dates: sorted.map(d => d.date),
-            values: sorted.map(d => d.close),
+            dates: primarySeries.dates,
+            values: primarySeries.values,
             ticker: company.ticker
         }
-    }, [marketData, company.ticker, timeframe])
+    }, [marketData, company.ticker, timeframe, comparisonMode, peerData])
 
     // AI Intelligence Summary (4 sentences) - Enriched with Latest Search
     const aiSummary = useMemo(() => {
@@ -117,38 +154,84 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
 
     // Moneycontain "13 Essential Financial Metrics"
     const fundamentalMetrics = useMemo(() => {
-        const all = { ...company, ...latestMarket }
+        const calculateMetrics = (companyData: any, marketData: any) => {
+            const all = { ...companyData, ...marketData }
 
-        // Derive Revenue and Absolute Margins if raw fields are missing
-        const calcRevenue = (all.revenuePerShare && all.sharesOutstanding)
-            ? (all.revenuePerShare * all.sharesOutstanding)
-            : null;
+            // Derive Revenue and Absolute Margins if raw fields are missing
+            const calcRevenue = (all.revenuePerShare && all.sharesOutstanding)
+                ? (all.revenuePerShare * all.sharesOutstanding)
+                : null;
 
-        const calcEbitda = (all.ebitda) ? all.ebitda : (calcRevenue && all.ebitdaMargins ? calcRevenue * all.ebitdaMargins : null);
-        const calcNetIncome = (all.netIncome) ? all.netIncome : (calcRevenue && all.profitMargins ? calcRevenue * all.profitMargins : null);
+            const calcEbitda = (all.ebitda) ? all.ebitda : (calcRevenue && all.ebitdaMargins ? calcRevenue * all.ebitdaMargins : null);
+            const calcNetIncome = (all.netIncome) ? all.netIncome : (calcRevenue && all.profitMargins ? calcRevenue * all.profitMargins : null);
 
-        const metricsList = [
-            { name: 'Revenue Growth', val: all.revenueGrowth, benchmark: '> 10%', type: 'pct', check: (v: number) => v > 0.1 },
-            { name: 'EBITDA', val: calcEbitda, benchmark: 'Growing', type: 'currency' },
-            { name: 'EBITDA Margin', val: all.ebitdaMargins, benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 },
-            { name: 'Net Profit (PAT)', val: calcNetIncome, benchmark: 'Growing', type: 'currency' },
-            { name: 'PAT Margin', val: all.profitMargins, benchmark: '> 10%', type: 'pct', check: (v: number) => v > 0.1 },
-            { name: 'ROE', val: all.returnOnEquity, benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 },
-            { name: 'ROA', val: all.returnOnAssets, benchmark: '> 7%', type: 'pct', check: (v: number) => v > 0.07 },
-            { name: 'Debt-to-Equity', val: all.debtToEquity, benchmark: '< 1', type: 'ratio', check: (v: number) => v < 1 },
-            { name: 'Current Ratio', val: all.currentRatio, benchmark: '> 1.5', type: 'ratio', check: (v: number) => v > 1.5 },
-            { name: 'Free Cash Flow', val: all.freeCashflow, benchmark: 'Positive', type: 'currency', check: (v: number) => v > 0 },
-            { name: 'EPS', val: all.epsTrailingTwelveMonths || all.eps, benchmark: 'Growing', type: 'number' },
-            { name: 'P/E Ratio', val: all.trailingPE || all.forwardPE, benchmark: '< 20 (Fair)', type: 'number', check: (v: number) => v < 20 },
-            { name: 'ROCE', val: (all.ebit && all.totalDebt && all.totalStockholderEquity) ? (all.ebit / (all.totalDebt + all.totalStockholderEquity)) : null, benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 }
-        ]
+            const metricsList = [
+                { name: 'Revenue Growth', val: all.revenueGrowth, benchmark: '> 10%', type: 'pct', check: (v: number) => v > 0.1 },
+                { name: 'EBITDA', val: calcEbitda, benchmark: 'Growing', type: 'currency' },
+                { name: 'EBITDA Margin', val: all.ebitdaMargins, benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 },
+                { name: 'Net Profit (PAT)', val: calcNetIncome, benchmark: 'Growing', type: 'currency' },
+                { name: 'PAT Margin', val: all.profitMargins, benchmark: '> 10%', type: 'pct', check: (v: number) => v > 0.1 },
+                { name: 'ROE', val: all.returnOnEquity, benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 },
+                { name: 'ROA', val: all.returnOnAssets, benchmark: '> 7%', type: 'pct', check: (v: number) => v > 0.07 },
+                { name: 'Debt-to-Equity', val: all.debtToEquity, benchmark: '< 1', type: 'ratio', check: (v: number) => v < 1 },
+                { name: 'Current Ratio', val: all.currentRatio, benchmark: '> 1.5', type: 'ratio', check: (v: number) => v > 1.5 },
+                { name: 'Free Cash Flow', val: all.freeCashflow, benchmark: 'Positive', type: 'currency', check: (v: number) => v > 0 },
+                { name: 'EPS', val: all.epsTrailingTwelveMonths || all.eps, benchmark: 'Growing', type: 'number' },
+                { name: 'P/E Ratio', val: all.trailingPE || all.forwardPE, benchmark: '< 20 (Fair)', type: 'number', check: (v: number) => v < 20 },
+                { name: 'ROCE', val: (all.ebit && all.totalDebt && all.totalStockholderEquity) ? (all.ebit / (all.totalDebt + all.totalStockholderEquity)) : null, benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 }
+            ]
 
-        return metricsList.map(m => ({
-            ...m,
-            displayVal: formatVal(m.val, m.type),
-            status: m.check ? (m.check(m.val) ? 'good' : 'bad') : 'neutral'
-        }))
+            return metricsList.map(m => ({
+                ...m,
+                displayVal: formatVal(m.val, m.type),
+                status: m.check ? (m.check(m.val) ? 'good' : 'bad') : 'neutral'
+            }))
+        }
+
+        return calculateMetrics(company, latestMarket)
     }, [company, latestMarket])
+
+    // Peer fundamental metrics (if in comparison mode)
+    const peerFundamentalMetrics = useMemo(() => {
+        if (!comparisonMode || !peerData) return null
+
+        const peerLatestMarket = peerData.MarketData?.[0] || {}
+
+        const calculateMetrics = (companyData: any, marketData: any) => {
+            const all = { ...companyData, ...marketData }
+
+            const calcRevenue = (all.revenuePerShare && all.sharesOutstanding)
+                ? (all.revenuePerShare * all.sharesOutstanding)
+                : null;
+
+            const calcEbitda = (all.ebitda) ? all.ebitda : (calcRevenue && all.ebitdaMargins ? calcRevenue * all.ebitdaMargins : null);
+            const calcNetIncome = (all.netIncome) ? all.netIncome : (calcRevenue && all.profitMargins ? calcRevenue * all.profitMargins : null);
+
+            const metricsList = [
+                { name: 'Revenue Growth', val: all.revenueGrowth, type: 'pct', check: (v: number) => v > 0.1 },
+                { name: 'EBITDA', val: calcEbitda, type: 'currency' },
+                { name: 'EBITDA Margin', val: all.ebitdaMargins, type: 'pct', check: (v: number) => v > 0.15 },
+                { name: 'Net Profit (PAT)', val: calcNetIncome, type: 'currency' },
+                { name: 'PAT Margin', val: all.profitMargins, type: 'pct', check: (v: number) => v > 0.1 },
+                { name: 'ROE', val: all.returnOnEquity, type: 'pct', check: (v: number) => v > 0.15 },
+                { name: 'ROA', val: all.returnOnAssets, type: 'pct', check: (v: number) => v > 0.07 },
+                { name: 'Debt-to-Equity', val: all.debtToEquity, type: 'ratio', check: (v: number) => v < 1 },
+                { name: 'Current Ratio', val: all.currentRatio, type: 'ratio', check: (v: number) => v > 1.5 },
+                { name: 'Free Cash Flow', val: all.freeCashflow, type: 'currency', check: (v: number) => v > 0 },
+                { name: 'EPS', val: all.epsTrailingTwelveMonths || all.eps, type: 'number' },
+                { name: 'P/E Ratio', val: all.trailingPE || all.forwardPE, type: 'number', check: (v: number) => v < 20 },
+                { name: 'ROCE', val: (all.ebit && all.totalDebt && all.totalStockholderEquity) ? (all.ebit / (all.totalDebt + all.totalStockholderEquity)) : null, type: 'pct', check: (v: number) => v > 0.15 }
+            ]
+
+            return metricsList.map(m => ({
+                ...m,
+                displayVal: formatVal(m.val, m.type),
+                status: m.check ? (m.check(m.val) ? 'good' : 'bad') : 'neutral'
+            }))
+        }
+
+        return calculateMetrics(peerData, peerLatestMarket)
+    }, [peerData, comparisonMode])
 
     function formatVal(val: any, type: string) {
         if (val == null || isNaN(val)) return 'N/A'
@@ -178,16 +261,59 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                         {company.sector} | {company.industry} | {company.city}, {company.country}
                     </p>
                 </div>
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => onCompare?.(company.ticker)}
-                        className="px-4 py-2 bg-dark-800 border border-gold/30 rounded-lg text-xs text-gold hover:bg-gold/10 transition-all flex items-center gap-2"
-                    >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                        </svg>
-                        Compare Peer
-                    </button>
+                <div className="flex gap-2 relative">
+                    {comparisonMode && peerData ? (
+                        <button
+                            onClick={() => onCompare?.(company.ticker)}
+                            className="px-4 py-2 bg-red-900/20 border border-red-500/30 rounded-lg text-xs text-red-400 hover:bg-red-900/30 transition-all flex items-center gap-2"
+                        >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Exit Comparison
+                        </button>
+                    ) : (
+                        <>
+                            <button
+                                onClick={() => setShowPeerSelector(!showPeerSelector)}
+                                className="px-4 py-2 bg-dark-800 border border-gold/30 rounded-lg text-xs text-gold hover:bg-gold/10 transition-all flex items-center gap-2"
+                            >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                </svg>
+                                Compare Peer
+                            </button>
+                            {showPeerSelector && (
+                                <div className="absolute top-full mt-2 right-0 bg-dark-800 border border-gold/30 rounded-lg shadow-2xl z-50 w-64 max-h-80 overflow-hidden flex flex-col">
+                                    <div className="p-2 border-b border-gold/20">
+                                        <input
+                                            type="text"
+                                            placeholder="Search ticker..."
+                                            value={peerSearchTerm}
+                                            onChange={(e) => setPeerSearchTerm(e.target.value)}
+                                            className="w-full px-3 py-2 bg-dark-900 border border-gold/20 rounded text-xs text-white placeholder-gray-500 focus:border-gold/50 outline-none"
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <div className="overflow-y-auto max-h-64">
+                                        {availablePeers.slice(0, 50).map((ticker) => (
+                                            <button
+                                                key={ticker}
+                                                onClick={() => {
+                                                    onCompare?.(ticker)
+                                                    setShowPeerSelector(false)
+                                                    setPeerSearchTerm('')
+                                                }}
+                                                className="w-full px-4 py-2 text-left text-xs text-gray-300 hover:bg-gold/10 hover:text-gold transition-all border-b border-white/5"
+                                            >
+                                                {ticker}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    )}
                     <button className="px-3 py-1.5 bg-dark-800 border border-gold/30 rounded-lg text-xs text-gray-400 hover:text-white transition-all">
                         PDF Mode
                     </button>
@@ -206,24 +332,33 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                                 <h3 className="text-[10px] md:text-xs font-bold text-gold uppercase tracking-widest mb-1">Market Performance Hub</h3>
                                 <div className="text-[9px] md:text-[10px] text-gray-500 font-mono italic">Structural Momentum Analysis</div>
                             </div>
-                            <div className="flex bg-dark-800 rounded-xl p-0.5 border border-white/10 shadow-inner">
-                                {['1M', '3M', '6M', '1Y', '5Y'].map(tf => (
-                                    <button
-                                        key={tf}
-                                        onClick={() => setTimeframe(tf as any)}
-                                        className={`px-3 py-1 md:px-4 md:py-1.5 text-[9px] md:text-[10px] rounded-lg transition-all ${timeframe === tf ? 'bg-gold text-dark-900 font-bold shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
-                                    >
-                                        {tf}
-                                    </button>
-                                ))}
+                            <div className="flex gap-2">
+                                <div className="flex bg-dark-800 rounded-xl p-0.5 border border-white/10 shadow-inner">
+                                    {['1M', '3M', '6M', '1Y', '5Y'].map(tf => (
+                                        <button
+                                            key={tf}
+                                            onClick={() => setTimeframe(tf as any)}
+                                            className={`px-3 py-1 md:px-4 md:py-1.5 text-[9px] md:text-[10px] rounded-lg transition-all ${timeframe === tf ? 'bg-gold text-dark-900 font-bold shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
+                                        >
+                                            {tf}
+                                        </button>
+                                    ))}
+                                </div>
+                                {comparisonMode && peerData && (
+                                    <div className="flex items-center gap-2 px-3 py-1 bg-dark-800 rounded-xl border border-blue-500/30">
+                                        <span className="text-[9px] text-gray-400">vs</span>
+                                        <span className="text-[10px] font-bold text-blue-400">{peerData.ticker}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                         {chartData.values.length > 0 ? (
                             <div className="h-[280px] w-full mt-3">
                                 <TimeSeriesChart
+                                    series={chartData.series}
                                     dates={chartData.dates}
                                     values={chartData.values}
-                                    label={`${company.ticker} Structural Momentum`}
+                                    label={comparisonMode ? 'Peer Comparison' : `${company.ticker} Structural Momentum`}
                                     ticker={company.ticker}
                                 />
                             </div>
@@ -248,24 +383,53 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                                 {showAllMetrics ? 'Core View' : 'All Metrics'}
                             </button>
                         </div>
-                        <div className="p-3 md:p-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-y-4 gap-x-3 md:gap-y-5 md:gap-x-4">
-                            {fundamentalMetrics.slice(0, showAllMetrics ? undefined : 8).map((m: any, i: number) => (
-                                <div key={i} className="group border-l border-white/5 pl-3 md:pl-4 hover:border-gold/30 transition-all">
-                                    <div className="flex items-center justify-between mb-1">
-                                        <div className="text-[8px] md:text-[9px] text-gray-500 uppercase font-black tracking-tighter group-hover:text-gold transition-colors">{m.name}</div>
-                                        <div className="text-[7px] md:text-[8px] text-gray-600 font-mono tracking-tighter hidden sm:block">Ref: {m.benchmark}</div>
+                        {comparisonMode && peerFundamentalMetrics ? (
+                            <div className="p-3 md:p-4 space-y-2">
+                                {fundamentalMetrics.slice(0, showAllMetrics ? undefined : 8).map((m: any, i: number) => {
+                                    const peerMetric = peerFundamentalMetrics[i]
+                                    const primaryBetter = m.val != null && peerMetric.val != null && (
+                                        (m.type === 'ratio' && m.name.includes('Debt')) ? m.val < peerMetric.val : m.val > peerMetric.val
+                                    )
+                                    const peerBetter = m.val != null && peerMetric.val != null && (
+                                        (m.type === 'ratio' && m.name.includes('Debt')) ? peerMetric.val < m.val : peerMetric.val > m.val
+                                    )
+
+                                    return (
+                                        <div key={i} className="grid grid-cols-7 gap-2 items-center border-b border-white/5 pb-2 hover:bg-white/5 transition-all px-2 rounded">
+                                            <div className="col-span-2 text-[9px] text-gray-400 uppercase font-bold">{m.name}</div>
+                                            <div className={`col-span-2 text-right font-mono font-bold text-sm ${primaryBetter ? 'text-gold' : 'text-gray-300'}`}>
+                                                {m.displayVal}
+                                                {primaryBetter && <span className="ml-1 text-[10px] text-gold/50">✓</span>}
+                                            </div>
+                                            <div className="col-span-1 text-center text-[9px] text-gray-600">vs</div>
+                                            <div className={`col-span-2 text-left font-mono font-bold text-sm ${peerBetter ? 'text-blue-400' : 'text-gray-300'}`}>
+                                                {peerMetric.displayVal}
+                                                {peerBetter && <span className="ml-1 text-[10px] text-blue-400/50">✓</span>}
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        ) : (
+                            <div className="p-3 md:p-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-y-4 gap-x-3 md:gap-y-5 md:gap-x-4">
+                                {fundamentalMetrics.slice(0, showAllMetrics ? undefined : 8).map((m: any, i: number) => (
+                                    <div key={i} className="group border-l border-white/5 pl-3 md:pl-4 hover:border-gold/30 transition-all">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <div className="text-[8px] md:text-[9px] text-gray-500 uppercase font-black tracking-tighter group-hover:text-gold transition-colors">{m.name}</div>
+                                            <div className="text-[7px] md:text-[8px] text-gray-600 font-mono tracking-tighter hidden sm:block">Ref: {m.benchmark}</div>
+                                        </div>
+                                        <div className={`text-sm md:text-base font-mono font-black ${m.status === 'good' ? 'text-green-400' : m.status === 'bad' ? 'text-red-400' : 'text-gray-200'}`}>
+                                            {m.displayVal}
+                                            {m.status !== 'neutral' && (
+                                                <span className={`ml-0.5 text-[8px] md:text-[10px] ${m.status === 'good' ? 'text-green-400/50' : 'text-red-400/50'}`}>
+                                                    {m.status === 'good' ? '▲' : '▼'}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className={`text-sm md:text-base font-mono font-black ${m.status === 'good' ? 'text-green-400' : m.status === 'bad' ? 'text-red-400' : 'text-gray-200'}`}>
-                                        {m.displayVal}
-                                        {m.status !== 'neutral' && (
-                                            <span className={`ml-0.5 text-[8px] md:text-[10px] ${m.status === 'good' ? 'text-green-400/50' : 'text-red-400/50'}`}>
-                                                {m.status === 'good' ? '▲' : '▼'}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* AI Intelligence Summary - Moved below chart */}
@@ -450,30 +614,123 @@ export default function CompanyWorkup({ data, onCompare }: CompanyWorkupProps) {
                                 <div className="w-1.5 h-1.5 rounded-full bg-gold shadow-[0_0_8px_rgba(255,215,0,0.5)]" />
                                 Federal Contract Awards
                             </h3>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-xs">
-                                    <thead>
-                                        <tr className="border-b border-gold/10">
-                                            <th className="text-left text-gray-300 font-semibold pb-2">Agency</th>
-                                            <th className="text-left text-gray-300 font-semibold pb-2">Year</th>
-                                            <th className="text-right text-gray-300 font-semibold pb-2">Amount</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {awards.slice(0, 6).map((a: any, i: number) => (
-                                            <tr
-                                                key={i}
-                                                onClick={() => setSelectedDetail({ type: 'Award', data: a })}
-                                                className="border-b border-white/5 hover:bg-gold/10 transition-colors cursor-pointer"
-                                            >
-                                                <td className="py-2 text-gray-100 truncate max-w-[150px]">{a.awarding_agency}</td>
-                                                <td className="py-2 text-gray-300">FY-{a.contract_year || '26'}</td>
-                                                <td className="py-2 text-right text-gold font-mono font-bold">${(a.award_amount_float / 1e6).toFixed(1)}M</td>
+                            {comparisonMode && peerData?.Award ? (
+                                <div className="space-y-4">
+                                    {/* Comparison Summary Table */}
+                                    <div className="bg-black/30 rounded-xl p-3 border border-gold/20">
+                                        <div className="text-[9px] text-gray-400 uppercase font-bold mb-3 tracking-wider">Head-to-Head Summary</div>
+                                        <table className="w-full text-xs">
+                                            <thead>
+                                                <tr className="border-b border-gold/10">
+                                                    <th className="text-left text-gray-300 font-semibold pb-2">Metric</th>
+                                                    <th className="text-right text-gold font-semibold pb-2">{company.ticker}</th>
+                                                    <th className="text-right text-blue-400 font-semibold pb-2">{peerData.ticker}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr className="border-b border-white/5">
+                                                    <td className="py-2 text-gray-300">Total Contracts</td>
+                                                    <td className="py-2 text-right text-gold font-mono font-bold">{awards.length}</td>
+                                                    <td className="py-2 text-right text-blue-400 font-mono font-bold">{peerData.Award.length}</td>
+                                                </tr>
+                                                <tr className="border-b border-white/5">
+                                                    <td className="py-2 text-gray-300">Total Value</td>
+                                                    <td className="py-2 text-right text-gold font-mono font-bold">
+                                                        ${(awards.reduce((sum: number, a: any) => sum + (a.award_amount_float || 0), 0) / 1e6).toFixed(1)}M
+                                                    </td>
+                                                    <td className="py-2 text-right text-blue-400 font-mono font-bold">
+                                                        ${(peerData.Award.reduce((sum: number, a: any) => sum + (a.award_amount_float || 0), 0) / 1e6).toFixed(1)}M
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    {/* Individual Contracts */}
+                                    <details className="group">
+                                        <summary className="text-[9px] text-gray-400 uppercase font-bold cursor-pointer hover:text-gold transition-colors">
+                                            View {company.ticker} Contracts ({awards.length})
+                                        </summary>
+                                        <div className="overflow-x-auto mt-2">
+                                            <table className="w-full text-xs">
+                                                <thead>
+                                                    <tr className="border-b border-gold/10">
+                                                        <th className="text-left text-gray-300 font-semibold pb-2">Agency</th>
+                                                        <th className="text-left text-gray-300 font-semibold pb-2">Year</th>
+                                                        <th className="text-right text-gray-300 font-semibold pb-2">Amount</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {awards.slice(0, 6).map((a: any, i: number) => (
+                                                        <tr
+                                                            key={i}
+                                                            onClick={() => setSelectedDetail({ type: 'Award', data: a })}
+                                                            className="border-b border-white/5 hover:bg-gold/10 transition-colors cursor-pointer"
+                                                        >
+                                                            <td className="py-2 text-gray-100 truncate max-w-[150px]">{a.awarding_agency}</td>
+                                                            <td className="py-2 text-gray-300">FY-{a.contract_year || '26'}</td>
+                                                            <td className="py-2 text-right text-gold font-mono font-bold">${(a.award_amount_float / 1e6).toFixed(1)}M</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </details>
+                                    <details className="group">
+                                        <summary className="text-[9px] text-gray-400 uppercase font-bold cursor-pointer hover:text-blue-400 transition-colors">
+                                            View {peerData.ticker} Contracts ({peerData.Award.length})
+                                        </summary>
+                                        <div className="overflow-x-auto mt-2">
+                                            <table className="w-full text-xs">
+                                                <thead>
+                                                    <tr className="border-b border-blue-500/10">
+                                                        <th className="text-left text-gray-300 font-semibold pb-2">Agency</th>
+                                                        <th className="text-left text-gray-300 font-semibold pb-2">Year</th>
+                                                        <th className="text-right text-gray-300 font-semibold pb-2">Amount</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {peerData.Award.slice(0, 6).map((a: any, i: number) => (
+                                                        <tr
+                                                            key={i}
+                                                            onClick={() => setSelectedDetail({ type: 'Award', data: a })}
+                                                            className="border-b border-white/5 hover:bg-blue-500/10 transition-colors cursor-pointer"
+                                                        >
+                                                            <td className="py-2 text-gray-100 truncate max-w-[150px]">{a.awarding_agency}</td>
+                                                            <td className="py-2 text-gray-300">FY-{a.contract_year || '26'}</td>
+                                                            <td className="py-2 text-right text-blue-400 font-mono font-bold">${(a.award_amount_float / 1e6).toFixed(1)}M</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </details>
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-xs">
+                                        <thead>
+                                            <tr className="border-b border-gold/10">
+                                                <th className="text-left text-gray-300 font-semibold pb-2">Agency</th>
+                                                <th className="text-left text-gray-300 font-semibold pb-2">Year</th>
+                                                <th className="text-right text-gray-300 font-semibold pb-2">Amount</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+                                        <tbody>
+                                            {awards.slice(0, 6).map((a: any, i: number) => (
+                                                <tr
+                                                    key={i}
+                                                    onClick={() => setSelectedDetail({ type: 'Award', data: a })}
+                                                    className="border-b border-white/5 hover:bg-gold/10 transition-colors cursor-pointer"
+                                                >
+                                                    <td className="py-2 text-gray-100 truncate max-w-[150px]">{a.awarding_agency}</td>
+                                                    <td className="py-2 text-gray-300">FY-{a.contract_year || '26'}</td>
+                                                    <td className="py-2 text-right text-gold font-mono font-bold">${(a.award_amount_float / 1e6).toFixed(1)}M</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
