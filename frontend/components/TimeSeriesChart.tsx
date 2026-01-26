@@ -291,7 +291,7 @@ export default function TimeSeriesChart({ dates, values, label, ticker, series }
           }
         }
         return null
-      }).filter(Boolean)
+      }).filter((s): s is { ticker: string; value: number; color: string } => s !== null)
 
       if (seriesData.length > 0) {
         ctx.font = 'bold 11px monospace'
