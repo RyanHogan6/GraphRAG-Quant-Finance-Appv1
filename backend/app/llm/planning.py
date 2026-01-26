@@ -14,6 +14,7 @@ from typing import Optional
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 import config
 from app.llm.prompts import CRITICAL_AQL_RULES
+from app.llm.response_synthesis import get_enhanced_analysis_prompt
 
 # Initialize OpenAI client lazily to avoid import-time errors
 def get_openai_client():
@@ -989,32 +990,9 @@ def analyze_results_with_llm(user_question: str, results: list, query_plan: dict
     results_sample = results[:10] if len(results) > 10 else results
     result_count = len(results)
 
-    analysis_prompt = f"""You are a financial data analyst. The user asked: "{user_question}"
-
-We queried the database and found {result_count} results. Here's a sample:
-
-{json.dumps(results_sample, indent=2)}
-
-Please provide a clear, concise analysis in markdown format:
-
-**CRITICAL: You MUST present the data in a markdown table format.**
-
-Guidelines:
-1. **Always start with a markdown table** showing the most relevant fields from the results
-2. Include the top 10 rows (or all if less than 10)
-3. Choose the most important columns (max 5-7 columns) - exclude internal fields like _id, _key, _rev
-4. Format numbers with proper units ($, %, dates, etc.)
-5. After the table, provide 2-3 key insights or observations
-6. Keep the analysis professional and focused on answering the user's question
-
-Markdown table format example:
-| Column 1 | Column 2 | Column 3 |
-|----------|----------|----------|
-| Value 1  | Value 2  | Value 3  |
-
-Do NOT mention technical details like query execution or database operations.
-
-Response:"""
+    # Use context-aware response synthesis for intelligent analysis
+    print("[LLM ANALYSIS] Using context-aware synthesis engine")
+    analysis_prompt = get_enhanced_analysis_prompt(user_question, results_sample, query_plan)
 
     print(f"\n[LLM ANALYSIS] Prompt length: {len(analysis_prompt)} chars")
     print(f"[LLM ANALYSIS] Using model: {config.LLM_MODEL}")
@@ -1026,7 +1004,7 @@ Response:"""
         response = client.chat.completions.create(
             model=config.LLM_MODEL,
             messages=[{"role": "user", "content": analysis_prompt}],
-            max_tokens=1500,  # Increased for table generation
+            max_tokens=2000,  # Increased for context-aware analysis with synthesis
             temperature=0.3
         )
 

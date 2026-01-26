@@ -840,6 +840,96 @@ Requires Embedding: false
 
 ---
 
+EXAMPLE 3a - Options Flow (CRITICAL: Use options_flow collection!):
+Question: "Show me stocks with unusual call volume"
+Intent: options_screening
+Collections: ["options_flow"]
+AQL:
+FOR opt IN options_flow
+  FILTER opt.unusual_call_activity == 1 OR opt.call_volume_unusual > 2
+  FILTER opt.date >= DATE_SUBTRACT(DATE_NOW(), 7, "day")
+  SORT opt.call_volume DESC
+  LIMIT 20
+  RETURN {
+    ticker: opt.ticker,
+    date: opt.date,
+    call_volume: opt.call_volume,
+    unusual_ratio: opt.call_volume_unusual,
+    put_call_ratio: opt.put_call_volume_ratio,
+    iv: opt.iv_avg,
+    stock_price: opt.stock_price
+  }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ Use options_flow collection (NOT MarketData!)
+✅ Filter by unusual_call_activity flag or call_volume_unusual ratio
+✅ Options data is only available from 2026-01-24 onwards (Day 1 baseline)
+⚠️ Unusual activity flags require 20+ days of data to be reliable
+💡 Keywords: "options", "calls", "puts", "sweeps", "unusual activity" → use options_flow
+
+---
+
+EXAMPLE 3b - Futures Prices (CRITICAL: Use UPPERCASE commodity names!):
+Question: "Show me recent crude oil futures prices"
+Intent: commodity_price_lookup
+Collections: ["futures_prices"]
+AQL:
+FOR doc IN futures_prices
+  FILTER doc.commodity == "CRUDE_OIL"
+  SORT doc.date DESC
+  LIMIT 30
+  RETURN {
+    date: doc.date,
+    commodity: doc.commodity,
+    close: doc.close,
+    high: doc.high,
+    low: doc.low,
+    volume: doc.volume,
+    rsi: doc.rsi_14,
+    volatility: doc.daily_range_pct
+  }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ ALWAYS use UPPERCASE commodity names: "CRUDE_OIL", "NATURAL_GAS", "GOLD", "SILVER", "COPPER"
+✅ Use futures_prices collection (NOT MarketData with fake tickers!)
+✅ Available commodities: CRUDE_OIL, NATURAL_GAS, GOLD, SILVER, COPPER, CORN, WHEAT, SOYBEANS
+💡 Keywords: "futures", "commodities", "crude oil", "natural gas", "gold" → use futures_prices
+
+---
+
+EXAMPLE 3c - EIA Energy Data (CRITICAL: Use correct EIA collections!):
+Question: "Show me crude oil inventory levels"
+Intent: energy_fundamental_analysis
+Collections: ["eia_crude_inventory"]
+AQL:
+FOR doc IN eia_crude_inventory
+  FILTER doc.product-name == "Crude Oil"
+  SORT doc.report_date DESC
+  LIMIT 20
+  RETURN {
+    date: doc.report_date,
+    value: doc.value,
+    change: doc.change_from_previous,
+    pct_change: doc.pct_change,
+    units: doc.units,
+    series: doc.series-description
+  }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ Use eia_crude_inventory for crude oil inventory (NOT MarketData!)
+✅ Use eia_natgas_storage for natural gas storage (NOT MarketData with ticker='NATGAS'!)
+✅ Use eia_natgas_production for natural gas production
+✅ Field names have hyphens: product-name, series-description, area-name
+💡 Keywords: "inventory", "storage", "production", "EIA", "crude stocks" → use EIA collections
+
+---
+
 EXAMPLE 4 - Award Semantic Search (OPTIMIZED FOR PERFORMANCE):
 Question: "Find awards related to artificial intelligence"
 Intent: semantic_search
@@ -925,7 +1015,34 @@ Requires Embedding: false
 
 ---
 
-EXAMPLE 7 - Graph Traversal (Company -> Awards):
+EXAMPLE 7 - Awards by Company Name (CRITICAL: Use CONTAINS pattern!):
+Question: "Show me Lockheed Martin's government contracts"
+Intent: award_lookup_by_company_name
+Collections: ["Award"]
+AQL:
+FOR doc IN Award
+  FILTER CONTAINS(LOWER(doc.recipient_name), 'lockheed')
+  SORT doc.award_amount_float DESC
+  LIMIT 20
+  RETURN {
+    recipient: doc.recipient_name,
+    amount: doc.award_amount_float,
+    agency: doc.awarding_agency,
+    start_date: doc.start_date,
+    description: SUBSTRING(doc.description, 0, 200)
+  }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ Use CONTAINS(LOWER(...), 'keyword') for flexible matching
+✅ Never use exact == match on recipient_name (names have variations!)
+✅ Common variations: "LOCKHEED MARTIN CORP", "LOCKHEED MARTIN CORPORATION", "LOCKHEED MARTIN", etc.
+💡 This works better than graph traversal when you don't know the ticker
+
+---
+
+EXAMPLE 7b - Graph Traversal (Company -> Awards):
 Question: "Show me awards for ticker DG"
 Intent: graph_traversal
 Collections: ["Company", "Award"]
@@ -2254,6 +2371,39 @@ WRONG → CORRECT
 - eia_crude → eia_crude_inventory
 - eia_natgas → eia_natgas_storage (for storage data)
 - eia_gas_production → eia_natgas_production
+
+⚠️ CRITICAL: COMMODITY NAMES (futures_prices.commodity field)
+ALWAYS use UPPERCASE with UNDERSCORES:
+- "crude oil" → "CRUDE_OIL" (UPPERCASE!)
+- "natural gas" → "NATURAL_GAS" (UPPERCASE!)
+- "gold" → "GOLD"
+- "silver" → "SILVER"
+- "copper" → "COPPER"
+- "corn" → "CORN"
+- "wheat" → "WHEAT"
+- "soybeans" → "SOYBEANS"
+
+⚠️ CRITICAL: OPTIONS vs MARKET DATA
+When user asks about OPTIONS activity, use options_flow collection:
+- "unusual call volume" → options_flow (NOT MarketData!)
+- "put/call ratio" → options_flow.put_call_volume_ratio
+- "option sweeps" → options_flow.potential_call_sweep
+- "implied volatility" → options_flow.iv_avg
+- "options activity" → options_flow (NOT MarketData!)
+
+⚠️ CRITICAL: EIA DATA COLLECTIONS
+When user asks about energy inventory/storage:
+- "crude oil inventory" → eia_crude_inventory (NOT MarketData!)
+- "natural gas storage" → eia_natgas_storage (NOT MarketData!)
+- "natural gas production" → eia_natgas_production
+- "LNG exports" → eia_lng_exports
+NEVER use MarketData with ticker='NATGAS' or ticker='CRUDE' - these don't exist!
+
+⚠️ CRITICAL: RECIPIENT NAME VARIATIONS (Award collection)
+Common company name variations in Award.recipient_name:
+- "Lockheed Martin" search → Use CONTAINS(LOWER(doc.recipient_name), 'lockheed')
+- Never use exact match like == "LOCKHEED MARTIN CORPORATION" (may not match!)
+- Recipient names have variations: "LOCKHEED MARTIN CORP", "LOCKHEED MARTIN CORPORATION", etc.
 
 ⚠️ SEC FORM TYPES (Use Case Guide):
 
