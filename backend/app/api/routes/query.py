@@ -15,6 +15,7 @@ from slowapi.util import get_remote_address
 from app.database.connection import get_db, execute_aql, fix_aql_query
 from app.llm.planning import plan_query_with_llm, quick_intent_check, get_query_embedding, generate_follow_up_questions, analyze_results_with_llm
 from app.llm.web_search import classify_query_intent, search_web_context, synthesize_hybrid_response
+from app.llm.query_validation import execute_with_validation
 from app.cache import query_cache
 from app.analytics import log_user_query, get_daily_spend
 from app.utils.cost_estimator import estimate_query_cost_simple
@@ -270,10 +271,22 @@ def execute_db_query(question: str, conversation_history: list = None):
         if fixed_query is None:
             return None, None, "Query contains unfixable errors"
 
-        results, error = execute_aql(fixed_query, bind_vars)
+        # Industry standard: Use validation loop with EXPLAIN API
+        print("[QUERY VALIDATION] Executing query with validation and retry loop")
+        results, error, validation_stats = execute_with_validation(
+            aql_query=fixed_query,
+            bind_vars=bind_vars,
+            question=question,
+            query_plan=query_plan,
+            max_retries=2
+        )
 
         if error:
             return None, None, f"Query execution error: {error}"
+
+        # Add validation stats to query plan for debugging
+        query_plan['validation_stats'] = validation_stats
+        print(f"[QUERY VALIDATION] Success after {validation_stats['attempts']} attempts")
 
         return results, query_plan, None
 

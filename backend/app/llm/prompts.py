@@ -907,16 +907,14 @@ Intent: energy_fundamental_analysis
 Collections: ["eia_crude_inventory"]
 AQL:
 FOR doc IN eia_crude_inventory
-  FILTER doc.product-name == "Crude Oil"
+  FILTER doc.`product-name` == "Crude Oil"
   SORT doc.report_date DESC
   LIMIT 20
   RETURN {
     date: doc.report_date,
     value: doc.value,
-    change: doc.change_from_previous,
-    pct_change: doc.pct_change,
-    units: doc.units,
-    series: doc.series-description
+    area: doc.`area-name`,
+    series: doc.`series-description`
   }
 Bind Variables: {}
 Requires Embedding: false
@@ -925,8 +923,37 @@ Strategy:
 ✅ Use eia_crude_inventory for crude oil inventory (NOT MarketData!)
 ✅ Use eia_natgas_storage for natural gas storage (NOT MarketData with ticker='NATGAS'!)
 ✅ Use eia_natgas_production for natural gas production
-✅ Field names have hyphens: product-name, series-description, area-name
+✅ CRITICAL: Hyphenated fields MUST use backticks: doc.`product-name`, doc.`area-name`, doc.`series-description`
+✅ WRONG: doc.product-name (AQL interprets as subtraction!)
 💡 Keywords: "inventory", "storage", "production", "EIA", "crude stocks" → use EIA collections
+
+---
+
+EXAMPLE 3d - CFTC Commodity Positions (CRITICAL: Use commodity_positions for "positions" queries!):
+Question: "Show me companies with crude oil positions"
+Intent: cftc_positioning_analysis
+Collections: ["Company", "commodity_positions"]
+Edges: ["HAS_COMMODITY_POSITION"]
+AQL:
+FOR company IN Company
+  FOR position IN OUTBOUND company HAS_COMMODITY_POSITION
+    FILTER CONTAINS(LOWER(position.Market_and_Exchange_Names), "crude oil")
+    COLLECT ticker = company.ticker, company_name = company.company
+    RETURN {
+      ticker: ticker,
+      company: company_name,
+      commodity: "Crude Oil"
+    }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ Use commodity_positions collection for CFTC positioning data
+✅ Keywords: "positions", "crude oil positions", "commodity positions" → use commodity_positions + Company
+✅ Field: Market_and_Exchange_Names contains commodity type (use CONTAINS for flexible match)
+✅ Traverse from Company -> commodity_positions via HAS_COMMODITY_POSITION edge
+✅ NOT futures_prices (that's for price data, not positioning!)
+💡 CFTC = Commitments of Traders reports (weekly positioning data)
 
 ---
 

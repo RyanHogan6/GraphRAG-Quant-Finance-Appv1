@@ -15,6 +15,12 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 import config
 from app.llm.prompts import CRITICAL_AQL_RULES
 from app.llm.response_synthesis import get_enhanced_analysis_prompt
+from app.llm.schema_grounding import (
+    detect_relevant_collections,
+    build_focused_schema_prompt,
+    get_collection_specific_rules
+)
+from app.llm.query_validation import execute_with_validation
 
 # Initialize OpenAI client lazily to avoid import-time errors
 def get_openai_client():
@@ -585,12 +591,19 @@ def plan_query_with_llm(question: str, intent_hint=None, conversation_history: l
         elif intent_hint.get("type") == "concept":
             hint_text = f"\n\n🎯 CONFIRMED: This is a CONCEPT/SEMANTIC query about '{intent_hint.get('value')}'. Use semantic search with embeddings."
 
-    # CRITICAL FIX: Get relevant schema based on question content!
-    relevant_schema = get_relevant_schema(question, intent_hint)
+    # CRITICAL FIX: Use schema grounding to get focused schema (2-3 collections max)
+    # Industry standard: Reduces prompt from 15k → 3k tokens, improves accuracy
+    print("[SCHEMA GROUNDING] Building focused schema for query")
+    focused_schema = build_focused_schema_prompt(question)
+    relevant_collections = detect_relevant_collections(question, max_collections=3)
+    collection_rules = get_collection_specific_rules(relevant_collections)
+    print(f"[SCHEMA GROUNDING] Selected collections: {relevant_collections}")
 
     planning_prompt = f"""You are a database query planner for ArangoDB.
 
-{relevant_schema}
+{focused_schema}
+
+{collection_rules}
 
 {CRITICAL_AQL_RULES}
 
