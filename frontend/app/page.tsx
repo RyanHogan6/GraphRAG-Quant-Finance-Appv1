@@ -1733,6 +1733,78 @@ export default function HomePage() {
         <div className="w-[70%] border-t-2 border-dashed border-gold/10"></div>
       </div>
 
+      {/* About KARGA Section */}
+      <section
+        id="about"
+        className="snap-start px-4 py-8 md:px-6 md:py-12 relative overflow-hidden"
+      >
+        <div className="max-w-5xl mx-auto w-full relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.8 }}
+            className="text-center mb-6"
+          >
+            <h2 className="text-2xl md:text-3xl font-bold text-gold mb-2">About KARGA</h2>
+            <p className="text-sm md:text-base text-gray-400 max-w-2xl mx-auto">
+              AI-powered financial intelligence across equities, commodities, options, contracts, filings, and prediction markets
+            </p>
+          </motion.div>
+
+          <div className="space-y-6">
+            {/* Overview */}
+            <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
+              <p className="text-base md:text-lg text-gray-300 leading-relaxed mb-4">
+                KARGA combines <span className="text-gold font-semibold">Knowledge Graphs</span>, <span className="text-gold font-semibold">Retrieval Augmented Generation</span>, and <span className="text-gold font-semibold">Semantic Search</span> to provide real-time financial intelligence.
+              </p>
+              <p className="text-sm md:text-base text-gray-400 leading-relaxed">
+                Ask questions in natural language. GPT-4 generates precise AQL graph queries across 19 interconnected collections (2M+ documents, 22 edge types). Detect insider trading with daily options flow monitoring, correlate commodity prices with company exposure, analyze sentiment from 7.5K SEC filings, and track whale positioning across 18K prediction markets.
+              </p>
+            </div>
+
+            {/* Key Features Grid - Without Emojis */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-dark-800 border border-gold/30 rounded-lg p-4 md:p-5 hover:border-gold/60 transition-all">
+                <h3 className="text-base md:text-lg font-semibold text-gold mb-2">Multi-Source Data</h3>
+                <p className="text-xs md:text-sm text-gray-400 leading-relaxed">
+                  S&P 500 stocks, government contracts, options flow, commodity futures, EIA energy data, SEC filings, prediction markets, CFTC positioning, and FRED economic indicators—19 collections connected by 22 edge types.
+                </p>
+              </div>
+
+              <div className="bg-dark-800 border border-gold/30 rounded-lg p-4 md:p-5 hover:border-gold/60 transition-all">
+                <h3 className="text-base md:text-lg font-semibold text-gold mb-2">AI Query Generation</h3>
+                <p className="text-xs md:text-sm text-gray-400 leading-relaxed">
+                  GPT-4 converts natural language into optimized AQL graph queries with semantic search, multi-hop traversals across 22 edge types, insider trading detection, and parallel web search execution.
+                </p>
+              </div>
+
+              <div className="bg-dark-800 border border-gold/30 rounded-lg p-4 md:p-5 hover:border-gold/60 transition-all">
+                <h3 className="text-base md:text-lg font-semibold text-gold mb-2">Blazing Fast</h3>
+                <p className="text-xs md:text-sm text-gray-400 leading-relaxed">
+                  Query 2M+ documents with 50ms graph traversals. ArangoDB parallel execution + Perplexity web search delivers complete answers in under 3 seconds.
+                </p>
+              </div>
+            </div>
+
+            {/* CTA Button */}
+            <div className="text-center pt-2">
+              <a
+                href="/about"
+                className="inline-block px-6 md:px-8 py-2 md:py-3 bg-gold/20 border-2 border-gold/40 rounded-lg text-gold font-semibold hover:bg-gold/30 hover:border-gold/60 transition-all text-sm md:text-base"
+              >
+                Technical Deep Dive →
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section Divider */}
+      <div className="w-full flex items-center justify-center py-8" >
+        <div className="w-[70%] border-t-2 border-dashed border-gold/10"></div>
+      </div>
+
       {/* Graph Architecture Visualization */}
       <section
         ref={graphVizRef}
@@ -2092,120 +2164,6 @@ export default function HomePage() {
               </motion.div>
             )
           }
-        </div>
-      </section>
-
-      {/* Section Divider */}
-      <div className="w-full flex items-center justify-center py-8">
-        <div className="w-[70%] border-t-2 border-dashed border-gold/10"></div>
-      </div>
-
-      {/* About Section */}
-      <section
-        id="about"
-        className="min-h-screen snap-start flex flex-col justify-center px-4 py-8 md:px-6 md:py-12 relative overflow-hidden"
-      >
-        <div className="max-w-5xl mx-auto w-full relative z-10 px-2 md:px-0">
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.3 }}
-            transition={{ duration: 0.8 }}
-          >
-            <h2 className="text-3xl md:text-5xl font-bold text-gold mb-8 text-center font-mono tracking-tight">About KARGA</h2>
-
-            <div className="space-y-6 md:space-y-8">
-              {/* Overview */}
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-8">
-                <p className="text-lg md:text-xl text-gray-300 leading-relaxed mb-4 font-light">
-                  KARGA combines <span className="text-gold font-semibold">Knowledge Graphs</span>, <span className="text-gold font-semibold">Retrieval Augmented Generation</span>, and <span className="text-gold font-semibold">Semantic Search</span> to provide AI-powered financial intelligence across equities, commodities, options, contracts, filings, and prediction markets.
-                </p>
-                <p className="text-base md:text-lg text-gray-400 leading-relaxed font-light">
-                  Ask questions in natural language, and GPT-4 generates precise AQL graph queries across 19 interconnected collections (2M+ documents, 22 edge types)—no hallucinations, only real data. Detect insider trading with daily options flow monitoring, correlate commodity prices with company exposure via direct graph edges, analyze sentiment from 7.5K SEC filings, and track whale positioning across 18K prediction markets.
-                </p>
-              </div>
-
-              {/* Key Features Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-                <div className="bg-dark-800 border border-gold/30 rounded-lg p-4 md:p-6 hover:border-gold/60 transition-all">
-                  <div className="text-3xl mb-3">📊</div>
-                  <h3 className="text-lg font-semibold text-gold mb-2">Multi-Source Data</h3>
-                  <p className="text-sm text-gray-400 font-light leading-relaxed">
-                    S&P 500 stocks (2M+ OHLCV records), government contracts (500K+), options flow (612 tickers daily), commodity futures (64K CME prices), EIA energy data (crude/natgas inventory), SEC filings (12 form types), prediction markets (18K+ Polymarket/Kalshi), CFTC positioning, and FRED economic indicators—19 collections connected by 22 edge types in one unified knowledge graph.
-                  </p>
-                </div>
-
-                <div className="bg-dark-800 border border-gold/30 rounded-lg p-4 md:p-6 hover:border-gold/60 transition-all">
-                  <div className="text-3xl mb-3">🤖</div>
-                  <h3 className="text-lg font-semibold text-gold mb-2">AI Query Generation</h3>
-                  <p className="text-sm text-gray-400 font-light leading-relaxed">
-                    GPT-4 converts natural language into optimized AQL graph queries with semantic search (cosine similarity on 1536-dim embeddings), multi-hop traversals across 22 edge types (e.g., Company → COMPANY_TRADES_COMMODITY → futures_prices → INVENTORY_AFFECTS_PRICE → eia_crude_inventory), insider trading detection via OPTIONS_BEFORE_AWARD/FILING edges, and parallel web search execution.
-                  </p>
-                </div>
-
-                <div className="bg-dark-800 border border-gold/30 rounded-lg p-4 md:p-6 hover:border-gold/60 transition-all">
-                  <div className="text-3xl mb-3">⚡</div>
-                  <h3 className="text-lg font-semibold text-gold mb-2">Blazing Fast</h3>
-                  <p className="text-sm text-gray-400 font-light leading-relaxed">
-                    Query 2M+ OHLCV records, 500K+ government contracts, 64K commodity futures, 7.5K SEC filings, 18K+ prediction markets, and 612 daily options flow records with 50ms graph traversals. ArangoDB parallel execution + Perplexity web search delivers complete answers in under 3 seconds.
-                  </p>
-                </div>
-              </div>
-
-              {/* Architecture Preview */}
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
-                <h3 className="text-lg md:text-xl font-semibold text-gold mb-3 md:mb-4">How It Works</h3>
-                <div className="space-y-2 md:space-y-3 text-xs md:text-sm text-gray-400 font-light">
-                  <div className="flex items-start">
-                    <span className="text-green-400 font-semibold mr-3 mt-1">1.</span>
-                    <div>
-                      <strong className="text-gray-300">Intent Detection:</strong> GPT-4 classifies your query (ticker lookup, concept search, multi-hop graph traversal, insider trading detection, commodity correlation, etc.)
-                    </div>
-                  </div>
-                  <div className="flex items-start">
-                    <span className="text-blue-400 font-semibold mr-3 mt-1">2.</span>
-                    <div>
-                      <strong className="text-gray-300">Query Planning:</strong> AI generates optimized AQL (ArangoDB Query Language) with graph traversals across 22 edge types, semantic search using cosine similarity on 1536-dim embeddings (Award descriptions, Polymarket questions), and joins across 19 collections
-                    </div>
-                  </div>
-                  <div className="flex items-start">
-                    <span className="text-purple-400 font-semibold mr-3 mt-1">3.</span>
-                    <div>
-                      <strong className="text-gray-300">Parallel Execution:</strong> ArangoDB graph query (50ms traversals across 2M+ docs) + Perplexity web search run simultaneously. Graph queries use OUTBOUND/INBOUND edges (e.g., Company → COMPANY_TRADES_COMMODITY → futures_prices → INVENTORY_AFFECTS_PRICE → eia_crude_inventory)
-                    </div>
-                  </div>
-                  <div className="flex items-start">
-                    <span className="text-orange-400 font-semibold mr-3 mt-1">4.</span>
-                    <div>
-                      <strong className="text-gray-300">Synthesis:</strong> GPT-4 merges database results (historical data, graph relationships, sentiment scores, positioning data) with real-time web context, providing analysis, insights, and follow-up questions
-                    </div>
-                  </div>
-                  <div className="flex items-start">
-                    <span className="text-amber-400 font-semibold mr-3 mt-1">5.</span>
-                    <div>
-                      <strong className="text-gray-300">Insider Trading Detection:</strong> Options flow pipeline tracks 612 tickers daily, building 20-day baselines to detect unusual call/put activity before contract awards (OPTIONS_BEFORE_AWARD edge) and SEC filings (OPTIONS_BEFORE_FILING edge)
-                    </div>
-                  </div>
-                  <div className="flex items-start">
-                    <span className="text-teal-400 font-semibold mr-3 mt-1">6.</span>
-                    <div>
-                      <strong className="text-gray-300">Commodity Analysis:</strong> Direct company-to-commodity links via COMPANY_TRADES_COMMODITY (501K edges, 49 companies), enriched with CFTC positioning data, EIA inventory reports (crude oil, natural gas, LNG), and FRED macro indicators
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* CTA */}
-              <div className="text-center">
-                <a
-                  href="/about"
-                  className="inline-block px-6 md:px-8 py-3 md:py-4 bg-gold/20 border-2 border-gold/40 rounded-lg text-gold font-semibold hover:bg-gold/30 hover:border-gold/60 transition-all text-base md:text-lg"
-                >
-                  View Full Technical Deep-Dive →
-                </a>
-              </div>
-            </div>
-          </motion.div>
         </div>
       </section>
 
