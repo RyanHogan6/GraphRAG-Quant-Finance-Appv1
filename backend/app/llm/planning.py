@@ -897,8 +897,19 @@ def detect_time_series_query(results: list, query_plan: dict):
     if not results:
         return False
 
-    # Check if results have time series characteristics
     first_result = results[0]
+
+    # CRITICAL: If this is a company overview with nested structure, it's NOT a time series query
+    # Company overview has nested arrays: MarketData, sec_filings, Award, options_flow
+    has_nested_market_data = isinstance(first_result.get('MarketData'), list)
+    has_nested_filings = isinstance(first_result.get('sec_filings'), list)
+    has_company_info = 'ticker' in first_result and 'company' in first_result
+
+    if has_nested_market_data or (has_nested_filings and has_company_info):
+        # This is a comprehensive company workup, not a simple time series
+        return False
+
+    # Check if results have time series characteristics (flat MarketData records)
     has_date = 'date' in first_result
     has_price_fields = any(field in first_result for field in ['close', 'open', 'high', 'low', 'price', 'volume'])
 

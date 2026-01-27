@@ -245,7 +245,23 @@ def generate_context_aware_prompt(
 
 **User Question:** "{user_question}"
 
-**Analysis Type:** {analysis_type.replace('_', ' ').title()}
+**Analysis Type:** {analysis_type.replace('_', ' ').title()}"""
+
+    # Add NO TABLE warning at the top for company overview
+    if analysis_type == "company_overview":
+        prompt += """
+
+🚨🚨🚨 CRITICAL WARNING FOR COMPANY OVERVIEW QUERIES 🚨🚨🚨
+DO NOT CREATE ANY MARKDOWN TABLES IN YOUR RESPONSE!
+The frontend already displays all company data with interactive charts.
+Your response should ONLY be natural language paragraphs and bullet points.
+NO TABLES WITH | pipes or --- separators!
+🚨🚨🚨 END WARNING 🚨🚨🚨
+"""
+
+    prompt += f"""
+
+**Data Retrieved:** {result_count} results from {', '.join(query_plan.get('collections', []))}
 
 **Data Retrieved:** {result_count} results from {', '.join(query_plan.get('collections', []))}
 
@@ -283,8 +299,11 @@ def generate_context_aware_prompt(
     else:
         prompt += """
 2. **Provide Domain-Specific Intelligence Synthesis**
-   ⚠️ DO NOT CREATE A TABLE - The frontend already displays full company data!
-   Instead, provide a concise 4-sentence AI intelligence summary that synthesizes:
+   🚨 CRITICAL: DO NOT CREATE ANY TABLES OR FORMATTED DATA! 🚨
+   🚨 NO MARKDOWN TABLES (|---|---) ALLOWED! 🚨
+   🚨 The frontend CompanyWorkup component already displays ALL company data with interactive charts! 🚨
+
+   Your ONLY job is to write a natural language paragraph (4-5 sentences) that synthesizes the key insights:
 """
 
     prompt += """   - Apply the novelty checks listed above
@@ -325,14 +344,26 @@ def generate_context_aware_prompt(
 
     if analysis_type == "company_overview":
         prompt += """
+
+🚨 COMPANY OVERVIEW FORMAT (NO TABLES!) 🚨
+
+❌ DO NOT DO THIS:
+| Date | Close Price | Volume |
+|------|-------------|--------|
+| 2025-12-31 | $26.06 | 1.2M |
+
+✅ DO THIS INSTEAD:
 ## AI Intelligence Summary
-[4-sentence synthesis covering price action, fundamentals, corporate signals, smart money]
+
+[Write a flowing paragraph synthesizing the data - NO TABLES!]
+
+Apple has declined approximately 8.5% over the past month, closing at $248.04 as of January 23, 2026, down from its end-of-year price of $271.86. The stock shows structural momentum with technical indicators suggesting... Recent SEC filings indicate bearish sentiment with BIAS scores of -0.244 and -0.274... Options activity remains within normal ranges with no unusual volume spikes... The company maintains strong fundamentals with 34.78% revenue growth and 22.96% profit margins.
 
 ## Key Insights
 - [Technical/price signal]
 - [Fundamental strength/weakness]
-- [Corporate development (filing/award/options)]
-- [Smart money signal or risk factor]
+- [Corporate development]
+- [Smart money signal]
 """
     else:
         prompt += """
