@@ -158,12 +158,16 @@ def detect_analysis_type(user_question: str, query_plan: dict, results: List[Dic
             return "company_overview"
 
     # Also detect company overview by question pattern
-    company_patterns = ['show me', 'tell me about', 'overview', 'analysis of', 'info on', 'information about']
+    company_patterns = ['show me', 'tell me about', 'overview', 'analysis of', 'info on', 'information about', 'stock data']
     if any(pattern in question_lower for pattern in company_patterns):
-        # Check if question is about a single ticker (2-5 uppercase letters)
+        # Check if question is about a company name or ticker
         import re
-        ticker_match = re.search(r'\b[A-Z]{1,5}\b', question_lower.upper())
-        if ticker_match and len(question_lower.split()) <= 8:
+        # Look for ticker pattern in the original question (not lowercased)
+        ticker_match = re.search(r'\b[A-Z]{1,5}\b', user_question)
+        # Also check for company names (proper case words after "show me" or "tell me about")
+        company_name_match = re.search(r'(show me|tell me about|info on|information about)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)', user_question, re.IGNORECASE)
+
+        if (ticker_match and len(question_lower.split()) <= 12) or company_name_match:
             return "company_overview"
 
     # Check for multi-source queries

@@ -704,14 +704,14 @@ export default function HomePage() {
     }
   }
 
-  // Optimized suggested questions - all guaranteed <2s response time
+  // Optimized suggested questions - showcase multi-source intelligence
   const suggestedQuestions = [
-    'Show me the top 10 largest government contracts',
-    'What are the most active Polymarket prediction markets?',
-    'Show me Apple stock data for the last 30 days',
-    'Find government contracts over $1 billion',
-    'What was TSLA stock price on October 4th, 2022?',
-    'Show me the most recent 10-K filings',
+    'Find defense contractors with unusual options activity before major awards',
+    'Show me energy companies vs crude oil futures prices last 90 days',
+    'What stocks have negative SEC sentiment but bullish options flow?',
+    'Compare natural gas storage levels to futures prices',
+    'Find tech companies with large government contracts and recent filings',
+    'Show me gold prices during high inflation periods',
   ]
 
   // Debounce search input (500ms delay)
