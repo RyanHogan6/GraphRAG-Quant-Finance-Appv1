@@ -14,6 +14,7 @@ import QueryBuilder from '../components/QueryBuilder'
 import WhaleTracker from '@/components/WhaleTracker'
 import CompanyWorkup from '@/components/CompanyWorkup'
 import CompanyCompare from '@/components/CompanyCompare'
+import EnrichedResultsDisplay from '@/components/EnrichedResultsDisplay'
 import Navigation from '@/components/Navigation'
 import DataSourceAttribution from '@/components/DataSourceAttribution'
 import ComplexQueryGallery from '@/components/ComplexQueryGallery'
@@ -1229,6 +1230,12 @@ export default function HomePage() {
                           const result = message.results[0];
                           const isWorkup = (r: any) => r.ticker && (r.MarketData || r.sec_filings || r.prediction_markets_polymarket || r.Award);
 
+                          // Check if this is a VQB enriched result (has ticker + at least one enrichment)
+                          const isEnriched = (r: any) => r.ticker && (
+                            r.options_flow || r.Award || r.sec_filings || r.prediction_markets_polymarket || r.futures_prices
+                          );
+                          const singleEnriched = message.results.length === 1 && isEnriched(result);
+
                           const singleWorkup = message.results.length === 1 && isWorkup(result);
                           const doubleCompare = message.results.length === 2 && isWorkup(message.results[0]) && isWorkup(message.results[1]);
 
@@ -1239,6 +1246,18 @@ export default function HomePage() {
                                   Comparative Market Intelligence Report
                                 </div>
                                 <CompanyCompare companyA={message.results[0]} companyB={message.results[1]} />
+                              </div>
+                            );
+                          }
+
+                          // Use EnrichedResultsDisplay for VQB enriched results
+                          if (singleEnriched && message.queryPlan?.intent === 'builder_execution') {
+                            return (
+                              <div className="mt-2">
+                                <div className="text-[10px] text-gold uppercase font-bold tracking-widest opacity-70 mb-4">
+                                  Enriched Intelligence Report
+                                </div>
+                                <EnrichedResultsDisplay data={result} question={message.content} />
                               </div>
                             );
                           }
