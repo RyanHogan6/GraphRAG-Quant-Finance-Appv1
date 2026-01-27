@@ -233,8 +233,8 @@ def generate_context_aware_prompt(
 
     strategy = ANALYSIS_STRATEGIES.get(analysis_type, {})
 
-    # Sample results (limit to avoid token overload)
-    results_sample = results[:10] if len(results) > 10 else results
+    # Note: results are already trimmed by trim_results_for_llm() in planning.py
+    # No need to trim again here
     result_count = len(results)
 
     # Check for novelty
@@ -283,7 +283,7 @@ YOUR JOB: Write ONLY natural language analysis (paragraphs + bullet points)
 **Data Retrieved:** {result_count} results from {', '.join(query_plan.get('collections', []))}
 
 **Results Sample:**
-{json.dumps(results_sample, indent=2)}
+{json.dumps(results, indent=2)}
 
 **Analysis Focus:** {strategy.get('focus', 'General data analysis')}
 

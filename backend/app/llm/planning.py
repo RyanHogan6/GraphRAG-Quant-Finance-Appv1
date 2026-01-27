@@ -1000,6 +1000,85 @@ def format_time_series_analysis(user_question: str, results: list, query_plan: d
     return "Unable to analyze price data."
 
 
+def trim_results_for_llm(results: list, max_results: int = 10, max_tokens: int = 20000) -> list:
+    """
+    Intelligently trim query results to fit within token limits.
+
+    Strategy:
+    1. Limit number of results
+    2. Remove/truncate large nested structures
+    3. Keep only essential fields for analysis
+    4. Estimate tokens and reduce further if needed
+    """
+    if not results:
+        return results
+
+    # Step 1: Limit number of results
+    trimmed = results[:max_results]
+
+    # Step 2: Trim each result
+    cleaned_results = []
+    for result in trimmed:
+        cleaned = {}
+
+        for key, value in result.items():
+            # Skip internal fields
+            if key.startswith('_'):
+                continue
+
+            # Handle nested arrays (MarketData, sec_filings, etc.)
+            if isinstance(value, list):
+                if len(value) > 0:
+                    # Keep only first 3 items from nested arrays
+                    # And remove large text fields
+                    trimmed_array = []
+                    for item in value[:3]:
+                        if isinstance(item, dict):
+                            # Keep only small fields
+                            small_item = {k: v for k, v in item.items()
+                                         if not k.startswith('_')
+                                         and not isinstance(v, list)
+                                         and (not isinstance(v, str) or len(v) < 200)}
+                            trimmed_array.append(small_item)
+                        else:
+                            trimmed_array.append(item)
+
+                    cleaned[key] = trimmed_array
+                    # Add count to show how much data exists
+                    cleaned[f"{key}_count"] = len(value)
+                else:
+                    cleaned[key] = []
+
+            # Handle large text fields
+            elif isinstance(value, str) and len(value) > 500:
+                # Truncate long text (like descriptions)
+                cleaned[key] = value[:500] + "..."
+
+            # Handle normal fields
+            else:
+                cleaned[key] = value
+
+        cleaned_results.append(cleaned)
+
+    # Step 3: Rough token estimation (1 token ≈ 4 chars)
+    estimated_tokens = len(json.dumps(cleaned_results)) / 4
+
+    print(f"[TRIM] Results: {len(results)} → {len(cleaned_results)}, Est. tokens: {estimated_tokens:.0f}")
+
+    # Step 4: If still too large, reduce further
+    if estimated_tokens > max_tokens and len(cleaned_results) > 3:
+        # Reduce to 5 results
+        cleaned_results = cleaned_results[:5]
+        print(f"[TRIM] Still too large, reduced to 5 results")
+
+    if estimated_tokens > max_tokens and len(cleaned_results) > 1:
+        # Last resort: reduce to 3 results
+        cleaned_results = cleaned_results[:3]
+        print(f"[TRIM] Still too large, reduced to 3 results")
+
+    return cleaned_results
+
+
 def strip_markdown_tables(text: str) -> str:
     """
     Remove markdown tables from text.
@@ -1073,14 +1152,27 @@ def analyze_results_with_llm(user_question: str, results: list, query_plan: dict
         return format_time_series_analysis(user_question, results, query_plan)
 
     # Limit results sample for LLM analysis (avoid token limits)
-    results_sample = results[:10] if len(results) > 10 else results
+    # Use smart trimming to stay under OpenAI's 30k token limit
+    results_sample = trim_results_for_llm(results, max_results=10)
     result_count = len(results)
 
     # Use context-aware response synthesis for intelligent analysis
     print("[LLM ANALYSIS] Using context-aware synthesis engine")
+    print(f"[LLM ANALYSIS] Trimmed {len(results)} results to {len(results_sample)} for analysis")
     analysis_prompt = get_enhanced_analysis_prompt(user_question, results_sample, query_plan)
 
-    print(f"\n[LLM ANALYSIS] Prompt length: {len(analysis_prompt)} chars")
+    prompt_tokens = len(analysis_prompt) / 4  # Rough estimate: 1 token ≈ 4 chars
+    print(f"\n[LLM ANALYSIS] Prompt length: {len(analysis_prompt)} chars (~{prompt_tokens:.0f} tokens)")
+
+    # Safety check: If prompt is still too large, truncate the results JSON
+    if prompt_tokens > 25000:
+        print(f"[LLM ANALYSIS] ⚠️ Prompt too large ({prompt_tokens:.0f} tokens), reducing further...")
+        # Emergency trim: only keep 3 results
+        emergency_sample = trim_results_for_llm(results, max_results=3, max_tokens=10000)
+        analysis_prompt = get_enhanced_analysis_prompt(user_question, emergency_sample, query_plan)
+        prompt_tokens = len(analysis_prompt) / 4
+        print(f"[LLM ANALYSIS] Reduced to {prompt_tokens:.0f} tokens")
+
     print(f"[LLM ANALYSIS] Using model: {config.LLM_MODEL}")
     print(f"[LLM ANALYSIS] OpenAI API key set: {bool(config.OPENAI_API_KEY)}")
     print(f"[LLM ANALYSIS] Calling OpenAI...")
@@ -1121,8 +1213,39 @@ def analyze_results_with_llm(user_question: str, results: list, query_plan: dict
         print(f"\n[LLM ANALYSIS] ✗ ERROR calling OpenAI!")
         print(f"[LLM ANALYSIS] Error type: {type(e).__name__}")
         print(f"[LLM ANALYSIS] Error message: {str(e)}")
+
+        # Check if it's a rate limit error (429)
+        error_str = str(e).lower()
+        if '429' in error_str or 'rate_limit' in error_str or 'tokens per min' in error_str:
+            print(f"[LLM ANALYSIS] Rate limit error detected - query returned too much data")
+            return f"""## Query Results ({result_count} records found)
+
+**⚠️ Results too large for AI analysis**
+
+This query returned {result_count} results with detailed data that exceeded OpenAI's token limit (30,000 tokens per request).
+
+**What happened:**
+The query successfully retrieved data from the database, but the response was too large to analyze with AI. This typically happens with queries that return:
+- Many records (>100)
+- Records with nested data (company details, market data arrays, etc.)
+- Long text fields (descriptions, contract details)
+
+**Suggestions:**
+1. **Narrow your search** - Add more filters (date range, amount threshold, specific companies)
+2. **Request specific fields** - Instead of "with company details", ask for specific info
+3. **Use pagination** - Ask for "top 10" or "first 20" results
+4. **Try simpler queries** - Break complex queries into smaller parts
+
+**Example refined queries:**
+- "Show me the top 10 largest government contracts over $100M in 2025"
+- "Find contracts over $100M for defense sector companies"
+- "List contracts over $100M awarded to Lockheed Martin"
+
+**Raw result count:** {result_count} contracts found"""
+
         print(f"[LLM ANALYSIS] Falling back to simple JSON formatting")
         print("="*80 + "\n")
+
         # Fallback to simple formatting
         return f"Found {result_count} results. Here's a summary:\n\n" + "\n".join([f"- {json.dumps(r)[:100]}..." for r in results_sample[:5]])
 
