@@ -40,6 +40,19 @@ CRITICAL_AQL_RULES = """
    Example: "What are the most negative SEC filings this year?"
    → FILTER filing.filing_date >= DATE_SUBTRACT(DATE_NOW(), 365, "day")
 
+   ⚠️ CRITICAL PREDICTION MARKET FILTERING RULE:
+   When querying prediction_markets_polymarket or prediction_markets_kalshi:
+   ✅ ALWAYS filter out closed/expired markets UNLESS user specifically asks for "all" or "closed" markets
+   ✅ For Polymarket: FILTER market.closed == false
+   ✅ For Kalshi: FILTER market.status == "active"
+   ✅ ALWAYS include end_date/close_time in RETURN to show when market expires
+
+   Examples:
+   - "Show me top Polymarket markets" → FILTER market.closed == false
+   - "Top Kalshi markets by volume" → FILTER market.status == "active"
+   - "Find prediction markets about Tesla" → FILTER market.closed == false (Polymarket)
+   ❌ NEVER show expired markets in top/active market queries
+
 2. ORDER OF OPERATIONS:
    FOR → FILTER → SORT → LIMIT → RETURN
    (SORT/LIMIT must come BEFORE RETURN)
