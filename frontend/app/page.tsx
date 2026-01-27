@@ -706,13 +706,73 @@ export default function HomePage() {
 
   // Suggested questions - showcase multi-source capabilities with reliable data
   const suggestedQuestions = [
-    'Show me Lockheed Martin with government contracts',
+    'Show me Raytheon with government contracts and recent SEC filings',
     'What are the most negative SEC filings this year?',
     'Find defense contractors with contracts over $500M',
     'Show me crude oil and natural gas futures prices',
     'What prediction markets mention Tesla or Elon Musk?',
     'Compare Apple and Microsoft stock performance',
   ]
+
+  // Generate context-aware follow-up questions based on query and results
+  const generateFollowUpQuestions = (message: Message): string[] => {
+    const content = message.content.toLowerCase()
+    const results = message.results || []
+    const queryPlan = message.queryPlan
+
+    // Check if it's a company overview
+    if (results.length === 1 && results[0].ticker) {
+      const ticker = results[0].ticker
+      return [
+        `What prediction markets mention ${ticker}?`,
+        `Show me ${ticker} options flow activity`,
+        `Compare ${ticker} to its sector peers`,
+      ]
+    }
+
+    // SEC filings queries
+    if (content.includes('sec') || content.includes('filing')) {
+      return [
+        'Show me government contracts for these companies',
+        'What are the most recent 10-K filings?',
+        'Compare SEC sentiment across defense contractors',
+      ]
+    }
+
+    // Government contracts/awards queries
+    if (content.includes('contract') || content.includes('award') || content.includes('government')) {
+      return [
+        'Show me SEC filings for these contractors',
+        'What companies have unusual options activity?',
+        'Compare defense contractor stock performance',
+      ]
+    }
+
+    // Commodity/futures queries
+    if (content.includes('crude') || content.includes('oil') || content.includes('gas') || content.includes('futures')) {
+      return [
+        'Show me energy companies stock performance',
+        'What is natural gas storage vs historical averages?',
+        'Compare gold and silver futures prices',
+      ]
+    }
+
+    // Prediction markets queries
+    if (content.includes('prediction') || content.includes('polymarket') || content.includes('betting')) {
+      return [
+        'Show me the most active prediction markets',
+        'What markets have the highest volume?',
+        'Find markets about tech companies',
+      ]
+    }
+
+    // Default follow-ups
+    return [
+      'Show me recent SEC filings for defense contractors',
+      'What are the largest government contracts this year?',
+      'Compare Apple and Microsoft',
+    ]
+  }
 
   // Debounce search input (500ms delay)
   useEffect(() => {
@@ -1308,6 +1368,33 @@ export default function HomePage() {
                         })()}
                       </div>
                     )}
+
+                    {/* Follow-up Questions - Only for assistant messages */}
+                    {message.role === 'assistant' && !isLoading && idx === messages.length - 1 && (
+                      <div className="mt-4 pt-3 border-t border-gold/20">
+                        <div className="text-xs font-semibold text-gold mb-2">Continue exploring:</div>
+                        <div className="grid grid-cols-1 gap-2">
+                          {generateFollowUpQuestions(message).map((question, qIdx) => (
+                            <button
+                              key={qIdx}
+                              onClick={() => {
+                                setInput(question)
+                                setIsBuilderMode(false)
+                                setTimeout(() => {
+                                  const fakeEvent = { preventDefault: () => {} } as React.FormEvent
+                                  handleSubmit(fakeEvent)
+                                }, 100)
+                              }}
+                              className="bg-dark-800/50 border border-gold/20 rounded-lg p-2 text-left text-xs text-gray-300 hover:border-gold/50 hover:bg-dark-700 transition-all flex items-center gap-2 group"
+                            >
+                              <span className="text-gold opacity-50 group-hover:opacity-100 transition-opacity">→</span>
+                              {question}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {message.webContext && (!!message.webContext.citations?.length || !!message.webContext.sources?.length) && (
                       <div className="mt-4 pt-3 border-t border-gold/20">
                         <div className="text-xs font-semibold text-gold mb-2">Sources:</div>

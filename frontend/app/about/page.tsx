@@ -10,8 +10,7 @@ export default function About() {
         <div className="space-y-16">
           {/* Problem Statement */}
           <section>
-            <h2 className="text-2xl md:text-3xl font-semibold text-gold mb-4 md:mb-6 flex items-center">
-              <span className="text-4xl mr-3">📊</span>
+            <h2 className="text-2xl md:text-3xl font-semibold text-gold mb-4 md:mb-6">
               The Problem
             </h2>
             <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-8">
@@ -30,89 +29,127 @@ export default function About() {
             </div>
           </section>
 
-          {/* Solution */}
+          {/* Why Knowledge Graphs */}
           <section>
-            <h2 className="text-2xl md:text-3xl font-semibold text-gold mb-4 md:mb-6 flex items-center">
-              <span className="text-4xl mr-3">⚡</span>
-              The Solution: KARGA
+            <h2 className="text-2xl md:text-3xl font-semibold text-gold mb-4 md:mb-6">
+              Why Knowledge Graphs?
             </h2>
-            <div className="space-y-6">
-              <p className="text-gray-300 text-base md:text-lg leading-relaxed">
-                KARGA Markets combines three powerful technologies:
-              </p>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-                <div className="bg-dark-800 border border-gold/30 rounded-lg p-4 md:p-6 hover:border-gold/60 transition-all">
-                  <h3 className="text-lg md:text-xl font-semibold text-gold mb-3">1. Knowledge Graphs</h3>
-                  <p className="text-gray-400 text-sm leading-relaxed">
-                    Data stored as interconnected nodes and relationships using ArangoDB, enabling
-                    complex multi-hop queries across disparate data sources in milliseconds.
-                  </p>
-                </div>
-
-                <div className="bg-dark-800 border border-gold/30 rounded-lg p-4 md:p-6 hover:border-gold/60 transition-all">
-                  <h3 className="text-lg md:text-xl font-semibold text-gold mb-3">2. Retrieval Augmented Generation</h3>
-                  <p className="text-gray-400 text-sm leading-relaxed">
-                    AI (GPT-4) generates precise database queries from natural language, then analyzes
-                    results with full context - no hallucination, only real data.
-                  </p>
-                </div>
-
-                <div className="bg-dark-800 border border-gold/30 rounded-lg p-4 md:p-6 hover:border-gold/60 transition-all">
-                  <h3 className="text-lg md:text-xl font-semibold text-gold mb-3">3. Semantic Search</h3>
-                  <p className="text-gray-400 text-sm leading-relaxed">
-                    Vector embeddings enable concept-based search - find "cybersecurity contracts"
-                    even when documents use terms like "network security" or "threat detection."
-                  </p>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+              <div className="bg-dark-800 border border-gold/30 rounded-lg p-4 md:p-6 hover:border-gold/60 transition-all">
+                <h3 className="text-lg md:text-xl font-semibold text-gold mb-3">1. Knowledge Graphs</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  Data stored as interconnected nodes and relationships using ArangoDB, enabling
+                  complex multi-hop queries across disparate data sources in milliseconds.
+                </p>
               </div>
 
-              <div className="mt-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-blue-300 mb-4">Recent Enhancements</h3>
-                <div className="space-y-3 text-sm text-gray-300">
-                  <div className="flex items-start gap-3">
-                    <span className="text-blue-400 font-bold">•</span>
-                    <div>
-                      <strong className="text-blue-300">SEC Sentence Embeddings:</strong> 4.36M sentences from 10-K/10-Q filings
-                      trained with Doc2Vec (300-dim financial domain embeddings) for semantic search over regulatory disclosures
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="text-blue-400 font-bold">•</span>
-                    <div>
-                      <strong className="text-blue-300">Visual Query Builder:</strong> Smart field type detection
-                      (date/number/boolean/text) with date pickers, number inputs, and optimized operator selection
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="text-blue-400 font-bold">•</span>
-                    <div>
-                      <strong className="text-blue-300">Enriched Results Display:</strong> AI inference engine
-                      generates contextual insights from multi-source queries with collapsible drill-down sections
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="text-blue-400 font-bold">•</span>
-                    <div>
-                      <strong className="text-blue-300">Options Flow Detection:</strong> Unusual activity detection
-                      with 20-day baseline averages for insider trading signal identification
-                    </div>
-                  </div>
-                </div>
+              <div className="bg-dark-800 border border-gold/30 rounded-lg p-4 md:p-6 hover:border-gold/60 transition-all">
+                <h3 className="text-lg md:text-xl font-semibold text-gold mb-3">2. Retrieval Augmented Generation</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  AI (GPT-4) generates precise database queries from natural language, then analyzes
+                  results with full context - no hallucination, only real data.
+                </p>
+              </div>
+
+              <div className="bg-dark-800 border border-gold/30 rounded-lg p-4 md:p-6 hover:border-gold/60 transition-all">
+                <h3 className="text-lg md:text-xl font-semibold text-gold mb-3">3. Semantic Search</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  Vector embeddings enable concept-based search - find "cybersecurity contracts"
+                  even when documents use terms like "network security" or "threat detection."
+                </p>
               </div>
             </div>
           </section>
 
-          {/* Architecture Diagram */}
-          <section>
-            <h2 className="text-2xl md:text-3xl font-semibold text-gold mb-4 md:mb-6 flex items-center">
-              <span className="text-4xl mr-3">🔧</span>
-              System Architecture
+          {/* About KARGA - Professional Section */}
+          <section className="bg-gradient-to-br from-dark-800 to-dark-800/50 border border-gold/30 rounded-2xl p-6 md:p-10">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl md:text-3xl font-semibold text-gold">About KARGA</h2>
+              <a
+                href="#system-architecture"
+                className="px-4 py-2 bg-gold/20 border border-gold/40 rounded-lg text-gold text-sm hover:bg-gold/30 hover:border-gold/60 transition-all"
+              >
+                Technical Deep Dive →
+              </a>
+            </div>
+
+            <div className="space-y-6">
+              <p className="text-gray-300 text-base md:text-lg leading-relaxed">
+                KARGA Markets is an AI-powered financial intelligence platform that transforms how analysts interact with multi-source data.
+                Built on a foundation of graph database technology and large language models, KARGA enables natural language queries across
+                traditionally siloed datasets including stock prices, government contracts, SEC filings, prediction markets, commodity futures,
+                and energy data.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-dark-700/50 border border-gold/10 rounded-lg p-5">
+                  <h4 className="text-lg font-semibold text-gold mb-3">Mission</h4>
+                  <p className="text-gray-400 text-sm leading-relaxed">
+                    Democratize access to complex financial analysis by making cross-domain data exploration as simple as asking a question.
+                    No SQL required, no manual data joins, no isolated silos - just intelligence.
+                  </p>
+                </div>
+
+                <div className="bg-dark-700/50 border border-gold/10 rounded-lg p-5">
+                  <h4 className="text-lg font-semibold text-gold mb-3">Technology</h4>
+                  <p className="text-gray-400 text-sm leading-relaxed">
+                    ArangoDB multi-model graph database, OpenAI GPT-4 for query generation and analysis, Next.js 14 frontend,
+                    FastAPI backend, Doc2Vec embeddings for semantic search, and automated data pipelines for daily updates.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-lg p-6">
+                <h3 className="text-xl font-semibold text-blue-300 mb-4">Recent Enhancements</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-300">
+                  <div className="flex items-start gap-3">
+                    <span className="text-blue-400 font-bold">•</span>
+                    <div>
+                      <strong className="text-blue-300">SEC Sentence Embeddings:</strong> 4.36M sentences with Doc2Vec financial domain embeddings
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="text-blue-400 font-bold">•</span>
+                    <div>
+                      <strong className="text-blue-300">Visual Query Builder:</strong> Smart field type detection with optimized operator selection
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="text-blue-400 font-bold">•</span>
+                    <div>
+                      <strong className="text-blue-300">Enriched Results:</strong> AI inference engine with contextual insights
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="text-blue-400 font-bold">•</span>
+                    <div>
+                      <strong className="text-blue-300">Options Flow:</strong> Unusual activity detection with 20-day baselines
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-center pt-4">
+                <a
+                  href="mailto:karga.analytics@gmail.com"
+                  className="text-gold hover:text-gold/80 underline text-sm"
+                >
+                  Contact: karga.analytics@gmail.com
+                </a>
+              </div>
+            </div>
+          </section>
+
+          {/* Graph Architecture */}
+          <section id="system-architecture">
+            <h2 className="text-2xl md:text-3xl font-semibold text-gold mb-4 md:mb-6">
+              Graph Architecture
             </h2>
 
-            <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-8 overflow-x-auto">
-              <pre className="text-xs md:text-sm text-green-400 font-mono leading-relaxed">
-                {`┌─────────────────────────────────────────────────────────────────────┐
+            <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-8">
+              <div className="flex justify-center">
+                <pre className="text-xs md:text-sm text-green-400 font-mono leading-relaxed max-w-full overflow-x-auto">
+{`┌─────────────────────────────────────────────────────────────────────┐
 │                          USER INTERFACE                              │
 │  Next.js 14 + React + Framer Motion + Tailwind CSS                  │
 │  • Natural Language Query Input                                      │
@@ -163,227 +200,14 @@ export default function About() {
 │  • CFTC commodity positions + EIA energy data                        │
 │  • Daily options flow (612 tickers)                                  │
 └───────────────────────────────────────────────────────────────────────┘`}
-              </pre>
-            </div>
-          </section>
-
-          {/* Data Sources */}
-          <section>
-            <h2 className="text-2xl md:text-3xl font-semibold text-gold mb-4 md:mb-6 flex items-center">
-              <span className="text-4xl mr-3">📊</span>
-              Data Sources & Integration
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              {/* Stock Market Data */}
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
-                <h3 className="text-lg md:text-xl font-semibold text-green-400 mb-4">📊 Stock Market Data</h3>
-                <ul className="space-y-2 text-gray-400 text-sm">
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Source:</strong> Yahoo Finance API</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Coverage:</strong> All S&P 500 companies</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Data:</strong> OHLCV, volume, market cap, P/E ratios, technical indicators (SMA, EMA, MACD, RSI, Bollinger Bands)</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Update Frequency:</strong> Daily via Airflow DAG</span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Government Contracts */}
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
-                <h3 className="text-lg md:text-xl font-semibold text-blue-400 mb-4">📋 Government Contracts</h3>
-                <ul className="space-y-2 text-gray-400 text-sm">
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Source:</strong> USASpending.gov API</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Coverage:</strong> Federal contract awards to public companies</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Data:</strong> Award amounts, agencies, descriptions, dates</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Special Feature:</strong> Vector embeddings for semantic search (find "AI contracts" without exact keyword match)</span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Prediction Markets */}
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
-                <h3 className="text-lg md:text-xl font-semibold text-purple-400 mb-4">📈 Prediction Markets</h3>
-                <ul className="space-y-2 text-gray-400 text-sm">
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Sources:</strong> Polymarket API, Kalshi API</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Coverage:</strong> Politics, economics, sports, entertainment</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Data:</strong> Probabilities, volumes, liquidity, traders</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Connection:</strong> Graph edges link markets to mentioned companies (e.g., "Will Tesla reach $300?" → Tesla stock)</span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* SEC Filings */}
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
-                <h3 className="text-lg md:text-xl font-semibold text-orange-400 mb-4">📋 SEC Filings</h3>
-                <ul className="space-y-2 text-gray-400 text-sm">
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Source:</strong> SEC EDGAR API</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Types:</strong> 10-K (annual), 10-Q (quarterly), 8-K (events)</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Processing:</strong> 7.5K filings parsed into 4.36M sentences</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Sentiment:</strong> FinBERT scores for each sentence (-1 to +1)</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Embeddings:</strong> Doc2Vec 300-dim financial domain embeddings for semantic search</span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Economic Indicators */}
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
-                <h3 className="text-lg md:text-xl font-semibold text-cyan-400 mb-4">📊 Economic Indicators</h3>
-                <ul className="space-y-2 text-gray-400 text-sm">
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Source:</strong> Federal Reserve Economic Data (FRED)</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Data:</strong> S&P 500 index, Fed funds rate, unemployment, GDP, yield curves</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Coverage:</strong> Historical time series data</span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Commodity Positions */}
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
-                <h3 className="text-lg md:text-xl font-semibold text-yellow-400 mb-4">📊 Commodity Positions</h3>
-                <ul className="space-y-2 text-gray-400 text-sm">
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Source:</strong> CFTC Commitments of Traders Report</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Data:</strong> Long/short positions by trader type (commercial, non-commercial, retail)</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Commodities:</strong> Oil, gold, wheat, corn, natural gas, etc.</span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Options Flow */}
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
-                <h3 className="text-lg md:text-xl font-semibold text-indigo-400 mb-4">📈 Options Flow</h3>
-                <ul className="space-y-2 text-gray-400 text-sm">
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Source:</strong> Options data via yfinance</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Coverage:</strong> All S&P 500 companies (612 tickers)</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Data:</strong> Call/put volumes, open interest, implied volatility, put/call ratios</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Detection:</strong> Unusual activity flags for potential insider trading signals</span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Futures Prices */}
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
-                <h3 className="text-lg md:text-xl font-semibold text-amber-400 mb-4">🌾 Futures Prices</h3>
-                <ul className="space-y-2 text-gray-400 text-sm">
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Source:</strong> CME Group via yfinance</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Records:</strong> 64,000+ historical prices</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Commodities:</strong> Crude oil, natural gas, gold, silver, copper, corn, wheat, soybeans</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Indicators:</strong> OHLCV data plus technical indicators (RSI, MACD, SMA)</span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* EIA Energy Data */}
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
-                <h3 className="text-lg md:text-xl font-semibold text-emerald-400 mb-4">⚡ EIA Energy Data</h3>
-                <ul className="space-y-2 text-gray-400 text-sm">
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Source:</strong> U.S. Energy Information Administration API</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Data:</strong> Crude oil inventory, natural gas storage, production, LNG exports</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Frequency:</strong> Weekly and monthly updates</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gold mr-2">•</span>
-                    <span><strong>Connection:</strong> Linked to futures prices for supply/demand analysis</span>
-                  </li>
-                </ul>
+                </pre>
               </div>
             </div>
           </section>
 
-          {/* Graph Structure */}
+          {/* Knowledge Graph Structure */}
           <section>
-            <h2 className="text-2xl md:text-3xl font-semibold text-gold mb-4 md:mb-6 flex items-center">
-              <span className="text-4xl mr-3">🔗</span>
+            <h2 className="text-2xl md:text-3xl font-semibold text-gold mb-4 md:mb-6">
               Knowledge Graph Structure
             </h2>
 
@@ -461,7 +285,7 @@ export default function About() {
               </div>
 
               <div className="mt-6 md:mt-8 p-3 md:p-4 bg-gold/10 border border-gold/30 rounded-lg">
-                <p className="text-xs md:text-sm text-gold font-semibold mb-2">💡 Example Multi-Hop Query</p>
+                <p className="text-xs md:text-sm text-gold font-semibold mb-2">Example Multi-Hop Query</p>
                 <p className="text-xs md:text-sm text-gray-300 font-mono">
                   "Find energy companies with government contracts mentioning 'renewable' that are
                   mentioned in prediction markets with volume &gt; $50k"
@@ -473,10 +297,221 @@ export default function About() {
             </div>
           </section>
 
-          {/* Query Pipeline */}
+          {/* Data Universe - Data Sources */}
           <section>
-            <h2 className="text-2xl md:text-3xl font-semibold text-gold mb-4 md:mb-6 flex items-center">
-              <span className="text-4xl mr-3">🤖</span>
+            <h2 className="text-2xl md:text-3xl font-semibold text-gold mb-4 md:mb-6">
+              Data Universe
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+              {/* Stock Market Data */}
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
+                <h3 className="text-lg md:text-xl font-semibold text-green-400 mb-4">Stock Market Data</h3>
+                <ul className="space-y-2 text-gray-400 text-sm">
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Source:</strong> Yahoo Finance API</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Coverage:</strong> All S&P 500 companies</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Data:</strong> OHLCV, volume, market cap, P/E ratios, technical indicators (SMA, EMA, MACD, RSI, Bollinger Bands)</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Update Frequency:</strong> Daily via Airflow DAG</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Government Contracts */}
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
+                <h3 className="text-lg md:text-xl font-semibold text-blue-400 mb-4">Government Contracts</h3>
+                <ul className="space-y-2 text-gray-400 text-sm">
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Source:</strong> USASpending.gov API</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Coverage:</strong> Federal contract awards to public companies</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Data:</strong> Award amounts, agencies, descriptions, dates</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Special Feature:</strong> Vector embeddings for semantic search (find "AI contracts" without exact keyword match)</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Prediction Markets */}
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
+                <h3 className="text-lg md:text-xl font-semibold text-purple-400 mb-4">Prediction Markets</h3>
+                <ul className="space-y-2 text-gray-400 text-sm">
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Sources:</strong> Polymarket API, Kalshi API</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Coverage:</strong> Politics, economics, sports, entertainment</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Data:</strong> Probabilities, volumes, liquidity, traders</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Connection:</strong> Graph edges link markets to mentioned companies (e.g., "Will Tesla reach $300?" → Tesla stock)</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* SEC Filings */}
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
+                <h3 className="text-lg md:text-xl font-semibold text-orange-400 mb-4">SEC Filings</h3>
+                <ul className="space-y-2 text-gray-400 text-sm">
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Source:</strong> SEC EDGAR API</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Types:</strong> 10-K (annual), 10-Q (quarterly), 8-K (events)</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Processing:</strong> 7.5K filings parsed into 4.36M sentences</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Sentiment:</strong> FinBERT scores for each sentence (-1 to +1)</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Embeddings:</strong> Doc2Vec 300-dim financial domain embeddings for semantic search</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Economic Indicators */}
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
+                <h3 className="text-lg md:text-xl font-semibold text-cyan-400 mb-4">Economic Indicators</h3>
+                <ul className="space-y-2 text-gray-400 text-sm">
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Source:</strong> Federal Reserve Economic Data (FRED)</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Data:</strong> S&P 500 index, Fed funds rate, unemployment, GDP, yield curves</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Coverage:</strong> Historical time series data</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Commodity Positions */}
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
+                <h3 className="text-lg md:text-xl font-semibold text-yellow-400 mb-4">Commodity Positions</h3>
+                <ul className="space-y-2 text-gray-400 text-sm">
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Source:</strong> CFTC Commitments of Traders Report</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Data:</strong> Long/short positions by trader type (commercial, non-commercial, retail)</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Commodities:</strong> Oil, gold, wheat, corn, natural gas, etc.</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Options Flow */}
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
+                <h3 className="text-lg md:text-xl font-semibold text-indigo-400 mb-4">Options Flow</h3>
+                <ul className="space-y-2 text-gray-400 text-sm">
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Source:</strong> Options data via yfinance</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Coverage:</strong> All S&P 500 companies (612 tickers)</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Data:</strong> Call/put volumes, open interest, implied volatility, put/call ratios</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Detection:</strong> Unusual activity flags for potential insider trading signals</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Futures Prices */}
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
+                <h3 className="text-lg md:text-xl font-semibold text-amber-400 mb-4">Futures Prices</h3>
+                <ul className="space-y-2 text-gray-400 text-sm">
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Source:</strong> CME Group via yfinance</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Records:</strong> 64,000+ historical prices</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Commodities:</strong> Crude oil, natural gas, gold, silver, copper, corn, wheat, soybeans</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Indicators:</strong> OHLCV data plus technical indicators (RSI, MACD, SMA)</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* EIA Energy Data */}
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
+                <h3 className="text-lg md:text-xl font-semibold text-emerald-400 mb-4">EIA Energy Data</h3>
+                <ul className="space-y-2 text-gray-400 text-sm">
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Source:</strong> U.S. Energy Information Administration API</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Data:</strong> Crude oil inventory, natural gas storage, production, LNG exports</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Frequency:</strong> Weekly and monthly updates</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Connection:</strong> Linked to futures prices for supply/demand analysis</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          {/* AI Query Pipeline */}
+          <section>
+            <h2 className="text-2xl md:text-3xl font-semibold text-gold mb-4 md:mb-6">
               AI Query Pipeline
             </h2>
 
@@ -537,7 +572,7 @@ export default function About() {
                     GPT-4 combines database results with web context, analyzes patterns, and generates:
                   </p>
                   <ul className="text-gray-400 text-xs md:text-sm space-y-2">
-                    <li>• <strong className="text-orange-300">Markdown Tables:</strong> Formatted results with key metrics</li>
+                    <li>• <strong className="text-orange-300">Structured Analysis:</strong> Formatted results with key metrics</li>
                     <li>• <strong className="text-orange-300">Insights:</strong> Trends, correlations, anomalies</li>
                     <li>• <strong className="text-orange-300">Follow-up Questions:</strong> Suggested deeper dives</li>
                   </ul>
@@ -546,10 +581,9 @@ export default function About() {
             </div>
           </section>
 
-          {/* Technical Stack */}
+          {/* Technology Stack */}
           <section>
-            <h2 className="text-2xl md:text-3xl font-semibold text-gold mb-4 md:mb-6 flex items-center">
-              <span className="text-4xl mr-3">🔧</span>
+            <h2 className="text-2xl md:text-3xl font-semibold text-gold mb-4 md:mb-6">
               Technology Stack
             </h2>
 
@@ -605,8 +639,7 @@ export default function About() {
 
           {/* Performance */}
           <section>
-            <h2 className="text-2xl md:text-3xl font-semibold text-gold mb-4 md:mb-6 flex items-center">
-              <span className="text-4xl mr-3">⚡</span>
+            <h2 className="text-2xl md:text-3xl font-semibold text-gold mb-4 md:mb-6">
               Performance & Scale
             </h2>
 
@@ -663,14 +696,13 @@ export default function About() {
 
           {/* Future Roadmap */}
           <section>
-            <h2 className="text-2xl md:text-3xl font-semibold text-gold mb-4 md:mb-6 flex items-center">
-              <span className="text-4xl mr-3">📈</span>
+            <h2 className="text-2xl md:text-3xl font-semibold text-gold mb-4 md:mb-6">
               Future Enhancements
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
-                <h4 className="font-semibold text-gold mb-3">⚡ Real-time Data</h4>
+                <h4 className="font-semibold text-gold mb-3">Real-time Data</h4>
                 <p className="text-gray-400 text-sm">
                   WebSocket connections for live market data updates, streaming prediction
                   market probability changes as they happen.
@@ -678,7 +710,7 @@ export default function About() {
               </div>
 
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
-                <h4 className="font-semibold text-gold mb-3">📊 Portfolio Tracking</h4>
+                <h4 className="font-semibold text-gold mb-3">Portfolio Tracking</h4>
                 <p className="text-gray-400 text-sm">
                   User accounts to track favorite companies, save queries, and set up alerts
                   for specific market conditions.
@@ -686,7 +718,7 @@ export default function About() {
               </div>
 
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
-                <h4 className="font-semibold text-gold mb-3">🤖 Advanced ML Models</h4>
+                <h4 className="font-semibold text-gold mb-3">Advanced ML Models</h4>
                 <p className="text-gray-400 text-sm">
                   Time-series forecasting with LSTM, anomaly detection for unusual trading
                   patterns, correlation discovery between data sources.
@@ -694,7 +726,7 @@ export default function About() {
               </div>
 
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
-                <h4 className="font-semibold text-gold mb-3">📊 More Data Sources</h4>
+                <h4 className="font-semibold text-gold mb-3">More Data Sources</h4>
                 <p className="text-gray-400 text-sm">
                   Twitter sentiment, Reddit discussions, earnings call transcripts, patent
                   filings, and international market data.
@@ -702,7 +734,7 @@ export default function About() {
               </div>
 
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
-                <h4 className="font-semibold text-gold mb-3">📊 Custom Dashboards</h4>
+                <h4 className="font-semibold text-gold mb-3">Custom Dashboards</h4>
                 <p className="text-gray-400 text-sm">
                   Drag-and-drop dashboard builder with custom charts, metrics, and KPIs
                   tailored to individual research needs.
@@ -710,32 +742,13 @@ export default function About() {
               </div>
 
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
-                <h4 className="font-semibold text-gold mb-3">🔗 API Access</h4>
+                <h4 className="font-semibold text-gold mb-3">API Access</h4>
                 <p className="text-gray-400 text-sm">
                   Public API with authentication for programmatic access to KARGA
                   capabilities, enabling integrations with trading platforms.
                 </p>
               </div>
             </div>
-          </section>
-
-          {/* Open Source */}
-          <section className="bg-gradient-to-r from-gold/10 to-gold/5 border-2 border-gold/30 rounded-lg p-8">
-            <h2 className="text-3xl font-semibold text-gold mb-4 flex items-center">
-              <span className="text-4xl mr-3">🔓</span>
-              Open Source & Contributions
-            </h2>
-            <p className="text-gray-300 text-lg leading-relaxed mb-4">
-              KARGA Markets is built with transparency in mind. While the core application is
-              proprietary, we're exploring open-sourcing components of the query planning system
-              and graph schema to help others build similar systems.
-            </p>
-            <p className="text-gray-400 leading-relaxed">
-              Interested in collaborating or have ideas for improvement? Reach out at{' '}
-              <a href="mailto:karga.analytics@gmail.com" className="text-gold hover:underline">
-                karga.analytics@gmail.com
-              </a>
-            </p>
           </section>
 
           {/* Bottom CTA */}

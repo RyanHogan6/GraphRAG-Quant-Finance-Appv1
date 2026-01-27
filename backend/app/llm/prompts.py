@@ -29,6 +29,17 @@ CRITICAL_AQL_RULES = """
    ✅ DATE_SUBTRACT(DATE_NOW(), 30, "day")
    ❌ DATE_SUB() - Does not exist in AQL!
 
+   ⚠️ CRITICAL DATE FILTERING RULE:
+   When user says "this year", "recent", "latest", or doesn't specify a date:
+   ✅ ALWAYS filter by recent dates (last 365 days): FILTER doc.date >= DATE_SUBTRACT(DATE_NOW(), 365, "day")
+   ✅ For SEC filings: FILTER doc.filing_date >= DATE_SUBTRACT(DATE_NOW(), 365, "day")
+   ✅ For Awards: FILTER doc.start_date >= DATE_SUBTRACT(DATE_NOW(), 365, "day")
+   ✅ For MarketData: FILTER doc.date >= DATE_SUBTRACT(DATE_NOW(), 365, "day")
+   ❌ NEVER return data from 2023 or older years when user says "this year" or "recent"
+
+   Example: "What are the most negative SEC filings this year?"
+   → FILTER filing.filing_date >= DATE_SUBTRACT(DATE_NOW(), 365, "day")
+
 2. ORDER OF OPERATIONS:
    FOR → FILTER → SORT → LIMIT → RETURN
    (SORT/LIMIT must come BEFORE RETURN)
