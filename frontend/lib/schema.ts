@@ -15,6 +15,10 @@ export interface SchemaNode {
         hops?: string[] // For multi-hop (e.g. SEC)
     }[]
     exampleQuery: string
+    // Semantic search capability
+    supportsSemanticSearch?: boolean
+    embeddingField?: string
+    embeddingModel?: string
 }
 
 export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
@@ -24,7 +28,9 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
         description: 'S&P 500 Companies',
         keyFields: [
             "cik", "city", "company", "country", "fullTimeEmployees", "industry", "lastUpdated",
-            "marketCap", "recordCount", "sector", "sharesOutstanding", "sp500_member", "ticker", "website"
+            "marketCap", "recordCount", "sector", "sharesOutstanding", "sp500_member", "ticker", "website",
+            "ml_pagerank_contract_normalized", "ml_commodity_exposure_score", "ml_community_defense",
+            "ml_embedding_full", "ml_embedding_updated"
         ],
         connections: [
             { target: 'marketdata', edge: 'HAS_MARKETDATA', direction: 'OUTBOUND', type: 'direct' },
@@ -72,7 +78,10 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
             { target: 'company', edge: 'HAS_AWARD', direction: 'INBOUND', type: 'direct' },
             { target: 'options', edge: 'OPTIONS_BEFORE_AWARD', direction: 'INBOUND', type: 'direct' }
         ],
-        exampleQuery: 'FOR a IN Award FILTER a.recipient_name == "LOCKHEED" RETURN a'
+        exampleQuery: 'FOR a IN Award FILTER a.recipient_name == "LOCKHEED" RETURN a',
+        supportsSemanticSearch: true,
+        embeddingField: 'description_embedding',
+        embeddingModel: 'sentence-transformers'
     },
     economicdata: {
         name: 'Economic Data',
@@ -122,15 +131,18 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
     sec_sentences: {
         name: 'SEC Sentences',
         collection: 'sec_sentences',
-        description: 'Sentiment & FinBERT Scores',
+        description: 'SEC Sentiment & Semantic Search (Doc2Vec)',
         keyFields: [
             "finbert_probs", "finbert_score", "litigious_per_1k", "n_tokens", "negative_per_1k", "positive_per_1k",
-            "section_id", "text", "uncertainty_per_1k"
+            "section_id", "text", "uncertainty_per_1k", "sentence_embedding", "embedding_model", "embedding_updated"
         ],
         connections: [
             { target: 'sec_sections', edge: 'has_sentence', direction: 'INBOUND', type: 'direct' }
         ],
-        exampleQuery: 'FOR s IN sec_sentences FILTER s.finbert_score < -0.5 RETURN s'
+        exampleQuery: 'FOR s IN sec_sentences FILTER s.embedding_model == "doc2vec_financial_v1" RETURN s',
+        supportsSemanticSearch: true,
+        embeddingField: 'sentence_embedding',
+        embeddingModel: 'doc2vec_financial_v1'
     },
     predictionmarkets: {
         name: 'Polymarket',
@@ -146,7 +158,10 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
             { target: 'polymarket_positions', edge: 'position_in_market', direction: 'INBOUND', type: 'direct' },
             { target: 'polymarket_price_history', edge: 'market_has_price_history', direction: 'OUTBOUND', type: 'direct' }
         ],
-        exampleQuery: 'FOR m IN prediction_markets_polymarket FILTER m.volume_24h > 1000 RETURN m'
+        exampleQuery: 'FOR m IN prediction_markets_polymarket FILTER m.volume_24h > 1000 RETURN m',
+        supportsSemanticSearch: true,
+        embeddingField: 'question_embedding',
+        embeddingModel: 'sentence-transformers'
     },
     kalshi: {
         name: 'Kalshi',

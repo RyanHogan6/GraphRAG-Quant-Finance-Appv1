@@ -85,8 +85,9 @@ CRITICAL_AQL_RULES = """
 6. SEMANTIC SEARCH - CRITICAL RULES:
    ✅ Award: HAS description_embedding - use COSINE_SIMILARITY(doc.description_embedding, @query_vector)
    ✅ Polymarket: HAS question_embedding - use COSINE_SIMILARITY(doc.question_embedding, @query_vector)
+   ✅ sec_sentences: HAS sentence_embedding - use COSINE_SIMILARITY(doc.sentence_embedding, @query_vector)
    ❌ OTHER COLLECTIONS: NO embeddings - use CONTAINS(LOWER(field), 'keyword')
-   ❌ NO embeddings: SEC, Kalshi, Futures, Options, EIA, Commodity Positions
+   ❌ NO embeddings: sec_filings, sec_sections, Kalshi, Futures, Options, EIA, Commodity Positions
 
    🚨 PERFORMANCE - ALWAYS PRE-FILTER BEFORE COSINE_SIMILARITY:
    ✅ CORRECT (Fast):
@@ -154,6 +155,11 @@ Company:
 - fullTimeEmployees (camelCase, NOT employees)
 - sp500_member (snake_case - correct!)
 - ticker, company, sector, industry, country, cik, website
+- ml_pagerank_contract_normalized (float): Contract network influence (0-100)
+- ml_commodity_exposure_score (float): Commodity exposure via centrality (0-100)
+- ml_community_defense (int): Defense contractor community ID
+- ml_embedding_full (array): Node2Vec graph embedding (128-dim)
+- ml_embedding_updated (string): Timestamp of last embedding update
 
 MarketData:
 - Technical: sma_20, sma_50, ema_12, macd_signal, macd_histogram (underscores)
@@ -165,9 +171,10 @@ EconomicData:
 - 10y_2y_treasury_spread, yield_curve_inverted
 
 SEC:
-- sec_filings: avg_finbert, avg_uncertainty, avg_negative
-- sec_sentences: finbert_score, negative_per_1k, uncertainty_per_1k
-- ❌ NO embeddings on SEC - use CONTAINS(LOWER(text), keyword)
+- sec_filings: avg_finbert, avg_uncertainty, avg_negative (NO embeddings)
+- sec_sentences: finbert_score, negative_per_1k, uncertainty_per_1k, sentence_embedding (✅ HAS Doc2Vec embeddings!)
+- ✅ Use COSINE_SIMILARITY on sec_sentences.sentence_embedding for semantic search
+- ❌ sec_filings and sec_sections have NO embeddings - use CONTAINS(LOWER(text), keyword)
 
 Polymarket:
 - yes_probability, no_probability, volume_24h, market_slug
@@ -177,8 +184,9 @@ Commodity:
 
 ⚠️ SEMANTIC SEARCH RULES:
 - Award descriptions: HAS embeddings - use COSINE_SIMILARITY ✅
-- SEC content: NO embeddings - use CONTAINS() text filters ❌
-- Never use COSINE_SIMILARITY on sec_sentences or sec_sections
+- Polymarket questions: HAS embeddings - use COSINE_SIMILARITY ✅
+- sec_sentences: HAS embeddings (Doc2Vec financial) - use COSINE_SIMILARITY ✅
+- sec_filings, sec_sections: NO embeddings - use CONTAINS() text filters ❌
 
 ⚠️ COLLECTION NAMES:
 - Use "Award" (capital A, singular)
@@ -561,7 +569,7 @@ DOCUMENT COLLECTIONS:
     - section_id (string): Parent section ID (format: "sec_sections/{ticker}_{type}_{accession}_{filename}_sec{N}")
     - text (string): Sentence text (THIS is where content lives)
     - n_tokens (int): Token count
-    
+
     Sentiment Metrics:
     - finbert_score (float): FinBERT sentiment score (-1 to +1)
     - finbert_probs (object): Probabilities {positive, negative, neutral}
@@ -569,9 +577,13 @@ DOCUMENT COLLECTIONS:
     - positive_per_1k (float): Positive words per 1000
     - uncertainty_per_1k (float): Uncertainty words per 1000
     - litigious_per_1k (float): Legal language per 1000
-    
-    ⚠️ NO EMBEDDING FIELD: Cannot do vector similarity search.
-    ⚠️ For semantic search, use finbert_score filtering instead of cosine similarity.
+
+    ✅ SEMANTIC SEARCH ENABLED:
+    - sentence_embedding (array[300]): Doc2Vec financial embeddings trained on 4.36M SEC sentences
+    - embedding_model (string): "doc2vec_financial_v1"
+
+    Usage: Use COSINE_SIMILARITY for semantic search over SEC filings.
+    Pre-filter by ticker, filing type, or date before computing similarity (performance!).
 
 EDGE COLLECTIONS (Graph Relationships):
 
@@ -1133,6 +1145,117 @@ FOR doc IN sec_sentences
   }
 Bind Variables: {}
 Requires Embedding: false
+
+---
+
+EXAMPLE 6b - SEC Semantic Search (Find similar language using embeddings):
+Question: "Find companies discussing supply chain disruptions similar to how AAPL discusses it"
+Intent: semantic_search_sec
+Collections: ["sec_sentences", "sec_filings"]
+AQL:
+// First, get reference sentence from AAPL
+LET reference_sentences = (
+  FOR s IN sec_sentences
+    FILTER s.sentence_embedding != null
+    LET filing = DOCUMENT(s.section_id)
+    LET parent_filing = DOCUMENT(filing.filing_id)
+    FILTER parent_filing.ticker == "AAPL"
+    FILTER CONTAINS(LOWER(s.text), "supply chain")
+    LIMIT 1
+    RETURN s
+)
+
+FOR ref IN reference_sentences
+  FOR s IN sec_sentences
+    FILTER s.sentence_embedding != null
+    LET filing = DOCUMENT(s.section_id)
+    LET parent_filing = DOCUMENT(filing.filing_id)
+    FILTER parent_filing.ticker != "AAPL"  // Different companies
+    LET similarity = COSINE_SIMILARITY(ref.sentence_embedding, s.sentence_embedding)
+    FILTER similarity > 0.75
+    SORT similarity DESC
+    LIMIT 20
+    RETURN {
+      ticker: parent_filing.ticker,
+      filing_type: parent_filing.type,
+      filing_date: parent_filing.filing_date,
+      text: SUBSTRING(s.text, 0, 300),
+      similarity: similarity,
+      sentiment: s.finbert_score
+    }
+Bind Variables: {}
+Requires Embedding: false
+Performance Note: Pre-filter by company/date before similarity for faster queries on large datasets.
+
+---
+
+EXAMPLE 6c - SEC Semantic Search with Sentiment Filter:
+Question: "Find negative risk disclosures about cybersecurity from the last 90 days"
+Intent: semantic_search_sec_filtered
+Collections: ["sec_sentences", "sec_filings"]
+AQL:
+FOR s IN sec_sentences
+  FILTER s.sentence_embedding != null
+  FILTER s.finbert_score < -0.4  // Pre-filter: negative sentiment
+  LET filing = DOCUMENT(s.section_id)
+  LET parent_filing = DOCUMENT(filing.filing_id)
+  FILTER parent_filing.filing_date >= DATE_SUBTRACT(DATE_NOW(), 90, "day")
+  FILTER CONTAINS(LOWER(s.text), "cyber") OR CONTAINS(LOWER(s.text), "security")
+  SORT s.finbert_score ASC, parent_filing.filing_date DESC
+  LIMIT 20
+  RETURN {
+    ticker: parent_filing.ticker,
+    filing_type: parent_filing.type,
+    filing_date: parent_filing.filing_date,
+    text: SUBSTRING(s.text, 0, 300),
+    sentiment: s.finbert_score,
+    uncertainty: s.uncertainty_per_1k
+  }
+Bind Variables: {}
+Requires Embedding: false
+Note: Combines keyword filtering with sentiment analysis for targeted SEC content search.
+
+---
+
+EXAMPLE 6d - Cross-Domain: SEC Warnings + Unusual Options Activity:
+Question: "Find companies with negative SEC disclosures who had unusual put buying in the 30 days before the filing"
+Intent: cross_domain_validation_sec_options
+Collections: ["sec_sentences", "sec_filings", "options_flow"]
+AQL:
+FOR s IN sec_sentences
+  FILTER s.finbert_score < -0.5  // Very negative
+  LET filing = DOCUMENT(s.section_id)
+  LET parent_filing = DOCUMENT(filing.filing_id)
+  FILTER parent_filing.filing_date >= "2024-01-01"
+
+  // Find unusual options activity before filing
+  LET unusual_options = (
+    FOR o IN options_flow
+      FILTER o.ticker == parent_filing.ticker
+      FILTER o.date < parent_filing.filing_date
+      FILTER DATE_DIFF(parent_filing.filing_date, o.date, 'd') <= 30
+      FILTER o.unusual_put_activity == 1
+      RETURN {
+        date: o.date,
+        put_volume: o.put_volume,
+        put_call_ratio: o.put_call_volume_ratio
+      }
+  )
+
+  FILTER LENGTH(unusual_options) > 0
+  RETURN {
+    ticker: parent_filing.ticker,
+    filing_date: parent_filing.filing_date,
+    filing_type: parent_filing.type,
+    negative_text: SUBSTRING(s.text, 0, 200),
+    sentiment: s.finbert_score,
+    options_signals: unusual_options,
+    signal_count: LENGTH(unusual_options)
+  }
+LIMIT 15
+Bind Variables: {}
+Requires Embedding: false
+Note: This detects potential insider knowledge - unusual options activity before negative disclosures.
 
 ---
 
@@ -2200,6 +2323,83 @@ Strategy:
 
 ---
 
+EXAMPLE 21b - Cross-Domain Validation: SEC Claims vs Actual Contracts (YOUR EDGE!):
+Question: "Find defense contractors mentioning AI in their 10-Ks who actually won AI contracts"
+Intent: cross_domain_validation_sec_contracts
+Collections: ["Company", "sec_sentences", "sec_filings", "Award"]
+AQL:
+// Find companies discussing AI in SEC filings
+LET ai_companies = (
+  FOR s IN sec_sentences
+    FILTER CONTAINS(LOWER(s.text), "artificial intelligence")
+       OR CONTAINS(LOWER(s.text), "machine learning")
+       OR CONTAINS(LOWER(s.text), "ai technology")
+    LET filing = DOCUMENT(s.section_id)
+    LET parent_filing = DOCUMENT(filing.filing_id)
+    FILTER parent_filing.type == "10-K"
+    FILTER parent_filing.filing_date >= "2023-01-01"
+    COLLECT ticker = parent_filing.ticker
+    RETURN ticker
+)
+
+// Cross-validate: Did they actually win AI contracts?
+FOR ticker IN ai_companies
+  LET company = FIRST(FOR c IN Company FILTER c.ticker == ticker RETURN c)
+  FILTER company.sector == "Industrials"  // Defense/aerospace sector
+
+  LET ai_contracts = (
+    FOR a IN Award
+      FILTER a.ticker == ticker
+      FILTER CONTAINS(LOWER(a.description), "artificial intelligence")
+         OR CONTAINS(LOWER(a.description), "machine learning")
+         OR CONTAINS(LOWER(a.description), "autonomous")
+      FILTER a.start_date >= "2023-01-01"
+      FILTER a.award_amount_float > 1000000
+      RETURN {
+        date: a.start_date,
+        amount: a.award_amount_float,
+        agency: a.awarding_agency,
+        description: SUBSTRING(a.description, 0, 150)
+      }
+  )
+
+  // Only return companies with ACTUAL AI contracts (not just talk)
+  FILTER LENGTH(ai_contracts) > 0
+
+  // Get sample SEC sentence
+  LET sample_sec = FIRST(
+    FOR s IN sec_sentences
+      LET filing = DOCUMENT(s.section_id)
+      LET parent_filing = DOCUMENT(filing.filing_id)
+      FILTER parent_filing.ticker == ticker
+      FILTER CONTAINS(LOWER(s.text), "artificial intelligence")
+      LIMIT 1
+      RETURN SUBSTRING(s.text, 0, 200)
+  )
+
+  RETURN {
+    ticker: ticker,
+    company_name: company.company,
+    sec_claims: sample_sec,
+    contract_count: LENGTH(ai_contracts),
+    total_contract_value: SUM(ai_contracts[*].amount),
+    contracts: ai_contracts
+  }
+LIMIT 15
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ **THIS IS YOUR EDGE** - Cross-validates SEC claims with actual government data
+✅ Separates companies that TALK about AI from those that WIN AI contracts
+✅ Filters defense sector (Industrials) for relevant results
+✅ Shows total contract value to assess real AI capability
+💡 Many companies mention AI in filings, few actually win AI contracts
+💡 Companies with high SEC mentions + high contract wins = genuine AI capability
+💡 Companies with high mentions + no contracts = marketing fluff
+
+---
+
 EXAMPLE 22 - Natural Gas Storage vs Prices:
 Question: "Show me natural gas prices when storage was below 5-year average"
 Intent: commodity_fundamental_analysis
@@ -2645,6 +2845,104 @@ EDGES:
 - Time-series: 50
 - Prediction markets: 10
 - Never omit LIMIT or query may timeout
+
+⚠️ GRAPH ML FEATURES (Company Collection):
+
+These fields are generated by ArangoDB Pregel algorithms and Node2Vec embeddings:
+
+ml_pagerank_contract_normalized (float, 0-100):
+- Contract network influence score based on PageRank algorithm
+- Measures centrality in the Award graph (Company → Award relationships)
+- Higher score = more influential in government contracting network
+- Use Cases:
+  * "Top defense contractors by influence" → SORT BY ml_pagerank_contract_normalized DESC
+  * "Most connected companies in contract network" → FILTER ml_pagerank_contract_normalized > 80
+- Example: Lockheed Martin (LMT) = 95.2, Raytheon (RTX) = 89.7
+
+ml_commodity_exposure_score (float, 0-100):
+- Commodity price exposure based on Betweenness/Effective Closeness
+- Measures centrality in commodity network (Company ↔ futures_prices ↔ CFTC)
+- Higher score = more exposed to commodity price movements
+- Use Cases:
+  * "Energy companies most exposed to oil prices" → FILTER sector=="Energy", SORT BY ml_commodity_exposure_score DESC
+  * "Mining stocks with high commodity sensitivity" → FILTER industry LIKE "%Mining%", FILTER ml_commodity_exposure_score > 70
+
+ml_community_defense (int):
+- Community ID from Label Propagation algorithm
+- Groups similar companies based on graph structure (contracts, commodities, options flow)
+- Same community ID = companies with similar relationship patterns
+- Use Cases:
+  * "Companies like Lockheed Martin" → Find companies with same ml_community_defense value
+  * "Insider trading coordination detection" → Unusual options activity in same community
+  * "Peer comparison" → Companies in same community often move together
+
+ml_embedding_full (array, 128 dimensions):
+- Node2Vec graph embedding vector
+- Trained on full intelligence graph (Company + Award + MarketData + options_flow)
+- Captures company position in multi-dimensional graph space
+- Use Cases:
+  * "Companies similar to XOM" → COSINE_SIMILARITY(c1.ml_embedding_full, c2.ml_embedding_full)
+  * "Anomaly detection" → Companies with unusual graph position
+  * "Clustering" → K-means on embeddings for portfolio construction
+- ⚠️ CRITICAL: Check ml_embedding_full != null before using COSINE_SIMILARITY
+
+ml_embedding_updated (string):
+- ISO timestamp of when embedding was last generated
+- Format: "2026-01-26T15:30:00Z"
+- Use to verify freshness: FILTER ml_embedding_updated >= DATE_SUBTRACT(DATE_NOW(), 7, "day")
+
+EXAMPLE QUERIES:
+
+1. Top Defense Contractors by Influence:
+FOR c IN Company
+  FILTER c.ml_pagerank_contract_normalized != null
+  SORT c.ml_pagerank_contract_normalized DESC
+  LIMIT 10
+  RETURN {ticker: c.ticker, company: c.company, influence: c.ml_pagerank_contract_normalized}
+
+2. Companies Similar to LMT (using embeddings):
+FOR target IN Company
+  FILTER target.ticker == "LMT"
+  FILTER target.ml_embedding_full != null
+  LET target_embedding = target.ml_embedding_full
+
+  FOR other IN Company
+    FILTER other._key != target._key
+    FILTER other.ml_embedding_full != null
+    LET similarity = 1 - COSINE_DISTANCE(target_embedding, other.ml_embedding_full)
+    SORT similarity DESC
+    LIMIT 10
+    RETURN {ticker: other.ticker, similarity: ROUND(similarity * 100) / 100}
+
+3. Energy Companies by Commodity Exposure:
+FOR c IN Company
+  FILTER c.sector == "Energy"
+  FILTER c.ml_commodity_exposure_score != null
+  SORT c.ml_commodity_exposure_score DESC
+  LIMIT 20
+  RETURN {
+    ticker: c.ticker,
+    company: c.company,
+    commodity_exposure: c.ml_commodity_exposure_score,
+    influence: c.ml_pagerank_contract_normalized
+  }
+
+4. Find Peer Group (same community):
+FOR c IN Company
+  FILTER c.ticker == "BA"
+  LET community = c.ml_community_defense
+
+  FOR peer IN Company
+    FILTER peer.ml_community_defense == community
+    FILTER peer._key != c._key
+    LIMIT 15
+    RETURN {ticker: peer.ticker, company: peer.company, community: community}
+
+⚠️ GENERATION NOTES:
+- ML features are generated by: src/DAGS/pipeline/graphml/run_graph_ml.py
+- Features update weekly (Sunday refresh via scheduled task)
+- Not all companies have ML features (requires sufficient graph connections)
+- Always check field != null before filtering/sorting
 """
 
 
@@ -2837,7 +3135,7 @@ EDGES:
 # - sec_graph: sec_filings + sec_sections + sec_sentences (SEC document hierarchy)
 
 #  CRITICAL LIMITATIONS:
-# 1. NO SEMANTIC SEARCH on SEC data (no embeddings in sec_sections or sec_sentences)
+# 1. SEMANTIC SEARCH: Award, Polymarket, sec_sentences have embeddings; sec_filings, sec_sections do NOT
 # 2. Company collection is MINIMAL (only ticker, no name/sector/industry)
 # 3. SEC content is ONLY in sec_sentences.text (not in filings or sections)
 # 4. EconomicData field names use snake_case with full names (sandp_500_index, not sp500)
