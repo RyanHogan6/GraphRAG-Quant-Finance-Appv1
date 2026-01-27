@@ -142,14 +142,36 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
             driver: 'Artificial Intelligence Platform (AIP) adoption'
         } : null;
 
+        const latestOptions = optionsFlow[0]
+        const putCallRatio = latestOptions?.put_call_ratio || 0
+        const optionsSignal = putCallRatio > 1.5 ? 'bearish positioning with elevated put activity' : putCallRatio < 0.5 ? 'bullish positioning with strong call demand' : 'neutral options flow'
+
+        const avgRsi = latestMarket?.rsi || 50
+        const technicalSignal = avgRsi > 70 ? 'overbought territory (RSI: ' + avgRsi.toFixed(0) + ')' : avgRsi < 30 ? 'oversold territory (RSI: ' + avgRsi.toFixed(0) + ')' : 'balanced momentum (RSI: ' + avgRsi.toFixed(0) + ')'
+
+        const totalAwardValue = awards.reduce((sum: number, a: any) => sum + (a.award_amount_float || 0), 0)
+
         return [
-            `${company.company} (${ticker}) is demonstrating a ${priceChange}% trajectory over the selected ${timeframe} window, with strong momentum in its ${company.sector} operations.`,
-            `Recent SEC regulatory signals lean ${sentiment.toLowerCase()} (Score: ${secFilings[0]?.avg_finbert?.toFixed(3) || '0.00'}), with a primary focus on internal reporting and ${secFilings[0]?.form_type || 'operational updates'}.`,
-            news ? `Wall Street projections for 2026 highlight a potential revenue ceiling of ${news.rev}, catalyzed significantly by ${news.driver}.`
-                : (awards.length > 0
-                    ? `The firm continues to scale public sector dominance, recently capturing a $${(latestAwards / 1e6).toFixed(1)}M award from the ${awards[0]?.awarding_agency || 'government'}.`
-                    : `${company.company} maintains a robust market capitalization of $${(company.marketCap / 1e9).toFixed(1)}B with steady institutional coverage.`),
-            `Crucial market intelligence points to ${news?.event || 'upcoming quarterly benchmarks'} as the next major volatility catalyst for institutional positioning.`
+            `${company.company} (${ticker}) is demonstrating a ${priceChange}% trajectory over the selected ${timeframe} window, currently trading at $${latestMarket?.close?.toFixed(2)} with market capitalization of $${(company.marketCap / 1e9).toFixed(2)}B in the ${company.sector} sector.`,
+
+            `Recent SEC regulatory signals lean ${sentiment.toLowerCase()} (FinBERT Score: ${secFilings[0]?.avg_finbert?.toFixed(3) || 'N/A'}), with ${secFilings.length} filings analyzed including ${secFilings[0]?.form_type || 'quarterly/annual'} reports showing ${sentiment === 'Bullish' ? 'optimistic' : sentiment === 'Bearish' ? 'cautious' : 'neutral'} management tone regarding operational performance and forward guidance.`,
+
+            awards.length > 0
+                ? `Government contract portfolio totals $${(totalAwardValue / 1e6).toFixed(1)}M across ${awards.length} federal awards, with recent ${awards[0]?.awarding_agency || 'Department of Defense'} contract for $${(awards[0]?.award_amount_float / 1e6).toFixed(1)}M awarded in FY-${awards[0]?.contract_year || '2026'}, establishing strong public sector revenue diversification.`
+                : `${company.company} maintains focused commercial market exposure with ${company.sector} industry leadership, supported by institutional ownership patterns and steady revenue generation from core business operations.`,
+
+            optionsFlow.length > 0
+                ? `Options market activity reflects ${optionsSignal} with put/call ratio of ${putCallRatio.toFixed(2)}, total options volume of ${latestOptions?.total_volume?.toLocaleString()} contracts, and implied volatility at ${(latestOptions?.implied_volatility * 100)?.toFixed(1)}%, indicating ${putCallRatio > 1.5 ? 'defensive hedging' : putCallRatio < 0.5 ? 'aggressive upside speculation' : 'standard market expectations'}.`
+                : `Options flow data not yet available for this ticker, with trading activity primarily focused on equity markets and institutional block transactions.`,
+
+            `Technical indicators place ${ticker} in ${technicalSignal}, with ${latestMarket?.sma_50 && latestMarket?.sma_200 ? (latestMarket.sma_50 > latestMarket.sma_200 ? 'bullish golden cross formation' : 'bearish death cross warning') : 'developing trend structure'} as moving averages ${latestMarket?.sma_50 && latestMarket?.sma_200 ? (latestMarket.sma_50 > latestMarket.sma_200 ? 'confirm' : 'challenge') : 'establish'} current price action.`,
+
+            polyMarkets.length > 0
+                ? `Prediction markets assign ${(polyMarkets[0].yes_probability * 100).toFixed(0)}% probability to ${polyMarkets[0].question}, with $${(polyMarkets[0].volume_24h / 1000).toFixed(0)}K daily volume reflecting market sentiment divergence from traditional equity pricing models.`
+                : news ? `Wall Street projections for 2026 highlight potential revenue ceiling of ${news.rev}, catalyzed significantly by ${news.driver}, with upcoming ${news.event} serving as critical inflection point for institutional portfolio rebalancing.`
+                : `Fundamental metrics show ${latestMarket?.revenue_growth ? ((latestMarket.revenue_growth * 100).toFixed(1) + '% revenue growth') : 'steady revenue generation'} with ${latestMarket?.profit_margins ? ((latestMarket.profit_margins * 100).toFixed(1) + '% profit margins') : 'industry-standard profitability'}, positioning ${ticker} for ${priceChange > 5 ? 'continued momentum expansion' : priceChange < -5 ? 'potential mean reversion opportunity' : 'range-bound consolidation'}.`,
+
+            `Critical intelligence suggests monitoring ${news?.event || secFilings.length > 0 ? 'upcoming ' + (secFilings[0]?.form_type === '10-Q' ? 'quarterly earnings release' : secFilings[0]?.form_type === '10-K' ? 'annual report filing' : 'regulatory filings') : 'next quarterly earnings'} as primary volatility catalyst, with institutional positioning ${awards.length > 0 ? 'supported by government contract visibility' : 'driven by sector rotation dynamics'} and ${optionsFlow.length > 0 && putCallRatio > 1.5 ? 'hedged downside protection' : optionsFlow.length > 0 && putCallRatio < 0.5 ? 'leveraged upside exposure' : 'balanced risk/reward profiles'}.`
         ]
     }, [company, timeframe, chartData, awards, secFilings, polyMarkets])
 
@@ -321,13 +343,11 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                 </div>
             </div>
 
-            {/* Main Content Sections with Zero Collisions */}
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+            {/* Main Content Sections - Full Width Layout */}
+            <div className="space-y-4">
 
-                {/* Left Area: Chart & Fundamental Checklist (7 Cols) */}
-                <div className="xl:col-span-7 space-y-4">
-                    {/* Chart Section */}
-                    <div className="bg-dark-900/40 border border-gold/10 rounded-xl p-3 md:p-4 shadow-xl backdrop-blur-sm">
+                {/* Chart Section - Full Width */}
+                <div className="bg-dark-900/40 border border-gold/10 rounded-xl p-3 md:p-4 shadow-xl backdrop-blur-sm">
                         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-3 md:mb-4 gap-3">
                             <div>
                                 <h3 className="text-[10px] md:text-xs font-bold text-gold uppercase tracking-widest mb-1">Market Performance Hub</h3>
@@ -370,8 +390,54 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                         )}
                     </div>
 
-                    {/* Moneycontain Fundamental Checklist */}
-                    <div className="bg-dark-900/60 border border-white/5 rounded-xl overflow-hidden shadow-lg">
+                {/* AI Intelligence Summary - Below Chart */}
+                <div className="bg-gradient-to-br from-gold/10 to-transparent border border-gold/20 rounded-xl p-3 md:p-4 relative overflow-hidden group shadow-2xl">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-gold/50" />
+                    <div className="absolute -right-12 -top-12 w-48 h-48 bg-gold/5 rounded-full blur-3xl group-hover:bg-gold/10 transition-all" />
+                    <h3 className="text-[9px] md:text-[10px] font-bold text-gold uppercase tracking-[0.2em] mb-2 md:mb-3 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" />
+                        Deep Intelligence Synthesis
+                    </h3>
+                    <div className="space-y-3 relative z-10">
+                        {aiSummary.map((s: string, i: number) => (
+                            <div key={i} className="flex items-start gap-3">
+                                <div className="w-1.5 h-1.5 rounded-full bg-gold/50 mt-2 flex-shrink-0" />
+                                <p className="text-[13px] md:text-sm text-gray-300 leading-relaxed font-medium">
+                                    {s}
+                                    {i === 1 && secFilings.length > 0 && (
+                                        <span
+                                            onClick={() => setSelectedDetail({ type: 'SEC', data: secFilings[0] })}
+                                            className="ml-1 text-[10px] text-blue-400 font-mono cursor-pointer hover:underline bg-blue-500/10 px-1 rounded"
+                                        >
+                                            [SEC-{secFilings[0].filing_date}]
+                                        </span>
+                                    )}
+                                    {i === 2 && awards.length > 0 && (
+                                        <span
+                                            onClick={() => setSelectedDetail({ type: 'Award', data: awards[0] })}
+                                            className="ml-1 text-[10px] text-gold font-mono cursor-pointer hover:underline bg-gold/10 px-1 rounded"
+                                        >
+                                            [AWARD-${(awards[0].award_amount_float / 1e6).toFixed(1)}M]
+                                        </span>
+                                    )}
+                                    {i === 3 && polyMarkets.length > 0 && (
+                                        <span className="ml-1 text-[10px] text-purple-400 font-mono cursor-pointer hover:underline bg-purple-500/10 px-1 rounded">
+                                            [MARKET-{(polyMarkets[0].yes_probability * 100).toFixed(0)}%]
+                                        </span>
+                                    )}
+                                    {i === 4 && optionsFlow.length > 0 && (
+                                        <span className="ml-1 text-[10px] text-green-400 font-mono bg-green-500/10 px-1 rounded">
+                                            [OPTIONS-P/C:{optionsFlow[0].put_call_ratio?.toFixed(2)}]
+                                        </span>
+                                    )}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Moneycontain Fundamental Checklist */}
+                <div className="bg-dark-900/60 border border-white/5 rounded-xl overflow-hidden shadow-lg">
                         <div className="p-3 border-b border-white/5 flex justify-between items-center bg-dark-800/40">
                             <div className="flex items-center gap-3">
                                 <h3 className="text-xs font-bold text-gray-200 uppercase tracking-widest">13 Point Fundamental Checklist</h3>
@@ -432,48 +498,87 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                             </div>
                         )}
                     </div>
+            </div>
 
-                    {/* AI Intelligence Summary - Moved below chart */}
-                    <div className="bg-gradient-to-br from-gold/10 to-transparent border border-gold/20 rounded-xl p-3 md:p-4 relative overflow-hidden group shadow-2xl">
-                        <div className="absolute top-0 left-0 w-1 h-full bg-gold/50" />
-                        <div className="absolute -right-12 -top-12 w-48 h-48 bg-gold/5 rounded-full blur-3xl group-hover:bg-gold/10 transition-all" />
-                        <h3 className="text-[9px] md:text-[10px] font-bold text-gold uppercase tracking-[0.2em] mb-2 md:mb-3 flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" />
-                            Deep Intelligence Synthesis
-                        </h3>
-                        <div className="space-y-2 relative z-10">
-                            {aiSummary.map((s: string, i: number) => (
-                                <p key={i} className="text-[13px] md:text-sm text-gray-300 leading-relaxed font-medium">
-                                    {s}
-                                    {i === 1 && secFilings.length > 0 && (
-                                        <span
-                                            onClick={() => setSelectedDetail({ type: 'SEC', data: secFilings[0] })}
-                                            className="ml-1 text-[10px] text-blue-400 font-mono cursor-pointer hover:underline bg-blue-500/10 px-1 rounded"
-                                        >
-                                            [SEC-{secFilings[0].filing_date}]
-                                        </span>
-                                    )}
-                                    {i === 3 && polyMarkets.length > 0 && (
-                                        <span className="ml-1 text-[10px] text-purple-400 font-mono cursor-pointer hover:underline bg-purple-500/10 px-1 rounded">[BIAS-{(polyMarkets[0].yes_probability * 100).toFixed(0)}%]</span>
-                                    )}
-                                </p>
-                            ))}
-                        </div>
-                    </div>
+            {/* SEC Filings Explorer - Full Width Section */}
+            {allSecFilings.length > 0 && (
+                <div className="mt-6">
+                    <SECFilingsExplorer filings={allSecFilings} ticker={company.ticker} />
                 </div>
+            )}
 
-                {/* Right Area: Signals (5 Cols) */}
-                <div className="xl:col-span-5 space-y-4">
-                    {/* Regulatory Column */}
-                    <div className="bg-dark-900/40 border border-blue-500/10 rounded-xl p-3 md:p-4 shadow-xl backdrop-blur-sm">
-                        <div className="flex flex-col gap-2 mb-3 md:mb-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-xs md:text-sm font-bold text-blue-400 uppercase tracking-[0.2em] flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
-                                    SEC Intelligent Signals
-                                </h3>
+            {/* Awards History - Full Width Section */}
+            {awards.length > 0 && (
+                <div className="mt-6">
+                    <AwardHistory awards={awards} ticker={company.ticker} />
+                </div>
+            )}
+
+            {/* SEC Detail Modal (Sentiment Analysis) */}
+            <AnimatePresence>
+                {selectedDetail && selectedDetail.type === 'SEC' && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[150] flex items-center justify-center p-4 md:p-8"
+                        onClick={() => setSelectedDetail(null)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="bg-dark-800 border border-blue-500/30 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-[0_0_50px_rgba(59,130,246,0.1)]"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="p-6 border-b border-blue-500/20 flex justify-between items-center bg-dark-900/80">
+                                <div>
+                                    <h4 className="text-blue-400 font-bold uppercase tracking-[0.3em] text-[10px] mb-1">SEC Filing Analysis</h4>
+                                    <div className="text-sm text-white font-bold">
+                                        Form {selectedDetail.data.type || selectedDetail.data.form_type}
+                                    </div>
+                                </div>
+                                <button onClick={() => setSelectedDetail(null)} className="p-2 bg-dark-700 rounded-full text-gray-400 hover:text-white border border-white/10 transition-all">✕</button>
                             </div>
-                            {allSecFilings.length > 0 && (
+                            <div className="flex-1 overflow-y-auto p-8 space-y-8">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <div className="text-3xl font-black text-white tracking-tighter">Form {selectedDetail.data.type || selectedDetail.data.form_type}</div>
+                                        <div className="text-xs text-gray-400 mt-1 uppercase font-bold tracking-widest">Filed: {selectedDetail.data.filing_date || 'Unknown'}</div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Sentiment Score</div>
+                                        <div className={`text-2xl font-mono font-black ${(selectedDetail.data.avg_finbert || 0) > 0 ? 'text-green-400 shadow-[0_0_20px_rgba(74,222,128,0.2)]' : 'text-red-400 shadow-[0_0_20px_rgba(248,113,113,0.2)]'}`}>
+                                            {(selectedDetail.data.avg_finbert || 0).toFixed(4)}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="space-y-5">
+                                    <h5 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] border-b border-blue-500/20 pb-2">Key Excerpts</h5>
+                                    {selectedDetail.data.top_sentences && selectedDetail.data.top_sentences.length > 0 ? (
+                                        selectedDetail.data.top_sentences.map((s: any, j: number) => (
+                                            <div key={j} className="bg-dark-900/50 p-5 rounded-2xl border border-white/5 relative group">
+                                                <div className="absolute top-0 left-0 w-1 h-0 bg-blue-500 group-hover:h-full transition-all duration-300" />
+                                                <p className="text-xs text-gray-300 leading-relaxed italic">"{s.text}"</p>
+                                                <div className="mt-3 flex items-center justify-between">
+                                                    <div className="text-[10px] text-blue-500 font-bold uppercase tracking-wider">Sentiment Signal</div>
+                                                    <div className="text-[10px] text-gray-500 font-mono">Score: {(s.score || 0).toFixed(3)}</div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="text-xs text-gray-500 italic text-center py-8 border border-dashed border-gray-700 rounded-lg">
+                                            No sentence-level analysis available for this filing.
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Award Detail Modal - placeholder to be replaced */}
+            <div style={{display: 'none'}}>
                                 <div className="flex gap-2">
                                     <select
                                         value={selectedFormType}
@@ -736,13 +841,6 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                     )}
                 </div>
             </div>
-
-            {/* SEC Filings Explorer - Full Width Section */}
-            {allSecFilings.length > 0 && (
-                <div className="mt-6">
-                    <SECFilingsExplorer filings={allSecFilings} ticker={company.ticker} />
-                </div>
-            )}
 
             {/* SEC Detail Modal (Sentiment Analysis) */}
             <AnimatePresence>
