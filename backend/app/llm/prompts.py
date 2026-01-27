@@ -1810,7 +1810,7 @@ FOR company IN Company
           FOR sentence IN OUTBOUND section has_sentence
             FILTER sentence.finbertscore != null
             SORT ABS(sentence.finbertscore) DESC
-            LIMIT 5
+            LIMIT 10
             RETURN {
               text: sentence.text,
               score: sentence.finbertscore
