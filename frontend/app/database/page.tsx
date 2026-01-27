@@ -3,14 +3,21 @@
 import { useState } from 'react'
 
 const collections = [
-  { name: 'Company', count: 503, icon: '🏢' },
-  { name: 'MarketData', count: 125000, icon: '📊' },
-  { name: 'Award', count: 45000, icon: '🏛️' },
-  { name: 'sec_filings', count: 12500, icon: '📄' },
-  { name: 'sec_sentences', count: 890000, icon: '📝' },
-  { name: 'prediction_markets_polymarket', count: 12968, icon: '🎲' },
-  { name: 'prediction_markets_kalshi', count: 5432, icon: '🎯' },
-  { name: 'EconomicData', count: 8900, icon: '💹' },
+  { name: 'Company', count: 612, icon: '🏢' },
+  { name: 'MarketData', count: 2000000, icon: '📊' },
+  { name: 'Award', count: 100000, icon: '🏛️' },
+  { name: 'sec_filings', count: 7495, icon: '📄' },
+  { name: 'sec_sentences', count: 4362211, icon: '📝' },
+  { name: 'prediction_markets_polymarket', count: 15000, icon: '🎲' },
+  { name: 'prediction_markets_kalshi', count: 6000, icon: '🎯' },
+  { name: 'EconomicData', count: 9000, icon: '💹' },
+  { name: 'options_flow', count: 612, icon: '📈' },
+  { name: 'futures_prices', count: 64000, icon: '🌾' },
+  { name: 'commodity_positions', count: 5000, icon: '📊' },
+  { name: 'eia_crude_inventory', count: 500, icon: '⚡' },
+  { name: 'eia_natgas_storage', count: 500, icon: '⚡' },
+  { name: 'polymarket_traders', count: 1000, icon: '👤' },
+  { name: 'polymarket_positions', count: 5000, icon: '💼' },
 ]
 
 export default function DatabasePage() {
@@ -38,7 +45,7 @@ export default function DatabasePage() {
         </div>
         <div className="bg-dark-800 border border-gold/20 rounded-lg p-5">
           <div className="text-gray-500 text-sm mb-1">Edge Collections</div>
-          <div className="text-3xl font-bold text-gold">15</div>
+          <div className="text-3xl font-bold text-gold">22</div>
         </div>
         <div className="bg-dark-800 border border-gold/20 rounded-lg p-5">
           <div className="text-gray-500 text-sm mb-1">Database</div>

@@ -66,6 +66,40 @@ export default function About() {
                   </p>
                 </div>
               </div>
+
+              <div className="mt-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-lg p-6">
+                <h3 className="text-xl font-semibold text-blue-300 mb-4">Recent Enhancements</h3>
+                <div className="space-y-3 text-sm text-gray-300">
+                  <div className="flex items-start gap-3">
+                    <span className="text-blue-400 font-bold">•</span>
+                    <div>
+                      <strong className="text-blue-300">SEC Sentence Embeddings:</strong> 4.36M sentences from 10-K/10-Q filings
+                      trained with Doc2Vec (300-dim financial domain embeddings) for semantic search over regulatory disclosures
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="text-blue-400 font-bold">•</span>
+                    <div>
+                      <strong className="text-blue-300">Visual Query Builder:</strong> Smart field type detection
+                      (date/number/boolean/text) with date pickers, number inputs, and optimized operator selection
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="text-blue-400 font-bold">•</span>
+                    <div>
+                      <strong className="text-blue-300">Enriched Results Display:</strong> AI inference engine
+                      generates contextual insights from multi-source queries with collapsible drill-down sections
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="text-blue-400 font-bold">•</span>
+                    <div>
+                      <strong className="text-blue-300">Options Flow Detection:</strong> Unusual activity detection
+                      with 20-day baseline averages for insider trading signal identification
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -120,13 +154,14 @@ export default function About() {
 │  │  Collections │  │  Edges       │  │  Embeddings  │              │
 │  └──────────────┘  └──────────────┘  └──────────────┘              │
 │                                                                       │
-│  • 500+ companies (S&P 500)                                          │
+│  • 612 companies (S&P 500)                                           │
 │  • 2M+ daily market data points (OHLCV + 40 indicators)             │
 │  • 100K+ government contract awards (with embeddings)                │
-│  • 50K+ SEC filings (10-K, 10-Q, 8-K)                               │
+│  • 7.5K SEC filings + 4.36M sentences (Doc2Vec embeddings)          │
 │  • 20K+ prediction markets (Polymarket + Kalshi)                    │
-│  • FRED economic indicators                                          │
-│  • CFTC commodity positions                                          │
+│  • 64K+ futures prices (CME commodities)                             │
+│  • CFTC commodity positions + EIA energy data                        │
+│  • Daily options flow (612 tickers)                                  │
 └───────────────────────────────────────────────────────────────────────┘`}
               </pre>
             </div>
@@ -223,11 +258,15 @@ export default function About() {
                   </li>
                   <li className="flex items-start">
                     <span className="text-gold mr-2">•</span>
-                    <span><strong>Processing:</strong> Parsed into sections and sentences</span>
+                    <span><strong>Processing:</strong> 7.5K filings parsed into 4.36M sentences</span>
                   </li>
                   <li className="flex items-start">
                     <span className="text-gold mr-2">•</span>
                     <span><strong>Sentiment:</strong> FinBERT scores for each sentence (-1 to +1)</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Embeddings:</strong> Doc2Vec 300-dim financial domain embeddings for semantic search</span>
                   </li>
                 </ul>
               </div>
@@ -266,6 +305,75 @@ export default function About() {
                   <li className="flex items-start">
                     <span className="text-gold mr-2">•</span>
                     <span><strong>Commodities:</strong> Oil, gold, wheat, corn, natural gas, etc.</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Options Flow */}
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
+                <h3 className="text-lg md:text-xl font-semibold text-indigo-400 mb-4">📈 Options Flow</h3>
+                <ul className="space-y-2 text-gray-400 text-sm">
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Source:</strong> Options data via yfinance</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Coverage:</strong> All S&P 500 companies (612 tickers)</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Data:</strong> Call/put volumes, open interest, implied volatility, put/call ratios</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Detection:</strong> Unusual activity flags for potential insider trading signals</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Futures Prices */}
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
+                <h3 className="text-lg md:text-xl font-semibold text-amber-400 mb-4">🌾 Futures Prices</h3>
+                <ul className="space-y-2 text-gray-400 text-sm">
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Source:</strong> CME Group via yfinance</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Records:</strong> 64,000+ historical prices</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Commodities:</strong> Crude oil, natural gas, gold, silver, copper, corn, wheat, soybeans</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Indicators:</strong> OHLCV data plus technical indicators (RSI, MACD, SMA)</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* EIA Energy Data */}
+              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
+                <h3 className="text-lg md:text-xl font-semibold text-emerald-400 mb-4">⚡ EIA Energy Data</h3>
+                <ul className="space-y-2 text-gray-400 text-sm">
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Source:</strong> U.S. Energy Information Administration API</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Data:</strong> Crude oil inventory, natural gas storage, production, LNG exports</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Frequency:</strong> Weekly and monthly updates</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-gold mr-2">•</span>
+                    <span><strong>Connection:</strong> Linked to futures prices for supply/demand analysis</span>
                   </li>
                 </ul>
               </div>
@@ -323,6 +431,31 @@ export default function About() {
                   <p className="text-sm text-gray-400">
                     <code className="bg-dark-900 px-2 py-1 rounded">HAS_COMMODITY_POSITION</code> links
                     companies to CFTC data for commodity exposure analysis
+                  </p>
+                </div>
+
+                <div className="bg-dark-700 border border-gold/10 rounded-lg p-6">
+                  <h4 className="font-semibold text-indigo-400 mb-2">Company → Options Flow</h4>
+                  <p className="text-sm text-gray-400">
+                    <code className="bg-dark-900 px-2 py-1 rounded">COMPANY_HAS_OPTIONS</code> connects companies to daily options activity.
+                    <code className="bg-dark-900 px-2 py-1 rounded">OPTIONS_BEFORE_AWARD</code> flags unusual activity before contract awards
+                  </p>
+                </div>
+
+                <div className="bg-dark-700 border border-gold/10 rounded-lg p-6">
+                  <h4 className="font-semibold text-amber-400 mb-2">CFTC → Futures → EIA Data</h4>
+                  <p className="text-sm text-gray-400">
+                    <code className="bg-dark-900 px-2 py-1 rounded">POSITION_ON_COMMODITY</code>,
+                    <code className="bg-dark-900 px-2 py-1 rounded">INVENTORY_AFFECTS_PRICE</code>,
+                    <code className="bg-dark-900 px-2 py-1 rounded">STORAGE_AFFECTS_PRICE</code> enable supply/demand correlation analysis
+                  </p>
+                </div>
+
+                <div className="bg-dark-700 border border-gold/10 rounded-lg p-6">
+                  <h4 className="font-semibold text-emerald-400 mb-2">SEC Sentences (Semantic Search)</h4>
+                  <p className="text-sm text-gray-400">
+                    Multi-hop traversal <code className="bg-dark-900 px-2 py-1 rounded">HAS_FILING → has_section → has_sentence</code>
+                    with Doc2Vec embeddings: "Find sentences discussing supply chain risks in energy sector 10-Ks"
                   </p>
                 </div>
               </div>

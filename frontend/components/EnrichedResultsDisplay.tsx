@@ -20,7 +20,7 @@ export default function EnrichedResultsDisplay({ data, question }: EnrichedResul
             detected.push({
                 key: 'options',
                 name: 'Options Flow',
-                icon: '📈',
+                icon: 'OPTS',
                 data: data.options_flow,
                 color: 'blue'
             })
@@ -30,7 +30,7 @@ export default function EnrichedResultsDisplay({ data, question }: EnrichedResul
             detected.push({
                 key: 'awards',
                 name: 'Gov Contracts',
-                icon: '🏛️',
+                icon: 'GOV',
                 data: data.Award,
                 color: 'purple'
             })
@@ -40,7 +40,7 @@ export default function EnrichedResultsDisplay({ data, question }: EnrichedResul
             detected.push({
                 key: 'sec',
                 name: 'SEC Filings',
-                icon: '📄',
+                icon: 'SEC',
                 data: data.sec_filings,
                 color: 'green'
             })
@@ -50,7 +50,7 @@ export default function EnrichedResultsDisplay({ data, question }: EnrichedResul
             detected.push({
                 key: 'markets',
                 name: 'Prediction Markets',
-                icon: '🎲',
+                icon: 'PRED',
                 data: data.prediction_markets_polymarket,
                 color: 'orange'
             })
@@ -60,7 +60,7 @@ export default function EnrichedResultsDisplay({ data, question }: EnrichedResul
             detected.push({
                 key: 'marketdata',
                 name: 'Market Data',
-                icon: '📊',
+                icon: 'MKT',
                 data: data.MarketData,
                 color: 'gold'
             })
@@ -87,13 +87,13 @@ export default function EnrichedResultsDisplay({ data, question }: EnrichedResul
             const unusualActivity = latestOptions.unusual_total_activity
 
             if (unusualActivity) {
-                insights.push(`🚨 <strong>Unusual options activity detected</strong> on ${latestOptions.date || 'recent date'}`)
+                insights.push(`<strong>Unusual options activity detected</strong> on ${latestOptions.date || 'recent date'}`)
             }
 
             if (putCallRatio > 1.5) {
-                insights.push(`📉 <strong>Bearish options sentiment</strong> with Put/Call ratio of ${putCallRatio.toFixed(2)}`)
+                insights.push(`<strong>Bearish options sentiment</strong> with Put/Call ratio of ${putCallRatio.toFixed(2)}`)
             } else if (putCallRatio < 0.7) {
-                insights.push(`📈 <strong>Bullish options sentiment</strong> with Put/Call ratio of ${putCallRatio.toFixed(2)}`)
+                insights.push(`<strong>Bullish options sentiment</strong> with Put/Call ratio of ${putCallRatio.toFixed(2)}`)
             }
         }
 
@@ -109,9 +109,9 @@ export default function EnrichedResultsDisplay({ data, question }: EnrichedResul
                 return date >= sixMonthsAgo
             }).length
 
-            insights.push(`🏛️ <strong>${awards.data.length} government contracts</strong> worth $${(totalValue / 1e6).toFixed(1)}M total`)
+            insights.push(`<strong>${awards.data.length} government contracts</strong> worth $${(totalValue / 1e6).toFixed(1)}M total`)
             if (recentAwards > 0) {
-                insights.push(`✨ <strong>${recentAwards} new contracts</strong> awarded in the last 6 months`)
+                insights.push(`<strong>${recentAwards} new contracts</strong> awarded in the last 6 months`)
             }
         }
 
@@ -120,15 +120,15 @@ export default function EnrichedResultsDisplay({ data, question }: EnrichedResul
         if (sec && sec.data.length > 0) {
             const avgSentiment = sec.data.reduce((sum: number, f: any) => sum + (f.avg_finbert || 0), 0) / sec.data.length
             const recentFilings = sec.data.slice(0, 3)
-            const formTypes = [...new Set(sec.data.map((f: any) => f.type || f.form_type))].slice(0, 3).join(', ')
+            const formTypes = Array.from(new Set(sec.data.map((f: any) => f.type || f.form_type))).slice(0, 3).join(', ')
 
             if (avgSentiment > 0.2) {
-                insights.push(`💚 <strong>Positive SEC sentiment</strong> (avg ${avgSentiment.toFixed(3)})`)
+                insights.push(`<strong>Positive SEC sentiment</strong> (avg ${avgSentiment.toFixed(3)})`)
             } else if (avgSentiment < -0.2) {
-                insights.push(`💔 <strong>Negative SEC sentiment</strong> (avg ${avgSentiment.toFixed(3)})`)
+                insights.push(`<strong>Negative SEC sentiment</strong> (avg ${avgSentiment.toFixed(3)})`)
             }
 
-            insights.push(`📄 <strong>${sec.data.length} SEC filings</strong> including ${formTypes}`)
+            insights.push(`<strong>${sec.data.length} SEC filings</strong> including ${formTypes}`)
         }
 
         return {
@@ -155,7 +155,7 @@ export default function EnrichedResultsDisplay({ data, question }: EnrichedResul
             {inference && (
                 <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-lg p-4">
                     <div className="flex items-start gap-3">
-                        <div className="text-2xl">🤖</div>
+                        <div className="text-sm font-bold text-blue-400 px-2 py-1 bg-blue-500/20 rounded">AI</div>
                         <div className="flex-1 space-y-2">
                             <div className="text-sm text-gray-300" dangerouslySetInnerHTML={{ __html: inference.summary }} />
                             {inference.insights.length > 0 && (
@@ -183,7 +183,7 @@ export default function EnrichedResultsDisplay({ data, question }: EnrichedResul
                                 className={`w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors`}
                             >
                                 <div className="flex items-center gap-3">
-                                    <span className="text-xl">{enrichment.icon}</span>
+                                    <span className={`text-xs font-bold ${colors.text} px-2 py-1 ${colors.badge} rounded`}>{enrichment.icon}</span>
                                     <div className="text-left">
                                         <div className={`text-sm font-semibold ${colors.text}`}>
                                             {enrichment.name}
@@ -316,7 +316,7 @@ function SECFilingsTable({ data }: { data: any[] }) {
             {data.slice(0, 5).map((filing, idx) => {
                 const sentiment = filing.avg_finbert || 0
                 const sentimentColor = sentiment > 0.2 ? 'text-green-400' : sentiment < -0.2 ? 'text-red-400' : 'text-gray-400'
-                const sentimentIcon = sentiment > 0.2 ? '📈' : sentiment < -0.2 ? '📉' : '➡️'
+                const sentimentLabel = sentiment > 0.2 ? 'POS' : sentiment < -0.2 ? 'NEG' : 'NEU'
 
                 return (
                     <div key={idx} className="bg-dark-900/50 border border-green-500/20 rounded p-3">
@@ -326,7 +326,7 @@ function SECFilingsTable({ data }: { data: any[] }) {
                                     {filing.type || filing.form_type || 'Unknown'}
                                 </span>
                                 <span className={`text-xs ${sentimentColor} flex items-center gap-1`}>
-                                    {sentimentIcon}
+                                    <span className="font-bold">{sentimentLabel}</span>
                                     <span>{sentiment.toFixed(3)}</span>
                                 </span>
                             </div>
