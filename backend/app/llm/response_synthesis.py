@@ -113,18 +113,60 @@ ANALYSIS_STRATEGIES = {
         - Stock + Prediction Markets: Sentiment vs reality divergence
         - Options + SEC Filings: Pre-announcement positioning
         """
+    },
+
+    "company_overview": {
+        "focus": "Comprehensive company intelligence synthesis",
+        "key_metrics": ["price_trend", "fundamentals", "recent_filings", "options_activity", "government_contracts"],
+        "novelty_checks": [
+            "Is there unusual price movement? (>5% single day, >20% monthly)",
+            "Are there recent SEC filings with significant sentiment shifts?",
+            "Is there unusual options activity? (Volume > 3x average)",
+            "Are there major government contracts? (>$100M)",
+            "Are fundamentals improving or deteriorating?"
+        ],
+        "synthesis": """
+        Holistic company analysis:
+        - Price action: Trends, breakouts, support/resistance levels
+        - Fundamental health: P/E, analyst targets, earnings trajectory
+        - Corporate signals: SEC filings sentiment, management tone
+        - Smart money: Options flow, insider activity patterns
+        - Revenue catalysts: Government contracts, new business wins
+
+        Synthesize into 4-sentence AI intelligence summary - NO TABLE NEEDED!
+        """
     }
 }
 
 
-def detect_analysis_type(user_question: str, query_plan: dict) -> str:
+def detect_analysis_type(user_question: str, query_plan: dict, results: List[Dict] = None) -> str:
     """Detect which analysis strategy to use based on question and query"""
 
     question_lower = user_question.lower()
     collections = query_plan.get('collections', [])
     intent = query_plan.get('intent', '')
 
-    # Check for multi-source queries first
+    # Check for company overview - comprehensive workup structure
+    # This structure has nested MarketData, sec_filings, Award, options_flow
+    if results and len(results) > 0:
+        first_result = results[0]
+        has_nested_market_data = isinstance(first_result.get('MarketData'), list)
+        has_nested_filings = isinstance(first_result.get('sec_filings'), list)
+        has_company_ticker = 'ticker' in first_result and 'company' in first_result
+
+        if has_nested_market_data or (has_nested_filings and has_company_ticker):
+            return "company_overview"
+
+    # Also detect company overview by question pattern
+    company_patterns = ['show me', 'tell me about', 'overview', 'analysis of', 'info on', 'information about']
+    if any(pattern in question_lower for pattern in company_patterns):
+        # Check if question is about a single ticker (2-5 uppercase letters)
+        import re
+        ticker_match = re.search(r'\b[A-Z]{1,5}\b', question_lower.upper())
+        if ticker_match and len(question_lower.split()) <= 8:
+            return "company_overview"
+
+    # Check for multi-source queries
     if len(collections) >= 3:
         return "multi_source_correlation"
 
@@ -226,18 +268,33 @@ def generate_context_aware_prompt(
 1. **Start with Executive Summary (2-3 sentences)**
    - What's the key finding? Is it significant?
    - If data shows nothing unusual, say so clearly
+"""
 
+    # Add table instruction ONLY for non-company-overview queries
+    if analysis_type != "company_overview":
+        prompt += """
 2. **Present Data in Markdown Table**
    - Top 10 rows (or all if less)
    - 5-7 most relevant columns only
    - Format numbers properly ($, %, dates)
 
 3. **Provide Domain-Specific Analysis (not generic insights!)**
-   - Apply the novelty checks listed above
+"""
+    else:
+        prompt += """
+2. **Provide Domain-Specific Intelligence Synthesis**
+   ⚠️ DO NOT CREATE A TABLE - The frontend already displays full company data!
+   Instead, provide a concise 4-sentence AI intelligence summary that synthesizes:
+"""
+
+    prompt += """   - Apply the novelty checks listed above
    - Explain WHY patterns matter, not just WHAT they are
    - Connect to broader market context
    - Identify anomalies, outliers, or significant patterns
+"""
 
+    if analysis_type != "company_overview":
+        prompt += """
 4. **Synthesis (if applicable)**
    - If multiple data sources: connect the dots
    - If time series: identify trends, breakouts, reversals
@@ -248,13 +305,37 @@ def generate_context_aware_prompt(
    - DON'T provide obvious observations
    - DO explain significance and implications
    - DO highlight anything unusual or actionable
+"""
+    else:
+        prompt += """
+3. **Key Insights (3-4 bullet points)**
+   - Price action and technical signals
+   - Fundamental strength/weakness
+   - Corporate developments (filings, awards, options activity)
+   - Smart money signals (unusual options, insider patterns)
+"""
 
+    prompt += """
 **Example of Good vs Bad Analysis:**
 
 ❌ BAD: "The table shows 5 stocks with high call volume. NVDA has 10,000 calls."
 ✅ GOOD: "NVDA shows 3x normal call volume with P/C ratio of 0.3, suggesting strong bullish positioning. This is significant because it coincides with earnings in 2 weeks - similar patterns preceded the last 3 earnings beats."
 
-**Response Format:**
+**Response Format:**"""
+
+    if analysis_type == "company_overview":
+        prompt += """
+## AI Intelligence Summary
+[4-sentence synthesis covering price action, fundamentals, corporate signals, smart money]
+
+## Key Insights
+- [Technical/price signal]
+- [Fundamental strength/weakness]
+- [Corporate development (filing/award/options)]
+- [Smart money signal or risk factor]
+"""
+    else:
+        prompt += """
 ## [Executive Summary]
 
 [Table]
@@ -281,8 +362,8 @@ def analyze_results_with_context(
     Replaces generic analyze_results_with_llm function.
     """
 
-    # Detect analysis type
-    analysis_type = detect_analysis_type(user_question, query_plan)
+    # Detect analysis type (pass results to detect company_overview structure)
+    analysis_type = detect_analysis_type(user_question, query_plan, results)
 
     print(f"\n[SYNTHESIS] Detected analysis type: {analysis_type}")
     print(f"[SYNTHESIS] Result count: {len(results)}")

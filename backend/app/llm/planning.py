@@ -648,7 +648,8 @@ FOR doc IN MarketData
     volume: doc.volume
   }}
 
-Example 4: "Tesla stock performance during October 2020" (SUMMARY for > 7 days)
+Example 4: "Tesla stock performance during October 2020" (SUMMARY for SPECIFIC DATE RANGE > 7 days)
+⚠️ ONLY use this when user specifies EXACT date range (month/year). For general company queries, use Example 5!
 LET data = (
   FOR doc IN MarketData
     FILTER doc.ticker == @ticker
@@ -666,8 +667,9 @@ RETURN {{
   percent_change: ROUND(((last.close - first.open) / first.open) * 100 * 100) / 100
 }}
 
-Example 5: "Show me Apple" OR "Tell me about TSLA" OR "NVDA overview" (COMPREHENSIVE COMPANY WORKUP)
+Example 5: "Show me Apple" OR "Tell me about TSLA" OR "NVDA overview" OR "Show A" OR "A stock performance" (COMPREHENSIVE COMPANY WORKUP)
 ⚠️ CRITICAL: Use this pattern for ANY company overview/analysis question!
+⚠️ TRIGGER KEYWORDS: "show [ticker]", "tell me about [ticker]", "[ticker] overview", "[ticker] performance", "[ticker] stock", "[ticker] analysis"
 FOR company IN Company
   FILTER company.ticker == @ticker
   LIMIT 1
@@ -686,12 +688,12 @@ FOR company IN Company
       LET top_sentences = (
         FOR section IN OUTBOUND filing has_section
           FOR sentence IN OUTBOUND section has_sentence
-            FILTER sentence.finbertscore != null
-            SORT ABS(sentence.finbertscore) DESC
+            FILTER sentence.finbert_score != null
+            SORT ABS(sentence.finbert_score) DESC
             LIMIT 5
             RETURN {{
               text: sentence.text,
-              score: sentence.finbertscore
+              score: sentence.finbert_score
             }}
       )
       RETURN MERGE(filing, {{ top_sentences: top_sentences }})
@@ -776,21 +778,26 @@ Examples:
 7. **For date ranges:** Parse natural language dates into specific YYYY-MM-DD strings
 
 **QUERY OUTPUT STRATEGY:**
-For time series queries, choose the right output format:
+For queries about stocks/companies, choose the right pattern:
 
-1. **Summary Format** (date range > 7 days OR user says "performance/summary"):
-   - Return aggregated metrics (open, close, high, low, % change)
+1. **COMPREHENSIVE WORKUP** (user says "show [ticker]", "[ticker] overview", "[ticker] performance" WITHOUT specific dates):
+   - USE EXAMPLE 5 - Returns full nested structure with MarketData, filings, awards, options
+   - Frontend CompanyWorkup component displays this beautifully with charts
+   - DO NOT use summary format (Example 4) for these queries!
+
+2. **Summary Format** (user specifies EXACT date range like "Tesla during October 2020"):
+   - USE EXAMPLE 4 - Return aggregated metrics (open, close, % change)
    - Single row with summary statistics
-   - Use Example 9b pattern
+   - ONLY for specific historical periods, not general company queries
 
-2. **Daily Format** (date range <= 7 days OR user says "daily/detailed"):
+3. **Daily Format** (date range <= 7 days OR user says "daily/detailed"):
    - Return individual rows per day
-   - Use Example 9 pattern
+   - Use Example 3 pattern
    - Limit to reasonable number (30-50 rows max)
 
-3. **Multi-Ticker Comparison** (user compares multiple stocks):
+4. **Multi-Ticker Comparison** (user compares multiple stocks):
    - Return separate summary for EACH ticker
-   - Use Example 9c pattern with FOR loop over ticker array
+   - Use Example 5c pattern with FOR loop over ticker array
    - DO NOT interleave data from different tickers
    - Each ticker gets its own row with summary stats
 
