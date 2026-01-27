@@ -704,14 +704,14 @@ export default function HomePage() {
     }
   }
 
-  // Optimized suggested questions - showcase multi-source intelligence
+  // Suggested questions - showcase multi-source capabilities with reliable data
   const suggestedQuestions = [
-    'Find defense contractors with unusual options activity before major awards',
-    'Show me energy companies vs crude oil futures prices last 90 days',
-    'What stocks have negative SEC sentiment but bullish options flow?',
-    'Compare natural gas storage levels to futures prices',
-    'Find tech companies with large government contracts and recent filings',
-    'Show me gold prices during high inflation periods',
+    'Show me Lockheed Martin with government contracts',
+    'What are the most negative SEC filings this year?',
+    'Find defense contractors with contracts over $500M',
+    'Show me crude oil and natural gas futures prices',
+    'What prediction markets mention Tesla or Elon Musk?',
+    'Compare Apple and Microsoft stock performance',
   ]
 
   // Debounce search input (500ms delay)
