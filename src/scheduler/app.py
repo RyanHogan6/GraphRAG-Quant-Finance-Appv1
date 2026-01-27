@@ -46,11 +46,10 @@ try:
     # Polymarket
     from polymarket.downloader import fetch_all_markets
     from polymarket.features import engineer_market_features
-    from polymarket.arango_uploader import get_arango_connection, upsert_markets
+    from polymarket.arango_uploader import get_arango_connection, upsert_markets_batch, upsert_traders
     from polymarket.price_history import save_price_snapshots
     from polymarket.trader_tracker import fetch_traders_from_subgraph, parse_trader_positions
-    from polymarket.arango_uploader import upsert_traders, create_trader_edges
-    from polymarket.edge_builder import build_all_edges
+    from polymarket.edge_builder import build_all_edges, build_trader_position_edges, build_position_market_edges
     from polymarket.price_history import cleanup_old_snapshots
 
     # Yahoo
@@ -545,7 +544,7 @@ def run_polymarket_pipeline(skip_embeddings=False):
 
         # Step 5: Upload markets
         logger.info("\n[5/7] Uploading markets to ArangoDB...")
-        inserted, updated, errors = upsert_markets(db, markets_df)
+        inserted, updated, errors = upsert_markets_batch(db, markets_df)
         logger.info(f"✓ Markets - Inserted: {inserted:,}, Updated: {updated:,}, Errors: {errors}")
 
         # Upload traders (conditional)
@@ -557,8 +556,10 @@ def run_polymarket_pipeline(skip_embeddings=False):
             # Create trader edges
             if positions_df is not None and len(positions_df) > 0:
                 logger.info("Creating trader edges...")
-                trader_edges = create_trader_edges(db, positions_df)
-                logger.info(f"✓ Created trader edges: {trader_edges}")
+                trader_position_edges = build_trader_position_edges(db)
+                position_market_edges = build_position_market_edges(db)
+                logger.info(f"✓ Created trader→position edges: {trader_position_edges:,}")
+                logger.info(f"✓ Created position→market edges: {position_market_edges:,}")
 
         # Step 6: Save price history snapshots
         logger.info("\n[6/7] Saving price history snapshots...")

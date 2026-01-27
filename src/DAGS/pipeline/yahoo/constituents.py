@@ -97,9 +97,13 @@ def get_sp500_tickers(current_only=True):
 
     return tickers
 
-def get_tickers_from_arango():
+def get_tickers_from_arango(current_only=True):
     """
     Get tickers directly from ArangoDB Company collection
+
+    Args:
+        current_only: If True (default), only return current S&P 500 members (sp500_member=true)
+                     If False, return all companies including historical
     """
     from arango import ArangoClient
     from dotenv import load_dotenv
@@ -115,11 +119,23 @@ def get_tickers_from_arango():
     client = ArangoClient(hosts=arango_url)
     db = client.db(db_name, username=username, password=password)
 
-    # Get all tickers from Company collection
-    query = """
-    FOR company IN Company
-        RETURN company.ticker
-    """
+    # Get tickers from Company collection
+    if current_only:
+        # Only current S&P 500 members
+        query = """
+        FOR company IN Company
+            FILTER company.sp500_member == true
+            RETURN company.ticker
+        """
+        print("Fetching CURRENT S&P 500 members only (sp500_member=true)")
+    else:
+        # All companies (including historical)
+        query = """
+        FOR company IN Company
+            RETURN company.ticker
+        """
+        print("Fetching ALL companies (including historical S&P 500 members)")
+
     tickers = list(db.aql.execute(query))
 
     return [t for t in tickers if t]  # Filter out None values

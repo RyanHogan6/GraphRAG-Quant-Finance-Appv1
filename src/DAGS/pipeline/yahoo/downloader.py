@@ -22,10 +22,9 @@ def download_stock_data(tickers, period='1mo', batch_size=1, sleep_between_ticke
     import time
     import random
 
-    # Set user agent to avoid blocks
-    import requests
-    session = requests.Session()
-    session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+    # NOTE: yfinance now requires curl_cffi sessions, not requests sessions
+    # Let yfinance handle session management internally
+    # See: https://github.com/ranaroussi/yfinance/issues/1729
 
     if period == '1mo':
         start_date = datetime.today().date() - timedelta(days=30)
@@ -51,22 +50,36 @@ def download_stock_data(tickers, period='1mo', batch_size=1, sleep_between_ticke
     # Download one ticker at a time to avoid rate limiting
     for idx, ticker in enumerate(tickers, 1):
         try:
-            # Progress update every 50 tickers
+            # Progress update every 50 tickers (show first 3 failures for debugging)
             if idx % 50 == 0 or idx == len(tickers):
                 print(f"  Progress: {idx}/{len(tickers)} ({idx/len(tickers)*100:.1f}%) - Success: {len(all_records)}, Failed: {len(failed_tickers)}")
 
-            # Download single ticker with session
+            # Show first 3 ticker attempts for debugging
+            if idx <= 3:
+                print(f"  [DEBUG] Attempting ticker: {ticker}")
+
+            # Download single ticker (yfinance handles session internally)
             data = yf.download(
                 ticker,
                 start=start_date,
                 end=end_date,
                 auto_adjust=True,
-                progress=False,
-                session=session
+                progress=False
             )
+
+            # Show first 3 results for debugging
+            if idx <= 3:
+                print(f"  [DEBUG] Result for {ticker}: {len(data)} rows, empty={data.empty}")
+                if not data.empty:
+                    print(f"  [DEBUG] Columns: {list(data.columns)}")
+                    print(f"  [DEBUG] First row: {data.iloc[0].to_dict()}")
+                else:
+                    print(f"  [DEBUG] Data is empty - ticker may be delisted or invalid")
 
             # Check if data is empty
             if data.empty or len(data) == 0:
+                if idx <= 5:
+                    print(f"  [WARN] {ticker}: No data returned from Yahoo Finance")
                 failed_tickers.append(ticker)
                 # Add small delay even on failure
                 time.sleep(0.1)
@@ -75,10 +88,42 @@ def download_stock_data(tickers, period='1mo', batch_size=1, sleep_between_ticke
             # Process data
             df = data.copy()
             df = df.reset_index()
+
+            # Debug: show columns before lowercasing
+            if idx <= 3:
+                print(f"  [DEBUG] Columns before lowercase: {list(df.columns)}")
+
+            # Lowercase all column names
             df.columns = [col.lower() if isinstance(col, str) else col for col in df.columns]
 
-            # Add ticker column and format date
+            # Debug: show columns after lowercasing
+            if idx <= 3:
+                print(f"  [DEBUG] Columns after lowercase: {list(df.columns)}")
+
+            # Add ticker column
             df['ticker'] = ticker
+
+            # Format date column (handle both 'date' and 'index' names)
+            date_col = None
+            if 'date' in df.columns:
+                date_col = 'date'
+            elif 'index' in df.columns:
+                date_col = 'index'
+                df = df.rename(columns={'index': 'date'})
+            else:
+                # Find any datetime column
+                for col in df.columns:
+                    if pd.api.types.is_datetime64_any_dtype(df[col]):
+                        date_col = col
+                        df = df.rename(columns={col: 'date'})
+                        break
+
+            if date_col is None:
+                if idx <= 5:
+                    print(f"  [ERROR] {ticker}: No date column found in {list(df.columns)}")
+                failed_tickers.append(ticker)
+                continue
+
             df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d')
 
             # Only keep rows with valid OHLCV data
@@ -99,7 +144,9 @@ def download_stock_data(tickers, period='1mo', batch_size=1, sleep_between_ticke
                 time.sleep(sleep_between_tickers * jitter)
 
         except Exception as e:
-            # Silently fail individual tickers (yfinance logs errors)
+            # Show first 5 errors for debugging
+            if idx <= 5:
+                print(f"  [ERROR] {ticker}: {type(e).__name__}: {str(e)}")
             failed_tickers.append(ticker)
             # Longer delay on error to avoid cascading rate limits
             time.sleep(2.0)

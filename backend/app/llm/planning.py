@@ -683,6 +683,7 @@ FOR company IN Company
 
   LET sec_filings = (
     FOR filing IN OUTBOUND company HAS_FILING
+      FILTER filing.type IN ["10-K", "10-Q"]
       SORT filing.filing_date DESC
       LIMIT 20
       LET top_sentences = (
@@ -999,6 +1000,60 @@ def format_time_series_analysis(user_question: str, results: list, query_plan: d
     return "Unable to analyze price data."
 
 
+def strip_markdown_tables(text: str) -> str:
+    """
+    Remove markdown tables from text.
+    Handles both full tables and partial table fragments.
+    """
+    import re
+
+    lines = text.split('\n')
+    cleaned_lines = []
+    in_table = False
+    table_header = None
+
+    for i, line in enumerate(lines):
+        # Check if this line is part of a markdown table
+        if '|' in line:
+            # Could be a table row
+            # Check if next line has --- separators (table header marker)
+            if i + 1 < len(lines) and re.match(r'^[\s|:-]+$', lines[i + 1].replace('-', '').replace(':', '')):
+                # This is a table header, skip it and the separator
+                in_table = True
+                table_header = line
+                continue
+            elif in_table:
+                # We're inside a table, skip this row
+                continue
+            elif re.match(r'^[\s|:-]+$', line.replace('-', '').replace(':', '')):
+                # This is a separator line, skip it
+                continue
+            else:
+                # Might be a table row without proper header detected
+                # Check if line has multiple | characters (likely a table)
+                if line.count('|') >= 2:
+                    in_table = True
+                    continue
+        else:
+            # Not a table line
+            if in_table:
+                # Just exited a table
+                in_table = False
+                table_header = None
+            cleaned_lines.append(line)
+
+    result = '\n'.join(cleaned_lines)
+
+    # Additional cleanup: remove any "Apple Stock Data" or similar headers that precede tables
+    result = re.sub(r'#+\s*\w+\s+Stock Data[^\n]*\n', '', result, flags=re.IGNORECASE)
+    result = re.sub(r'Apple Stock Data \(Database Results\)', '', result, flags=re.IGNORECASE)
+
+    # Remove excessive blank lines
+    result = re.sub(r'\n{3,}', '\n\n', result)
+
+    return result.strip()
+
+
 def analyze_results_with_llm(user_question: str, results: list, query_plan: dict):
     """Analyze query results and generate natural language response"""
 
@@ -1046,6 +1101,18 @@ def analyze_results_with_llm(user_question: str, results: list, query_plan: dict
         print(f"[LLM ANALYSIS] Response preview (first 200 chars):")
         print(f"  {analysis_result[:200]}...")
         print(f"[LLM ANALYSIS] Contains table markers: {'|' in analysis_result}")
+
+        # CRITICAL: For company overview queries, strip any tables the LLM created
+        if detect_time_series_query(results, query_plan) == False and len(results) > 0:
+            first_result = results[0]
+            # Check if this is a comprehensive company workup (nested structure)
+            has_nested_data = isinstance(first_result.get('MarketData'), list) or isinstance(first_result.get('sec_filings'), list)
+
+            if has_nested_data and '|' in analysis_result:
+                print(f"[LLM ANALYSIS] ⚠️ Company overview with table detected - stripping tables!")
+                analysis_result = strip_markdown_tables(analysis_result)
+                print(f"[LLM ANALYSIS] ✓ Tables removed, new length: {len(analysis_result)} chars")
+
         print("="*80 + "\n")
 
         return analysis_result

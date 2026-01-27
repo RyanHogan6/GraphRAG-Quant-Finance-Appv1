@@ -251,12 +251,29 @@ def generate_context_aware_prompt(
     if analysis_type == "company_overview":
         prompt += """
 
-🚨🚨🚨 CRITICAL WARNING FOR COMPANY OVERVIEW QUERIES 🚨🚨🚨
-DO NOT CREATE ANY MARKDOWN TABLES IN YOUR RESPONSE!
-The frontend already displays all company data with interactive charts.
-Your response should ONLY be natural language paragraphs and bullet points.
-NO TABLES WITH | pipes or --- separators!
-🚨🚨🚨 END WARNING 🚨🚨🚨
+═══════════════════════════════════════════════════════════════════════════════
+🚨 MANDATORY INSTRUCTION - FAILURE TO COMPLY WILL RESULT IN INCORRECT OUTPUT 🚨
+═══════════════════════════════════════════════════════════════════════════════
+
+THIS IS A COMPANY OVERVIEW QUERY.
+
+YOU MUST NOT CREATE ANY TABLES WHATSOEVER.
+
+SPECIFICALLY PROHIBITED:
+❌ NO markdown tables with | pipes
+❌ NO tables with Date/Close Price/Volume columns
+❌ NO formatted data grids
+❌ NO "Apple Stock Data from Database" sections
+❌ NO tabular layouts of ANY kind
+
+WHY: The frontend CompanyWorkup component already displays:
+- Interactive price charts with full history
+- Fundamental metrics in a structured layout
+- All company data in visual format
+
+YOUR JOB: Write ONLY natural language analysis (paragraphs + bullet points)
+
+═══════════════════════════════════════════════════════════════════════════════
 """
 
     prompt += f"""
