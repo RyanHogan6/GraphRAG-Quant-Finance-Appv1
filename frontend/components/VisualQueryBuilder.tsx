@@ -12,6 +12,7 @@ type Filter = {
     field: string
     operator: string
     value: string
+    fieldType?: 'text' | 'number' | 'date' | 'boolean'
 }
 
 type Enrichment = {
@@ -132,7 +133,7 @@ export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps)
             }
 
             aql += `\n  // Enrich with ${targetNode.name}\n`
-            aql += `  LET ${targetNode.collection}_data = (\n`
+            aql += `  LET ${targetNode.collection} = (\n`
 
             if (connection.type === 'direct') {
                 if (connection.direction === 'INBOUND') {
@@ -147,6 +148,8 @@ export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps)
                         aql += `      SORT t.date DESC LIMIT 30 RETURN t\n`
                     } else if (targetKey === 'awards') {
                         aql += `      SORT t.start_date DESC LIMIT 5 RETURN t\n`
+                    } else if (targetKey === 'options') {
+                        aql += `      SORT t.date DESC LIMIT 20 RETURN t\n`
                     } else if (targetKey === 'sec') {
                         aql += `      LET top_sentences = (\n`
                         aql += `        FOR s IN 1..2 OUTBOUND t has_section, has_sentence\n`
@@ -179,7 +182,7 @@ export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps)
         if (enrichments.length > 0) {
             const merges = enrichments.map(e => {
                 const node = GRAPH_SCHEMA[e.targetKey]
-                return node ? `${node.collection}: ${node.collection}_data` : ''
+                return node ? `${node.collection}` : ''
             }).filter(Boolean).join(', ')
             aql += `  RETURN MERGE(doc, { ${merges} })`
         } else {
@@ -189,9 +192,23 @@ export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps)
         onQueryChange(aql, desc)
     }, [source, filters, enrichments, limit])
 
+    // Helper to detect field type
+    const detectFieldType = (fieldName: string): 'text' | 'number' | 'date' | 'boolean' => {
+        const lower = fieldName.toLowerCase()
+        if (lower.includes('date') || lower.includes('time') || lower === 'year' || lower === 'month') return 'date'
+        if (lower.includes('price') || lower.includes('amount') || lower.includes('volume') ||
+            lower.includes('ratio') || lower.includes('yield') || lower.includes('rate') ||
+            lower.includes('margin') || lower.includes('cap') || lower.includes('value')) return 'number'
+        if (lower.includes('is_') || lower.includes('has_') || lower.includes('above_') ||
+            lower.includes('_flag') || lower.includes('unusual')) return 'boolean'
+        return 'text'
+    }
+
     const addFilter = () => {
         if (!sourceNode) return
-        setFilters([...filters, { field: sourceNode.keyFields[0], operator: '==', value: '' }])
+        const firstField = sourceNode.keyFields[0]
+        const fieldType = detectFieldType(firstField)
+        setFilters([...filters, { field: firstField, operator: '==', value: '', fieldType }])
     }
 
     const removeFilter = (idx: number) => {
@@ -203,6 +220,16 @@ export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps)
     const updateFilter = (idx: number, field: keyof Filter, value: string) => {
         const newFilters = [...filters]
         newFilters[idx] = { ...newFilters[idx], [field]: value }
+
+        // If changing field, detect new field type
+        if (field === 'field') {
+            newFilters[idx].fieldType = detectFieldType(value)
+            // Reset operator to appropriate default for field type
+            if (newFilters[idx].fieldType === 'date') {
+                newFilters[idx].operator = '>='
+            }
+        }
+
         setFilters(newFilters)
     }
 
@@ -407,41 +434,91 @@ export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps)
                                 <div className="text-xs text-gray-500 italic px-2">No filters (Get all records)</div>
                             )}
 
-                            {filters.map((filter, idx) => (
-                                <div key={idx} className="flex gap-2 items-center bg-dark-800 p-2 rounded border border-gold/10">
-                                    <select
-                                        value={filter.field}
-                                        onChange={(e) => updateFilter(idx, 'field', e.target.value)}
-                                        className="bg-dark-900 text-gray-200 text-xs p-1 rounded border border-gray-700 focus:border-gold/50 outline-none"
-                                    >
-                                        {sourceNode.keyFields.map(f => <option key={f} value={f}>{f}</option>)}
-                                    </select>
+                            {filters.map((filter, idx) => {
+                                const fieldType = filter.fieldType || 'text'
+                                return (
+                                    <div key={idx} className="flex gap-2 items-center bg-dark-800 p-2 rounded border border-gold/10">
+                                        <select
+                                            value={filter.field}
+                                            onChange={(e) => updateFilter(idx, 'field', e.target.value)}
+                                            className="bg-dark-900 text-gray-200 text-xs p-1 rounded border border-gray-700 focus:border-gold/50 outline-none flex-1"
+                                        >
+                                            {sourceNode.keyFields.map(f => (
+                                                <option key={f} value={f}>
+                                                    {f}
+                                                    {f.toLowerCase().includes('date') && ' 📅'}
+                                                </option>
+                                            ))}
+                                        </select>
 
-                                    <select
-                                        value={filter.operator}
-                                        onChange={(e) => updateFilter(idx, 'operator', e.target.value)}
-                                        className="bg-dark-900 text-gold text-xs p-1 rounded border border-gray-700 focus:border-gold/50 outline-none font-mono"
-                                    >
-                                        <option value="==">==</option>
-                                        <option value="!=">!=</option>
-                                        <option value=">">&gt;</option>
-                                        <option value="<">&lt;</option>
-                                        <option value=">=">&gt;=</option>
-                                        <option value="<=">&lt;=</option>
-                                        <option value="=~">contains</option>
-                                    </select>
+                                        <select
+                                            value={filter.operator}
+                                            onChange={(e) => updateFilter(idx, 'operator', e.target.value)}
+                                            className="bg-dark-900 text-gold text-xs p-1 rounded border border-gray-700 focus:border-gold/50 outline-none font-mono"
+                                        >
+                                            {fieldType === 'boolean' ? (
+                                                <>
+                                                    <option value="==">is</option>
+                                                    <option value="!=">is not</option>
+                                                </>
+                                            ) : fieldType === 'text' ? (
+                                                <>
+                                                    <option value="==">==</option>
+                                                    <option value="!=">!=</option>
+                                                    <option value="=~">contains</option>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <option value="==">==</option>
+                                                    <option value="!=">!=</option>
+                                                    <option value=">">&gt;</option>
+                                                    <option value="<">&lt;</option>
+                                                    <option value=">=">&gt;=</option>
+                                                    <option value="<=">&lt;=</option>
+                                                </>
+                                            )}
+                                        </select>
 
-                                    <input
-                                        type="text"
-                                        value={filter.value}
-                                        onChange={(e) => updateFilter(idx, 'value', e.target.value)}
-                                        placeholder="Value..."
-                                        className="bg-dark-900 text-gray-200 text-xs p-1 rounded border border-gray-700 focus:border-gold/50 outline-none flex-1"
-                                    />
+                                        {fieldType === 'date' ? (
+                                            <input
+                                                type="date"
+                                                value={filter.value}
+                                                onChange={(e) => updateFilter(idx, 'value', e.target.value)}
+                                                className="bg-dark-900 text-gray-200 text-xs p-1 rounded border border-gray-700 focus:border-gold/50 outline-none flex-1"
+                                            />
+                                        ) : fieldType === 'boolean' ? (
+                                            <select
+                                                value={filter.value}
+                                                onChange={(e) => updateFilter(idx, 'value', e.target.value)}
+                                                className="bg-dark-900 text-gray-200 text-xs p-1 rounded border border-gray-700 focus:border-gold/50 outline-none flex-1"
+                                            >
+                                                <option value="">Select...</option>
+                                                <option value="true">true</option>
+                                                <option value="false">false</option>
+                                            </select>
+                                        ) : fieldType === 'number' ? (
+                                            <input
+                                                type="number"
+                                                value={filter.value}
+                                                onChange={(e) => updateFilter(idx, 'value', e.target.value)}
+                                                placeholder="Number..."
+                                                step="any"
+                                                className="bg-dark-900 text-gray-200 text-xs p-1 rounded border border-gray-700 focus:border-gold/50 outline-none flex-1"
+                                            />
+                                        ) : (
+                                            <input
+                                                type="text"
+                                                value={filter.value}
+                                                onChange={(e) => updateFilter(idx, 'value', e.target.value)}
+                                                placeholder="Value..."
+                                                className="bg-dark-900 text-gray-200 text-xs p-1 rounded border border-gray-700 focus:border-gold/50 outline-none flex-1"
+                                            />
+                                        )}
 
-                                    <button onClick={() => removeFilter(idx)} className="text-gray-500 hover:text-red-400 px-1">×</button>
-                                </div>
-                            ))}
+                                        <button onClick={() => removeFilter(idx)} className="text-gray-500 hover:text-red-400 px-1 text-lg">×</button>
+                                    </div>
+                                )
+                            })}
                         </div>
 
                         {/* Semantic Search Controls (if supported) */}
