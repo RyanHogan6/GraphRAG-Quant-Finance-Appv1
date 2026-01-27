@@ -126,9 +126,10 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
     // AI Intelligence Summary (4 sentences) - Enriched with Latest Search
     const aiSummary = useMemo(() => {
         const ticker = company.ticker
-        const priceChange = chartData.values.length > 1
-            ? ((chartData.values[chartData.values.length - 1] - chartData.values[0]) / chartData.values[0] * 100).toFixed(1)
-            : 'N/A'
+        const priceChangeNum = chartData.values.length > 1
+            ? ((chartData.values[chartData.values.length - 1] - chartData.values[0]) / chartData.values[0] * 100)
+            : 0
+        const priceChange = priceChangeNum !== 0 ? priceChangeNum.toFixed(1) : 'N/A'
 
         const latestAwards = awards.length > 0 ? awards[0].award_amount_float : 0
         const sentiment = secFilings[0]?.avg_finbert != null
@@ -169,7 +170,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
             polyMarkets.length > 0
                 ? `Prediction markets assign ${(polyMarkets[0].yes_probability * 100).toFixed(0)}% probability to ${polyMarkets[0].question}, with $${(polyMarkets[0].volume_24h / 1000).toFixed(0)}K daily volume reflecting market sentiment divergence from traditional equity pricing models.`
                 : news ? `Wall Street projections for 2026 highlight potential revenue ceiling of ${news.rev}, catalyzed significantly by ${news.driver}, with upcoming ${news.event} serving as critical inflection point for institutional portfolio rebalancing.`
-                : `Fundamental metrics show ${latestMarket?.revenue_growth ? ((latestMarket.revenue_growth * 100).toFixed(1) + '% revenue growth') : 'steady revenue generation'} with ${latestMarket?.profit_margins ? ((latestMarket.profit_margins * 100).toFixed(1) + '% profit margins') : 'industry-standard profitability'}, positioning ${ticker} for ${priceChange > 5 ? 'continued momentum expansion' : priceChange < -5 ? 'potential mean reversion opportunity' : 'range-bound consolidation'}.`,
+                : `Fundamental metrics show ${latestMarket?.revenue_growth ? ((latestMarket.revenue_growth * 100).toFixed(1) + '% revenue growth') : 'steady revenue generation'} with ${latestMarket?.profit_margins ? ((latestMarket.profit_margins * 100).toFixed(1) + '% profit margins') : 'industry-standard profitability'}, positioning ${ticker} for ${priceChangeNum > 5 ? 'continued momentum expansion' : priceChangeNum < -5 ? 'potential mean reversion opportunity' : 'range-bound consolidation'}.`,
 
             `Critical intelligence suggests monitoring ${news?.event || secFilings.length > 0 ? 'upcoming ' + (secFilings[0]?.form_type === '10-Q' ? 'quarterly earnings release' : secFilings[0]?.form_type === '10-K' ? 'annual report filing' : 'regulatory filings') : 'next quarterly earnings'} as primary volatility catalyst, with institutional positioning ${awards.length > 0 ? 'supported by government contract visibility' : 'driven by sector rotation dynamics'} and ${optionsFlow.length > 0 && putCallRatio > 1.5 ? 'hedged downside protection' : optionsFlow.length > 0 && putCallRatio < 0.5 ? 'leveraged upside exposure' : 'balanced risk/reward profiles'}.`
         ]
