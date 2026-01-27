@@ -96,3 +96,30 @@ def get_sp500_tickers(current_only=True):
     tickers = df['ticker'].dropna().unique().tolist()
 
     return tickers
+
+def get_tickers_from_arango():
+    """
+    Get tickers directly from ArangoDB Company collection
+    """
+    from arango import ArangoClient
+    from dotenv import load_dotenv
+    import os
+
+    load_dotenv()
+
+    arango_url = os.getenv('ARANGO_URL') or os.getenv('ARANGO_HOST')
+    db_name = os.getenv('ARANGO_DB', 'QUANT_v3')
+    username = os.getenv('ARANGO_USERNAME', 'root')
+    password = os.getenv('ARANGO_PASSWORD', '')
+
+    client = ArangoClient(hosts=arango_url)
+    db = client.db(db_name, username=username, password=password)
+
+    # Get all tickers from Company collection
+    query = """
+    FOR company IN Company
+        RETURN company.ticker
+    """
+    tickers = list(db.aql.execute(query))
+
+    return [t for t in tickers if t]  # Filter out None values
