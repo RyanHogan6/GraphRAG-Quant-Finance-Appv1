@@ -39,31 +39,32 @@ EDGE_DEFINITIONS = {
 }
 
 # Mapping between CFTC commodity codes and futures commodities
+# Updated with actual codes from database (Jan 2026)
 CFTC_TO_FUTURES_MAP = {
-    # Energy
-    '067651': 'CRUDE_OIL',      # Crude Oil WTI
-    '023651': 'NATURAL_GAS',    # Natural Gas
-    '111659': 'GASOLINE',       # RBOB Gasoline
-    '022651': 'HEATING_OIL',    # Heating Oil
-
-    # Metals
-    '088691': 'GOLD',           # Gold
-    '084691': 'SILVER',         # Silver
-    '085692': 'COPPER',         # Copper
-    '076651': 'PLATINUM',       # Platinum
-
     # Agriculture
-    '002602': 'CORN',           # Corn
-    '001602': 'WHEAT',          # Wheat (Chicago)
-    '005602': 'SOYBEANS',       # Soybeans
-    '007601': 'SOYBEAN_OIL',    # Soybean Oil
-    '033661': 'COTTON',         # Cotton
-    '083731': 'COFFEE',         # Coffee
-    '080732': 'SUGAR',          # Sugar #11
+    '1': 'WHEAT',           # WHEAT-HRSpring - MINNEAPOLIS GRAIN EXCHANGE
+    '2': 'CORN',            # CORN - CHICAGO BOARD OF TRADE
+    '5': 'SOYBEANS',        # SOYBEANS - CHICAGO BOARD OF TRADE
+    '7': 'SOYBEAN_OIL',     # SOYBEAN OIL - CHICAGO BOARD OF TRADE
+    '26': 'SOYBEANS',       # SOYBEAN MEAL - CHICAGO BOARD OF TRADE
+    '33': 'COTTON',         # COTTON NO. 2 - ICE FUTURES U.S.
+    '80': 'SUGAR',          # SUGAR NO. 11 - ICE FUTURES U.S.
+    '83': 'COFFEE',         # COFFEE C - ICE FUTURES U.S.
 
     # Livestock
-    '057642': 'LIVE_CATTLE',    # Live Cattle
-    '054642': 'LEAN_HOGS',      # Lean Hogs
+    '54': 'LEAN_HOGS',      # LEAN HOGS - CHICAGO MERCANTILE EXCHANGE
+    '57': 'LIVE_CATTLE',    # LIVE CATTLE - CHICAGO MERCANTILE EXCHANGE
+
+    # Metals
+    '76': 'PLATINUM',       # PLATINUM - NEW YORK MERCANTILE EXCHANGE
+    '84': 'SILVER',         # SILVER - COMMODITY EXCHANGE INC.
+    '85': 'COPPER',         # COPPER-GRADE #1 - COMMODITY EXCHANGE INC.
+    '88': 'GOLD',           # GOLD - COMMODITY EXCHANGE INC.
+
+    # Energy
+    '22': 'HEATING_OIL',    # #2 HEATING OIL- NY HARBOR-ULSD - NEW YORK MERCANTILE EXCHANGE
+    '111': 'GASOLINE',      # RBOB GASOLINE - NEW YORK MERCANTILE EXCHANGE
+    # Note: CRUDE_OIL and NATURAL_GAS not found in CFTC data (may use different codes)
 }
 
 def get_arango_connection():
