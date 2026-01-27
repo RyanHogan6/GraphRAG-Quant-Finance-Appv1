@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import TimeSeriesChart from './TimeSeriesChart'
 import { motion, AnimatePresence } from 'framer-motion'
 import AwardHistory from '@/components/AwardHistory'
+import SECFilingsExplorer from './SECFilingsExplorer'
 import type { Key } from 'react'
 
 interface CompanyWorkupProps {
@@ -735,6 +736,13 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                     )}
                 </div>
             </div>
+
+            {/* SEC Filings Explorer - Full Width Section */}
+            {allSecFilings.length > 0 && (
+                <div className="mt-6">
+                    <SECFilingsExplorer filings={allSecFilings} ticker={company.ticker} />
+                </div>
+            )}
 
             {/* SEC Detail Modal (Sentiment Analysis) */}
             <AnimatePresence>
