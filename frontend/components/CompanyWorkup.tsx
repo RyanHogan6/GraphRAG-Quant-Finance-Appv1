@@ -3,7 +3,6 @@
 import { useState, useMemo } from 'react'
 import TimeSeriesChart from './TimeSeriesChart'
 import { motion, AnimatePresence } from 'framer-motion'
-import AwardHistory from '@/components/AwardHistory'
 import SECFilingsExplorer from './SECFilingsExplorer'
 import type { Key } from 'react'
 
@@ -508,10 +507,46 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                 </div>
             )}
 
-            {/* Awards History - Full Width Section */}
+            {/* Awards Table - Full Width Section */}
             {awards.length > 0 && (
                 <div className="mt-6">
-                    <AwardHistory awards={awards} ticker={company.ticker} />
+                    <div className="bg-dark-900/40 border border-gold/10 rounded-xl p-4 shadow-xl backdrop-blur-sm">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-sm font-bold text-gold uppercase tracking-[0.2em] flex items-center gap-3">
+                                <div className="w-1.5 h-1.5 rounded-full bg-gold shadow-[0_0_8px_rgba(255,215,0,0.5)]" />
+                                Federal Contract Awards
+                            </h3>
+                            <div className="text-xs text-gray-500">
+                                {awards.length} award{awards.length !== 1 ? 's' : ''}
+                            </div>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                                <thead>
+                                    <tr className="border-b border-gold/10">
+                                        <th className="text-left text-gray-300 font-semibold pb-2 px-2">Agency</th>
+                                        <th className="text-left text-gray-300 font-semibold pb-2 px-2">Description</th>
+                                        <th className="text-center text-gray-300 font-semibold pb-2 px-2">Year</th>
+                                        <th className="text-right text-gray-300 font-semibold pb-2 px-2">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {awards.slice(0, 10).map((a: any, i: number) => (
+                                        <tr
+                                            key={i}
+                                            onClick={() => setSelectedDetail({ type: 'Award', data: a })}
+                                            className="border-b border-white/5 hover:bg-gold/10 transition-colors cursor-pointer"
+                                        >
+                                            <td className="py-2 px-2 text-gray-100 truncate max-w-[150px]">{a.awarding_agency}</td>
+                                            <td className="py-2 px-2 text-gray-300 truncate max-w-[300px]">{a.description || 'Contract Award'}</td>
+                                            <td className="py-2 px-2 text-center text-gray-300">FY-{a.contract_year || '26'}</td>
+                                            <td className="py-2 px-2 text-right text-gold font-mono font-bold">${(a.award_amount_float / 1e6).toFixed(1)}M</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             )}
 
