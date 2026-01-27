@@ -1000,7 +1000,7 @@ def format_time_series_analysis(user_question: str, results: list, query_plan: d
     return "Unable to analyze price data."
 
 
-def trim_results_for_llm(results: list, max_results: int = 10, max_tokens: int = 20000) -> list:
+def trim_results_for_llm(results: list, max_results: int = 10, max_tokens: int = 8000) -> list:
     """
     Intelligently trim query results to fit within token limits.
 
@@ -1009,12 +1009,14 @@ def trim_results_for_llm(results: list, max_results: int = 10, max_tokens: int =
     2. Remove/truncate large nested structures
     3. Keep only essential fields for analysis
     4. Estimate tokens and reduce further if needed
+
+    Note: Reduced max_tokens to 8000 to stay well under OpenAI's 30k input limit
     """
     if not results:
         return results
 
-    # Step 1: Limit number of results
-    trimmed = results[:max_results]
+    # Step 1: Limit number of results (reduced for safety)
+    trimmed = results[:min(max_results, 5)]
 
     # Step 2: Trim each result
     cleaned_results = []
@@ -1029,16 +1031,24 @@ def trim_results_for_llm(results: list, max_results: int = 10, max_tokens: int =
             # Handle nested arrays (MarketData, sec_filings, etc.)
             if isinstance(value, list):
                 if len(value) > 0:
-                    # Keep only first 3 items from nested arrays
+                    # Keep only first 2 items from nested arrays (reduced from 3)
                     # And remove large text fields
                     trimmed_array = []
-                    for item in value[:3]:
+                    for item in value[:2]:
                         if isinstance(item, dict):
-                            # Keep only small fields
-                            small_item = {k: v for k, v in item.items()
-                                         if not k.startswith('_')
-                                         and not isinstance(v, list)
-                                         and (not isinstance(v, str) or len(v) < 200)}
+                            # Keep only small fields - be more aggressive
+                            small_item = {}
+                            for k, v in item.items():
+                                if k.startswith('_'):
+                                    continue
+                                if isinstance(v, list):
+                                    # Skip nested lists entirely
+                                    continue
+                                if isinstance(v, str) and len(v) > 100:
+                                    # Truncate strings more aggressively
+                                    small_item[k] = v[:100] + "..."
+                                else:
+                                    small_item[k] = v
                             trimmed_array.append(small_item)
                         else:
                             trimmed_array.append(item)
@@ -1049,10 +1059,10 @@ def trim_results_for_llm(results: list, max_results: int = 10, max_tokens: int =
                 else:
                     cleaned[key] = []
 
-            # Handle large text fields
-            elif isinstance(value, str) and len(value) > 500:
+            # Handle large text fields - more aggressive truncation
+            elif isinstance(value, str) and len(value) > 200:
                 # Truncate long text (like descriptions)
-                cleaned[key] = value[:500] + "..."
+                cleaned[key] = value[:200] + "..."
 
             # Handle normal fields
             else:
@@ -1060,21 +1070,24 @@ def trim_results_for_llm(results: list, max_results: int = 10, max_tokens: int =
 
         cleaned_results.append(cleaned)
 
-    # Step 3: Rough token estimation (1 token ≈ 4 chars)
-    estimated_tokens = len(json.dumps(cleaned_results)) / 4
+    # Step 3: Better token estimation (1 token ≈ 3 chars for JSON)
+    result_json = json.dumps(cleaned_results)
+    estimated_tokens = len(result_json) / 3
 
     print(f"[TRIM] Results: {len(results)} → {len(cleaned_results)}, Est. tokens: {estimated_tokens:.0f}")
 
-    # Step 4: If still too large, reduce further
-    if estimated_tokens > max_tokens and len(cleaned_results) > 3:
-        # Reduce to 5 results
-        cleaned_results = cleaned_results[:5]
-        print(f"[TRIM] Still too large, reduced to 5 results")
+    # Step 4: If still too large, reduce aggressively
+    if estimated_tokens > max_tokens and len(cleaned_results) > 2:
+        # Reduce to 2 results
+        cleaned_results = cleaned_results[:2]
+        estimated_tokens = len(json.dumps(cleaned_results)) / 3
+        print(f"[TRIM] Still too large, reduced to 2 results ({estimated_tokens:.0f} tokens)")
 
     if estimated_tokens > max_tokens and len(cleaned_results) > 1:
-        # Last resort: reduce to 3 results
-        cleaned_results = cleaned_results[:3]
-        print(f"[TRIM] Still too large, reduced to 3 results")
+        # Last resort: reduce to 1 result
+        cleaned_results = cleaned_results[:1]
+        estimated_tokens = len(json.dumps(cleaned_results)) / 3
+        print(f"[TRIM] Still too large, reduced to 1 result ({estimated_tokens:.0f} tokens)")
 
     return cleaned_results
 
@@ -1152,8 +1165,9 @@ def analyze_results_with_llm(user_question: str, results: list, query_plan: dict
         return format_time_series_analysis(user_question, results, query_plan)
 
     # Limit results sample for LLM analysis (avoid token limits)
-    # Use smart trimming to stay under OpenAI's 30k token limit
-    results_sample = trim_results_for_llm(results, max_results=10)
+    # HARD CAP: OpenAI gpt-4o limit is 25,000 tokens per request
+    # Start conservative: max 3 results, max 5k tokens for results
+    results_sample = trim_results_for_llm(results, max_results=3, max_tokens=5000)
     result_count = len(results)
 
     # Use context-aware response synthesis for intelligent analysis
@@ -1161,17 +1175,32 @@ def analyze_results_with_llm(user_question: str, results: list, query_plan: dict
     print(f"[LLM ANALYSIS] Trimmed {len(results)} results to {len(results_sample)} for analysis")
     analysis_prompt = get_enhanced_analysis_prompt(user_question, results_sample, query_plan)
 
-    prompt_tokens = len(analysis_prompt) / 4  # Rough estimate: 1 token ≈ 4 chars
+    # Better token estimation (1 token ≈ 3 chars for structured content)
+    prompt_tokens = len(analysis_prompt) / 3
     print(f"\n[LLM ANALYSIS] Prompt length: {len(analysis_prompt)} chars (~{prompt_tokens:.0f} tokens)")
 
-    # Safety check: If prompt is still too large, truncate the results JSON
-    if prompt_tokens > 25000:
-        print(f"[LLM ANALYSIS] ⚠️ Prompt too large ({prompt_tokens:.0f} tokens), reducing further...")
-        # Emergency trim: only keep 3 results
-        emergency_sample = trim_results_for_llm(results, max_results=3, max_tokens=10000)
+    # HARD CAP at 25,000 tokens - reduce aggressively if needed
+    if prompt_tokens > 18000:
+        print(f"[LLM ANALYSIS] ⚠️ Prompt too large ({prompt_tokens:.0f} tokens), reducing to 2 results...")
+        emergency_sample = trim_results_for_llm(results, max_results=2, max_tokens=3000)
         analysis_prompt = get_enhanced_analysis_prompt(user_question, emergency_sample, query_plan)
-        prompt_tokens = len(analysis_prompt) / 4
+        prompt_tokens = len(analysis_prompt) / 3
         print(f"[LLM ANALYSIS] Reduced to {prompt_tokens:.0f} tokens")
+
+    if prompt_tokens > 22000:
+        print(f"[LLM ANALYSIS] ⚠️⚠️ STILL TOO LARGE ({prompt_tokens:.0f} tokens), reducing to 1 result...")
+        final_sample = trim_results_for_llm(results, max_results=1, max_tokens=2000)
+        analysis_prompt = get_enhanced_analysis_prompt(user_question, final_sample, query_plan)
+        prompt_tokens = len(analysis_prompt) / 3
+        print(f"[LLM ANALYSIS] Reduced to {prompt_tokens:.0f} tokens")
+
+    # Absolute final check - if STILL over 25k, truncate the prompt itself
+    if prompt_tokens > 25000:
+        print(f"[LLM ANALYSIS] 🚨 EMERGENCY: Prompt at {prompt_tokens:.0f} tokens, truncating to fit under 25k limit")
+        # Keep first 75k chars (≈25k tokens)
+        analysis_prompt = analysis_prompt[:75000]
+        prompt_tokens = len(analysis_prompt) / 3
+        print(f"[LLM ANALYSIS] Force truncated to {prompt_tokens:.0f} tokens")
 
     print(f"[LLM ANALYSIS] Using model: {config.LLM_MODEL}")
     print(f"[LLM ANALYSIS] OpenAI API key set: {bool(config.OPENAI_API_KEY)}")
