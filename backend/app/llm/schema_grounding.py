@@ -307,6 +307,17 @@ def get_collection_specific_rules(collections: List[str]) -> str:
 - Examples: 'CRUDE_OIL', 'NATURAL_GAS', 'GOLD', 'SILVER', 'COPPER'
 - WRONG: 'crude oil', 'natural gas' (lowercase will return 0 results)
 - Use indexed field 'commodity' + 'date' for best performance
+
+Available technical indicators:
+- Price: open, high, low, close, volume
+- Moving averages: sma_5, sma_10, sma_20, sma_50, sma_200
+- Distance from MAs: dist_from_sma20, dist_from_sma50
+- MACD: macd, macd_signal, macd_histogram
+- 52-week: high_52w, low_52w, at_52w_high, at_52w_low, pct_off_high, pct_off_low
+- Volatility: daily_range_pct
+- Indicators: above_sma20, above_sma50, above_sma200 (boolean 0/1)
+
+⚠️ NOT available: rsi, rsi_14, stochastic, atr (use MACD/SMA distance instead)
 """)
 
     if any('eia_' in c for c in collections):
@@ -318,11 +329,55 @@ def get_collection_specific_rules(collections: List[str]) -> str:
   - CORRECT: doc.`product-name`, doc.`area-name`, doc.`series-description`
   - WRONG: doc.product-name (AQL interprets as subtraction: doc.product - name)
 - Field: report_date (for date filtering, no backticks needed)
-- Collections:
-  - eia_crude_inventory: Crude oil stocks, Cushing storage, refinery utilization
-  - eia_natgas_storage: Natural gas storage levels, vs 5-year average
-  - eia_natgas_production: Monthly natural gas production
-  - eia_lng_exports: Monthly LNG export volumes
+- Data frequency: WEEKLY (reported Wednesdays) - expect nulls on other days
+
+⚠️ CRITICAL: EIA has MULTIPLE records per date (different products/regions/processes)!
+When joining with futures_prices, you MUST filter to specific series:
+
+✅ CORRECT pattern for crude oil + inventory (use this!):
+FOR price IN futures_prices
+  FILTER price.commodity == "CRUDE_OIL"
+  FILTER price.date >= DATE_SUBTRACT(DATE_NOW(), 90, "day")
+  SORT price.date DESC
+
+  LET total_stocks = FIRST(
+    FOR inv IN eia_crude_inventory
+      FILTER inv.report_date == price.date
+        AND CONTAINS(inv.`series-description`, "U.S. Ending Stocks of Crude Oil")
+        AND inv.`product-name` == "Crude Oil"
+      LIMIT 1
+      RETURN {
+        value: inv.value,
+        change: inv.change_from_previous,
+        pct_change: inv.pct_change
+      }
+  )
+
+  RETURN {
+    date: price.date,
+    crude_price: price.close,
+    macd: price.macd,
+    dist_from_sma20: price.dist_from_sma20,
+    total_stocks: total_stocks.value,
+    weekly_change: total_stocks.change,
+    inventory_signal: total_stocks.change > 0 ? "Build" : "Draw"
+  }
+
+❌ WRONG pattern (creates cartesian product with 10+ rows per date):
+  FOR inventory IN eia_crude_inventory
+    FILTER inventory.report_date == price.date  // Matches ethanol, gasoline, regional data!
+
+Key series filters:
+- U.S. Crude Stocks: CONTAINS(`series-description`, "U.S. Ending Stocks of Crude Oil") AND `product-name` == "Crude Oil"
+- Natural Gas Storage: CONTAINS(`series-description`, "Lower 48 States Natural Gas Working")
+
+Available fields in eia_crude_inventory:
+- value: Stock level (thousands of barrels)
+- change_from_previous: Weekly change (positive = build, negative = draw)
+- pct_change: Percent change from previous week
+- report_date: Date of report
+
+⚠️ Data NOT available: Cushing storage, refinery utilization (not in collection)
 """)
 
     if 'Award' in collections:

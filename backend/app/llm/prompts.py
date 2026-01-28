@@ -2313,33 +2313,50 @@ Strategy:
 ---
 
 EXAMPLE 18 - Crude Oil Inventory Impact on Prices:
-Question: "How do crude oil prices respond to large inventory builds?"
-Intent: fundamental_price_analysis
-Collections: ["eia_crude_inventory", "futures_prices"]
-Edges: ["INVENTORY_AFFECTS_PRICE"]
+Question: "Show me crude oil prices with inventory levels for the last 90 days"
+Intent: commodity_inventory_analysis
+Collections: ["futures_prices", "eia_crude_inventory"]
+Edges: []
 AQL:
-FOR inventory IN eia_crude_inventory
-  FILTER inventory.crude_stocks_change > 5
-  FOR price IN OUTBOUND inventory INVENTORY_AFFECTS_PRICE
-    FILTER price.commodity == "CRUDE_OIL"
-    SORT inventory.date DESC
-    LIMIT 15
-    RETURN {
-      report_date: inventory.date,
-      inventory_build: inventory.crude_stocks_change,
-      crude_price: price.close,
-      price_change_pct: price.weekly_return,
-      total_stocks: inventory.crude_stocks,
-      cushing_stocks: inventory.cushing_stocks
-    }
+FOR price IN futures_prices
+  FILTER price.commodity == "CRUDE_OIL"
+  FILTER price.date >= DATE_SUBTRACT(DATE_NOW(), 90, "day")
+  SORT price.date DESC
+
+  LET total_stocks = FIRST(
+    FOR inv IN eia_crude_inventory
+      FILTER inv.report_date == price.date
+        AND CONTAINS(inv.`series-description`, "U.S. Ending Stocks of Crude Oil")
+        AND inv.`product-name` == "Crude Oil"
+      LIMIT 1
+      RETURN {
+        value: inv.value,
+        change: inv.change_from_previous,
+        pct_change: inv.pct_change
+      }
+  )
+
+  RETURN {
+    date: price.date,
+    crude_price: price.close,
+    dist_from_sma20: price.dist_from_sma20,
+    macd: price.macd,
+    at_52w_high: price.at_52w_high,
+    daily_range_pct: price.daily_range_pct,
+    total_stocks: total_stocks.value,
+    weekly_change: total_stocks.change,
+    change_pct: total_stocks.pct_change,
+    inventory_signal: total_stocks.change > 0 ? "Build" : total_stocks.change < 0 ? "Draw" : null
+  }
 Bind Variables: {}
 Requires Embedding: false
 
 Strategy:
-✅ Filter for significant inventory builds (>5 million barrels)
-✅ Traverse to corresponding futures prices
-✅ Track price response to supply changes
-💡 Typical pattern: Large builds → price decline (bearish for oil)
+✅ Use FIRST() + LIMIT 1 to avoid cartesian product (EIA has multiple records per date)
+✅ Filter to specific series: "U.S. Ending Stocks of Crude Oil" to get single value
+✅ Include technical indicators (MACD, SMA distance) for price momentum context
+✅ Weekly inventory data (Wed only) - nulls on other days are expected
+💡 Inventory builds (positive change) = bearish | Draws (negative) = bullish
 
 ---
 
