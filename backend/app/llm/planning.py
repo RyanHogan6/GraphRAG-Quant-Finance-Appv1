@@ -1531,10 +1531,10 @@ def generate_follow_up_questions(user_question: str, results: list, query_plan: 
     if not results or len(results) == 0:
         return []
 
-    # First try smart rule-based suggestions
-    smart_suggestions = generate_smart_suggestions(results, query_plan, user_question)
-    if smart_suggestions:
-        return smart_suggestions
+    # Skip rule-based suggestions - use LLM for more conversational follow-ups
+    # smart_suggestions = generate_smart_suggestions(results, query_plan, user_question)
+    # if smart_suggestions:
+    #     return smart_suggestions
 
     collections = query_plan.get('collections', [])
 

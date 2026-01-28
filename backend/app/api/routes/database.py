@@ -103,12 +103,12 @@ def get_stock_overview(ticker: str):
                 LET top_sentences = (
                     FOR section IN OUTBOUND filing has_section
                         FOR sentence IN OUTBOUND section has_sentence
-                            FILTER sentence.finbertscore != null
-                            SORT ABS(sentence.finbertscore) DESC
+                            FILTER sentence.finbert_score != null
+                            SORT ABS(sentence.finbert_score) DESC
                             LIMIT 5
                             RETURN {
                                 text: sentence.text,
-                                score: sentence.finbertscore
+                                score: sentence.finbert_score
                             }
                 )
                 RETURN MERGE(filing, {
@@ -117,12 +117,38 @@ def get_stock_overview(ticker: str):
         """
         sec_results, _ = execute_aql(sec_query, {"ticker": ticker})
 
+        # Get SEC exhibits
+        exhibits_query = """
+        FOR company IN Company
+            FILTER company.ticker == @ticker
+            FOR filing IN OUTBOUND company HAS_FILING
+                FOR exhibit IN OUTBOUND filing has_exhibit
+                    SORT exhibit.filing_date DESC
+                    LIMIT 20
+                    RETURN exhibit
+        """
+        exhibits_results, _ = execute_aql(exhibits_query, {"ticker": ticker})
+
+        # Get XBRL data
+        xbrl_query = """
+        FOR company IN Company
+            FILTER company.ticker == @ticker
+            FOR filing IN OUTBOUND company HAS_FILING
+                FOR xbrl IN OUTBOUND filing has_xbrl_data
+                    SORT xbrl.filing_date DESC
+                    LIMIT 20
+                    RETURN xbrl
+        """
+        xbrl_results, _ = execute_aql(xbrl_query, {"ticker": ticker})
+
         return {
             "ticker": ticker,
             "company": company,
             "latest_market_data": latest_market,
             "awards": awards_results,
-            "sec_filings": sec_results
+            "sec_filings": sec_results,
+            "sec_exhibits": exhibits_results,
+            "sec_xbrl_data": xbrl_results
         }
 
     except Exception as e:

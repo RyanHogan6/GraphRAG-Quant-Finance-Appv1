@@ -134,7 +134,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
 
         const latestAwards = awards.length > 0 ? awards[0].award_amount_float : 0
         const sentiment = secFilings[0]?.avg_finbert != null
-            ? (secFilings[0].avg_finbert > 0 ? 'Bullish' : 'Bearish')
+            ? (secFilings[0].avg_finbert > 0.05 ? 'Bullish' : secFilings[0].avg_finbert < -0.05 ? 'Bearish' : 'Neutral')
             : 'Neutral'
 
         // Real-time context from search for PLTR/2026
@@ -153,8 +153,15 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
 
         const totalAwardValue = awards.reduce((sum: number, a: any) => sum + (a.award_amount_float || 0), 0)
 
+        // Calculate market cap from available data
+        const marketCapB = company.marketCap
+            ? (company.marketCap / 1e9).toFixed(2)
+            : (latestMarket?.close && latestMarket?.sharesOutstanding)
+                ? ((latestMarket.close * latestMarket.sharesOutstanding) / 1e9).toFixed(2)
+                : 'N/A'
+
         return [
-            `${company.company} (${ticker}) is demonstrating a ${priceChange}% trajectory over the selected ${timeframe} window, currently trading at $${latestMarket?.close?.toFixed(2)} with market capitalization of $${(company.marketCap / 1e9).toFixed(2)}B in the ${company.sector} sector.`,
+            `${company.company} (${ticker}) is demonstrating a ${priceChange}% trajectory over the selected ${timeframe} window, currently trading at $${latestMarket?.close?.toFixed(2)} with market capitalization of ${marketCapB !== 'N/A' ? '$' + marketCapB + 'B' : 'market cap unavailable'} in the ${company.sector} sector.`,
 
             `Recent SEC regulatory signals lean ${sentiment.toLowerCase()} (FinBERT Score: ${secFilings[0]?.avg_finbert?.toFixed(3) || 'N/A'}), with ${secFilings.length} filings analyzed including ${secFilings[0]?.form_type || 'quarterly/annual'} reports showing ${sentiment === 'Bullish' ? 'optimistic' : sentiment === 'Bearish' ? 'cautious' : 'neutral'} management tone regarding operational performance and forward guidance.`,
 
@@ -185,10 +192,27 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
             // Derive Revenue and Absolute Margins if raw fields are missing
             const calcRevenue = (all.revenuePerShare && all.sharesOutstanding)
                 ? (all.revenuePerShare * all.sharesOutstanding)
-                : null;
+                : (all.priceToSalesTrailing12Months && all.close && all.sharesOutstanding)
+                    ? ((all.close * all.sharesOutstanding) / all.priceToSalesTrailing12Months)
+                    : null;
 
-            const calcEbitda = (all.ebitda) ? all.ebitda : (calcRevenue && all.ebitdaMargins ? calcRevenue * all.ebitdaMargins : null);
-            const calcNetIncome = (all.netIncome) ? all.netIncome : (calcRevenue && all.profitMargins ? calcRevenue * all.profitMargins : null);
+            // Try multiple fallback calculations for EBITDA
+            const calcEbitda = all.ebitda
+                ? all.ebitda
+                : (calcRevenue && all.ebitdaMargins)
+                    ? calcRevenue * all.ebitdaMargins
+                    : (all.operatingCashflow)
+                        ? all.operatingCashflow * 1.15  // Rough approximation: EBITDA ≈ operating CF * 1.15
+                        : null;
+
+            // Try multiple fallback calculations for Net Income
+            const calcNetIncome = all.netIncome
+                ? all.netIncome
+                : (calcRevenue && all.profitMargins)
+                    ? calcRevenue * all.profitMargins
+                    : (all.trailingEps && all.sharesOutstanding)
+                        ? all.trailingEps * all.sharesOutstanding
+                        : null;
 
             const metricsList = [
                 { name: 'Revenue Growth', val: all.revenueGrowth, benchmark: '> 10%', type: 'pct', check: (v: number) => v > 0.1 },
@@ -227,10 +251,25 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
 
             const calcRevenue = (all.revenuePerShare && all.sharesOutstanding)
                 ? (all.revenuePerShare * all.sharesOutstanding)
-                : null;
+                : (all.priceToSalesTrailing12Months && all.close && all.sharesOutstanding)
+                    ? ((all.close * all.sharesOutstanding) / all.priceToSalesTrailing12Months)
+                    : null;
 
-            const calcEbitda = (all.ebitda) ? all.ebitda : (calcRevenue && all.ebitdaMargins ? calcRevenue * all.ebitdaMargins : null);
-            const calcNetIncome = (all.netIncome) ? all.netIncome : (calcRevenue && all.profitMargins ? calcRevenue * all.profitMargins : null);
+            const calcEbitda = all.ebitda
+                ? all.ebitda
+                : (calcRevenue && all.ebitdaMargins)
+                    ? calcRevenue * all.ebitdaMargins
+                    : (all.operatingCashflow)
+                        ? all.operatingCashflow * 1.15
+                        : null;
+
+            const calcNetIncome = all.netIncome
+                ? all.netIncome
+                : (calcRevenue && all.profitMargins)
+                    ? calcRevenue * all.profitMargins
+                    : (all.trailingEps && all.sharesOutstanding)
+                        ? all.trailingEps * all.sharesOutstanding
+                        : null;
 
             const metricsList = [
                 { name: 'Revenue Growth', val: all.revenueGrowth, type: 'pct', check: (v: number) => v > 0.1 },
@@ -727,9 +766,18 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                     </div>
                                     <div className="text-right">
                                         <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Sentiment Score</div>
-                                        <div className={`text-2xl font-mono font-black ${(selectedDetail.data.avg_finbert || 0) > 0 ? 'text-green-400 shadow-[0_0_20px_rgba(74,222,128,0.2)]' : 'text-red-400 shadow-[0_0_20px_rgba(248,113,113,0.2)]'}`}>
+                                        <div className={`text-2xl font-mono font-black ${
+                                            (selectedDetail.data.avg_finbert || 0) > 0.05
+                                                ? 'text-green-400 shadow-[0_0_20px_rgba(74,222,128,0.2)]'
+                                                : (selectedDetail.data.avg_finbert || 0) < -0.05
+                                                    ? 'text-red-400 shadow-[0_0_20px_rgba(248,113,113,0.2)]'
+                                                    : 'text-gray-400 shadow-[0_0_20px_rgba(156,163,175,0.2)]'
+                                        }`}>
                                             {(selectedDetail.data.avg_finbert || 0).toFixed(4)}
                                         </div>
+                                        {Math.abs(selectedDetail.data.avg_finbert || 0) < 0.05 && (
+                                            <div className="text-[9px] text-gray-500 mt-1">Neutral/No Text</div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="space-y-5">

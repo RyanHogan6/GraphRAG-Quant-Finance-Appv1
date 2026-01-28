@@ -134,7 +134,15 @@ CRITICAL_AQL_RULES = """
 
    ❌ NEVER use embeddings on: SEC, Kalshi, Company, MarketData, EconomicData
 
-7. ALWAYS ADD LIMIT:
+7. ENRICHMENT LIMITS FOR COMPANY WORKUPS:
+   When enriching Company with related data, use generous limits to show diverse data:
+   ✅ SEC Filings (HAS_FILING): LIMIT 20      // Shows diverse types (10-K, 10-Q, 8-K, Form 4)
+   ✅ Market Data (HAS_MARKETDATA): LIMIT 365-1800  // 1-5 years of daily data
+   ✅ Awards (HAS_AWARD): LIMIT 20           // Recent contracts
+   ✅ Options (COMPANY_HAS_OPTIONS): LIMIT 20  // Recent options activity
+   ⚠️ DO NOT use LIMIT 3 for SEC filings - may only show one filing type!
+
+8. ALWAYS ADD LIMIT:
    Every query must have LIMIT to prevent timeout.
 """
 
@@ -1914,16 +1922,16 @@ FOR company IN Company
   LET sec_filings = (
     FOR filing IN OUTBOUND company HAS_FILING
       SORT filing.filing_date DESC
-      LIMIT 20
+      LIMIT 20    // ⚠️ IMPORTANT: Use 20 for company workups to show diverse filing types (10-K, 10-Q, 8-K, etc)
       LET top_sentences = (
         FOR section IN OUTBOUND filing has_section
           FOR sentence IN OUTBOUND section has_sentence
-            FILTER sentence.finbertscore != null
-            SORT ABS(sentence.finbertscore) DESC
+            FILTER sentence.finbert_score != null
+            SORT ABS(sentence.finbert_score) DESC
             LIMIT 10
             RETURN {
               text: sentence.text,
-              score: sentence.finbertscore
+              score: sentence.finbert_score
             }
       )
       RETURN MERGE(filing, { top_sentences: top_sentences })
