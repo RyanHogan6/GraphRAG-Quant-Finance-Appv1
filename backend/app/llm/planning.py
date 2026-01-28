@@ -611,145 +611,13 @@ CRITICAL: AQL CLAUSE ORDER MUST BE:
 FOR → FILTER → SORT → LIMIT → RETURN
 ⚠️ LIMIT always comes BEFORE RETURN!
 
-PROVEN WORKING EXAMPLES (USE THESE PATTERNS):
+⚠️ QUERY PATTERNS (Focus on schema and rules above - examples kept minimal to save tokens):
 
-Example 1: "Show me the top 10 largest government contracts"
-FOR doc IN Award
-  FILTER doc.award_amount_float != null
-  SORT doc.award_amount_float DESC
-  LIMIT 10
-  RETURN {{
-    recipient: doc.recipient_name,
-    amount: doc.award_amount_float,
-    agency: doc.awarding_agency
-  }}
+1. Simple filter: FOR doc IN Award FILTER doc.award_amount_float > 1000000 SORT doc.award_amount_float DESC LIMIT 10 RETURN doc
 
-Example 2: "What are the most active Polymarket prediction markets?"
-FOR market IN prediction_markets_polymarket
-  FILTER market.volume_24h > 0
-  FILTER market.closed == false
-  SORT market.volume_24h DESC
-  LIMIT 10
-  RETURN {{
-    question: market.question,
-    volume_24h: market.volume_24h,
-    yes_probability: market.yes_probability
-  }}
+2. Company workup: FOR company IN Company FILTER company.ticker == @ticker LET enrichments = (...subqueries...) RETURN MERGE(company, enrichments)
 
-Example 3: "Show me Apple stock data for the last 30 days"
-FOR doc IN MarketData
-  FILTER doc.ticker == @ticker
-  FILTER doc.date >= DATE_SUBTRACT(DATE_NOW(), 30, "day")
-  SORT doc.date DESC
-  LIMIT 30
-  RETURN {{
-    date: doc.date,
-    close: doc.close,
-    volume: doc.volume
-  }}
-
-Example 4: "Tesla stock performance during October 2020" (SUMMARY for SPECIFIC DATE RANGE > 7 days)
-⚠️ ONLY use this when user specifies EXACT date range (month/year). For general company queries, use Example 5!
-LET data = (
-  FOR doc IN MarketData
-    FILTER doc.ticker == @ticker
-    FILTER doc.date >= @start_date AND doc.date < @end_date
-    SORT doc.date ASC
-    RETURN doc
-)
-LET first = FIRST(data)
-LET last = LAST(data)
-RETURN {{
-  ticker: @ticker,
-  trading_days: LENGTH(data),
-  opening_price: first.open,
-  closing_price: last.close,
-  percent_change: ROUND(((last.close - first.open) / first.open) * 100 * 100) / 100
-}}
-
-Example 5: "Show me Apple" OR "Tell me about TSLA" OR "NVDA overview" OR "Show A" OR "A stock performance" (COMPREHENSIVE COMPANY WORKUP)
-⚠️ CRITICAL: Use this pattern for ANY company overview/analysis question!
-⚠️ TRIGGER KEYWORDS: "show [ticker]", "tell me about [ticker]", "[ticker] overview", "[ticker] performance", "[ticker] stock", "[ticker] analysis"
-FOR company IN Company
-  FILTER company.ticker == @ticker
-  LIMIT 1
-
-  LET market_data = (
-    FOR m IN OUTBOUND company HAS_MARKETDATA
-      SORT m.date DESC
-      LIMIT 365
-      RETURN m
-  )
-
-  LET sec_filings = (
-    FOR filing IN OUTBOUND company HAS_FILING
-      FILTER filing.type IN ["10-K", "10-Q"]
-      SORT filing.filing_date DESC
-      LIMIT 20
-      LET top_sentences = (
-        FOR section IN OUTBOUND filing has_section
-          FOR sentence IN OUTBOUND section has_sentence
-            FILTER sentence.finbert_score != null
-            SORT ABS(sentence.finbert_score) DESC
-            LIMIT 5
-            RETURN {{
-              text: sentence.text,
-              score: sentence.finbert_score
-            }}
-      )
-      RETURN MERGE(filing, {{ top_sentences: top_sentences }})
-  )
-
-  LET awards = (
-    FOR award IN OUTBOUND company HAS_AWARD
-      SORT award.start_date DESC
-      LIMIT 20
-      RETURN award
-  )
-
-  LET options_flow = (
-    FOR opt IN OUTBOUND company COMPANY_HAS_OPTIONS
-      SORT opt.date DESC
-      LIMIT 20
-      RETURN opt
-  )
-
-  RETURN MERGE(company, {{
-    MarketData: market_data,
-    sec_filings: sec_filings,
-    Award: awards,
-    options_flow: options_flow
-  }})
-
-Example 5: "Compare AAPL vs MSFT vs GOOGL" (Multi-ticker)
-FOR ticker IN ["AAPL", "MSFT", "GOOGL"]
-  LET data = (
-    FOR doc IN MarketData
-      FILTER doc.ticker == ticker
-      FILTER doc.date >= @start_date AND doc.date < @end_date
-      SORT doc.date ASC
-      RETURN doc
-  )
-  LET first = FIRST(data)
-  LET last = LAST(data)
-  RETURN {{
-    ticker: ticker,
-    percent_change: ROUND(((last.close - first.open) / first.open) * 100 * 100) / 100
-  }}
-
-Example 6: "What markets are whale traders betting on?" (Graph traversal)
-FOR trader IN polymarket_traders
-  FILTER trader.is_whale == true
-  FOR position IN OUTBOUND trader trader_has_position
-    FILTER position.size > 100
-    FOR market IN OUTBOUND position position_in_market
-      FILTER market.closed == false
-      SORT position.size DESC
-      LIMIT 20
-      RETURN DISTINCT {{
-        market_question: market.question,
-        position_size: position.size
-      }}
+3. Graph traversal: FOR company IN Company FILTER... FOR related IN OUTBOUND company HAS_AWARD RETURN {{company, related}}
 
 {history_context}
 
@@ -779,17 +647,8 @@ Examples:
 7. **For date ranges:** Parse natural language dates into specific YYYY-MM-DD strings
 
 **QUERY OUTPUT STRATEGY:**
-For queries about stocks/companies, choose the right pattern:
-
-1. **COMPREHENSIVE WORKUP** (user says "show [ticker]", "[ticker] overview", "[ticker] performance" WITHOUT specific dates):
-   - USE EXAMPLE 5 - Returns full nested structure with MarketData, filings, awards, options
-   - Frontend CompanyWorkup component displays this beautifully with charts
-   - DO NOT use summary format (Example 4) for these queries!
-
-2. **Summary Format** (user specifies EXACT date range like "Tesla during October 2020"):
-   - USE EXAMPLE 4 - Return aggregated metrics (open, close, % change)
-   - Single row with summary statistics
-   - ONLY for specific historical periods, not general company queries
+For company queries: Return nested structure with MarketData/filings/awards/options for CompanyWorkup display.
+For date-specific queries: Add proper date filters using start_date/end_date bind variables.
 
 3. **Daily Format** (date range <= 7 days OR user says "daily/detailed"):
    - Return individual rows per day
@@ -826,6 +685,18 @@ CRITICAL VALIDATION CHECKLIST:
 Return ONLY valid JSON, no markdown formatting.
 
 Response:"""
+
+    # Debug: Check prompt size to prevent token explosions
+    prompt_chars = len(planning_prompt)
+    estimated_tokens = prompt_chars // 4  # Rough estimate: 1 token ≈ 4 characters
+    print(f"[TOKEN CHECK] Prompt size: {prompt_chars:,} chars (~{estimated_tokens:,} tokens)")
+
+    if estimated_tokens > 25000:
+        print(f"⚠️  WARNING: Prompt is {estimated_tokens:,} tokens - may hit rate limits!")
+        print(f"  - Focused schema: {len(focused_schema):,} chars")
+        print(f"  - Collection rules: {len(collection_rules):,} chars")
+        print(f"  - Critical rules: {len(CRITICAL_AQL_RULES):,} chars")
+        print(f"  - History context: {len(history_context):,} chars")
 
     try:
         client = get_openai_client()
