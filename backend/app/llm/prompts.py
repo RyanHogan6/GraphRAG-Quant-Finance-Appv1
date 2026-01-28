@@ -83,7 +83,7 @@ CRITICAL_AQL_RULES = """
 
 4. COLLECTION NAMES (case-sensitive):
    ✅ Award, Company, MarketData, EconomicData
-   ✅ sec_filings, sec_sections, sec_sentences
+   ✅ sec_filings, sec_sections, sec_sentences, sec_exhibits, sec_xbrl_data
    ✅ commodity_positions, futures_prices, options_flow
    ✅ prediction_markets_polymarket, prediction_markets_kalshi
    ✅ polymarket_traders, polymarket_positions
@@ -111,7 +111,7 @@ CRITICAL_AQL_RULES = """
    ✅ Polymarket: HAS question_embedding - use COSINE_SIMILARITY(doc.question_embedding, @query_vector)
    ✅ sec_sentences: HAS sentence_embedding - use COSINE_SIMILARITY(doc.sentence_embedding, @query_vector)
    ❌ OTHER COLLECTIONS: NO embeddings - use CONTAINS(LOWER(field), 'keyword')
-   ❌ NO embeddings: sec_filings, sec_sections, Kalshi, Futures, Options, EIA, Commodity Positions
+   ❌ NO embeddings: sec_filings, sec_sections, sec_exhibits, sec_xbrl_data, Kalshi, Futures, Options, EIA, Commodity Positions
 
    🚨 PERFORMANCE - ALWAYS PRE-FILTER BEFORE COSINE_SIMILARITY:
    ✅ CORRECT (Fast):
@@ -609,6 +609,84 @@ DOCUMENT COLLECTIONS:
     Usage: Use COSINE_SIMILARITY for semantic search over SEC filings.
     Pre-filter by ticker, filing type, or date before computing similarity (performance!).
 
+11. sec_exhibits (Material contracts and exhibits extracted from filings)
+    - _key (string): Unique ID (format: "{ticker}_{type}_{accession}_{exhibit_type}_{sequence}")
+    - filing_key (string): Parent filing key (format: "{ticker}_{type}_{accession}_full-submission")
+    - ticker (string): Company ticker
+    - filing_type (string): Filing type (10-K, 10-Q, 8-K, etc.)
+    - filing_date (string): Date filed YYYY-MM-DD
+    - accession (string): SEC accession number
+
+    Exhibit Metadata:
+    - exhibit_type (string): Exhibit type (e.g., "EX-10.1", "EX-4.2", "EX-99.1")
+    - exhibit_category (string): Broad category - "EX-10" (material contracts), "EX-4" (debt instruments), "EX-99" (additional), "EX-21" (subsidiaries)
+    - sequence (int): Exhibit sequence number in filing
+    - filename (string): Original filename
+    - description (string): Exhibit description from SEC filing
+
+    Contract Classification (for EX-10 material contracts):
+    - contract_type (string): "credit_agreement", "employment", "supply", "partnership", "acquisition", "other"
+    - is_material_contract (bool): True if EX-10 type
+
+    Content:
+    - text (string): Full exhibit text content
+    - text_length (int): Character count
+
+    Sentiment Analysis:
+    - finbert_score (float): FinBERT sentiment score (-1 to +1) - computed on first 5000 chars
+    - sentiment_label (string): "positive", "negative", "neutral"
+
+    ⚠️ Use Case: Find material contracts (credit agreements, employment contracts, supply agreements)
+    ⚠️ NO EMBEDDINGS: Use CONTAINS(LOWER(text), keyword) or CONTAINS(LOWER(description), keyword) for search
+    ⚠️ Link to sec_filings via filing_key to get full context
+
+    Examples:
+    - Credit agreements: FILTER exhibit.contract_type == "credit_agreement"
+    - CEO employment contracts: FILTER exhibit.contract_type == "employment" AND CONTAINS(LOWER(exhibit.description), "ceo")
+    - Debt instruments: FILTER exhibit.exhibit_category == "EX-4"
+
+12. sec_xbrl_data (Inline XBRL financial data extracted from 10-K/10-Q filings)
+    - _key (string): Unique ID (format: "{ticker}_{type}_{accession}_xbrl")
+    - filing_key (string): Parent filing key (format: "{ticker}_{type}_{accession}_full-submission")
+    - ticker (string): Company ticker
+    - filing_type (string): Filing type (10-K or 10-Q)
+    - filing_date (string): Date filed YYYY-MM-DD
+    - fiscal_year (int): Fiscal year
+    - accession (string): SEC accession number
+
+    Financial Data (structured XBRL concepts):
+    - revenue_segments (object): Revenue by business segment {context_id: value}
+      Example: {"c-13": 394328, "c-15": 85962} (iPhone revenue, Services revenue)
+    - revenue_geography (object): Revenue by geographic region {context_id: value}
+      Example: {"c-20": 153850, "c-21": 101350} (Americas, Europe)
+    - costs (object): Operating costs breakdown {concept_name: value}
+      Example: {"CostOfRevenue": 214137, "ResearchAndDevelopmentExpense": 29915}
+    - debt (object): Debt-related concepts {concept_name: value}
+      Example: {"LongTermDebt": 106000, "ShortTermDebt": 15000}
+    - equity (object): Equity-related concepts {concept_name: value}
+    - cashflow (object): Cash flow statement items {concept_name: value}
+    - all_concepts (object): ALL extracted XBRL concepts {concept_name: value}
+
+    Metadata:
+    - concepts_found (int): Total number of XBRL concepts extracted
+    - has_segment_data (bool): True if revenue_segments populated
+    - has_geography_data (bool): True if revenue_geography populated
+
+    ⚠️ Use Case:
+    - Revenue breakdown analysis: "What's Apple's revenue by product?"
+    - Debt analysis: "Which companies have debt maturing soon?"
+    - Geographic exposure: "Show me Tesla's China revenue"
+    - Cost structure: "Compare R&D spend across tech companies"
+
+    ⚠️ NO EMBEDDINGS: Use direct field access for financial concepts
+    ⚠️ Context IDs (c-13, c-20) are internal XBRL references - concept names are more useful
+    ⚠️ Link to sec_filings via filing_key to get full context
+
+    Example Queries:
+    - Find companies with high R&D: FILTER xbrl.costs.ResearchAndDevelopmentExpense > 10000000000
+    - Debt analysis: FILTER xbrl.debt.LongTermDebt != null SORT xbrl.debt.LongTermDebt DESC
+    - Revenue segments: FILTER xbrl.has_segment_data == true
+
 EDGE COLLECTIONS (Graph Relationships):
 
 1. HAS_MARKETDATA: Company -> MarketData
@@ -773,6 +851,25 @@ EDGE COLLECTIONS (Graph Relationships):
 
     ⚠️ Use Case: INSIDER TRADING DETECTION - Find unusual options activity 1-30 days before SEC filings (especially 8-K)
     ⚠️ Only created for UNUSUAL activity before significant filings
+
+20. has_exhibit: sec_filings -> sec_exhibits
+    - exhibit_type (string): Exhibit type (EX-10, EX-4, EX-99, etc.)
+    - filing_date (string): Date filed
+
+    Usage: FOR exhibit IN OUTBOUND filing has_exhibit
+
+    ⚠️ Use Case: Find material contracts and exhibits for a specific filing
+    ⚠️ Example: FOR filing IN sec_filings FILTER filing.ticker == "AAPL" FOR exhibit IN OUTBOUND filing has_exhibit
+
+21. has_xbrl_data: sec_filings -> sec_xbrl_data
+    - filing_date (string): Date filed
+    - has_segments (bool): True if revenue segment data available
+
+    Usage: FOR xbrl IN OUTBOUND filing has_xbrl_data
+
+    ⚠️ Use Case: Get structured financial breakdowns (revenue segments, debt, costs) for a filing
+    ⚠️ Only 10-K and 10-Q filings have XBRL data
+    ⚠️ Example: FOR filing IN sec_filings FILTER filing.type == "10-K" FOR xbrl IN OUTBOUND filing has_xbrl_data
 
 GRAPHS:
 - QUANT_v3_FinanceGraph: Company-centric financial data graph
@@ -2700,6 +2797,318 @@ Strategy:
 
 ---
 
+EXAMPLE 28 - SEC Exhibits: Find Credit Agreements:
+Question: "Show me recent credit agreements for defense contractors"
+Intent: sec_exhibits_search
+Collections: ["Company", "sec_filings", "sec_exhibits"]
+Edges: ["HAS_FILING", "has_exhibit"]
+AQL:
+FOR company IN Company
+  FILTER company.sector == "Industrials" OR CONTAINS(LOWER(company.industry), "defense")
+
+  FOR filing IN OUTBOUND company HAS_FILING
+    FILTER filing.filing_date >= DATE_SUBTRACT(DATE_NOW(), 365, "day")
+
+    FOR exhibit IN OUTBOUND filing has_exhibit
+      FILTER exhibit.contract_type == "credit_agreement"
+
+      SORT exhibit.filing_date DESC
+      LIMIT 10
+
+      RETURN {
+        ticker: company.ticker,
+        company: company.company,
+        filing_date: exhibit.filing_date,
+        filing_type: exhibit.filing_type,
+        exhibit_type: exhibit.exhibit_type,
+        description: exhibit.description,
+        sentiment: exhibit.finbert_score,
+        text_preview: SUBSTRING(exhibit.text, 0, 500)
+      }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ sec_exhibits contains material contracts extracted from filings
+✅ contract_type values: "credit_agreement", "employment", "supply", "partnership", "acquisition"
+✅ Use CONTAINS(LOWER(exhibit.description), "keyword") for flexible search
+✅ finbert_score shows sentiment of contract terms (negative = restrictive covenants)
+💡 Credit agreements reveal leverage, covenant terms, credit risk
+⚠️ Only EX-10 exhibits have contract_type classification
+
+---
+
+EXAMPLE 29 - SEC Exhibits: CEO Employment Contracts:
+Question: "Find CEO employment contracts with change-of-control provisions"
+Intent: sec_exhibits_employment
+Collections: ["sec_exhibits"]
+AQL:
+FOR exhibit IN sec_exhibits
+  FILTER exhibit.contract_type == "employment"
+  FILTER CONTAINS(LOWER(exhibit.description), "chief executive")
+    OR CONTAINS(LOWER(exhibit.description), "ceo")
+  FILTER CONTAINS(LOWER(exhibit.text), "change of control")
+    OR CONTAINS(LOWER(exhibit.text), "change-of-control")
+  FILTER exhibit.filing_date >= DATE_SUBTRACT(DATE_NOW(), 730, "day")
+
+  SORT exhibit.filing_date DESC
+  LIMIT 15
+
+  RETURN {
+    ticker: exhibit.ticker,
+    filing_date: exhibit.filing_date,
+    exhibit_type: exhibit.exhibit_type,
+    description: exhibit.description,
+    sentiment: exhibit.finbert_score,
+    text_length: exhibit.text_length
+  }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ Employment exhibits (EX-10 type) contain executive compensation details
+✅ Change-of-control provisions = golden parachute (M&A signal)
+✅ Combine description + text search for best results
+💡 Recent CEO contracts may signal leadership changes or M&A prep
+⚠️ Use SUBSTRING(exhibit.text, 0, N) to preview - full text can be 50k+ chars
+
+---
+
+EXAMPLE 30 - SEC XBRL: Revenue Breakdown by Segment:
+Question: "Show me Apple's revenue breakdown by product segment from latest 10-K"
+Intent: xbrl_revenue_segments
+Collections: ["Company", "sec_filings", "sec_xbrl_data"]
+Edges: ["HAS_FILING", "has_xbrl_data"]
+AQL:
+FOR company IN Company
+  FILTER company.ticker == @ticker
+
+  FOR filing IN OUTBOUND company HAS_FILING
+    FILTER filing.type == "10-K"
+    SORT filing.filing_date DESC
+    LIMIT 1
+
+    FOR xbrl IN OUTBOUND filing has_xbrl_data
+      FILTER xbrl.has_segment_data == true
+
+      RETURN {
+        ticker: company.ticker,
+        company: company.company,
+        filing_date: filing.filing_date,
+        fiscal_year: xbrl.fiscal_year,
+        revenue_segments: xbrl.revenue_segments,
+        revenue_geography: xbrl.revenue_geography,
+        segment_count: LENGTH(ATTRIBUTES(xbrl.revenue_segments)),
+        geo_count: LENGTH(ATTRIBUTES(xbrl.revenue_geography))
+      }
+Bind Variables: {"ticker": "AAPL"}
+Requires Embedding: false
+
+Strategy:
+✅ sec_xbrl_data contains structured financial breakdowns from inline XBRL
+✅ revenue_segments = business segments (iPhone, Services, Mac, iPad, etc.)
+✅ revenue_geography = geographic regions (Americas, Europe, China, etc.)
+✅ has_segment_data == true ensures data availability
+💡 Context IDs (c-13, c-20) map to segments but concept values are numeric
+⚠️ Only 10-K and 10-Q have XBRL data (not 8-K or other types)
+⚠️ Not all companies report segment breakdowns
+
+---
+
+EXAMPLE 31 - SEC XBRL: Debt Maturity Analysis:
+Question: "Which tech companies have the most long-term debt?"
+Intent: xbrl_debt_analysis
+Collections: ["Company", "sec_filings", "sec_xbrl_data"]
+Edges: ["HAS_FILING", "has_xbrl_data"]
+AQL:
+FOR company IN Company
+  FILTER company.sector == "Technology"
+
+  FOR filing IN OUTBOUND company HAS_FILING
+    FILTER filing.type == "10-K"
+    FILTER filing.filing_date >= DATE_SUBTRACT(DATE_NOW(), 365, "day")
+
+    FOR xbrl IN OUTBOUND filing has_xbrl_data
+      FILTER xbrl.debt.LongTermDebt != null
+
+      COLLECT
+        ticker = company.ticker,
+        company_name = company.company,
+        market_cap = company.marketCap
+      AGGREGATE
+        total_debt = MAX(xbrl.debt.LongTermDebt)
+
+      LET debt_to_mcap = total_debt / market_cap
+
+      SORT total_debt DESC
+      LIMIT 20
+
+      RETURN {
+        ticker: ticker,
+        company: company_name,
+        long_term_debt: total_debt,
+        market_cap: market_cap,
+        debt_to_market_cap: FLOOR(debt_to_mcap * 1000) / 10
+      }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ xbrl.debt object contains: LongTermDebt, ShortTermDebt, DebtCurrent, etc.
+✅ XBRL concepts use us-gaap taxonomy (LongTermDebt, NetIncomeLoss, etc.)
+✅ Combine with Company.marketCap for debt ratios
+💡 High debt + low cash flow = refinancing risk (cross-check credit agreements)
+⚠️ XBRL values are in dollar amounts (not millions) - divide by 1M for readability
+
+---
+
+EXAMPLE 32 - SEC XBRL: R&D Spend Comparison:
+Question: "Compare R&D spending across semiconductor companies"
+Intent: xbrl_costs_comparison
+Collections: ["Company", "sec_filings", "sec_xbrl_data"]
+Edges: ["HAS_FILING", "has_xbrl_data"]
+AQL:
+FOR company IN Company
+  FILTER CONTAINS(LOWER(company.industry), "semiconductor")
+
+  FOR filing IN OUTBOUND company HAS_FILING
+    FILTER filing.type == "10-K"
+    FILTER filing.filing_date >= "2024-01-01"
+
+    FOR xbrl IN OUTBOUND filing has_xbrl_data
+      FILTER xbrl.costs.ResearchAndDevelopmentExpense != null
+
+      LET revenue = xbrl.all_concepts.Revenues
+                    OR xbrl.all_concepts.RevenueFromContractWithCustomerExcludingAssessedTax
+                    OR 0
+      LET rd_to_revenue = revenue > 0 ? (xbrl.costs.ResearchAndDevelopmentExpense / revenue) : null
+
+      SORT xbrl.costs.ResearchAndDevelopmentExpense DESC
+      LIMIT 15
+
+      RETURN {
+        ticker: company.ticker,
+        company: company.company,
+        fiscal_year: xbrl.fiscal_year,
+        filing_date: filing.filing_date,
+        rd_expense: xbrl.costs.ResearchAndDevelopmentExpense,
+        revenue: revenue,
+        rd_to_revenue_pct: rd_to_revenue != null ? FLOOR(rd_to_revenue * 1000) / 10 : null
+      }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ xbrl.costs object contains: ResearchAndDevelopmentExpense, CostOfRevenue, SellingGeneralAndAdministrativeExpense, etc.
+✅ xbrl.all_concepts has ALL XBRL tags found (revenue concepts vary by company)
+✅ Calculate R&D as % of revenue to normalize across company sizes
+💡 High R&D spend = innovation focus (semiconductors, biotech, software)
+⚠️ Use OR fallback for revenue - concept names vary (Revenues, RevenueFromContract, SalesRevenueNet)
+
+---
+
+EXAMPLE 33 - Cross-Domain: Exhibits + Options Before M&A:
+Question: "Find acquisition agreements with unusual call buying beforehand"
+Intent: exhibits_options_correlation
+Collections: ["sec_exhibits", "options_flow", "Company"]
+Edges: ["COMPANY_HAS_OPTIONS"]
+AQL:
+FOR exhibit IN sec_exhibits
+  FILTER exhibit.contract_type == "acquisition"
+  FILTER exhibit.filing_date >= DATE_SUBTRACT(DATE_NOW(), 180, "day")
+
+  FOR company IN Company
+    FILTER company.ticker == exhibit.ticker
+
+    FOR options IN OUTBOUND company COMPANY_HAS_OPTIONS
+      FILTER options.date >= DATE_SUBTRACT(exhibit.filing_date, 60, "day")
+      FILTER options.date < exhibit.filing_date
+      FILTER options.unusual_call_activity == 1
+
+      LET days_before = DATE_DIFF(options.date, exhibit.filing_date, "day")
+
+      SORT exhibit.filing_date DESC
+      LIMIT 10
+
+      RETURN {
+        ticker: exhibit.ticker,
+        company: company.company,
+        exhibit_date: exhibit.filing_date,
+        exhibit_description: exhibit.description,
+        options_date: options.date,
+        days_before_announcement: ABS(days_before),
+        call_volume: options.call_volume,
+        unusual_ratio: options.call_volume_unusual,
+        potential_sweep: options.potential_call_sweep,
+        signal: "INSIDER TRADING ALERT"
+      }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ Acquisition agreements filed as EX-10 exhibits (material contracts)
+✅ Look back 60 days for unusual call buying BEFORE M&A announcement
+✅ Unusual call activity + subsequent M&A filing = potential insider knowledge
+💡 VERY STRONG SIGNAL: M&A typically causes stock price jumps (calls profit)
+💡 Cross-reference with Form 4 insider buying for same period
+⚠️ M&A deals often leak 1-2 months before announcement
+⚠️ Large call sweeps + low P/C ratio = bullish positioning
+
+---
+
+EXAMPLE 34 - SEC Semantic Search + Exhibits:
+Question: "Find filings discussing supply chain risks and show related contracts"
+Intent: semantic_search_with_exhibits
+Collections: ["sec_sentences", "sec_filings", "sec_exhibits"]
+Edges: ["has_exhibit"]
+AQL:
+FOR s IN sec_sentences
+  FILTER s.sentence_embedding != null
+  FILTER s.finbert_score < -0.3
+  FILTER CONTAINS(LOWER(s.text), "supply chain")
+
+  LET filing = DOCUMENT(s.section_id)
+  LET parent_filing = DOCUMENT(filing.filing_id)
+  FILTER parent_filing.filing_date >= DATE_SUBTRACT(DATE_NOW(), 180, "day")
+
+  LET exhibits = (
+    FOR exhibit IN OUTBOUND parent_filing has_exhibit
+      FILTER exhibit.contract_type == "supply"
+        OR CONTAINS(LOWER(exhibit.description), "supply")
+      RETURN {
+        exhibit_type: exhibit.exhibit_type,
+        description: exhibit.description,
+        sentiment: exhibit.finbert_score
+      }
+  )
+
+  FILTER LENGTH(exhibits) > 0
+
+  SORT s.finbert_score ASC
+  LIMIT 10
+
+  RETURN {
+    ticker: parent_filing.ticker,
+    filing_date: parent_filing.filing_date,
+    filing_type: parent_filing.type,
+    risk_text: SUBSTRING(s.text, 0, 300),
+    sentiment: s.finbert_score,
+    related_contracts: exhibits,
+    contract_count: LENGTH(exhibits)
+  }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ Combine semantic search (sec_sentences embeddings) with exhibits
+✅ Negative sentiment + supply chain mentions = risk disclosure
+✅ Check if company has supply contracts filed (EX-10 type)
+💡 Supply chain risks + existing supply contracts = contract exposure analysis
+💡 Negative sentiment in supply exhibits = unfavorable contract terms
+⚠️ Use pre-filters (date, sentiment) before traversing to exhibits
+
+---
+
 ⚠️ FIELD NAME CHEAT SHEET (Common Mistakes):
 
 WRONG → CORRECT
@@ -2708,6 +3117,8 @@ WRONG → CORRECT
 - award_amount (for math) → award_amount_float
 - sec_filings.content → sec_sentences.text
 - sec_sections.embedding → (DOESN'T EXIST, use finbert_score filter)
+- sec_exhibits.embedding → (DOESN'T EXIST, use CONTAINS(LOWER(text), keyword))
+- sec_xbrl_data.embedding → (DOESN'T EXIST, use direct field access)
 - polymarket → prediction_markets_polymarket
 - kalshi → prediction_markets_kalshi
 - commodity_position → commodity_positions
@@ -2716,6 +3127,8 @@ WRONG → CORRECT
 - eia_crude → eia_crude_inventory
 - eia_natgas → eia_natgas_storage (for storage data)
 - eia_gas_production → eia_natgas_production
+- exhibits → sec_exhibits
+- xbrl → sec_xbrl_data
 
 ⚠️ CRITICAL: COMMODITY NAMES (futures_prices.commodity field)
 ALWAYS use UPPERCASE with UNDERSCORES:

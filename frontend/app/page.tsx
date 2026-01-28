@@ -710,7 +710,7 @@ export default function HomePage() {
     'What are the most negative SEC filings this year?',
     'Find defense contractors with contracts over $500M',
     'Show me crude oil and natural gas futures prices',
-    'What prediction markets mention Tesla or Elon Musk?',
+    'Show me recent options activity for tech stocks',
     'Compare Apple and Microsoft stock performance',
   ]
 

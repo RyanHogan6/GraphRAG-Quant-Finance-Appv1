@@ -112,6 +112,8 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
         connections: [
             { target: 'sec_sections', edge: 'has_section', direction: 'OUTBOUND', type: 'direct' },
             { target: 'sec_sentences', edge: 'has_section', direction: 'OUTBOUND', type: 'multi_hop' },
+            { target: 'sec_exhibits', edge: 'has_exhibit', direction: 'OUTBOUND', type: 'direct' },
+            { target: 'sec_xbrl_data', edge: 'has_xbrl_data', direction: 'OUTBOUND', type: 'direct' },
             { target: 'company', edge: 'HAS_FILING', direction: 'INBOUND', type: 'direct' },
             { target: 'options', edge: 'OPTIONS_BEFORE_FILING', direction: 'INBOUND', type: 'direct' }
         ],
@@ -143,6 +145,34 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
         supportsSemanticSearch: true,
         embeddingField: 'sentence_embedding',
         embeddingModel: 'doc2vec_financial_v1'
+    },
+    sec_exhibits: {
+        name: 'SEC Exhibits',
+        collection: 'sec_exhibits',
+        description: 'Material Contracts & Exhibits (EX-10, EX-4, EX-99)',
+        keyFields: [
+            "ticker", "filing_key", "filing_type", "filing_date", "accession", "exhibit_type", "exhibit_category",
+            "sequence", "filename", "description", "contract_type", "is_material_contract", "text", "text_length",
+            "finbert_score", "sentiment_label"
+        ],
+        connections: [
+            { target: 'sec', edge: 'has_exhibit', direction: 'INBOUND', type: 'direct' }
+        ],
+        exampleQuery: 'FOR e IN sec_exhibits FILTER e.contract_type == "credit_agreement" RETURN e'
+    },
+    sec_xbrl_data: {
+        name: 'SEC XBRL Data',
+        collection: 'sec_xbrl_data',
+        description: 'Financial Breakdowns (Revenue Segments, Debt, Costs)',
+        keyFields: [
+            "ticker", "filing_key", "filing_type", "filing_date", "fiscal_year", "accession",
+            "revenue_segments", "revenue_geography", "costs", "debt", "equity", "cashflow", "all_concepts",
+            "concepts_found", "has_segment_data", "has_geography_data"
+        ],
+        connections: [
+            { target: 'sec', edge: 'has_xbrl_data', direction: 'INBOUND', type: 'direct' }
+        ],
+        exampleQuery: 'FOR x IN sec_xbrl_data FILTER x.has_segment_data == true RETURN x'
     },
     predictionmarkets: {
         name: 'Polymarket',
