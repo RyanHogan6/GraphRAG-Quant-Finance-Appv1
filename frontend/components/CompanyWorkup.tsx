@@ -26,6 +26,8 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
     const company = data
     const marketData = data.MarketData || []
     const allSecFilings = data.sec_filings || []
+    const secExhibits = data.sec_exhibits || []
+    const secXbrlData = data.sec_xbrl_data || []
     const polyMarkets = data.prediction_markets_polymarket || []
     const awards = data.Award || []
     const optionsFlow = data.options_flow || []
@@ -199,9 +201,9 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                 { name: 'Debt-to-Equity', val: all.debtToEquity, benchmark: '< 1', type: 'ratio', check: (v: number) => v < 1 },
                 { name: 'Current Ratio', val: all.currentRatio, benchmark: '> 1.5', type: 'ratio', check: (v: number) => v > 1.5 },
                 { name: 'Free Cash Flow', val: all.freeCashflow, benchmark: 'Positive', type: 'currency', check: (v: number) => v > 0 },
-                { name: 'EPS', val: all.epsTrailingTwelveMonths || all.eps, benchmark: 'Growing', type: 'number' },
+                { name: 'EPS', val: all.trailingEps || all.epsTrailingTwelveMonths || all.forwardEps, benchmark: 'Growing', type: 'number' },
                 { name: 'P/E Ratio', val: all.trailingPE || all.forwardPE, benchmark: '< 20 (Fair)', type: 'number', check: (v: number) => v < 20 },
-                { name: 'ROCE', val: (all.ebit && all.totalDebt && all.totalStockholderEquity) ? (all.ebit / (all.totalDebt + all.totalStockholderEquity)) : null, benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 }
+                { name: 'ROCE', val: (all.totalDebt && all.returnOnEquity && all.debtToEquity) ? (all.returnOnEquity * (1 + all.debtToEquity)) : (all.returnOnEquity || null), benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 }
             ]
 
             return metricsList.map(m => ({
@@ -241,9 +243,9 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                 { name: 'Debt-to-Equity', val: all.debtToEquity, type: 'ratio', check: (v: number) => v < 1 },
                 { name: 'Current Ratio', val: all.currentRatio, type: 'ratio', check: (v: number) => v > 1.5 },
                 { name: 'Free Cash Flow', val: all.freeCashflow, type: 'currency', check: (v: number) => v > 0 },
-                { name: 'EPS', val: all.epsTrailingTwelveMonths || all.eps, type: 'number' },
+                { name: 'EPS', val: all.trailingEps || all.epsTrailingTwelveMonths || all.forwardEps, type: 'number' },
                 { name: 'P/E Ratio', val: all.trailingPE || all.forwardPE, type: 'number', check: (v: number) => v < 20 },
-                { name: 'ROCE', val: (all.ebit && all.totalDebt && all.totalStockholderEquity) ? (all.ebit / (all.totalDebt + all.totalStockholderEquity)) : null, type: 'pct', check: (v: number) => v > 0.15 }
+                { name: 'ROCE', val: (all.totalDebt && all.returnOnEquity && all.debtToEquity) ? (all.returnOnEquity * (1 + all.debtToEquity)) : (all.returnOnEquity || null), type: 'pct', check: (v: number) => v > 0.15 }
             ]
 
             return metricsList.map(m => ({
@@ -504,6 +506,148 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
             {allSecFilings.length > 0 && (
                 <div className="mt-6">
                     <SECFilingsExplorer filings={allSecFilings} ticker={company.ticker} />
+                </div>
+            )}
+
+            {/* SEC Exhibits - Material Contracts */}
+            {secExhibits.length > 0 && (
+                <div className="mt-6">
+                    <div className="bg-dark-900/40 border border-purple-500/10 rounded-xl p-4 shadow-xl backdrop-blur-sm">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-sm font-bold text-purple-400 uppercase tracking-[0.2em] flex items-center gap-3">
+                                <div className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.5)]" />
+                                SEC Exhibits & Material Contracts
+                            </h3>
+                            <div className="text-xs text-gray-500">
+                                {secExhibits.length} exhibit{secExhibits.length !== 1 ? 's' : ''}
+                            </div>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                                <thead>
+                                    <tr className="border-b border-purple-500/10">
+                                        <th className="text-left text-gray-300 font-semibold pb-2 px-2">Type</th>
+                                        <th className="text-left text-gray-300 font-semibold pb-2 px-2">Category</th>
+                                        <th className="text-left text-gray-300 font-semibold pb-2 px-2">Description</th>
+                                        <th className="text-center text-gray-300 font-semibold pb-2 px-2">Date</th>
+                                        <th className="text-center text-gray-300 font-semibold pb-2 px-2">Sentiment</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {secExhibits.slice(0, 10).map((ex: any, i: number) => {
+                                        const sentiment = ex.finbert_score || 0
+                                        const sentimentColor = sentiment > 0.2 ? 'text-green-400' : sentiment < -0.2 ? 'text-red-400' : 'text-gray-400'
+
+                                        return (
+                                            <tr
+                                                key={i}
+                                                className="border-b border-white/5 hover:bg-purple-500/10 transition-colors cursor-pointer"
+                                            >
+                                                <td className="py-2 px-2 text-purple-300 font-mono font-semibold">{ex.exhibit_type}</td>
+                                                <td className="py-2 px-2 text-gray-300 truncate max-w-[100px]">{ex.contract_type || ex.exhibit_category}</td>
+                                                <td className="py-2 px-2 text-gray-300 truncate max-w-[300px]">{ex.description || 'Exhibit'}</td>
+                                                <td className="py-2 px-2 text-center text-gray-400">{ex.filing_date}</td>
+                                                <td className={`py-2 px-2 text-center font-mono ${sentimentColor}`}>
+                                                    {sentiment > 0 ? '+' : ''}{sentiment.toFixed(3)}
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* SEC XBRL Data - Financial Breakdowns */}
+            {secXbrlData.length > 0 && (
+                <div className="mt-6">
+                    <div className="bg-dark-900/40 border border-cyan-500/10 rounded-xl p-4 shadow-xl backdrop-blur-sm">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-sm font-bold text-cyan-400 uppercase tracking-[0.2em] flex items-center gap-3">
+                                <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
+                                Financial Breakdowns (XBRL)
+                            </h3>
+                            <div className="text-xs text-gray-500">
+                                {secXbrlData.length} filing{secXbrlData.length !== 1 ? 's' : ''}
+                            </div>
+                        </div>
+                        <div className="space-y-4">
+                            {secXbrlData.slice(0, 3).map((xbrl: any, i: number) => (
+                                <div key={i} className="bg-dark-800/50 border border-cyan-500/10 rounded-lg p-4">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-xs font-semibold text-cyan-300">
+                                                {xbrl.filing_type} - FY{xbrl.fiscal_year}
+                                            </span>
+                                            <span className="text-[10px] text-gray-500">{xbrl.filing_date}</span>
+                                        </div>
+                                        <div className="text-[10px] text-gray-500">
+                                            {xbrl.concepts_found} concepts
+                                        </div>
+                                    </div>
+
+                                    {/* Revenue Segments */}
+                                    {xbrl.has_segment_data && xbrl.revenue_segments && (
+                                        <div className="mb-3">
+                                            <div className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider mb-2">
+                                                Revenue Segments
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {Object.entries(xbrl.revenue_segments).slice(0, 4).map(([key, value]: [string, any], j: number) => (
+                                                    <div key={j} className="flex justify-between items-center px-2 py-1 bg-dark-900/50 rounded">
+                                                        <span className="text-[10px] text-gray-400">{key}</span>
+                                                        <span className="text-[10px] text-white font-mono">
+                                                            ${(value / 1e6).toFixed(1)}M
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Debt Info */}
+                                    {xbrl.debt && Object.keys(xbrl.debt).length > 0 && (
+                                        <div>
+                                            <div className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider mb-2">
+                                                Debt & Obligations
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {Object.entries(xbrl.debt).slice(0, 4).map(([key, value]: [string, any], j: number) => (
+                                                    <div key={j} className="flex justify-between items-center px-2 py-1 bg-dark-900/50 rounded">
+                                                        <span className="text-[10px] text-gray-400">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                                                        <span className="text-[10px] text-white font-mono">
+                                                            ${(value / 1e6).toFixed(1)}M
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Costs Breakdown */}
+                                    {xbrl.costs && Object.keys(xbrl.costs).length > 0 && (
+                                        <div className="mt-3">
+                                            <div className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider mb-2">
+                                                Operating Costs
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {Object.entries(xbrl.costs).slice(0, 4).map(([key, value]: [string, any], j: number) => (
+                                                    <div key={j} className="flex justify-between items-center px-2 py-1 bg-dark-900/50 rounded">
+                                                        <span className="text-[10px] text-gray-400">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                                                        <span className="text-[10px] text-white font-mono">
+                                                            ${(value / 1e6).toFixed(1)}M
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             )}
 

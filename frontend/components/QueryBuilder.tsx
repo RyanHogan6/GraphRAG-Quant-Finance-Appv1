@@ -99,6 +99,9 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
     // Special state for SEC form types
     const [selectedFormTypes, setSelectedFormTypes] = useState<string[]>(['all'])
 
+    // Special state for SEC ticker filter
+    const [secTickerFilter, setSecTickerFilter] = useState<string>('')
+
     // Special state for Company ticker search
     const [companySearch, setCompanySearch] = useState<string>('')
 
@@ -119,19 +122,32 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
         fetchCompanies()
     }, [])
 
-    // Update filters when SEC form types change
+    // Update filters when SEC form types or ticker filter changes
     useEffect(() => {
-        if (source === 'sec' && selectedFormTypes.length > 0 && !selectedFormTypes.includes('all')) {
-            const formFilter: Filter = {
-                field: 'type',
-                operator: 'IN',
-                value: JSON.stringify(selectedFormTypes)
+        if (source === 'sec') {
+            const newFilters: Filter[] = []
+
+            // Add form type filter if not 'all'
+            if (selectedFormTypes.length > 0 && !selectedFormTypes.includes('all')) {
+                newFilters.push({
+                    field: 'type',
+                    operator: 'IN',
+                    value: JSON.stringify(selectedFormTypes)
+                })
             }
-            setFilters([formFilter])
-        } else if (source === 'sec' && selectedFormTypes.includes('all')) {
-            setFilters([])
+
+            // Add ticker filter if provided
+            if (secTickerFilter.trim()) {
+                newFilters.push({
+                    field: 'ticker',
+                    operator: '==',
+                    value: secTickerFilter.trim()
+                })
+            }
+
+            setFilters(newFilters)
         }
-    }, [selectedFormTypes, source])
+    }, [selectedFormTypes, secTickerFilter, source])
 
     // Update filters when company search changes
     useEffect(() => {
@@ -442,12 +458,32 @@ export default function QueryBuilder({ onQueryChange }: QueryBuilderProps) {
                             </motion.div>
                         )}
 
-                        {/* Special: SEC Form Type Selection */}
+                        {/* Special: SEC Ticker Filter */}
                         {source === 'sec' && (
                             <motion.div
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 className="mt-5 pt-5 border-t border-gray-700"
+                            >
+                                <label className="text-xs text-gray-400 uppercase tracking-wider mb-2 block">
+                                    Filter by Company (Optional)
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="Enter ticker (e.g., AAPL, TSLA) or leave blank for all..."
+                                    value={secTickerFilter}
+                                    onChange={(e) => setSecTickerFilter(e.target.value.toUpperCase())}
+                                    className="w-full px-3 py-2 bg-dark-800 border border-green-500/20 rounded-lg text-xs text-white placeholder-gray-500 focus:border-green-500/50 outline-none"
+                                />
+                            </motion.div>
+                        )}
+
+                        {/* Special: SEC Form Type Selection */}
+                        {source === 'sec' && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                className="mt-3"
                             >
                                 <label className="text-xs text-gray-400 mb-2 block font-semibold">Select Form Types:</label>
                                 <div className="grid grid-cols-3 gap-2">
