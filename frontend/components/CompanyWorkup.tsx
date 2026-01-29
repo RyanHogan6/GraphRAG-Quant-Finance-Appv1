@@ -444,7 +444,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                         Deep Intelligence Synthesis
                     </h3>
                     <div className="space-y-3 relative z-10">
-                        {aiSummary.map((s: string, i: number) => (
+                        {aiSummary.filter((s): s is string => Boolean(s)).map((s: string, i: number) => (
                             <div key={i} className="flex items-start gap-3">
                                 <div className="w-1.5 h-1.5 rounded-full bg-gold/50 mt-2 flex-shrink-0" />
                                 <p className="text-[13px] md:text-sm text-gray-300 leading-relaxed font-medium">

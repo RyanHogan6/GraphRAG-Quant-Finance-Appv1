@@ -1902,11 +1902,11 @@ Requires Embedding: false
 
 ---
 
-EXAMPLE 16b - Comprehensive Company Workup (WITH SEC FILINGS + TOP SENTENCES):
+EXAMPLE 16b - Comprehensive Company Workup (WITH SEC FILINGS + XBRL + EXHIBITS):
 Question: "Show me a complete analysis of AAPL" OR "Tell me about Tesla" OR "Show me NVDA"
 Intent: company_comprehensive_workup
-Collections: ["Company", "MarketData", "sec_filings", "sec_sections", "sec_sentences", "Award", "options_flow"]
-Edges: ["HAS_MARKETDATA", "HAS_FILING", "has_section", "has_sentence", "HAS_AWARD", "COMPANY_HAS_OPTIONS"]
+Collections: ["Company", "MarketData", "sec_filings", "sec_sections", "sec_sentences", "sec_exhibits", "sec_xbrl_data", "Award", "options_flow"]
+Edges: ["HAS_MARKETDATA", "HAS_FILING", "has_section", "has_sentence", "has_exhibit", "has_xbrl_data", "HAS_AWARD", "COMPANY_HAS_OPTIONS"]
 AQL:
 FOR company IN Company
   FILTER company.ticker == @ticker
@@ -1937,6 +1937,22 @@ FOR company IN Company
       RETURN MERGE(filing, { top_sentences: top_sentences })
   )
 
+  LET sec_exhibits = (
+    FOR filing IN OUTBOUND company HAS_FILING
+      FOR exhibit IN OUTBOUND filing has_exhibit
+        SORT exhibit.filing_date DESC
+        LIMIT 20
+        RETURN exhibit
+  )
+
+  LET sec_xbrl_data = (
+    FOR filing IN OUTBOUND company HAS_FILING
+      FOR xbrl IN OUTBOUND filing has_xbrl_data
+        SORT xbrl.filing_date DESC
+        LIMIT 20
+        RETURN xbrl
+  )
+
   LET awards = (
     FOR award IN OUTBOUND company HAS_AWARD
       SORT award.start_date DESC
@@ -1954,6 +1970,8 @@ FOR company IN Company
   RETURN MERGE(company, {
     MarketData: market_data,
     sec_filings: sec_filings,
+    sec_exhibits: sec_exhibits,
+    sec_xbrl_data: sec_xbrl_data,
     Award: awards,
     options_flow: options_flow
   })
