@@ -53,6 +53,18 @@ CRITICAL_AQL_RULES = """
    - "Find prediction markets about Tesla" → FILTER market.closed == false (Polymarket)
    ❌ NEVER show expired markets in top/active market queries
 
+   ⚠️ CRITICAL SEC SENTIMENT RULE:
+   sec_filings collection = INSIDER TRADING (Form 4/5) with NO sentiment scores!
+   ✅ For "bearish 10-K", "negative filings", "sentiment analysis" → USE sec_sentences collection
+   ✅ sec_sentences has: finbert_score, text, ticker, sentence_embedding
+   ✅ To get "filing sentiment": Aggregate AVG(sentence.finbert_score) grouped by ticker or accession
+
+   Examples:
+   - "Most bearish 10-K filings" → Query sec_sentences, group by ticker, average finbert_score
+   - "Negative SEC sentiment for TSLA" → Query sec_sentences WHERE ticker = "TSLA", average finbert_score
+   - "Insider buying" → Query sec_filings (Form 4 trades)
+   ❌ NEVER query sec_filings for sentiment - it has none!
+
 2. ORDER OF OPERATIONS:
    FOR → FILTER → SORT → LIMIT → RETURN
    (SORT/LIMIT must come BEFORE RETURN)
@@ -95,7 +107,8 @@ CRITICAL_AQL_RULES = """
    Company: sharesOutstanding, marketCap, fullTimeEmployees (camelCase!)
    MarketData: sma_20, sma_50 (snake_case), targetMeanPrice (camelCase)
    EconomicData: sandp_500_index, federal_funds_rate
-   SEC: finbert_score, avg_negative, avg_uncertainty (NO embeddings!)
+   SEC - CRITICAL: sec_filings = INSIDER TRADING (Form 4/5) with trades, accession, type (NO SENTIMENT!)
+   SEC - SENTIMENT: sec_sentences has finbert_score, sentence_embedding (Doc2Vec) - USE THIS for sentiment queries!
    Polymarket: question, description, yes_probability, volume_24h, closed, question_embedding (for semantic search!)
    Polymarket Traders: total_volume, total_profit, is_whale, activity_level (NO embeddings!)
    Polymarket Positions: market_question, size, average_price, realized_profit, unrealizedProfit
@@ -202,11 +215,14 @@ EconomicData:
 - sandp_500_index, federal_funds_rate, unemployment_rate (underscores)
 - 10y_2y_treasury_spread, yield_curve_inverted
 
-SEC:
-- sec_filings: avg_finbert, avg_uncertainty, avg_negative (NO embeddings)
-- sec_sentences: finbert_score, negative_per_1k, uncertainty_per_1k, sentence_embedding (✅ HAS Doc2Vec embeddings!)
+SEC (CRITICAL - Read Carefully!):
+- sec_filings: INSIDER TRADING DATA (Form 4/5 only) - Fields: trades, ticker, accession, type, fiscal_year, filing_date
+  ❌ NO SENTIMENT SCORES in sec_filings! It's insider trading, not 10-K/10-Q text analysis
+- sec_sentences: 10-K/10-Q filing text with sentiment - Fields: finbert_score, text, ticker, sentence_embedding (✅ Doc2Vec)
+  ✅ USE THIS for "bearish filings", "negative sentiment", "10-K analysis", etc.
+  ✅ To get "filing sentiment", aggregate sec_sentences grouped by filing (accession or ticker+year)
 - ✅ Use COSINE_SIMILARITY on sec_sentences.sentence_embedding for semantic search
-- ❌ sec_filings and sec_sections have NO embeddings - use CONTAINS(LOWER(text), keyword)
+- ❌ sec_filings has NO text or sentiment - it's Form 4 insider trades!
 
 Polymarket:
 - yes_probability, no_probability, volume_24h, market_slug
@@ -577,12 +593,12 @@ DOCUMENT COLLECTIONS:
    FILTER filing.trades[? ANY.code == "S"]  ← Sales only
    FILTER filing.trades[? ANY.is_informed == true]
 
-   Sentiment Metrics (10-K, 10-Q, 8-K, etc. - aggregated from sentences):
-   - avg_finbert (float): Average FinBERT sentiment (-1 to +1)
-   - avg_uncertainty (float): Uncertainty score per 1000 words
-   - avg_positive (float): Positive words per 1000
-   - avg_negative (float): Negative words per 1000
-   - sentence_count (int): Total sentences in filing
+   ⚠️ CRITICAL - NO SENTIMENT SCORES IN sec_filings:
+   sec_filings is metadata only (accession, ticker, type, filing_date, trades for Form 4)
+   ❌ Does NOT have: avg_finbert, avg_uncertainty, avg_negative (these don't exist!)
+   ✅ For sentiment: Query sec_sentences and aggregate by ticker or accession
+
+   Example: "Most bearish filings" → Query sec_sentences, group by ticker, AVG(finbert_score)
 
    ⚠️ NO CONTENT FIELD: Full text is NOT stored here. Use sec_sections or sec_sentences.
    ⚠️ INSIDER TRADING SIGNALS: Form 4/5 have `trades` field with buy/sell data, SC 13D/G show large institutional positions
@@ -1231,27 +1247,34 @@ FOR doc IN Award
 
 ---
 
-EXAMPLE 5 - SEC Filing Sentiment:
-Question: "Show me Apple's most negative 10-K filings"
+EXAMPLE 5 - SEC Filing Sentiment (CRITICAL: Aggregate from sec_sentences!):
+Question: "Show me the 15 most bearish 10-K filings from the last 2 years"
 Intent: sentiment_analysis
-Collections: ["sec_filings"]
+Collections: ["sec_sentences"]
+Strategy: sec_filings has NO sentiment! Aggregate from sec_sentences by ticker.
 AQL:
-FOR doc IN sec_filings
-  FILTER doc.ticker == @ticker
-  FILTER doc.type == "10-K"
-  FILTER doc.avg_finbert != null
-  SORT doc.avg_finbert ASC
-  LIMIT 5
+FOR sentence IN sec_sentences
+  FILTER sentence.finbert_score != null
+  FILTER sentence.filing_date >= DATE_SUBTRACT(DATE_NOW(), 730, "day")
+  COLLECT ticker = sentence.ticker
+  AGGREGATE
+    avg_sentiment = AVG(sentence.finbert_score),
+    sentence_count = COUNT(1),
+    latest_filing = MAX(sentence.filing_date)
+  FILTER sentence_count > 50
+  SORT avg_sentiment ASC
+  LIMIT 15
   RETURN {
-    ticker: doc.ticker,
-    filing_date: doc.filing_date,
-    fiscal_year: doc.fiscal_year,
-    sentiment: doc.avg_finbert,
-    negative_score: doc.avg_negative,
-    uncertainty: doc.avg_uncertainty
+    ticker: ticker,
+    filing_date: latest_filing,
+    avg_finbert_score: ROUND(avg_sentiment * 1000) / 1000,
+    total_sentences: sentence_count
   }
-Bind Variables: {"ticker": "AAPL"}
+Bind Variables: {}
 Requires Embedding: false
+
+CRITICAL: sec_filings = Insider trades (Form 4) with NO sentiment.
+For filing sentiment queries, ALWAYS use sec_sentences and aggregate!
 
 ---
 
@@ -2468,7 +2491,7 @@ FOR options IN options_flow
       filing_date: filing.filing_date,
       days_before: DATE_DIFF(filing.filing_date, options.date, "day"),
       filing_type: filing.type,
-      sentiment: filing.avg_finbert,
+      accession: filing.accession,
       call_volume: options.call_volume,
       put_volume: options.put_volume,
       unusual_call: options.call_volume_unusual,
