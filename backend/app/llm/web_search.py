@@ -74,7 +74,7 @@ Respond in JSON format:
 }}"""
 
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model=config.LLM_MODEL,  # Use config model (gpt-4o-mini by default)
         messages=[{"role": "user", "content": prompt}],
         temperature=0,
         response_format={"type": "json_object"}
@@ -276,7 +276,7 @@ Markdown table format:
 Response:"""
 
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model=config.LLM_MODEL,  # Use config model (gpt-4o-mini by default)
         messages=[{"role": "user", "content": prompt}],
         temperature=0.3,
         max_tokens=3000  # Increased for comprehensive synthesis with tables
