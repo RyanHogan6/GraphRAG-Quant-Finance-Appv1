@@ -42,6 +42,9 @@ def classify_query_intent(question: str) -> dict:
    - "What's AAPL's PE ratio?"
    - "Show me defense contracts over $10M"
    - "What companies have golden crosses?"
+   - "Show me the most bearish 10-K filings from the last 2 years"
+   - "Find companies with negative SEC filing sentiment"
+   - "Which stocks have unusual options activity?"
 
 2. **web_only** - Question requires ONLY external information with NO database relevance (pure general knowledge, explanations, unrelated current events)
    Examples:
