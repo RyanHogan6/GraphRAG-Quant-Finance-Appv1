@@ -2918,20 +2918,31 @@ Strategy:
 ---
 
 EXAMPLE 30 - SEC XBRL: Revenue Breakdown by Segment:
-Question: "Show me Apple's revenue breakdown by product segment from latest 10-K"
+Question: "Show me Microsoft's XBRL revenue breakdowns" OR "What are AAPL's revenue segments?" OR "Apple revenue by product segment"
 Intent: xbrl_revenue_segments
-Collections: ["Company", "sec_filings", "sec_xbrl_data"]
-Edges: ["HAS_FILING", "has_xbrl_data"]
+Collections: ["sec_xbrl_data"]
 AQL:
-FOR company IN Company
-  FILTER company.ticker == @ticker
+FOR xbrl IN sec_xbrl_data
+  FILTER xbrl.ticker == @ticker
+  FILTER xbrl.has_segment_data == true
+  SORT xbrl.filing_date DESC
+  LIMIT 5
+  RETURN {
+    filing_type: xbrl.filing_type,
+    filing_date: xbrl.filing_date,
+    fiscal_year: xbrl.fiscal_year,
+    revenue_segments: xbrl.revenue_segments,
+    revenue_geography: xbrl.revenue_geography,
+    concepts_found: xbrl.concepts_found
+  }
+Bind Variables: {"ticker": "MSFT"}
+Requires Embedding: false
 
-  FOR filing IN OUTBOUND company HAS_FILING
-    FILTER filing.type == "10-K"
-    SORT filing.filing_date DESC
-    LIMIT 1
-
-    FOR xbrl IN OUTBOUND filing has_xbrl_data
+⚠️ CRITICAL:
+- ALWAYS filter by ticker FIRST! sec_xbrl_data is indexed on ticker field
+- NO graph traversal needed - XBRL data already has ticker field
+- NO semantic search - no embeddings in XBRL
+- Direct collection query is fastest (NOT Company → filing → xbrl)
       FILTER xbrl.has_segment_data == true
 
       RETURN {

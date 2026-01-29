@@ -856,14 +856,14 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                 </div>
                                 <div className="space-y-5">
                                     <h5 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] border-b border-blue-500/20 pb-2">Key Excerpts</h5>
-                                    {selectedDetail.data.top_sentences && selectedDetail.data.top_sentences.length > 0 ? (
-                                        selectedDetail.data.top_sentences.map((s: any, j: number) => (
+                                    {(selectedDetail.data.top_sentences || selectedDetail.data.sec_sentences) && (selectedDetail.data.top_sentences || selectedDetail.data.sec_sentences).length > 0 ? (
+                                        (selectedDetail.data.top_sentences || selectedDetail.data.sec_sentences).slice(0, 10).map((s: any, j: number) => (
                                             <div key={j} className="bg-dark-900/50 p-5 rounded-2xl border border-white/5 relative group">
                                                 <div className="absolute top-0 left-0 w-1 h-0 bg-blue-500 group-hover:h-full transition-all duration-300" />
                                                 <p className="text-xs text-gray-300 leading-relaxed italic">"{s.text}"</p>
                                                 <div className="mt-3 flex items-center justify-between">
                                                     <div className="text-[10px] text-blue-500 font-bold uppercase tracking-wider">Sentiment Signal</div>
-                                                    <div className="text-[10px] text-gray-500 font-mono">Score: {(s.score || 0).toFixed(3)}</div>
+                                                    <div className="text-[10px] text-gray-500 font-mono">Score: {(s.score || s.finbert_score || 0).toFixed(3)}</div>
                                                 </div>
                                             </div>
                                         ))

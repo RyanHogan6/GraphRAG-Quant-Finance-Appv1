@@ -430,4 +430,68 @@ Available fields in eia_crude_inventory:
 - Shows speculator vs commercial positioning
 """)
 
+    if 'sec_xbrl_data' in collections:
+        rules.append("""
+**SEC XBRL DATA COLLECTION RULES:**
+⚠️ CRITICAL PERFORMANCE: Query DIRECTLY from sec_xbrl_data (NOT via graph traversal)
+
+✅ FAST (use this):
+FOR xbrl IN sec_xbrl_data
+  FILTER xbrl.ticker == @ticker
+  FILTER xbrl.has_segment_data == true
+  SORT xbrl.filing_date DESC
+  LIMIT 5
+  RETURN xbrl
+
+❌ SLOW (60s timeout - do NOT use):
+FOR company IN Company
+  FOR filing IN OUTBOUND company HAS_FILING
+    FOR xbrl IN OUTBOUND filing has_xbrl_data  // 3-hop traversal = very slow!
+
+Why: sec_xbrl_data already has ticker field (indexed) - no need for graph traversal!
+
+Available fields:
+- ticker: Company ticker (indexed - use for filtering!)
+- filing_type: "10-K" or "10-Q" (only quarterly/annual filings have XBRL)
+- fiscal_year: Year of filing
+- has_segment_data: Boolean - true if revenue_segments exists
+- revenue_segments: Object with business segment breakdown (iPhone, Services, etc.)
+- revenue_geography: Object with geographic region breakdown (Americas, Europe, etc.)
+- debt: Object with debt details
+- costs: Object with cost breakdown
+- all_concepts: Array of all XBRL concepts found
+
+⚠️ NO embeddings - cannot use semantic search
+⚠️ Only 10-K and 10-Q have XBRL data (not 8-K, Form 4, etc.)
+""")
+
+    if 'sec_exhibits' in collections:
+        rules.append("""
+**SEC EXHIBITS COLLECTION RULES:**
+⚠️ CRITICAL PERFORMANCE: Query DIRECTLY from sec_exhibits (NOT via graph traversal)
+
+✅ FAST:
+FOR exhibit IN sec_exhibits
+  FILTER exhibit.ticker == @ticker
+  FILTER exhibit.is_material_contract == true
+  LIMIT 20
+  RETURN exhibit
+
+Available fields:
+- ticker: Company ticker (indexed)
+- exhibit_type: "EX-10.1", "EX-4.1", "EX-99.1" (10.x = material contracts)
+- contract_type: "credit_agreement", "employment", "merger", "lease"
+- is_material_contract: Boolean
+- description: Short description
+- text: Full exhibit text (can be 50k+ chars - use SUBSTRING to preview)
+- finbert_score: Sentiment of exhibit text
+
+Common queries:
+- Credit agreements: exhibit.contract_type == "credit_agreement"
+- CEO contracts: CONTAINS(LOWER(exhibit.description), "chief executive")
+- Material contracts: exhibit.is_material_contract == true
+
+⚠️ NO embeddings - cannot use semantic search
+""")
+
     return '\n'.join(rules)
