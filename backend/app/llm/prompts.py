@@ -1462,6 +1462,70 @@ Requires Embedding: false
 
 ---
 
+EXAMPLE 7c - Company Overview with Contracts + SEC Filings (Multi-Collection):
+Question: "Show me Raytheon with government contracts and recent SEC filings"
+Intent: multi_source_company_overview
+Collections: ["Company", "Award", "sec_sentences"]
+Strategy:
+1. Resolve company name "Raytheon" → ticker "RTX"
+2. Get contracts from Award (filter by ticker)
+3. Get SEC sentiment from sec_sentences (aggregate by ticker)
+4. Combine using LET subqueries
+
+AQL:
+LET company = FIRST(
+  FOR c IN Company
+    FILTER c.ticker == "RTX" OR CONTAINS(LOWER(c.companyName), 'raytheon')
+    RETURN c
+)
+
+LET contracts = (
+  FOR award IN Award
+    FILTER award.ticker == company.ticker
+    SORT award.start_date DESC
+    LIMIT 20
+    RETURN {
+      recipient_name: award.recipient_name,
+      awarding_agency: award.awarding_agency,
+      award_amount: award.award_amount_float,
+      start_date: award.start_date,
+      description: SUBSTRING(award.description, 0, 150)
+    }
+)
+
+LET sec_sentiment = (
+  FOR sentence IN sec_sentences
+    FILTER sentence.ticker == company.ticker
+    FILTER sentence.filing_date >= DATE_SUBTRACT(DATE_NOW(), 365, "day")
+    COLLECT filing_date = sentence.filing_date
+    AGGREGATE avg_sentiment = AVG(sentence.finbert_score), sentence_count = COUNT(1)
+    SORT filing_date DESC
+    LIMIT 10
+    RETURN {
+      filing_date: filing_date,
+      avg_sentiment: ROUND(avg_sentiment * 1000) / 1000,
+      sentence_count: sentence_count
+    }
+)
+
+RETURN {
+  company: company,
+  recent_contracts: contracts,
+  recent_sec_filings: sec_sentiment
+}
+
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ CRITICAL: Resolve company name to ticker FIRST
+✅ Use LET subqueries for multiple data sources (NOT nested FOR in RETURN)
+✅ Awards: Filter by ticker, sort by date
+✅ SEC: Aggregate sec_sentences by filing_date (NOT sec_filings - has no sentiment!)
+💡 This pattern works for any "Company X with data Y and Z" query
+
+---
+
 EXAMPLE 8 - Market Data with Indicators:
 Question: "Show me stocks with price above 20-day SMA on 2016-01-05"
 Intent: technical_screening
@@ -3234,9 +3298,30 @@ When user asks about energy inventory/storage:
 - "LNG exports" → eia_lng_exports
 NEVER use MarketData with ticker='NATGAS' or ticker='CRUDE' - these don't exist!
 
+⚠️ CRITICAL: COMPANY NAME → TICKER RESOLUTION
+When user provides company NAME instead of ticker:
+1. First resolve to ticker using Company collection:
+   FOR c IN Company
+     FILTER CONTAINS(LOWER(c.companyName), 'raytheon')  # Case-insensitive partial match
+     RETURN c.ticker  # Returns "RTX"
+
+2. Common name → ticker mappings (memorize these!):
+   - "Raytheon" / "RTX Corp" → ticker "RTX"
+   - "Lockheed Martin" → ticker "LMT"
+   - "Boeing" → ticker "BA"
+   - "General Dynamics" → ticker "GD"
+   - "Northrop Grumman" → ticker "NOC"
+   - "Apple" → ticker "AAPL"
+   - "Microsoft" → ticker "MSFT"
+   - "Tesla" → ticker "TSLA"
+   - "Meta" / "Facebook" → ticker "META"
+
+3. Then use ticker for all subsequent queries (Award, MarketData, sec_sentences, etc.)
+
 ⚠️ CRITICAL: RECIPIENT NAME VARIATIONS (Award collection)
 Common company name variations in Award.recipient_name:
 - "Lockheed Martin" search → Use CONTAINS(LOWER(doc.recipient_name), 'lockheed')
+- "Raytheon" / "RTX" → Use ticker "RTX" OR CONTAINS(LOWER(doc.recipient_name), 'raytheon')
 - Never use exact match like == "LOCKHEED MARTIN CORPORATION" (may not match!)
 - Recipient names have variations: "LOCKHEED MARTIN CORP", "LOCKHEED MARTIN CORPORATION", etc.
 
