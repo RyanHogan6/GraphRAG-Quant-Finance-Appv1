@@ -180,9 +180,13 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                 : news ? `Wall Street projections for 2026 highlight potential revenue ceiling of ${news.rev}, catalyzed significantly by ${news.driver}, with upcoming ${news.event} serving as critical inflection point for institutional portfolio rebalancing.`
                 : `Fundamental metrics show ${latestMarket?.revenue_growth ? ((latestMarket.revenue_growth * 100).toFixed(1) + '% revenue growth') : 'steady revenue generation'} with ${latestMarket?.profit_margins ? ((latestMarket.profit_margins * 100).toFixed(1) + '% profit margins') : 'industry-standard profitability'}, positioning ${ticker} for ${priceChangeNum > 5 ? 'continued momentum expansion' : priceChangeNum < -5 ? 'potential mean reversion opportunity' : 'range-bound consolidation'}.`,
 
-            `Critical intelligence suggests monitoring ${news?.event || secFilings.length > 0 ? 'upcoming ' + (secFilings[0]?.form_type === '10-Q' ? 'quarterly earnings release' : secFilings[0]?.form_type === '10-K' ? 'annual report filing' : 'regulatory filings') : 'next quarterly earnings'} as primary volatility catalyst, with institutional positioning ${awards.length > 0 ? 'supported by government contract visibility' : 'driven by sector rotation dynamics'} and ${optionsFlow.length > 0 && putCallRatio > 1.5 ? 'hedged downside protection' : optionsFlow.length > 0 && putCallRatio < 0.5 ? 'leveraged upside exposure' : 'balanced risk/reward profiles'}.`
-        ]
-    }, [company, timeframe, chartData, awards, secFilings, polyMarkets])
+            `Critical intelligence suggests monitoring ${news?.event || secFilings.length > 0 ? 'upcoming ' + (secFilings[0]?.form_type === '10-Q' ? 'quarterly earnings release' : secFilings[0]?.form_type === '10-K' ? 'annual report filing' : 'regulatory filings') : 'next quarterly earnings'} as primary volatility catalyst, with institutional positioning ${awards.length > 0 ? 'supported by government contract visibility' : 'driven by sector rotation dynamics'} and ${optionsFlow.length > 0 && putCallRatio > 1.5 ? 'hedged downside protection' : optionsFlow.length > 0 && putCallRatio < 0.5 ? 'leveraged upside exposure' : 'balanced risk/reward profiles'}.`,
+
+            secXbrlData.length > 0 || secExhibits.length > 0
+                ? `Enhanced financial transparency available through ${secXbrlData.length > 0 ? `detailed XBRL breakdowns covering ${secXbrlData[0]?.has_segment_data ? 'revenue segments, ' : ''}${secXbrlData[0]?.debt ? 'debt obligations, ' : ''}and cost structures` : ''}${secXbrlData.length > 0 && secExhibits.length > 0 ? ', alongside ' : ''}${secExhibits.length > 0 ? `${secExhibits.length} material contract${secExhibits.length > 1 ? 's' : ''} including ${secExhibits.filter((e: any) => e.exhibit_type?.includes('10.') || e.contract_type?.toLowerCase().includes('credit')).length > 0 ? 'credit agreements, ' : ''}${secExhibits.filter((e: any) => e.contract_type?.toLowerCase().includes('employment')).length > 0 ? 'executive compensation packages, ' : ''}and strategic partnership filings` : ''} providing institutional-grade due diligence capabilities.`
+                : null
+        ].filter(Boolean)
+    }, [company, timeframe, chartData, awards, secFilings, polyMarkets, secXbrlData, secExhibits])
 
     // Moneycontain "13 Essential Financial Metrics"
     const fundamentalMetrics = useMemo(() => {
@@ -540,6 +544,76 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                         )}
                     </div>
             </div>
+
+            {/* XBRL & Exhibits Alert Cards */}
+            {(secXbrlData.length > 0 || secExhibits.length > 0) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                    {/* XBRL Highlights */}
+                    {secXbrlData.length > 0 && (
+                        <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-4 hover:border-cyan-500/50 transition-all cursor-pointer group">
+                            <div className="flex items-center gap-2 mb-2">
+                                <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
+                                <h4 className="text-sm font-bold text-cyan-400 group-hover:text-cyan-300 transition-colors">📊 Financial Breakdowns Available</h4>
+                            </div>
+                            <div className="text-xs text-gray-300 mb-3">
+                                {secXbrlData.length} filing{secXbrlData.length !== 1 ? 's' : ''} with detailed XBRL data
+                            </div>
+                            <div className="flex gap-2 flex-wrap">
+                                {secXbrlData[0]?.has_segment_data && (
+                                    <span className="px-2 py-1 bg-cyan-500/20 border border-cyan-500/30 rounded text-[10px] text-cyan-300">
+                                        Revenue Segments
+                                    </span>
+                                )}
+                                {secXbrlData[0]?.debt && Object.keys(secXbrlData[0].debt).length > 0 && (
+                                    <span className="px-2 py-1 bg-cyan-500/20 border border-cyan-500/30 rounded text-[10px] text-cyan-300">
+                                        Debt Details
+                                    </span>
+                                )}
+                                {secXbrlData[0]?.costs && Object.keys(secXbrlData[0].costs).length > 0 && (
+                                    <span className="px-2 py-1 bg-cyan-500/20 border border-cyan-500/30 rounded text-[10px] text-cyan-300">
+                                        Cost Breakdown
+                                    </span>
+                                )}
+                            </div>
+                            <div className="text-[10px] text-cyan-400 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                Scroll down to view detailed breakdowns →
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Material Contracts Alert */}
+                    {secExhibits.length > 0 && (
+                        <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 hover:border-purple-500/50 transition-all cursor-pointer group">
+                            <div className="flex items-center gap-2 mb-2">
+                                <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+                                <h4 className="text-sm font-bold text-purple-400 group-hover:text-purple-300 transition-colors">📄 Material Contracts</h4>
+                            </div>
+                            <div className="text-xs text-gray-300 mb-3">
+                                {secExhibits.length} exhibit{secExhibits.length !== 1 ? 's' : ''} filed
+                            </div>
+                            <div className="space-y-1.5">
+                                {secExhibits.slice(0, 3).map((ex: any, i: number) => (
+                                    <div key={i} className="flex items-start justify-between gap-2 text-[10px] bg-purple-500/5 px-2 py-1.5 rounded">
+                                        <div className="flex-1 min-w-0">
+                                            <span className="text-purple-300 font-semibold">{ex.exhibit_type}</span>
+                                            <span className="text-gray-400 ml-2 truncate block">{ex.description || 'Material Contract'}</span>
+                                        </div>
+                                        <span className="text-gray-500 whitespace-nowrap">{ex.filing_date?.split('-')[0]}</span>
+                                    </div>
+                                ))}
+                                {secExhibits.length > 3 && (
+                                    <div className="text-[10px] text-purple-400 pt-1">
+                                        +{secExhibits.length - 3} more exhibits
+                                    </div>
+                                )}
+                            </div>
+                            <div className="text-[10px] text-purple-400 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                Scroll down to view full exhibit list →
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* SEC Filings Explorer - Full Width Section */}
             {allSecFilings.length > 0 && (
