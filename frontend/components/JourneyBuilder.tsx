@@ -31,7 +31,8 @@ export default function JourneyBuilder({ onQueryChange }: JourneyBuilderProps) {
     const aql = generateAQLFromJourney(journeyState)
     const description = generateDescriptionFromJourney(journeyState)
     onQueryChange(aql, description)
-  }, [journeyState, onQueryChange])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [journeyState]) // Only depend on journeyState, not onQueryChange to prevent infinite loop
 
   // Start a new journey
   const handleStartJourney = useCallback((collectionKey: string, initialLabel?: string) => {
