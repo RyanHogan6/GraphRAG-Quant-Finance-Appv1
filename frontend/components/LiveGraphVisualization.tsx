@@ -86,130 +86,157 @@ export default function LiveGraphVisualization({ steps, currentStepIndex, onNode
       </defs>
 
       {/* Draw edges (connections) */}
-      {edges.map((edge, index) => (
-        <motion.line
-          key={`edge-${index}`}
-          x1={edge.from.x}
-          y1={edge.from.y + 30}
-          x2={edge.to.x}
-          y2={edge.to.y - 30}
-          stroke={edge.color}
-          strokeWidth="2"
-          strokeDasharray="4"
-          markerEnd={edge.color === '#22c55e' ? 'url(#arrowhead)' : undefined}
-          initial={{ pathLength: 0, opacity: 0 }}
-          animate={{ pathLength: 1, opacity: 0.6 }}
-          transition={{ duration: 0.5, delay: index * 0.1 }}
-        />
-      ))}
+      {edges.map((edge, index) => {
+        const y1 = edge.from.y + 30
+        const y2 = edge.to.y - 30
 
-      {/* Draw nodes */}
-      {nodes.map((node, index) => (
-        <g key={node.id} onClick={() => onNodeClick(index)} style={{ cursor: 'pointer' }}>
-          <motion.circle
-            cx={node.x}
-            cy={node.y}
-            r="28"
-            fill="rgba(17, 24, 39, 0.9)"
-            stroke={node.color}
-            strokeWidth="2"
-            filter={node.isActive ? 'url(#glow)' : undefined}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.3, delay: index * 0.1 }}
-            whileHover={{ scale: 1.1 }}
-          />
-
-          {/* Node icon based on collection type */}
-          <motion.g
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: index * 0.1 + 0.2 }}
-          >
-            {index === 0 && (
-              // Company icon
-              <path
-                d="M150 65 L150 55 L160 55 L160 65 L165 65 L165 80 L135 80 L135 65 L140 65 L140 55 L150 55"
-                fill={node.color}
-                stroke="none"
-              />
-            )}
-            {index === 1 && steps[index].collectionKey === 'awards' && (
-              // Award icon
-              <path
-                d="M150 70 L145 75 L147 81 L150 78 L153 81 L155 75 Z"
-                fill={node.color}
-                stroke="none"
-              />
-            )}
-            {index >= 1 && (
-              // Default: Chart icon
-              <rect x={node.x - 8} y={node.y - 6} width="4" height="12" fill={node.color} rx="1" />
-              <rect x={node.x - 2} y={node.y - 2} width="4" height="8" fill={node.color} rx="1" />
-              <rect x={node.x + 4} y={node.y - 10} width="4" height="16" fill={node.color} rx="1" />
-            )}
-          </motion.g>
-
-          {/* Step number badge */}
-          <motion.circle
-            cx={node.x + 18}
-            cy={node.y - 18}
-            r="10"
-            fill={node.isActive ? node.color : 'rgba(75, 85, 99, 0.8)'}
-            stroke="rgba(17, 24, 39, 0.9)"
-            strokeWidth="2"
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: index * 0.1 + 0.3 }}
-          />
-          <text
-            x={node.x + 18}
-            y={node.y - 14}
-            textAnchor="middle"
-            fill="white"
-            fontSize="10"
-            fontWeight="bold"
-          >
-            {index + 1}
-          </text>
-
-          {/* Node label */}
-          <text
-            x={node.x}
-            y={node.y + 45}
-            textAnchor="middle"
-            fill={node.isActive ? node.color : '#9ca3af'}
-            fontSize="12"
-            fontWeight={node.isActive ? 'bold' : 'normal'}
-          >
-            {node.label}
-          </text>
-        </g>
-      ))}
-
-      {/* Suggested next connections (dimmed) */}
-      {steps.length > 0 && currentStepIndex === steps.length - 1 && (
-        <g opacity="0.3">
-          <circle
-            cx="150"
-            cy={nodes[nodes.length - 1].y + 100}
-            r="24"
-            fill="none"
-            stroke="#4b5563"
+        return (
+          <motion.line
+            key={`edge-${index}`}
+            x1={edge.from.x}
+            y1={y1}
+            x2={edge.to.x}
+            y2={y2}
+            stroke={edge.color}
             strokeWidth="2"
             strokeDasharray="4"
+            markerEnd={edge.color === '#22c55e' ? 'url(#arrowhead)' : undefined}
+            initial={{ pathLength: 0, opacity: 0 }}
+            animate={{ pathLength: 1, opacity: 0.6 }}
+            transition={{ duration: 0.5, delay: index * 0.1 }}
           />
-          <text
-            x="150"
-            y={nodes[nodes.length - 1].y + 105}
-            textAnchor="middle"
-            fill="#6b7280"
-            fontSize="12"
-          >
-            +
-          </text>
-        </g>
-      )}
+        )
+      })}
+
+      {/* Draw nodes */}
+      {nodes.map((node, index) => {
+        // Pre-calculate positions for icons
+        const iconX1 = node.x - 8
+        const iconY1 = node.y - 6
+        const iconX2 = node.x - 2
+        const iconY2 = node.y - 2
+        const iconX3 = node.x + 4
+        const iconY3 = node.y - 10
+        const badgeX = node.x + 18
+        const badgeY = node.y - 18
+        const badgeTextY = node.y - 14
+        const labelY = node.y + 45
+
+        return (
+          <g key={node.id} onClick={() => onNodeClick(index)} style={{ cursor: 'pointer' }}>
+            <motion.circle
+              cx={node.x}
+              cy={node.y}
+              r="28"
+              fill="rgba(17, 24, 39, 0.9)"
+              stroke={node.color}
+              strokeWidth="2"
+              filter={node.isActive ? 'url(#glow)' : undefined}
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.3, delay: index * 0.1 }}
+              whileHover={{ scale: 1.1 }}
+            />
+
+            {/* Node icon based on collection type */}
+            <motion.g
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: index * 0.1 + 0.2 }}
+            >
+              {index === 0 && (
+                // Company icon
+                <path
+                  d="M150 65 L150 55 L160 55 L160 65 L165 65 L165 80 L135 80 L135 65 L140 65 L140 55 L150 55"
+                  fill={node.color}
+                  stroke="none"
+                />
+              )}
+              {index === 1 && steps[index].collectionKey === 'awards' && (
+                // Award icon
+                <path
+                  d="M150 70 L145 75 L147 81 L150 78 L153 81 L155 75 Z"
+                  fill={node.color}
+                  stroke="none"
+                />
+              )}
+              {index >= 1 && (
+                // Default: Chart icon
+                <>
+                  <rect x={iconX1} y={iconY1} width="4" height="12" fill={node.color} rx="1" />
+                  <rect x={iconX2} y={iconY2} width="4" height="8" fill={node.color} rx="1" />
+                  <rect x={iconX3} y={iconY3} width="4" height="16" fill={node.color} rx="1" />
+                </>
+              )}
+            </motion.g>
+
+            {/* Step number badge */}
+            <motion.circle
+              cx={badgeX}
+              cy={badgeY}
+              r="10"
+              fill={node.isActive ? node.color : 'rgba(75, 85, 99, 0.8)'}
+              stroke="rgba(17, 24, 39, 0.9)"
+              strokeWidth="2"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: index * 0.1 + 0.3 }}
+            />
+            <text
+              x={badgeX}
+              y={badgeTextY}
+              textAnchor="middle"
+              fill="white"
+              fontSize="10"
+              fontWeight="bold"
+            >
+              {index + 1}
+            </text>
+
+            {/* Node label */}
+            <text
+              x={node.x}
+              y={labelY}
+              textAnchor="middle"
+              fill={node.isActive ? node.color : '#9ca3af'}
+              fontSize="12"
+              fontWeight={node.isActive ? 'bold' : 'normal'}
+            >
+              {node.label}
+            </text>
+          </g>
+        )
+      })}
+
+      {/* Suggested next connections (dimmed) */}
+      {steps.length > 0 && currentStepIndex === steps.length - 1 && (() => {
+        const lastNode = nodes[nodes.length - 1]
+        const nextY = lastNode.y + 100
+        const nextTextY = lastNode.y + 105
+
+        return (
+          <g opacity="0.3">
+            <circle
+              cx="150"
+              cy={nextY}
+              r="24"
+              fill="none"
+              stroke="#4b5563"
+              strokeWidth="2"
+              strokeDasharray="4"
+            />
+            <text
+              x="150"
+              y={nextTextY}
+              textAnchor="middle"
+              fill="#6b7280"
+              fontSize="12"
+            >
+              +
+            </text>
+          </g>
+        )
+      })()}
     </svg>
   )
 }
