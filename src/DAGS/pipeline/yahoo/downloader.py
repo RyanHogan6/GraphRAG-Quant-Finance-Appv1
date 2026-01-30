@@ -89,16 +89,22 @@ def download_stock_data(tickers, period='1mo', batch_size=1, sleep_between_ticke
             df = data.copy()
             df = df.reset_index()
 
-            # Debug: show columns before lowercasing
+            # Debug: show columns before processing
             if idx <= 3:
-                print(f"  [DEBUG] Columns before lowercase: {list(df.columns)}")
+                print(f"  [DEBUG] Columns before processing: {list(df.columns)}")
+
+            # Flatten MultiIndex columns (yfinance returns tuples like ('Close', 'ABT'))
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+                if idx <= 3:
+                    print(f"  [DEBUG] Flattened MultiIndex columns")
 
             # Lowercase all column names
-            df.columns = [col.lower() if isinstance(col, str) else col for col in df.columns]
+            df.columns = [col.lower() if isinstance(col, str) else str(col).lower() for col in df.columns]
 
-            # Debug: show columns after lowercasing
+            # Debug: show columns after processing
             if idx <= 3:
-                print(f"  [DEBUG] Columns after lowercase: {list(df.columns)}")
+                print(f"  [DEBUG] Columns after processing: {list(df.columns)}")
 
             # Add ticker column
             df['ticker'] = ticker

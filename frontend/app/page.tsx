@@ -11,6 +11,7 @@ import ScrollToTop from '@/components/ScrollToTop'
 import AnimatedLogo from '@/components/AnimatedLogo'
 import TimeSeriesChart from '@/components/TimeSeriesChart'
 import QueryBuilder from '../components/QueryBuilder'
+import JourneyBuilder from '../components/JourneyBuilder'
 import WhaleTracker from '@/components/WhaleTracker'
 import CompanyWorkup from '@/components/CompanyWorkup'
 import CompanyCompare from '@/components/CompanyCompare'
@@ -66,6 +67,7 @@ export default function HomePage() {
 
   // Query Builder State
   const [isBuilderMode, setIsBuilderMode] = useState(false)
+  const [isJourneyMode, setIsJourneyMode] = useState(false) // NEW: Toggle for Journey Builder
   const [builtQuery, setBuiltQuery] = useState({ aql: '', description: '' })
   const [expandedMessageIdx, setExpandedMessageIdx] = useState<number | null>(null)
 
@@ -1147,8 +1149,17 @@ export default function HomePage() {
               className="overflow-y-auto py-2 md:py-4 space-y-3 md:space-y-6 scroll-smooth"
               style={{ height: 'calc(100vh - 470px)' }}
             >
-              {/* Visual Query Builder - Show at top when in builder mode */}
-              {isBuilderMode && (
+              {/* Journey Builder - NEW full-screen experience */}
+              {isJourneyMode && (
+                <div className="fixed inset-0 z-50 bg-dark-900">
+                  <JourneyBuilder
+                    onQueryChange={(aql, desc) => setBuiltQuery({ aql, description: desc })}
+                  />
+                </div>
+              )}
+
+              {/* Visual Query Builder Classic - Show at top when in builder mode */}
+              {isBuilderMode && !isJourneyMode && (
                 <div className="space-y-4 mb-6">
                   <QueryBuilder
                     onQueryChange={(aql, desc) => setBuiltQuery({ aql, description: desc })}
@@ -1174,7 +1185,7 @@ export default function HomePage() {
               )}
 
               {/* Empty State - Show suggested questions when no messages */}
-              {messages.length === 0 && !isBuilderMode && (
+              {messages.length === 0 && !isBuilderMode && !isJourneyMode && (
                 <div className="flex items-center justify-center h-full">
                   <div className="max-w-4xl w-full space-y-2 md:space-y-4 px-2">
                     <div className="text-center mb-2 md:mb-4">
@@ -1485,9 +1496,12 @@ export default function HomePage() {
                 <div className="flex items-center gap-0.5 bg-dark-900 p-0.5 md:p-1 rounded border border-gray-700">
                   {/* LLM Interface Tab */}
                   <button
-                    onClick={() => setIsBuilderMode(false)}
+                    onClick={() => {
+                      setIsBuilderMode(false)
+                      setIsJourneyMode(false)
+                    }}
                     className={`px-1.5 py-0.5 md:px-3 md:py-1 rounded text-[8px] md:text-[10px] font-medium transition-all ${
-                      !isBuilderMode
+                      !isBuilderMode && !isJourneyMode
                         ? 'bg-gold text-dark-900'
                         : 'text-gray-400 hover:text-gray-200'
                     }`}
@@ -1495,19 +1509,41 @@ export default function HomePage() {
                     LLM
                   </button>
 
-                  {/* Visual Query Builder Tab */}
+                  {/* Journey Builder Tab (NEW!) */}
+                  <button
+                    onClick={() => {
+                      setIsBuilderMode(false)
+                      setIsJourneyMode(true)
+                      setShowAdvancedMode(true)
+                    }}
+                    className={`px-1.5 py-0.5 md:px-3 md:py-1 rounded text-[8px] md:text-[10px] font-medium transition-all flex items-center gap-1 ${
+                      isJourneyMode
+                        ? 'bg-green-500 text-dark-900'
+                        : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                    Journey
+                    <span className="px-1 py-0.5 text-[6px] bg-green-400 text-dark-900 rounded font-bold">NEW</span>
+                  </button>
+
+                  {/* Visual Query Builder Tab (Classic) */}
                   <button
                     onClick={() => {
                       setIsBuilderMode(true)
+                      setIsJourneyMode(false)
                       setShowAdvancedMode(true)
                     }}
                     className={`px-1.5 py-0.5 md:px-3 md:py-1 rounded text-[8px] md:text-[10px] font-medium transition-all ${
-                      isBuilderMode
+                      isBuilderMode && !isJourneyMode
                         ? 'bg-gold text-dark-900'
                         : 'text-gray-400 hover:text-gray-200'
                     }`}
                   >
-                    VQB
+                    VQB Classic
                   </button>
                 </div>
 
