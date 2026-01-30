@@ -11,8 +11,8 @@ interface GraphNode {
   x: number
   y: number
   layer: number
-  isExpanded: boolean
-  isRoot: boolean
+  parentId: string | null
+  pathFromRoot: string[] // Track collections in path to prevent loops
 }
 
 interface GraphEdge {
@@ -38,126 +38,76 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
   const [nodes, setNodes] = useState<GraphNode[]>([])
   const [edges, setEdges] = useState<GraphEdge[]>([])
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
-  const [showRootSelector, setShowRootSelector] = useState(false)
-
-  // Initialize with unselected root node
-  const initializeRoot = useCallback(() => {
-    if (nodes.length === 0) {
-      const rootNode: GraphNode = {
-        id: 'root',
-        collectionKey: '',
-        label: 'Select Starting Point',
-        x: 150,
-        y: 400,
-        layer: 0,
-        isExpanded: false,
-        isRoot: true
-      }
-      setNodes([rootNode])
-      setSelectedNode('root')
-    }
-  }, [nodes.length])
+  const [expandingNode, setExpandingNode] = useState<string | null>(null) // Show connection menu
+  const [showRootSelector, setShowRootSelector] = useState(true)
+  const [selectedFields, setSelectedFields] = useState<Record<string, string[]>>({}) // nodeId -> fields
 
   // Set root type
   const handleSetRootType = useCallback((collectionKey: string) => {
     const schema = GRAPH_SCHEMA[collectionKey]
     if (!schema) return
 
-    setNodes([{
+    const rootNode: GraphNode = {
       id: 'root',
       collectionKey,
       label: schema.name,
-      x: 150,
-      y: 400,
+      x: 200,
+      y: 300,
       layer: 0,
-      isExpanded: false,
-      isRoot: true
-    }])
+      parentId: null,
+      pathFromRoot: [collectionKey]
+    }
+
+    setNodes([rootNode])
     setShowRootSelector(false)
     setSelectedNode('root')
   }, [])
 
-  // Expand node - horizontal layers with vertical spread
-  const handleExpandNode = useCallback((nodeId: string) => {
-    const node = nodes.find(n => n.id === nodeId)
-    if (!node || node.isExpanded || node.layer >= 2) return
+  // Add a single connection from a node
+  const handleAddConnection = useCallback((fromNodeId: string, targetKey: string, edgeLabel: string) => {
+    const fromNode = nodes.find(n => n.id === fromNodeId)
+    if (!fromNode) return
 
-    const schema = GRAPH_SCHEMA[node.collectionKey]
-    if (!schema) return
+    const targetSchema = GRAPH_SCHEMA[targetKey]
+    if (!targetSchema) return
 
-    const connections = schema.connections
-    const layerX = node.x + 400 // Move right 400px
-    const baseY = node.y
-    const verticalSpacing = 120
+    // Check for circular loop
+    if (fromNode.pathFromRoot.includes(targetKey)) {
+      console.log('Prevented circular loop:', targetKey)
+      return
+    }
 
-    // Calculate vertical positions to fan out
-    const startY = baseY - ((connections.length - 1) * verticalSpacing) / 2
+    // Calculate position - find existing nodes in this layer
+    const targetLayer = fromNode.layer + 1
+    const nodesInTargetLayer = nodes.filter(n => n.layer === targetLayer)
 
-    const newNodes: GraphNode[] = []
-    const newEdges: GraphEdge[] = []
+    const layerX = fromNode.x + 350
+    const baseY = nodesInTargetLayer.length > 0
+      ? Math.max(...nodesInTargetLayer.map(n => n.y)) + 120
+      : fromNode.y
 
-    connections.forEach((conn, index) => {
-      const targetSchema = GRAPH_SCHEMA[conn.target]
-      if (!targetSchema) return
+    const newNodeId = `${targetKey}-${Date.now()}`
+    const newNode: GraphNode = {
+      id: newNodeId,
+      collectionKey: targetKey,
+      label: targetSchema.name,
+      x: layerX,
+      y: baseY,
+      layer: targetLayer,
+      parentId: fromNodeId,
+      pathFromRoot: [...fromNode.pathFromRoot, targetKey]
+    }
 
-      // Check if this collection already exists in this layer
-      const existingNode = nodes.find(n =>
-        n.collectionKey === conn.target && n.layer === node.layer + 1
-      )
+    const newEdge: GraphEdge = {
+      from: fromNodeId,
+      to: newNodeId,
+      label: edgeLabel
+    }
 
-      if (existingNode) {
-        // Reuse existing node
-        newEdges.push({
-          from: nodeId,
-          to: existingNode.id,
-          label: conn.edge
-        })
-      } else {
-        // Create new node
-        const y = startY + (index * verticalSpacing)
-        const newNodeId = `${conn.target}-layer${node.layer + 1}-${Date.now()}-${index}`
-
-        newNodes.push({
-          id: newNodeId,
-          collectionKey: conn.target,
-          label: targetSchema.name,
-          x: layerX,
-          y,
-          layer: node.layer + 1,
-          isExpanded: false,
-          isRoot: false
-        })
-
-        newEdges.push({
-          from: nodeId,
-          to: newNodeId,
-          label: conn.edge
-        })
-      }
-    })
-
-    setNodes(prev => [...prev, ...newNodes])
-    setEdges(prev => [...prev, ...newEdges])
-    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, isExpanded: true } : n))
-  }, [nodes])
-
-  // Initialize on mount
-  useMemo(() => initializeRoot(), [initializeRoot])
-
-  // Calculate viewBox
-  const viewBox = useMemo(() => {
-    if (nodes.length === 0) return '0 0 1200 800'
-
-    const padding = 150
-    const xs = nodes.map(n => n.x)
-    const ys = nodes.map(n => n.y)
-
-    const minX = Math.min(...xs) - padding
-    const maxX = Math.max(...xs) + padding + 200 // Extra for execute panel
-    const minY = Math.min(...ys) - padding
-    const maxY = Math.max(...ys) + padding
-
-    return `${minX} ${minY} ${maxX - minX} ${maxY - minY}`
+    setNodes(prev => [...prev, newNode])
+    setEdges(prev => [...prev, newEdge])
+    setExpandingNode(null)
+    setSelectedNode(newNodeId)
   }, [nodes])
 
   // Get node color
@@ -172,319 +122,446 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
     return '#6b7280'
   }
 
-  // Check if ready to execute
-  const canExecute = nodes.length > 1 && nodes[0].collectionKey !== ''
+  // Calculate viewBox
+  const viewBox = useMemo(() => {
+    if (nodes.length === 0) return '0 0 1200 600'
 
-  // Get rightmost node position for execute panel
-  const executeX = useMemo(() => {
-    if (nodes.length === 0) return 0
-    return Math.max(...nodes.map(n => n.x)) + 400
+    const padding = 100
+    const xs = nodes.map(n => n.x)
+    const ys = nodes.map(n => n.y)
+
+    const minX = Math.min(...xs) - padding
+    const maxX = Math.max(...xs) + padding + 200
+    const minY = Math.min(...ys) - padding
+    const maxY = Math.max(...ys) + padding
+
+    return `${minX} ${minY} ${maxX - minX} ${maxY - minY}`
   }, [nodes])
 
+  // Get available connections (excluding loops)
+  const getAvailableConnections = useCallback((node: GraphNode) => {
+    const schema = GRAPH_SCHEMA[node.collectionKey]
+    if (!schema) return []
+
+    return schema.connections.filter(conn =>
+      !node.pathFromRoot.includes(conn.target) // Prevent loops
+    )
+  }, [])
+
+  // Reset
+  const handleReset = () => {
+    setNodes([])
+    setEdges([])
+    setSelectedNode(null)
+    setExpandingNode(null)
+    setShowRootSelector(true)
+    setSelectedFields({})
+  }
+
   return (
-    <div className="w-full h-full flex bg-dark-900 relative">
-      {/* Main Graph View */}
-      <div className="flex-1 relative overflow-auto">
-        <svg className="w-full h-full" viewBox={viewBox} preserveAspectRatio="xMidYMid meet">
-          <defs>
-            <filter id="node-glow">
-              <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
-              <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
-            <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-              <path d="M0,0 L0,6 L9,3 z" fill="#10b981" />
-            </marker>
-          </defs>
-
-          {/* Draw edges */}
-          {edges.map((edge, index) => {
-            const fromNode = nodes.find(n => n.id === edge.from)
-            const toNode = nodes.find(n => n.id === edge.to)
-            if (!fromNode || !toNode) return null
-
-            return (
-              <motion.g key={`edge-${index}`}>
-                <motion.path
-                  d={`M ${fromNode.x + 60} ${fromNode.y} Q ${(fromNode.x + toNode.x) / 2} ${fromNode.y} ${toNode.x - 60} ${toNode.y}`}
-                  stroke="#10b981"
-                  strokeWidth="2"
-                  fill="none"
-                  strokeOpacity="0.4"
-                  markerEnd="url(#arrow-green)"
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: 1 }}
-                  transition={{ duration: 0.5, delay: index * 0.05 }}
-                />
-              </motion.g>
-            )
-          })}
-
-          {/* Draw nodes */}
-          {nodes.map((node, index) => {
-            const color = node.collectionKey ? getNodeColor(node.collectionKey) : '#6b7280'
-            const isSelected = selectedNode === node.id
-            const canExpand = !node.isExpanded && node.layer < 2 && node.collectionKey !== ''
-
-            return (
-              <motion.g
-                key={node.id}
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.3, delay: index * 0.1 }}
-              >
-                {/* Node circle */}
-                <circle
-                  cx={node.x}
-                  cy={node.y}
-                  r={node.isRoot ? 70 : 50}
-                  fill="rgba(17, 24, 39, 0.95)"
-                  stroke={color}
-                  strokeWidth={isSelected ? 4 : 2}
-                  filter={isSelected ? 'url(#node-glow)' : undefined}
-                  style={{ cursor: canExpand || node.isRoot ? 'pointer' : 'default' }}
-                  onClick={() => {
-                    setSelectedNode(node.id)
-                    if (node.isRoot && node.collectionKey === '') {
-                      setShowRootSelector(!showRootSelector)
-                    } else if (canExpand) {
-                      handleExpandNode(node.id)
-                    }
-                  }}
-                />
-
-                {/* Expand indicator */}
-                {canExpand && (
-                  <circle
-                    cx={node.x}
-                    cy={node.y}
-                    r={40}
-                    fill="none"
-                    stroke={color}
-                    strokeWidth="1"
-                    strokeDasharray="4"
-                    opacity="0.5"
-                  />
-                )}
-
-                {/* Node label */}
-                <text
-                  x={node.x}
-                  y={node.y}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fill={color}
-                  fontSize={node.isRoot ? 16 : 13}
-                  fontWeight="bold"
-                  style={{ cursor: canExpand || node.isRoot ? 'pointer' : 'default' }}
-                  onClick={() => {
-                    setSelectedNode(node.id)
-                    if (node.isRoot && node.collectionKey === '') {
-                      setShowRootSelector(!showRootSelector)
-                    } else if (canExpand) {
-                      handleExpandNode(node.id)
-                    }
-                  }}
-                >
-                  {node.label}
-                </text>
-
-                {/* Layer badge */}
-                {!node.isRoot && (
-                  <>
-                    <circle cx={node.x - 40} cy={node.y - 40} r="12" fill="#374151" opacity="0.9" />
-                    <text x={node.x - 40} y={node.y - 37} textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">
-                      {node.layer}
-                    </text>
-                  </>
-                )}
-              </motion.g>
-            )
-          })}
-
-          {/* Execute Panel */}
-          {canExecute && (
-            <motion.g
-              initial={{ opacity: 0, x: -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.5 }}
-            >
-              <rect
-                x={executeX - 100}
-                y={300}
-                width="200"
-                height="200"
-                rx="10"
-                fill="rgba(34, 197, 94, 0.1)"
-                stroke="#10b981"
-                strokeWidth="2"
-              />
-              <text x={executeX} y={350} textAnchor="middle" fill="#10b981" fontSize="14" fontWeight="bold">
-                Query Summary
-              </text>
-              <text x={executeX} y={380} textAnchor="middle" fill="#9ca3af" fontSize="11">
-                {nodes.filter(n => n.collectionKey).length} collections
-              </text>
-              <text x={executeX} y={400} textAnchor="middle" fill="#9ca3af" fontSize="11">
-                {edges.length} connections
-              </text>
-
-              {/* Execute button */}
-              <rect
-                x={executeX - 70}
-                y={430}
-                width="140"
-                height="40"
-                rx="8"
-                fill="#10b981"
-                style={{ cursor: 'pointer' }}
-                onClick={() => {
-                  // Generate and execute query
-                  const aql = `FOR doc IN ${nodes[0].collectionKey}\n  LIMIT 20\n  RETURN doc`
-                  onQueryChange(aql, `Journey: ${nodes.map(n => n.label).join(' → ')}`)
-                }}
-              />
-              <text
-                x={executeX}
-                y={455}
-                textAnchor="middle"
-                fill="white"
-                fontSize="13"
-                fontWeight="bold"
-                style={{ cursor: 'pointer' }}
-                onClick={() => {
-                  const aql = `FOR doc IN ${nodes[0].collectionKey}\n  LIMIT 20\n  RETURN doc`
-                  onQueryChange(aql, `Journey: ${nodes.map(n => n.label).join(' → ')}`)
-                }}
-              >
-                Execute Query
-              </text>
-            </motion.g>
-          )}
-        </svg>
-
-        {/* Root type selector dropdown */}
-        <AnimatePresence>
+    <div className="w-full h-full flex bg-dark-900">
+      {/* Main container - like LLM interface */}
+      <div className="flex-1 flex flex-col p-6">
+        <div className="flex-1 bg-dark-800/50 rounded-lg border border-green-500/20 overflow-hidden relative">
+          {/* Starting selector */}
           {showRootSelector && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2
-                       bg-dark-800 border-2 border-green-500/50 rounded-lg p-4 shadow-2xl z-50"
-              style={{ width: '300px' }}
-            >
-              <div className="text-sm font-bold text-white mb-3">Select Starting Point:</div>
-              <div className="space-y-2">
-                {STARTING_OPTIONS.map(option => (
-                  <button
-                    key={option.key}
-                    onClick={() => handleSetRootType(option.key)}
-                    className="w-full p-3 bg-dark-700 hover:bg-dark-600 border border-green-500/20 hover:border-green-500/40
-                             rounded-lg transition-all text-left flex items-center gap-3"
-                  >
-                    <span className="text-2xl">{option.icon}</span>
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-white">{option.label}</div>
-                    </div>
-                    {option.badge && (
-                      <span className="px-2 py-0.5 text-xs font-bold bg-green-500/20 text-green-400 rounded-full">
-                        {option.badge}
-                      </span>
-                    )}
-                  </button>
-                ))}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="max-w-2xl w-full p-8">
+                <h2 className="text-xl font-bold text-white mb-4 text-center">Select Starting Point</h2>
+                <div className="grid grid-cols-3 gap-3">
+                  {STARTING_OPTIONS.map(option => (
+                    <button
+                      key={option.key}
+                      onClick={() => handleSetRootType(option.key)}
+                      className="p-4 bg-dark-700 hover:bg-dark-600 border border-green-500/20 hover:border-green-500/40
+                               rounded-lg transition-all text-center group relative"
+                    >
+                      {option.badge && (
+                        <span className="absolute top-2 right-2 px-1.5 py-0.5 text-[10px] font-bold bg-green-500/20 text-green-400 rounded">
+                          {option.badge}
+                        </span>
+                      )}
+                      <div className="text-3xl mb-2">{option.icon}</div>
+                      <div className="text-sm font-medium text-white group-hover:text-green-400 transition-colors">
+                        {option.label}
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
+            </div>
+          )}
+
+          {/* Graph SVG */}
+          {!showRootSelector && (
+            <svg className="w-full h-full" viewBox={viewBox} preserveAspectRatio="xMidYMid meet">
+              <defs>
+                <filter id="node-glow">
+                  <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+                  <feMerge>
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                  </feMerge>
+                </filter>
+                <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                  <path d="M0,0 L0,6 L9,3 z" fill="#10b981" />
+                </marker>
+              </defs>
+
+              {/* Draw edges */}
+              {edges.map((edge, index) => {
+                const fromNode = nodes.find(n => n.id === edge.from)
+                const toNode = nodes.find(n => n.id === edge.to)
+                if (!fromNode || !toNode) return null
+
+                const fromX = fromNode.x + 45
+                const toX = toNode.x - 45
+                const midX = (fromX + toX) / 2
+
+                return (
+                  <motion.g key={`edge-${edge.from}-${edge.to}`}>
+                    <motion.path
+                      d={`M ${fromX} ${fromNode.y} Q ${midX} ${fromNode.y} ${toX} ${toNode.y}`}
+                      stroke="#10b981"
+                      strokeWidth="2"
+                      fill="none"
+                      strokeOpacity="0.4"
+                      markerEnd="url(#arrow-green)"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 0.5 }}
+                    />
+                  </motion.g>
+                )
+              })}
+
+              {/* Draw nodes */}
+              {nodes.map((node, index) => {
+                const color = getNodeColor(node.collectionKey)
+                const isSelected = selectedNode === node.id
+                const isExpanding = expandingNode === node.id
+                const availableConnections = getAvailableConnections(node)
+                const canExpand = availableConnections.length > 0 && node.layer < 3
+
+                return (
+                  <motion.g
+                    key={node.id}
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    {/* Node circle */}
+                    <circle
+                      cx={node.x}
+                      cy={node.y}
+                      r={40}
+                      fill="rgba(17, 24, 39, 0.95)"
+                      stroke={color}
+                      strokeWidth={isSelected ? 3 : 2}
+                      filter={isSelected ? 'url(#node-glow)' : undefined}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => setSelectedNode(node.id)}
+                    />
+
+                    {/* Node label */}
+                    <text
+                      x={node.x}
+                      y={node.y}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      fill={color}
+                      fontSize={12}
+                      fontWeight="600"
+                      style={{ cursor: 'pointer', pointerEvents: 'none' }}
+                    >
+                      {node.label}
+                    </text>
+
+                    {/* Layer badge */}
+                    <circle cx={node.x - 28} cy={node.y - 28} r="10" fill="#374151" opacity="0.9" />
+                    <text
+                      x={node.x - 28}
+                      y={node.y - 25}
+                      textAnchor="middle"
+                      fill="white"
+                      fontSize="9"
+                      fontWeight="bold"
+                      style={{ pointerEvents: 'none' }}
+                    >
+                      {node.layer + 1}
+                    </text>
+
+                    {/* Expand button */}
+                    {canExpand && (
+                      <g onClick={(e) => {
+                        e.stopPropagation()
+                        setExpandingNode(isExpanding ? null : node.id)
+                      }}>
+                        <circle
+                          cx={node.x + 28}
+                          cy={node.y - 28}
+                          r="12"
+                          fill={isExpanding ? '#10b981' : '#374151'}
+                          stroke={isExpanding ? '#10b981' : '#6b7280'}
+                          strokeWidth="2"
+                          style={{ cursor: 'pointer' }}
+                        />
+                        <text
+                          x={node.x + 28}
+                          y={node.y - 24}
+                          textAnchor="middle"
+                          fill="white"
+                          fontSize="16"
+                          fontWeight="bold"
+                          style={{ cursor: 'pointer', pointerEvents: 'none' }}
+                        >
+                          {isExpanding ? '−' : '+'}
+                        </text>
+                      </g>
+                    )}
+
+                    {/* Connection menu */}
+                    {isExpanding && availableConnections.length > 0 && (
+                      <motion.g
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                      >
+                        <rect
+                          x={node.x + 60}
+                          y={node.y - 40}
+                          width="180"
+                          height={Math.min(availableConnections.length * 32 + 16, 200)}
+                          rx="6"
+                          fill="rgba(31, 41, 55, 0.98)"
+                          stroke="#10b981"
+                          strokeWidth="2"
+                        />
+                        <text
+                          x={node.x + 70}
+                          y={node.y - 20}
+                          fill="#9ca3af"
+                          fontSize="10"
+                          fontWeight="600"
+                        >
+                          Add Connection:
+                        </text>
+
+                        {availableConnections.slice(0, 5).map((conn, i) => {
+                          const targetSchema = GRAPH_SCHEMA[conn.target]
+                          const connectionY = node.y + i * 32 - 6
+
+                          return (
+                            <g key={i}>
+                              <rect
+                                x={node.x + 65}
+                                y={connectionY}
+                                width="170"
+                                height="28"
+                                rx="4"
+                                fill="rgba(55, 65, 81, 0.5)"
+                                style={{ cursor: 'pointer' }}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleAddConnection(node.id, conn.target, conn.edge)
+                                }}
+                                className="hover:fill-[rgba(75,85,99,0.8)]"
+                              />
+                              <text
+                                x={node.x + 75}
+                                y={connectionY + 18}
+                                fill="#e5e7eb"
+                                fontSize="11"
+                                fontWeight="500"
+                                style={{ cursor: 'pointer', pointerEvents: 'none' }}
+                              >
+                                {targetSchema?.name || conn.target}
+                              </text>
+                            </g>
+                          )
+                        })}
+                      </motion.g>
+                    )}
+                  </motion.g>
+                )
+              })}
+
+              {/* Execute panel */}
+              {nodes.length > 0 && (() => {
+                const maxX = Math.max(...nodes.map(n => n.x))
+                const executeX = maxX + 250
+
+                return (
+                  <motion.g
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                  >
+                    <rect
+                      x={executeX - 90}
+                      y={250}
+                      width="180"
+                      height="160"
+                      rx="8"
+                      fill="rgba(34, 197, 94, 0.1)"
+                      stroke="#10b981"
+                      strokeWidth="2"
+                    />
+                    <text x={executeX} y={285} textAnchor="middle" fill="#10b981" fontSize="14" fontWeight="bold">
+                      Query Summary
+                    </text>
+                    <text x={executeX} y={310} textAnchor="middle" fill="#9ca3af" fontSize="11">
+                      {nodes.length} collections
+                    </text>
+                    <text x={executeX} y={330} textAnchor="middle" fill="#9ca3af" fontSize="11">
+                      {edges.length} connections
+                    </text>
+
+                    <rect
+                      x={executeX - 60}
+                      y={355}
+                      width="120"
+                      height="36"
+                      rx="6"
+                      fill="#10b981"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => {
+                        const aql = `FOR doc IN ${nodes[0].collectionKey}\n  LIMIT 20\n  RETURN doc`
+                        onQueryChange(aql, `Journey: ${nodes.map(n => n.label).join(' → ')}`)
+                      }}
+                    />
+                    <text
+                      x={executeX}
+                      y={378}
+                      textAnchor="middle"
+                      fill="white"
+                      fontSize="12"
+                      fontWeight="bold"
+                      style={{ cursor: 'pointer', pointerEvents: 'none' }}
+                    >
+                      Execute Query
+                    </text>
+                  </motion.g>
+                )
+              })()}
+            </svg>
+          )}
+
+          {/* Instructions */}
+          {nodes.length === 1 && !expandingNode && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="absolute bottom-6 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-green-500/10 border border-green-500/30 rounded-lg"
+            >
+              <p className="text-green-400 text-sm">
+                Click the <span className="font-bold">+</span> button to add connections
+              </p>
             </motion.div>
           )}
-        </AnimatePresence>
-
-        {/* Controls - Fixed below navbar */}
-        <div className="absolute top-16 right-4 flex flex-col gap-2 z-40">
-          <button
-            onClick={() => {
-              setNodes([])
-              setEdges([])
-              setSelectedNode(null)
-              setShowRootSelector(false)
-              initializeRoot()
-            }}
-            className="px-4 py-2 bg-dark-800 hover:bg-dark-700 border border-gray-600 rounded-lg text-sm text-white transition-colors shadow-lg"
-          >
-            Reset
-          </button>
         </div>
 
-        {/* Instructions */}
-        {nodes.length === 1 && nodes[0].collectionKey === '' && !showRootSelector && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="absolute bottom-8 left-1/2 transform -translate-x-1/2 px-6 py-3 bg-green-500/10 border border-green-500/30 rounded-lg"
-          >
-            <p className="text-green-400 text-sm text-center">
-              Click the root node to select a starting collection
-            </p>
-          </motion.div>
-        )}
-
-        {nodes.length === 1 && nodes[0].collectionKey !== '' && !nodes[0].isExpanded && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="absolute bottom-8 left-1/2 transform -translate-x-1/2 px-6 py-3 bg-green-500/10 border border-green-500/30 rounded-lg"
-          >
-            <p className="text-green-400 text-sm text-center">
-              Click the node to expand and see connections →
-            </p>
-          </motion.div>
+        {/* Reset button */}
+        {!showRootSelector && (
+          <div className="mt-4">
+            <button
+              onClick={handleReset}
+              className="px-4 py-2 bg-dark-700 hover:bg-dark-600 border border-gray-600 rounded-lg text-sm text-white transition-colors"
+            >
+              Start Over
+            </button>
+          </div>
         )}
       </div>
 
-      {/* Right sidebar - connection info */}
+      {/* Right panel - Field selection */}
       <AnimatePresence>
-        {selectedNode && nodes.find(n => n.id === selectedNode)?.collectionKey && (
+        {selectedNode && !showRootSelector && (
           <motion.div
-            initial={{ x: 300, opacity: 0 }}
+            initial={{ x: 320, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 300, opacity: 0 }}
+            exit={{ x: 320, opacity: 0 }}
             className="w-80 bg-dark-800 border-l border-green-500/20 p-6 overflow-y-auto"
           >
             {(() => {
               const node = nodes.find(n => n.id === selectedNode)
-              if (!node || !node.collectionKey) return null
+              if (!node) return null
 
               const schema = GRAPH_SCHEMA[node.collectionKey]
               if (!schema) return null
 
+              const nodeFields = selectedFields[node.id] || []
+
               return (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <div>
-                    <h3 className="text-lg font-bold text-white mb-2">{node.label}</h3>
+                    <h3 className="text-lg font-bold text-white mb-1">{node.label}</h3>
                     <p className="text-xs text-gray-400">{schema.description}</p>
                   </div>
 
-                  {!node.isExpanded && node.layer < 2 && (
-                    <div className="space-y-2">
-                      <p className="text-xs text-gray-500 uppercase">Available ({schema.connections.length}):</p>
-                      <ul className="space-y-1">
-                        {schema.connections.map((conn, i) => {
-                          const targetSchema = GRAPH_SCHEMA[conn.target]
-                          return (
-                            <li key={i} className="text-xs text-gray-400 flex items-center gap-2">
-                              <span className="text-green-500">→</span>
-                              {targetSchema?.name || conn.target}
-                            </li>
-                          )
-                        })}
-                      </ul>
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-semibold text-gray-300">Select Fields</p>
+                      <button
+                        onClick={() => {
+                          const allFields = schema.fields.map(f => f.name)
+                          setSelectedFields(prev => ({
+                            ...prev,
+                            [node.id]: nodeFields.length === allFields.length ? [] : allFields
+                          }))
+                        }}
+                        className="text-xs text-green-400 hover:text-green-300"
+                      >
+                        {nodeFields.length === schema.fields.length ? 'Deselect All' : 'Select All'}
+                      </button>
                     </div>
-                  )}
 
-                  <div className="pt-4 border-t border-gray-700 text-xs text-gray-500">
-                    Layer: <span className="text-white">{node.layer}</span> / 2
+                    <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                      {schema.fields.map(field => {
+                        const isSelected = nodeFields.includes(field.name)
+
+                        return (
+                          <button
+                            key={field.name}
+                            onClick={() => {
+                              setSelectedFields(prev => {
+                                const current = prev[node.id] || []
+                                const updated = isSelected
+                                  ? current.filter(f => f !== field.name)
+                                  : [...current, field.name]
+                                return { ...prev, [node.id]: updated }
+                              })
+                            }}
+                            className={`w-full p-2 rounded border text-left transition-all ${
+                              isSelected
+                                ? 'bg-green-500/20 border-green-500/40 text-green-300'
+                                : 'bg-dark-700 border-gray-600 text-gray-400 hover:border-gray-500'
+                            }`}
+                          >
+                            <div className="flex items-start gap-2">
+                              <div className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
+                                isSelected ? 'bg-green-500 border-green-500' : 'border-gray-500'
+                              }`}>
+                                {isSelected && (
+                                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-mono truncate">{field.name}</div>
+                                <div className="text-[10px] text-gray-500 mt-0.5">{field.type}</div>
+                              </div>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-700">
+                    <p className="text-xs text-gray-500">
+                      Layer {node.layer + 1} • {nodeFields.length} of {schema.fields.length} fields selected
+                    </p>
                   </div>
                 </div>
               )
