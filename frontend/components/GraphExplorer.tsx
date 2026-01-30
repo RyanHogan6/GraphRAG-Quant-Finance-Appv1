@@ -58,6 +58,12 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
     const node = nodes.find(n => n.id === nodeId)
     if (!node || node.isExpanded) return
 
+    // Depth limit: Don't expand beyond depth 2
+    if (node.depth >= 2) {
+      console.log('Max depth reached - not expanding')
+      return
+    }
+
     const schema = GRAPH_SCHEMA[node.collectionKey]
     if (!schema) return
 
@@ -73,14 +79,24 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
       const targetSchema = GRAPH_SCHEMA[conn.target]
       if (!targetSchema) return
 
-      const angle = angleStep * index - Math.PI / 2 // Start from top
-      const x = node.x + Math.cos(angle) * radius
-      const y = node.y + Math.sin(angle) * radius
+      // Check if a node with this collectionKey already exists
+      const existingNode = nodes.find(n => n.collectionKey === conn.target)
 
-      const newNodeId = `${nodeId}-${conn.target}-${index}`
+      if (existingNode) {
+        // Reuse existing node - just add an edge
+        newEdges.push({
+          from: nodeId,
+          to: existingNode.id,
+          label: conn.edge
+        })
+      } else {
+        // Create new node
+        const angle = angleStep * index - Math.PI / 2 // Start from top
+        const x = node.x + Math.cos(angle) * radius
+        const y = node.y + Math.sin(angle) * radius
 
-      // Check if this node already exists
-      if (!nodes.find(n => n.id === newNodeId)) {
+        const newNodeId = `${conn.target}-${Date.now()}-${index}` // Unique ID based on collection type
+
         newNodes.push({
           id: newNodeId,
           collectionKey: conn.target,
@@ -201,6 +217,8 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
           {nodes.map((node, index) => {
             const color = getNodeColor(node.collectionKey)
             const isSelected = selectedNode === node.id
+            const isAtMaxDepth = node.depth >= 2
+            const canExpand = !node.isExpanded && !isAtMaxDepth
 
             return (
               <motion.g
@@ -208,10 +226,10 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.3, delay: index * 0.05 }}
-                style={{ cursor: 'pointer' }}
+                style={{ cursor: canExpand ? 'pointer' : 'default' }}
                 onClick={() => {
                   setSelectedNode(node.id)
-                  if (!node.isExpanded) {
+                  if (canExpand) {
                     handleExpandNode(node.id)
                   }
                 }}
@@ -227,8 +245,8 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                   filter={isSelected ? 'url(#node-glow)' : undefined}
                 />
 
-                {/* Expand indicator */}
-                {!node.isExpanded && (
+                {/* Expand indicator - only show if can expand */}
+                {canExpand && (
                   <circle
                     cx={node.x}
                     cy={node.y}
@@ -238,6 +256,20 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                     strokeWidth="1"
                     strokeDasharray="4"
                     opacity="0.5"
+                  />
+                )}
+
+                {/* Max depth indicator */}
+                {isAtMaxDepth && !node.isExpanded && (
+                  <circle
+                    cx={node.x}
+                    cy={node.y}
+                    r={35}
+                    fill="none"
+                    stroke="#ef4444"
+                    strokeWidth="1"
+                    strokeDasharray="2"
+                    opacity="0.3"
                   />
                 )}
 
@@ -254,8 +286,31 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                   {node.label}
                 </text>
 
+                {/* Depth indicator badge */}
+                {node.depth > 0 && (
+                  <circle
+                    cx={node.x + 35}
+                    cy={node.y - 35}
+                    r="12"
+                    fill={isAtMaxDepth ? '#ef4444' : '#6b7280'}
+                    opacity="0.8"
+                  />
+                )}
+                {node.depth > 0 && (
+                  <text
+                    x={node.x + 35}
+                    y={node.y - 32}
+                    textAnchor="middle"
+                    fill="white"
+                    fontSize="10"
+                    fontWeight="bold"
+                  >
+                    {node.depth}
+                  </text>
+                )}
+
                 {/* Expand hint */}
-                {!node.isExpanded && (
+                {canExpand && (
                   <text
                     x={node.x}
                     y={node.y + (node.isRoot ? 75 : 60)}
@@ -264,6 +319,20 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                     fontSize="10"
                   >
                     Click to expand
+                  </text>
+                )}
+
+                {/* Max depth reached hint */}
+                {isAtMaxDepth && !node.isExpanded && (
+                  <text
+                    x={node.x}
+                    y={node.y + 60}
+                    textAnchor="middle"
+                    fill="#ef4444"
+                    fontSize="9"
+                    opacity="0.7"
+                  >
+                    Max depth
                   </text>
                 )}
               </motion.g>
@@ -331,16 +400,32 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                     </div>
                   )}
 
-                  {!node.isExpanded && (
+                  {!node.isExpanded && node.depth >= 2 && (
+                    <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+                      <p className="text-xs text-red-400">
+                        🛑 Max depth reached (Level {node.depth})
+                      </p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Click "Start Over" to explore a different path
+                      </p>
+                    </div>
+                  )}
+
+                  {!node.isExpanded && node.depth < 2 && (
                     <div className="space-y-2">
-                      <p className="text-xs text-gray-500 uppercase tracking-wider">Available Connections:</p>
+                      <p className="text-xs text-gray-500 uppercase tracking-wider">Available Connections ({schema.connections.length}):</p>
                       <ul className="space-y-1">
                         {schema.connections.map((conn, i) => {
                           const targetSchema = GRAPH_SCHEMA[conn.target]
+                          // Check if this target already exists in graph
+                          const alreadyExists = nodes.find(n => n.collectionKey === conn.target)
                           return (
                             <li key={i} className="text-sm text-gray-400 flex items-center gap-2">
                               <span className="text-green-500">→</span>
                               {targetSchema?.name || conn.target}
+                              {alreadyExists && (
+                                <span className="text-xs text-amber-400">(reuse existing)</span>
+                              )}
                             </li>
                           )
                         })}
@@ -348,9 +433,12 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                     </div>
                   )}
 
-                  <div className="pt-4 border-t border-gray-700">
-                    <p className="text-xs text-gray-500 mb-2">Collection: <span className="text-gray-300 font-mono">{schema.collection}</span></p>
-                    <p className="text-xs text-gray-500">Depth: <span className="text-gray-300">{node.depth}</span></p>
+                  <div className="pt-4 border-t border-gray-700 space-y-2">
+                    <p className="text-xs text-gray-500">Collection: <span className="text-gray-300 font-mono">{schema.collection}</span></p>
+                    <p className="text-xs text-gray-500">
+                      Depth: <span className={node.depth >= 2 ? 'text-red-400' : 'text-gray-300'}>{node.depth}</span>
+                      <span className="text-gray-600"> / 2 max</span>
+                    </p>
                   </div>
                 </div>
               )
