@@ -11,7 +11,7 @@ import ScrollToTop from '@/components/ScrollToTop'
 import AnimatedLogo from '@/components/AnimatedLogo'
 import TimeSeriesChart from '@/components/TimeSeriesChart'
 import QueryBuilder from '../components/QueryBuilder'
-import JourneyBuilder from '../components/JourneyBuilder'
+import GraphExplorer from '../components/GraphExplorer'
 import WhaleTracker from '@/components/WhaleTracker'
 import CompanyWorkup from '@/components/CompanyWorkup'
 import CompanyCompare from '@/components/CompanyCompare'
@@ -1149,10 +1149,10 @@ export default function HomePage() {
               className="overflow-y-auto py-2 md:py-4 space-y-3 md:space-y-6 scroll-smooth"
               style={{ height: 'calc(100vh - 470px)' }}
             >
-              {/* Journey Builder - NEW full-screen experience */}
+              {/* Graph Explorer - NEW full-screen experience */}
               {isJourneyMode && (
                 <div className="fixed inset-0 z-50 bg-dark-900">
-                  <JourneyBuilder
+                  <GraphExplorer
                     onQueryChange={(aql, desc) => setBuiltQuery({ aql, description: desc })}
                   />
                 </div>
