@@ -39,29 +39,22 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
   const [edges, setEdges] = useState<GraphEdge[]>([])
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
   const [expandingNode, setExpandingNode] = useState<string | null>(null) // Show connection menu
-  const [showRootSelector, setShowRootSelector] = useState(true)
   const [selectedFields, setSelectedFields] = useState<Record<string, string[]>>({}) // nodeId -> fields
 
-  // Set root type
-  const handleSetRootType = useCallback((collectionKey: string) => {
-    const schema = GRAPH_SCHEMA[collectionKey]
-    if (!schema) return
-
-    const rootNode: GraphNode = {
-      id: 'root',
-      collectionKey,
-      label: schema.name,
-      x: 200,
-      y: 300,
+  // Initialize with all starting nodes
+  useState(() => {
+    const startingNodes: GraphNode[] = STARTING_OPTIONS.map((option, index) => ({
+      id: `start-${option.key}`,
+      collectionKey: option.key,
+      label: option.label,
+      x: 150,
+      y: 100 + index * 80, // Vertical stack on left
       layer: 0,
       parentId: null,
-      pathFromRoot: [collectionKey]
-    }
-
-    setNodes([rootNode])
-    setShowRootSelector(false)
-    setSelectedNode('root')
-  }, [])
+      pathFromRoot: [option.key]
+    }))
+    setNodes(startingNodes)
+  })
 
   // Add a single connection from a node
   const handleAddConnection = useCallback((fromNodeId: string, targetKey: string, edgeLabel: string) => {
@@ -81,9 +74,9 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
     const targetLayer = fromNode.layer + 1
     const nodesInTargetLayer = nodes.filter(n => n.layer === targetLayer)
 
-    const layerX = fromNode.x + 350
+    const layerX = fromNode.x + 250 // Reduced spacing
     const baseY = nodesInTargetLayer.length > 0
-      ? Math.max(...nodesInTargetLayer.map(n => n.y)) + 120
+      ? Math.max(...nodesInTargetLayer.map(n => n.y)) + 80 // Tighter vertical spacing
       : fromNode.y
 
     const newNodeId = `${targetKey}-${Date.now()}`
@@ -150,11 +143,20 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
 
   // Reset
   const handleReset = () => {
-    setNodes([])
+    const startingNodes: GraphNode[] = STARTING_OPTIONS.map((option, index) => ({
+      id: `start-${option.key}`,
+      collectionKey: option.key,
+      label: option.label,
+      x: 150,
+      y: 100 + index * 80,
+      layer: 0,
+      parentId: null,
+      pathFromRoot: [option.key]
+    }))
+    setNodes(startingNodes)
     setEdges([])
     setSelectedNode(null)
     setExpandingNode(null)
-    setShowRootSelector(true)
     setSelectedFields({})
   }
 
@@ -163,38 +165,8 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
       {/* Main container - like LLM interface */}
       <div className="flex-1 flex flex-col p-6">
         <div className="flex-1 bg-dark-800/50 rounded-lg border border-green-500/20 overflow-hidden relative">
-          {/* Starting selector */}
-          {showRootSelector && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="max-w-2xl w-full p-8">
-                <h2 className="text-xl font-bold text-white mb-4 text-center">Select Starting Point</h2>
-                <div className="grid grid-cols-3 gap-3">
-                  {STARTING_OPTIONS.map(option => (
-                    <button
-                      key={option.key}
-                      onClick={() => handleSetRootType(option.key)}
-                      className="p-4 bg-dark-700 hover:bg-dark-600 border border-green-500/20 hover:border-green-500/40
-                               rounded-lg transition-all text-center group relative"
-                    >
-                      {option.badge && (
-                        <span className="absolute top-2 right-2 px-1.5 py-0.5 text-[10px] font-bold bg-green-500/20 text-green-400 rounded">
-                          {option.badge}
-                        </span>
-                      )}
-                      <div className="text-3xl mb-2">{option.icon}</div>
-                      <div className="text-sm font-medium text-white group-hover:text-green-400 transition-colors">
-                        {option.label}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Graph SVG */}
-          {!showRootSelector && (
-            <svg className="w-full h-full" viewBox={viewBox} preserveAspectRatio="xMidYMid meet">
+          <svg className="w-full h-full" viewBox={viewBox} preserveAspectRatio="xMidYMid meet">
               <defs>
                 <filter id="node-glow">
                   <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
@@ -214,8 +186,8 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                 const toNode = nodes.find(n => n.id === edge.to)
                 if (!fromNode || !toNode) return null
 
-                const fromX = fromNode.x + 45
-                const toX = toNode.x - 45
+                const fromX = fromNode.x + 35
+                const toX = toNode.x - 35
                 const midX = (fromX + toX) / 2
 
                 return (
@@ -254,7 +226,7 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                     <circle
                       cx={node.x}
                       cy={node.y}
-                      r={40}
+                      r={30}
                       fill="rgba(17, 24, 39, 0.95)"
                       stroke={color}
                       strokeWidth={isSelected ? 3 : 2}
@@ -270,7 +242,7 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                       textAnchor="middle"
                       dominantBaseline="middle"
                       fill={color}
-                      fontSize={12}
+                      fontSize={10}
                       fontWeight="600"
                       style={{ cursor: 'pointer', pointerEvents: 'none' }}
                     >
@@ -278,13 +250,13 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                     </text>
 
                     {/* Layer badge */}
-                    <circle cx={node.x - 28} cy={node.y - 28} r="10" fill="#374151" opacity="0.9" />
+                    <circle cx={node.x - 22} cy={node.y - 22} r="8" fill="#374151" opacity="0.9" />
                     <text
-                      x={node.x - 28}
-                      y={node.y - 25}
+                      x={node.x - 22}
+                      y={node.y - 19}
                       textAnchor="middle"
                       fill="white"
-                      fontSize="9"
+                      fontSize="8"
                       fontWeight="bold"
                       style={{ pointerEvents: 'none' }}
                     >
@@ -298,20 +270,20 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                         setExpandingNode(isExpanding ? null : node.id)
                       }}>
                         <circle
-                          cx={node.x + 28}
-                          cy={node.y - 28}
-                          r="12"
+                          cx={node.x + 22}
+                          cy={node.y - 22}
+                          r="10"
                           fill={isExpanding ? '#10b981' : '#374151'}
                           stroke={isExpanding ? '#10b981' : '#6b7280'}
                           strokeWidth="2"
                           style={{ cursor: 'pointer' }}
                         />
                         <text
-                          x={node.x + 28}
-                          y={node.y - 24}
+                          x={node.x + 22}
+                          y={node.y - 18}
                           textAnchor="middle"
                           fill="white"
-                          fontSize="16"
+                          fontSize="14"
                           fontWeight="bold"
                           style={{ cursor: 'pointer', pointerEvents: 'none' }}
                         >
@@ -327,37 +299,37 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                         animate={{ opacity: 1, y: 0 }}
                       >
                         <rect
-                          x={node.x + 60}
-                          y={node.y - 40}
-                          width="180"
-                          height={Math.min(availableConnections.length * 32 + 16, 200)}
-                          rx="6"
+                          x={node.x + 45}
+                          y={node.y - 30}
+                          width="140"
+                          height={Math.min(availableConnections.length * 26 + 12, 160)}
+                          rx="4"
                           fill="rgba(31, 41, 55, 0.98)"
                           stroke="#10b981"
-                          strokeWidth="2"
+                          strokeWidth="1.5"
                         />
                         <text
-                          x={node.x + 70}
-                          y={node.y - 20}
+                          x={node.x + 52}
+                          y={node.y - 16}
                           fill="#9ca3af"
-                          fontSize="10"
+                          fontSize="9"
                           fontWeight="600"
                         >
                           Add Connection:
                         </text>
 
-                        {availableConnections.slice(0, 5).map((conn, i) => {
+                        {availableConnections.slice(0, 6).map((conn, i) => {
                           const targetSchema = GRAPH_SCHEMA[conn.target]
-                          const connectionY = node.y + i * 32 - 6
+                          const connectionY = node.y + i * 26 - 4
 
                           return (
                             <g key={i}>
                               <rect
-                                x={node.x + 65}
+                                x={node.x + 48}
                                 y={connectionY}
-                                width="170"
-                                height="28"
-                                rx="4"
+                                width="134"
+                                height="23"
+                                rx="3"
                                 fill="rgba(55, 65, 81, 0.5)"
                                 style={{ cursor: 'pointer' }}
                                 onClick={(e) => {
@@ -367,10 +339,10 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                                 className="hover:fill-[rgba(75,85,99,0.8)]"
                               />
                               <text
-                                x={node.x + 75}
-                                y={connectionY + 18}
+                                x={node.x + 56}
+                                y={connectionY + 15}
                                 fill="#e5e7eb"
-                                fontSize="11"
+                                fontSize="10"
                                 fontWeight="500"
                                 style={{ cursor: 'pointer', pointerEvents: 'none' }}
                               >
@@ -386,9 +358,10 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
               })}
 
               {/* Execute panel */}
-              {nodes.length > 0 && (() => {
+              {edges.length > 0 && (() => {
                 const maxX = Math.max(...nodes.map(n => n.x))
-                const executeX = maxX + 250
+                const avgY = nodes.reduce((sum, n) => sum + n.y, 0) / nodes.length
+                const executeX = maxX + 180
 
                 return (
                   <motion.g
@@ -397,31 +370,31 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                     transition={{ delay: 0.3 }}
                   >
                     <rect
-                      x={executeX - 90}
-                      y={250}
-                      width="180"
-                      height="160"
-                      rx="8"
+                      x={executeX - 70}
+                      y={avgY - 60}
+                      width="140"
+                      height="120"
+                      rx="6"
                       fill="rgba(34, 197, 94, 0.1)"
                       stroke="#10b981"
                       strokeWidth="2"
                     />
-                    <text x={executeX} y={285} textAnchor="middle" fill="#10b981" fontSize="14" fontWeight="bold">
+                    <text x={executeX} y={avgY - 35} textAnchor="middle" fill="#10b981" fontSize="12" fontWeight="bold">
                       Query Summary
                     </text>
-                    <text x={executeX} y={310} textAnchor="middle" fill="#9ca3af" fontSize="11">
-                      {nodes.length} collections
+                    <text x={executeX} y={avgY - 15} textAnchor="middle" fill="#9ca3af" fontSize="10">
+                      {nodes.filter(n => !n.id.startsWith('start-') || edges.some(e => e.from === n.id)).length} collections
                     </text>
-                    <text x={executeX} y={330} textAnchor="middle" fill="#9ca3af" fontSize="11">
+                    <text x={executeX} y={avgY} textAnchor="middle" fill="#9ca3af" fontSize="10">
                       {edges.length} connections
                     </text>
 
                     <rect
-                      x={executeX - 60}
-                      y={355}
-                      width="120"
-                      height="36"
-                      rx="6"
+                      x={executeX - 50}
+                      y={avgY + 20}
+                      width="100"
+                      height="30"
+                      rx="5"
                       fill="#10b981"
                       style={{ cursor: 'pointer' }}
                       onClick={() => {
@@ -431,10 +404,10 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                     />
                     <text
                       x={executeX}
-                      y={378}
+                      y={avgY + 40}
                       textAnchor="middle"
                       fill="white"
-                      fontSize="12"
+                      fontSize="11"
                       fontWeight="bold"
                       style={{ cursor: 'pointer', pointerEvents: 'none' }}
                     >
@@ -444,24 +417,23 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                 )
               })()}
             </svg>
-          )}
 
           {/* Instructions */}
-          {nodes.length === 1 && !expandingNode && (
+          {nodes.length === STARTING_OPTIONS.length && edges.length === 0 && !expandingNode && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="absolute bottom-6 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-green-500/10 border border-green-500/30 rounded-lg"
             >
               <p className="text-green-400 text-sm">
-                Click the <span className="font-bold">+</span> button to add connections
+                Click any <span className="font-bold">+</span> button to start building connections
               </p>
             </motion.div>
           )}
         </div>
 
         {/* Reset button */}
-        {!showRootSelector && (
+        {edges.length > 0 && (
           <div className="mt-4">
             <button
               onClick={handleReset}
@@ -475,7 +447,7 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
 
       {/* Right panel - Field selection */}
       <AnimatePresence>
-        {selectedNode && !showRootSelector && (
+        {selectedNode && (
           <motion.div
             initial={{ x: 320, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
