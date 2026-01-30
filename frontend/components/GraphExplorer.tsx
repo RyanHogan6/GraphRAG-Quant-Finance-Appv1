@@ -503,7 +503,7 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                       <p className="text-sm font-semibold text-gray-300">Select Fields</p>
                       <button
                         onClick={() => {
-                          const allFields = schema.fields.map(f => f.name)
+                          const allFields = schema.keyFields
                           setSelectedFields(prev => ({
                             ...prev,
                             [node.id]: nodeFields.length === allFields.length ? [] : allFields
@@ -511,23 +511,23 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                         }}
                         className="text-xs text-green-400 hover:text-green-300"
                       >
-                        {nodeFields.length === schema.fields.length ? 'Deselect All' : 'Select All'}
+                        {nodeFields.length === schema.keyFields.length ? 'Deselect All' : 'Select All'}
                       </button>
                     </div>
 
                     <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                      {schema.fields.map(field => {
-                        const isSelected = nodeFields.includes(field.name)
+                      {schema.keyFields.map(fieldName => {
+                        const isSelected = nodeFields.includes(fieldName)
 
                         return (
                           <button
-                            key={field.name}
+                            key={fieldName}
                             onClick={() => {
                               setSelectedFields(prev => {
                                 const current = prev[node.id] || []
                                 const updated = isSelected
-                                  ? current.filter(f => f !== field.name)
-                                  : [...current, field.name]
+                                  ? current.filter(f => f !== fieldName)
+                                  : [...current, fieldName]
                                 return { ...prev, [node.id]: updated }
                               })
                             }}
@@ -548,8 +548,7 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                                 )}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="text-xs font-mono truncate">{field.name}</div>
-                                <div className="text-[10px] text-gray-500 mt-0.5">{field.type}</div>
+                                <div className="text-xs font-mono truncate">{fieldName}</div>
                               </div>
                             </div>
                           </button>
@@ -560,7 +559,7 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
 
                   <div className="pt-4 border-t border-gray-700">
                     <p className="text-xs text-gray-500">
-                      Layer {node.layer + 1} • {nodeFields.length} of {schema.fields.length} fields selected
+                      Layer {node.layer + 1} • {nodeFields.length} of {schema.keyFields.length} fields selected
                     </p>
                   </div>
                 </div>
