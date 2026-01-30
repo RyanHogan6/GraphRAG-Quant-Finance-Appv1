@@ -2723,6 +2723,55 @@ Strategy:
 
 ---
 
+EXAMPLE 23b - Stock Price vs Commodity Price Comparison (CRITICAL: Join on matching dates!):
+Question: "Show me XOM stock vs crude oil prices"
+Intent: stock_commodity_correlation
+Collections: ["Company", "MarketData", "futures_prices"]
+Edges: ["HAS_MARKETDATA"]
+AQL:
+FOR company IN Company
+    FILTER company.ticker == @ticker
+
+    FOR marketdata IN OUTBOUND company HAS_MARKETDATA
+        FILTER marketdata.date >= DATE_SUBTRACT(DATE_NOW(), 90, "day")
+
+        LET crude_price = FIRST(
+            FOR futures IN futures_prices
+                FILTER futures.commodity == "CRUDE_OIL"
+                FILTER futures.date == marketdata.date
+                RETURN futures.close
+        )
+
+        FILTER crude_price != null
+
+        SORT marketdata.date DESC
+        LIMIT 100
+
+        RETURN {
+            date: marketdata.date,
+            stock_close: marketdata.close,
+            commodity_close: crude_price,
+            stock_change_pct: marketdata.daily_return,
+            stock_volume: marketdata.volume
+        }
+Bind Variables: {"ticker": "XOM"}
+Requires Embedding: false
+
+Strategy:
+✅ Traverse Company → MarketData for stock prices
+✅ Use subquery to find matching futures_prices by date
+✅ Filter out dates where commodity data doesn't exist (FILTER crude_price != null)
+✅ Returns side-by-side comparison for correlation analysis
+💡 Use for: XOM/CVX vs crude oil, FCX/NEM vs copper/gold, ADM vs corn/wheat
+💡 Keywords: "stock vs commodity", "compare [ticker] to [commodity]", "[ticker] vs oil/gold/copper"
+
+⚠️ CRITICAL MAPPING:
+- Energy stocks (XOM, CVX, COP, EOG, SLB) → CRUDE_OIL, NATURAL_GAS
+- Mining stocks (FCX, NEM, GOLD) → COPPER, GOLD, SILVER
+- Agriculture stocks (ADM, BG, INGR) → CORN, WHEAT, SOYBEANS
+
+---
+
 EXAMPLE 24 - Company Options + Stock Price + Awards (Multi-Source):
 Question: "Show me RTX's options activity around recent contract awards"
 Intent: multi_source_insider_analysis
