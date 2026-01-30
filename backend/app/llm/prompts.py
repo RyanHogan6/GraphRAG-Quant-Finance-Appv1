@@ -2733,7 +2733,8 @@ FOR company IN Company
     FILTER company.ticker == @ticker
 
     FOR marketdata IN OUTBOUND company HAS_MARKETDATA
-        FILTER marketdata.date >= DATE_SUBTRACT(DATE_NOW(), 90, "day")
+        SORT marketdata.date DESC
+        LIMIT 100
 
         LET crude_price = FIRST(
             FOR futures IN futures_prices
@@ -2743,9 +2744,6 @@ FOR company IN Company
         )
 
         FILTER crude_price != null
-
-        SORT marketdata.date DESC
-        LIMIT 100
 
         RETURN {
             date: marketdata.date,
@@ -2758,12 +2756,16 @@ Bind Variables: {"ticker": "XOM"}
 Requires Embedding: false
 
 Strategy:
+✅ SORT by date DESC FIRST to get most recent data (CRITICAL!)
 ✅ Traverse Company → MarketData for stock prices
 ✅ Use subquery to find matching futures_prices by date
 ✅ Filter out dates where commodity data doesn't exist (FILTER crude_price != null)
 ✅ Returns side-by-side comparison for correlation analysis
 💡 Use for: XOM/CVX vs crude oil, FCX/NEM vs copper/gold, ADM vs corn/wheat
 💡 Keywords: "stock vs commodity", "compare [ticker] to [commodity]", "[ticker] vs oil/gold/copper"
+
+⚠️ CRITICAL: ALWAYS sort DESC and limit BEFORE subqueries for performance
+⚠️ Do NOT use date filters like >= DATE_SUBTRACT() - let SORT DESC + LIMIT handle recency
 
 ⚠️ CRITICAL MAPPING:
 - Energy stocks (XOM, CVX, COP, EOG, SLB) → CRUDE_OIL, NATURAL_GAS
