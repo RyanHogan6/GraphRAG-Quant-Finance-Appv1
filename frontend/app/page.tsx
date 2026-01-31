@@ -1149,12 +1149,29 @@ export default function HomePage() {
               className="overflow-y-auto py-2 md:py-4 space-y-3 md:space-y-6 scroll-smooth"
               style={{ height: 'calc(100vh - 470px)' }}
             >
-              {/* Graph Explorer - NEW full-screen experience */}
+              {/* Graph Explorer - Journey Builder */}
               {isJourneyMode && (
-                <div className="fixed inset-0 z-50 bg-dark-900">
+                <div className="space-y-4 mb-6" style={{ height: '70vh', minHeight: '600px' }}>
                   <GraphExplorer
                     onQueryChange={(aql, desc) => setBuiltQuery({ aql, description: desc })}
                   />
+
+                  {/* AQL Preview */}
+                  {builtQuery.aql && (
+                    <div className="bg-dark-900 border border-green-500/20 rounded-lg p-3">
+                      <details>
+                        <summary className="text-[10px] text-green-400 font-mono cursor-pointer hover:text-green-300 select-none flex items-center gap-1.5 transition-colors">
+                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                          </svg>
+                          Generated AQL Query
+                        </summary>
+                        <pre className="mt-2 text-[9px] md:text-xs text-gray-300 font-mono overflow-x-auto whitespace-pre-wrap max-h-[200px] bg-black/30 p-2 rounded">
+                          {builtQuery.aql}
+                        </pre>
+                      </details>
+                    </div>
+                  )}
                 </div>
               )}
 
