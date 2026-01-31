@@ -376,7 +376,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
         }
 
         return calculateMetrics(peerData, peerLatestMarket, peerXbrlData)
-    }, [peerData, comparisonMode, peerXbrlData])
+    }, [peerData, comparisonMode])
 
     function formatVal(val: any, type: string) {
         if (val == null || isNaN(val)) return 'N/A'
