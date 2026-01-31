@@ -21,6 +21,8 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
     const [secSortBy, setSecSortBy] = useState<'negative' | 'positive' | 'recent'>('negative')
     const [showPeerSelector, setShowPeerSelector] = useState(false)
     const [peerSearchTerm, setPeerSearchTerm] = useState('')
+    const [selectedXbrlIndex, setSelectedXbrlIndex] = useState(0)
+    const [selectedStatementTab, setSelectedStatementTab] = useState<'income' | 'balance' | 'cashflow'>('income')
 
     // Extract nested data
     const company = data
@@ -846,6 +848,223 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                     )}
                                 </div>
                             ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Full Financial Statements Viewer */}
+            {secXbrlData.length > 0 && (
+                <div className="mt-6">
+                    <div className="bg-gradient-to-br from-emerald-900/20 via-dark-900/40 to-blue-900/20 border border-emerald-500/20 rounded-xl shadow-2xl backdrop-blur-sm overflow-hidden">
+                        {/* Header */}
+                        <div className="p-4 border-b border-emerald-500/10 bg-dark-800/50">
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-[0.2em] flex items-center gap-3">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                                    Financial Statements
+                                </h3>
+                                <div className="text-xs text-gray-500">
+                                    XBRL Data
+                                </div>
+                            </div>
+
+                            {/* Period Selector */}
+                            <div className="flex items-center gap-2 overflow-x-auto">
+                                {secXbrlData.map((xbrl: any, i: number) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => setSelectedXbrlIndex(i)}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                                            selectedXbrlIndex === i
+                                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                                                : 'bg-dark-800/50 text-gray-400 border border-white/5 hover:border-emerald-500/20'
+                                        }`}
+                                    >
+                                        {xbrl.filing_type} - FY{xbrl.fiscal_year}
+                                        <span className="ml-1.5 text-[9px] opacity-70">{xbrl.filing_date}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Statement Tabs */}
+                        <div className="flex border-b border-emerald-500/10 bg-dark-800/30">
+                            {[
+                                { key: 'income', label: 'Income Statement', icon: '📊' },
+                                { key: 'balance', label: 'Balance Sheet', icon: '⚖️' },
+                                { key: 'cashflow', label: 'Cash Flow', icon: '💰' }
+                            ].map((tab) => (
+                                <button
+                                    key={tab.key}
+                                    onClick={() => setSelectedStatementTab(tab.key as any)}
+                                    className={`flex-1 px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all ${
+                                        selectedStatementTab === tab.key
+                                            ? 'text-emerald-300 bg-emerald-500/10 border-b-2 border-emerald-500'
+                                            : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                                    }`}
+                                >
+                                    <span className="mr-2">{tab.icon}</span>
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Statement Content */}
+                        <div className="p-4">
+                            {(() => {
+                                const selectedXbrl = secXbrlData[selectedXbrlIndex]
+                                if (!selectedXbrl) return <div className="text-gray-500 text-sm">No data available</div>
+
+                                // Income Statement
+                                if (selectedStatementTab === 'income') {
+                                    const incomeData = [
+                                        { label: 'Revenue', value: selectedXbrl.costs?.Revenues, highlight: true },
+                                        { label: 'Cost of Revenue', value: selectedXbrl.costs?.CostOfRevenue || selectedXbrl.costs?.CostOfGoodsAndServicesSold },
+                                        { label: 'Gross Profit', value: (selectedXbrl.costs?.Revenues || 0) - (selectedXbrl.costs?.CostOfRevenue || selectedXbrl.costs?.CostOfGoodsAndServicesSold || 0), highlight: true },
+                                        { label: 'R&D Expense', value: selectedXbrl.costs?.ResearchAndDevelopmentExpense },
+                                        { label: 'SG&A Expense', value: selectedXbrl.costs?.SellingGeneralAndAdministrativeExpense },
+                                        { label: 'Operating Expense', value: selectedXbrl.costs?.OperatingExpense },
+                                        { label: 'Operating Income', value: selectedXbrl.costs?.OperatingIncomeLoss, highlight: true },
+                                        { label: 'Interest Expense', value: selectedXbrl.costs?.InterestExpense },
+                                        { label: 'Income Tax', value: selectedXbrl.costs?.IncomeTaxExpenseBenefit },
+                                        { label: 'Net Income', value: selectedXbrl.costs?.NetIncomeLoss, highlight: true, large: true },
+                                        { label: 'EPS (Basic)', value: selectedXbrl.costs?.EarningsPerShareBasic, currency: false },
+                                        { label: 'EPS (Diluted)', value: selectedXbrl.costs?.EarningsPerShareDiluted, currency: false }
+                                    ].filter(item => item.value != null)
+
+                                    return (
+                                        <div className="space-y-2">
+                                            {incomeData.map((item, i) => (
+                                                <div key={i} className={`flex justify-between items-center px-4 py-2.5 rounded-lg transition-all ${
+                                                    item.highlight
+                                                        ? 'bg-emerald-500/10 border border-emerald-500/20'
+                                                        : 'bg-dark-800/30 hover:bg-dark-800/50'
+                                                }`}>
+                                                    <span className={`text-xs font-semibold ${
+                                                        item.large ? 'text-emerald-300 text-sm' : item.highlight ? 'text-emerald-400' : 'text-gray-300'
+                                                    }`}>
+                                                        {item.label}
+                                                    </span>
+                                                    <span className={`font-mono font-bold ${
+                                                        item.large
+                                                            ? 'text-lg text-emerald-300 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]'
+                                                            : item.highlight ? 'text-base text-emerald-400' : 'text-sm text-gray-200'
+                                                    }`}>
+                                                        {item.currency !== false
+                                                            ? `$${(item.value / 1e6).toFixed(1)}M`
+                                                            : `$${item.value?.toFixed(2)}`
+                                                        }
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )
+                                }
+
+                                // Balance Sheet
+                                if (selectedStatementTab === 'balance') {
+                                    const balanceData = [
+                                        { section: 'Assets', items: [
+                                            { label: 'Cash & Equivalents', value: selectedXbrl.cashflow?.CashAndCashEquivalentsAtCarryingValue },
+                                            { label: 'Total Assets', value: selectedXbrl.equity?.Assets, highlight: true }
+                                        ]},
+                                        { section: 'Liabilities', items: [
+                                            { label: 'Current Debt', value: selectedXbrl.debt?.DebtCurrent || selectedXbrl.debt?.CurrentDebt },
+                                            { label: 'Long-Term Debt', value: selectedXbrl.debt?.LongTermDebt },
+                                            { label: 'Total Debt', value: (selectedXbrl.debt?.LongTermDebt || 0) + (selectedXbrl.debt?.DebtCurrent || selectedXbrl.debt?.CurrentDebt || 0), highlight: true }
+                                        ]},
+                                        { section: 'Equity', items: [
+                                            { label: 'Stockholders Equity', value: selectedXbrl.equity?.StockholdersEquity, highlight: true },
+                                            { label: 'Retained Earnings', value: selectedXbrl.equity?.RetainedEarningsAccumulatedDeficit },
+                                            { label: 'Treasury Stock', value: selectedXbrl.equity?.TreasuryStockValue },
+                                            { label: 'Shares Outstanding', value: selectedXbrl.equity?.CommonStockSharesOutstanding, currency: false, unit: 'M' }
+                                        ]}
+                                    ]
+
+                                    return (
+                                        <div className="space-y-4">
+                                            {balanceData.map((section, sIdx) => (
+                                                <div key={sIdx} className="space-y-2">
+                                                    <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider px-2">{section.section}</h4>
+                                                    {section.items.filter(item => item.value != null).map((item, i) => (
+                                                        <div key={i} className={`flex justify-between items-center px-4 py-2.5 rounded-lg transition-all ${
+                                                            item.highlight
+                                                                ? 'bg-emerald-500/10 border border-emerald-500/20'
+                                                                : 'bg-dark-800/30 hover:bg-dark-800/50'
+                                                        }`}>
+                                                            <span className={`text-xs font-semibold ${
+                                                                item.highlight ? 'text-emerald-400' : 'text-gray-300'
+                                                            }`}>
+                                                                {item.label}
+                                                            </span>
+                                                            <span className={`font-mono font-bold ${
+                                                                item.highlight ? 'text-base text-emerald-400' : 'text-sm text-gray-200'
+                                                            }`}>
+                                                                {item.currency !== false
+                                                                    ? `$${(item.value / 1e6).toFixed(1)}M`
+                                                                    : item.unit === 'M' ? `${(item.value / 1e6).toFixed(1)}M` : item.value?.toFixed(2)
+                                                                }
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )
+                                }
+
+                                // Cash Flow Statement
+                                if (selectedStatementTab === 'cashflow') {
+                                    const cashflowData = [
+                                        { section: 'Operating Activities', items: [
+                                            { label: 'Operating Cash Flow', value: selectedXbrl.cashflow?.NetCashProvidedByUsedInOperatingActivities, highlight: true }
+                                        ]},
+                                        { section: 'Investing Activities', items: [
+                                            { label: 'Investing Cash Flow', value: selectedXbrl.cashflow?.NetCashProvidedByUsedInInvestingActivities, highlight: true },
+                                            { label: 'Business Acquisitions', value: selectedXbrl.cashflow?.PaymentsToAcquireBusinessesNetOfCashAcquired }
+                                        ]},
+                                        { section: 'Financing Activities', items: [
+                                            { label: 'Financing Cash Flow', value: selectedXbrl.cashflow?.NetCashProvidedByUsedInFinancingActivities, highlight: true },
+                                            { label: 'Dividends Paid', value: selectedXbrl.cashflow?.PaymentsOfDividends },
+                                            { label: 'Stock Repurchases', value: selectedXbrl.cashflow?.PaymentsForRepurchaseOfCommonStock }
+                                        ]},
+                                        { section: 'Net Change', items: [
+                                            { label: 'Free Cash Flow', value: (selectedXbrl.cashflow?.NetCashProvidedByUsedInOperatingActivities || 0) + (selectedXbrl.cashflow?.NetCashProvidedByUsedInInvestingActivities || 0), highlight: true, large: true }
+                                        ]}
+                                    ]
+
+                                    return (
+                                        <div className="space-y-4">
+                                            {cashflowData.map((section, sIdx) => (
+                                                <div key={sIdx} className="space-y-2">
+                                                    <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider px-2">{section.section}</h4>
+                                                    {section.items.filter(item => item.value != null).map((item, i) => (
+                                                        <div key={i} className={`flex justify-between items-center px-4 py-2.5 rounded-lg transition-all ${
+                                                            item.highlight
+                                                                ? 'bg-emerald-500/10 border border-emerald-500/20'
+                                                                : 'bg-dark-800/30 hover:bg-dark-800/50'
+                                                        }`}>
+                                                            <span className={`text-xs font-semibold ${
+                                                                item.large ? 'text-emerald-300 text-sm' : item.highlight ? 'text-emerald-400' : 'text-gray-300'
+                                                            }`}>
+                                                                {item.label}
+                                                            </span>
+                                                            <span className={`font-mono font-bold ${
+                                                                item.large
+                                                                    ? 'text-lg text-emerald-300 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]'
+                                                                    : item.highlight ? 'text-base text-emerald-400' : 'text-sm text-gray-200'
+                                                            }`}>
+                                                                {item.value >= 0 ? '+' : ''}{`$${(item.value / 1e6).toFixed(1)}M`}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )
+                                }
+                            })()}
                         </div>
                     </div>
                 </div>
