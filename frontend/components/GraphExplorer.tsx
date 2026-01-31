@@ -374,8 +374,11 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
     setShowReport(true)
 
     try {
+      // Use backend API URL
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
       // Execute AQL query directly
-      const response = await fetch('/api/query/execute-aql', {
+      const response = await fetch(`${API_BASE_URL}/api/query/execute-aql`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
