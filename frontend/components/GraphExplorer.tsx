@@ -886,7 +886,7 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                 <button
                   onClick={() => {
                     const tickers = tickerInput.split(',').map(t => t.trim()).filter(Boolean)
-                    setSelectedTickers(prev => [...new Set([...prev, ...tickers])])
+                    setSelectedTickers(prev => Array.from(new Set([...prev, ...tickers])))
                     setTickerInput('')
                   }}
                   className="flex-1 px-4 py-2 bg-gold/20 hover:bg-gold/30 border border-gold/50 rounded text-gold transition-colors"
