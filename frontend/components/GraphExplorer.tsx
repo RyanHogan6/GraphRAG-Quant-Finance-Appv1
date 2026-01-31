@@ -397,52 +397,38 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
   }, [aqlQuery, englishDescription, edges.length, nodes, onQueryChange])
 
   return (
-    <div className="bg-dark-900/50 p-4 rounded-lg border border-gold/10 space-y-3 h-full flex flex-col">
-      {/* Header with ticker search, description and AQL toggle */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-sm text-gray-300 flex-shrink">
+    <div className="bg-dark-900/50 p-4 rounded-lg border border-gold/10 h-full flex flex-col">
+      {/* Header - just description */}
+      <div className="mb-3">
+        <div className="text-sm text-gray-300">
           {englishDescription}
         </div>
-
-        {/* Ticker Search */}
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={tickerSearch}
-            onChange={(e) => setTickerSearch(e.target.value.toUpperCase())}
-            onKeyDown={(e) => e.key === 'Enter' && handleTickerSearch()}
-            placeholder="Ticker (e.g. AAPL)"
-            className="px-2 py-1 text-xs bg-dark-800 border border-gray-600 rounded text-white placeholder-gray-500 focus:border-gold/50 outline-none w-28"
-          />
-          <button
-            onClick={handleTickerSearch}
-            className="px-2 py-1 text-xs bg-gold/20 hover:bg-gold/30 border border-gold/50 rounded text-gold transition-colors"
-          >
-            Go
-          </button>
-        </div>
-
-        {edges.length > 0 && (
-          <button
-            onClick={() => setShowAQL(!showAQL)}
-            className="px-3 py-1 text-xs bg-dark-700 hover:bg-dark-600 border border-gray-600 rounded text-white transition-colors flex-shrink-0"
-          >
-            {showAQL ? 'Hide' : 'Show'} AQL
-          </button>
-        )}
       </div>
-
-      {/* AQL display */}
-      {showAQL && aqlQuery && (
-        <div className="p-3 bg-dark-800 border border-gray-700 rounded font-mono text-xs text-green-400">
-          {aqlQuery}
-        </div>
-      )}
 
       {/* Graph canvas - 80% height */}
       <div className="flex-1 bg-dark-800/30 rounded-lg border border-green-500/10 relative overflow-hidden">
         {/* Checkered grid background */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
+
+        {/* AQL Display Overlay */}
+        {showAQL && aqlQuery && (
+          <div className="absolute top-4 left-4 right-4 bg-dark-900/95 border border-green-500/30 rounded-lg p-3 backdrop-blur-sm z-20">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="text-xs font-semibold text-green-400">Generated AQL Query</div>
+              <button
+                onClick={() => setShowAQL(false)}
+                className="text-gray-500 hover:text-white"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <pre className="text-xs text-green-300 font-mono overflow-x-auto max-h-40 overflow-y-auto">
+              {aqlQuery}
+            </pre>
+          </div>
+        )}
         <svg
           ref={svgRef}
           className="w-full h-full relative z-10"
@@ -692,7 +678,7 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
       </div>
 
       {/* Bottom 20% - Query info */}
-      <div className="bg-dark-800/50 rounded-lg border border-gray-700 p-3 flex gap-4 h-[20%] min-h-[120px]">
+      <div className="bg-dark-800/50 rounded-lg border border-gray-700 p-3 flex gap-4 min-h-[140px]">
         {/* Query summary - left side */}
         <div className="flex-shrink-0 w-48 space-y-2">
           <h3 className="text-xs font-bold text-green-400 uppercase tracking-wider">Query</h3>
@@ -706,13 +692,13 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
               disabled={isExecuting}
               className="w-full px-3 py-1.5 bg-green-500 hover:bg-green-600 rounded text-white text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isExecuting ? 'Generating Report...' : 'Execute Query'}
+              {isExecuting ? 'Executing...' : 'Execute Query'}
             </button>
           )}
         </div>
 
         {/* Field selection - right side */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden flex flex-col">
           <AnimatePresence>
             {selectedNode && (() => {
               const node = nodes.find(n => n.id === selectedNode)
@@ -729,7 +715,7 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="h-full flex flex-col"
+                  className="flex-1 flex flex-col min-h-0"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div>
@@ -749,7 +735,7 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                     </button>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto">
+                  <div className="flex-1 overflow-y-auto min-h-0">
                     <div className="grid grid-cols-3 gap-1">
                       {schema.keyFields.map(field => {
                         const selected = fields.includes(field)
@@ -784,6 +770,37 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
               )
             })()}
           </AnimatePresence>
+
+          {/* Controls at bottom right */}
+          <div className="mt-3 pt-3 border-t border-gray-700 space-y-2">
+            {/* Ticker Search */}
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={tickerSearch}
+                onChange={(e) => setTickerSearch(e.target.value.toUpperCase())}
+                onKeyDown={(e) => e.key === 'Enter' && handleTickerSearch()}
+                placeholder="Ticker (e.g. AAPL)"
+                className="flex-1 px-2 py-1 text-xs bg-dark-800 border border-gray-600 rounded text-white placeholder-gray-500 focus:border-gold/50 outline-none"
+              />
+              <button
+                onClick={handleTickerSearch}
+                className="px-2 py-1 text-xs bg-gold/20 hover:bg-gold/30 border border-gold/50 rounded text-gold transition-colors"
+              >
+                Go
+              </button>
+            </div>
+
+            {/* Show AQL */}
+            {edges.length > 0 && (
+              <button
+                onClick={() => setShowAQL(!showAQL)}
+                className="w-full px-3 py-1 text-xs bg-dark-700 hover:bg-dark-600 border border-gray-600 rounded text-white transition-colors"
+              >
+                {showAQL ? 'Hide' : 'Show'} AQL
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
