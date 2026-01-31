@@ -325,31 +325,111 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
   const englishDescription = useMemo(() => {
     const realNodes = nodes.filter(n => n.collectionKey)
     if (realNodes.length === 0) return 'No query yet'
-    if (realNodes.length === 1) return `Get all ${realNodes[0].label}`
 
-    return `Get ${realNodes[0].label} with ${realNodes.slice(1).map(n => n.label).join(', ')}`
-  }, [nodes])
+    if (realNodes.length === 1) {
+      const node = realNodes[0]
+      if (node.collectionKey === 'company' && selectedTickers.length > 0) {
+        return `Get ${node.label} for ${selectedTickers.join(', ')}`
+      }
+      return `Get all ${node.label}`
+    }
 
-  // Generate AQL
+    // Multi-node description with traversal path
+    const edgeDescriptions = edges.map(edge => {
+      const fromNode = nodes.find(n => n.id === edge.from)!
+      const toNode = nodes.find(n => n.id === edge.to)!
+      return `${fromNode.label} → ${toNode.label}`
+    })
+
+    return `Get ${edgeDescriptions.join(' → ')} (${edges.length} hop${edges.length > 1 ? 's' : ''})`
+  }, [nodes, edges, selectedTickers])
+
+  // Generate AQL with proper graph traversals
   const aqlQuery = useMemo(() => {
     const realNodes = nodes.filter(n => n.collectionKey)
     if (realNodes.length === 0) return ''
 
-    const root = realNodes[0]
-    const rootSchema = GRAPH_SCHEMA[root.collectionKey!]
-    const collection = rootSchema?.collection || root.collectionKey
+    // Single node query
+    if (realNodes.length === 1 && edges.length === 0) {
+      const node = realNodes[0]
+      const rootSchema = GRAPH_SCHEMA[node.collectionKey!]
+      const collection = rootSchema?.collection || node.collectionKey
 
-    let query = `FOR doc IN ${collection}\n`
+      let query = `FOR doc IN ${collection}\n`
 
-    // Add ticker filter if company node has selected tickers
-    if (root.collectionKey === 'company' && selectedTickers.length > 0) {
-      const tickerList = selectedTickers.map(t => `"${t}"`).join(', ')
-      query += `  FILTER doc.ticker IN [${tickerList}]\n`
+      // Add ticker filter if company node has selected tickers
+      if (node.collectionKey === 'company' && selectedTickers.length > 0) {
+        const tickerList = selectedTickers.map(t => `"${t}"`).join(', ')
+        query += `  FILTER doc.ticker IN [${tickerList}]\n`
+      }
+
+      // Smart sorting - use date if available, otherwise _key
+      const hasDate = ['marketdata', 'options', 'futures', 'eia_crude', 'eia_natgas_storage', 'sec'].includes(node.collectionKey!)
+      if (hasDate) {
+        query += `  SORT doc.date DESC\n`
+      }
+
+      query += `  LIMIT 100\n`
+
+      // Build RETURN clause with selected fields
+      const fields = selectedFields[node.id] || []
+      if (fields.length > 0) {
+        const fieldObj = fields.map(f => `${f}: doc.${f}`).join(', ')
+        query += `  RETURN { ${fieldObj} }`
+      } else {
+        query += `  RETURN doc`
+      }
+
+      return query
     }
 
-    query += `  SORT doc.date DESC\n  LIMIT 100\n  RETURN doc`
+    // Multi-node graph traversal query
+    const root = realNodes[0]
+    const rootSchema = GRAPH_SCHEMA[root.collectionKey!]
+    const rootCollection = rootSchema?.collection || root.collectionKey
+
+    let query = `FOR v0 IN ${rootCollection}\n`
+
+    // Add ticker filter for root if company
+    if (root.collectionKey === 'company' && selectedTickers.length > 0) {
+      const tickerList = selectedTickers.map(t => `"${t}"`).join(', ')
+      query += `  FILTER v0.ticker IN [${tickerList}]\n`
+    }
+
+    // Build traversals for each edge
+    edges.forEach((edge, idx) => {
+      const edgeLabel = edge.label
+      const direction = edge.direction
+      const fromNode = nodes.find(n => n.id === edge.from)!
+      const toNode = nodes.find(n => n.id === edge.to)!
+
+      // Find which vertex this edge connects from
+      const fromIdx = realNodes.findIndex(n => n.id === edge.from)
+
+      query += `  FOR v${idx + 1} IN ${direction} v${fromIdx} ${edgeLabel}\n`
+    })
+
+    // Add limit
+    query += `  LIMIT 100\n`
+
+    // Build RETURN clause with all nodes and their selected fields
+    const returnParts: string[] = []
+    realNodes.forEach((node, idx) => {
+      const fields = selectedFields[node.id] || []
+      const nodeName = node.label.replace(/\s+/g, '_').toLowerCase()
+
+      if (fields.length > 0) {
+        const fieldObj = fields.map(f => `${f}: v${idx}.${f}`).join(', ')
+        returnParts.push(`${nodeName}: { ${fieldObj} }`)
+      } else {
+        returnParts.push(`${nodeName}: v${idx}`)
+      }
+    })
+
+    query += `  RETURN {\n    ${returnParts.join(',\n    ')}\n  }`
+
     return query
-  }, [nodes, selectedTickers])
+  }, [nodes, edges, selectedTickers, selectedFields])
 
   // Handle ticker search
   const handleTickerSearch = useCallback(() => {
@@ -368,7 +448,10 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
 
   // Execute query and get raw results
   const handleExecuteQuery = useCallback(async () => {
-    if (!aqlQuery || !edges.length) return
+    if (!aqlQuery) {
+      alert('Please build a query first by adding nodes and connections')
+      return
+    }
 
     setIsExecuting(true)
     setShowReport(true)
@@ -390,7 +473,8 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
       })
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        const errorText = await response.text()
+        throw new Error(`Query failed (${response.status}): ${errorText}`)
       }
 
       const data = await response.json()
@@ -399,7 +483,8 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
         count: data.count || 0,
         execution_time: data.execution_time || 0,
         aql_query: aqlQuery,
-        description: englishDescription
+        description: englishDescription,
+        error: null
       })
 
       // Also notify parent component
@@ -407,11 +492,33 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
 
     } catch (error) {
       console.error('Execute query error:', error)
-      alert(`Failed to execute query: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      setReportData({
+        results: [],
+        count: 0,
+        execution_time: 0,
+        aql_query: aqlQuery,
+        description: englishDescription,
+        error: errorMessage
+      })
     } finally {
       setIsExecuting(false)
     }
-  }, [aqlQuery, englishDescription, edges.length, nodes, onQueryChange])
+  }, [aqlQuery, englishDescription, onQueryChange])
+
+  // Download results as JSON
+  const handleDownloadResults = useCallback(() => {
+    if (!reportData?.results) return
+
+    const dataStr = JSON.stringify(reportData.results, null, 2)
+    const dataBlob = new Blob([dataStr], { type: 'application/json' })
+    const url = URL.createObjectURL(dataBlob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `query-results-${Date.now()}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+  }, [reportData])
 
   return (
     <div className="bg-dark-900/50 p-4 rounded-lg border border-gold/10 h-full flex flex-col">
@@ -709,7 +816,7 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
             <div>{nodes.filter(n => n.collectionKey).length} collections</div>
             <div>{edges.length} connections</div>
           </div>
-          {edges.length > 0 && (
+          {nodes.filter(n => n.collectionKey).length > 0 && (
             <button
               onClick={handleExecuteQuery}
               disabled={isExecuting}
@@ -940,63 +1047,137 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
             >
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-gold/20">
-                <div>
+                <div className="flex-1">
                   <h2 className="text-lg font-bold text-gold">Query Results</h2>
                   <p className="text-xs text-gray-400 mt-1">{reportData.description}</p>
                 </div>
-                <button
-                  onClick={() => setShowReport(false)}
-                  className="p-2 text-gray-400 hover:text-white transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                <div className="flex items-center gap-2">
+                  {reportData.results && reportData.results.length > 0 && (
+                    <button
+                      onClick={handleDownloadResults}
+                      className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors flex items-center gap-1"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      Download JSON
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowReport(false)}
+                    className="p-2 text-gray-400 hover:text-white transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               {/* Content */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {/* Error Display */}
+                {reportData.error && (
+                  <div className="bg-red-900/20 border border-red-500/50 rounded p-4">
+                    <div className="flex items-start gap-3">
+                      <svg className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div className="flex-1">
+                        <h3 className="text-sm font-semibold text-red-400 mb-1">Query Error</h3>
+                        <p className="text-xs text-red-300 font-mono whitespace-pre-wrap">{reportData.error}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Stats */}
-                <div className="flex items-center gap-6 text-sm">
-                  <div>
-                    <span className="text-gray-500">Results:</span>
-                    <span className="ml-2 text-white font-semibold">{reportData.count}</span>
+                {!reportData.error && (
+                  <div className="flex items-center gap-6 text-sm">
+                    <div>
+                      <span className="text-gray-500">Results:</span>
+                      <span className="ml-2 text-white font-semibold">{reportData.count}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Execution Time:</span>
+                      <span className="ml-2 text-green-400 font-mono">{reportData.execution_time?.toFixed(3)}s</span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-gray-500">Execution Time:</span>
-                    <span className="ml-2 text-green-400 font-mono">{reportData.execution_time?.toFixed(3)}s</span>
-                  </div>
-                </div>
+                )}
 
                 {/* Results Table */}
                 {reportData.results && reportData.results.length > 0 ? (
                   <div className="bg-dark-900 rounded border border-gray-700 overflow-x-auto">
                     <table className="w-full text-xs">
                       <thead>
-                        <tr className="border-b border-gray-700">
+                        <tr className="border-b border-gray-700 bg-dark-800">
                           {Object.keys(reportData.results[0]).map((key) => (
-                            <th key={key} className="text-left p-2 text-gray-400 font-semibold">
-                              {key}
+                            <th key={key} className="text-left p-3 text-gold font-semibold uppercase tracking-wide text-[10px] whitespace-nowrap">
+                              {key.replace(/_/g, ' ')}
                             </th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
                         {reportData.results.slice(0, 100).map((row: any, idx: number) => (
-                          <tr key={idx} className="border-b border-gray-800 hover:bg-dark-800">
-                            {Object.keys(row).map((key) => (
-                              <td key={key} className="p-2 text-gray-300">
-                                {typeof row[key] === 'object'
-                                  ? JSON.stringify(row[key])
-                                  : String(row[key])}
-                              </td>
-                            ))}
+                          <tr key={idx} className="border-b border-gray-800 hover:bg-dark-700 transition-colors">
+                            {Object.keys(row).map((key) => {
+                              const value = row[key]
+                              let displayValue: string
+                              let className = 'p-3 text-gray-300'
+
+                              // Handle different data types
+                              if (value === null || value === undefined) {
+                                displayValue = '-'
+                                className += ' text-gray-600 italic'
+                              } else if (typeof value === 'object') {
+                                // Check if it's a nested object (multi-node query result)
+                                if (value._key || value.ticker) {
+                                  displayValue = JSON.stringify(value, null, 2)
+                                  className += ' font-mono text-[10px] whitespace-pre'
+                                } else {
+                                  displayValue = JSON.stringify(value)
+                                  className += ' font-mono text-[10px]'
+                                }
+                              } else if (typeof value === 'number') {
+                                // Format numbers with commas
+                                if (Number.isInteger(value)) {
+                                  displayValue = value.toLocaleString()
+                                } else {
+                                  displayValue = value.toLocaleString(undefined, { maximumFractionDigits: 4 })
+                                }
+                                className += ' font-mono text-right'
+                              } else if (typeof value === 'boolean') {
+                                displayValue = value ? '✓' : '✗'
+                                className += ` text-center ${value ? 'text-green-400' : 'text-red-400'}`
+                              } else if (typeof value === 'string') {
+                                // Check if it's a date string
+                                if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+                                  displayValue = value
+                                  className += ' text-blue-300'
+                                } else if (value.length > 100) {
+                                  // Truncate long strings
+                                  displayValue = value.substring(0, 100) + '...'
+                                  className += ' text-gray-400 text-[10px]'
+                                } else {
+                                  displayValue = value
+                                }
+                              } else {
+                                displayValue = String(value)
+                              }
+
+                              return (
+                                <td key={key} className={className} title={typeof value === 'object' ? JSON.stringify(value) : String(value)}>
+                                  {displayValue}
+                                </td>
+                              )
+                            })}
                           </tr>
                         ))}
                       </tbody>
                     </table>
                     {reportData.results.length > 100 && (
-                      <div className="p-2 text-center text-xs text-gray-500 border-t border-gray-700">
+                      <div className="p-3 text-center text-xs text-gray-500 border-t border-gray-700 bg-dark-800">
                         Showing first 100 of {reportData.count} results
                       </div>
                     )}
