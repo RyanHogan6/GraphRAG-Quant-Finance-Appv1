@@ -10,8 +10,6 @@ interface GraphNode {
   label: string
   x: number
   y: number
-  layer: number
-  parentId: string | null
 }
 
 interface GraphEdge {
@@ -20,7 +18,6 @@ interface GraphEdge {
   to: string
   label: string
   direction: 'OUTBOUND' | 'INBOUND'
-  edgeCollection: string
 }
 
 interface GraphExplorerProps {
@@ -28,17 +25,14 @@ interface GraphExplorerProps {
 }
 
 const COLLECTION_OPTIONS = [
-  { key: 'company', label: 'Companies', icon: '🏢', description: 'S&P 500 companies' },
-  { key: 'marketdata', label: 'Stock Prices', icon: '📈', description: 'Daily OHLCV data' },
-  { key: 'options', label: 'Options Flow', icon: '⚡', description: 'Options activity', badge: 'NEW' },
-  { key: 'futures', label: 'Commodities', icon: '🛢️', description: 'Futures prices', badge: 'RARE' },
-  { key: 'awards', label: 'Gov Contracts', icon: '🎖️', description: 'Government awards' },
-  { key: 'sec', label: 'SEC Filings', icon: '📄', description: 'SEC documents' },
-  { key: 'sec_sentences', label: 'SEC Sentences', icon: '📝', description: 'SEC filing text' },
-  { key: 'sec_exhibits', label: 'SEC Exhibits', icon: '📋', description: 'SEC exhibits' },
-  { key: 'predictionmarkets', label: 'Polymarket', icon: '🎲', description: 'Prediction markets' },
-  { key: 'kalshi', label: 'Kalshi', icon: '📊', description: 'Kalshi markets' },
-  { key: 'commodity_positions', label: 'CFTC Positions', icon: '📈', description: 'Commodity positions' },
+  { key: 'company', label: 'Companies', icon: '🏢', color: '#fbbf24' },
+  { key: 'marketdata', label: 'Stock Prices', icon: '📈', color: '#10b981' },
+  { key: 'options', label: 'Options Flow', icon: '⚡', color: '#8b5cf6', badge: 'NEW' },
+  { key: 'futures', label: 'Commodities', icon: '🛢️', color: '#f59e0b', badge: 'RARE' },
+  { key: 'awards', label: 'Gov Contracts', icon: '🎖️', color: '#fbbf24' },
+  { key: 'sec', label: 'SEC Filings', icon: '📄', color: '#3b82f6' },
+  { key: 'predictionmarkets', label: 'Polymarket', icon: '🎲', color: '#ec4899' },
+  { key: 'kalshi', label: 'Kalshi', icon: '📊', color: '#ec4899' },
 ]
 
 export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
@@ -47,186 +41,144 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
   const [expandingNode, setExpandingNode] = useState<string | null>(null)
   const [selectedFields, setSelectedFields] = useState<Record<string, string[]>>({})
-  const [showStartPicker, setShowStartPicker] = useState(false)
-
-  // Create root node from collection selection
-  const handleStartQuery = useCallback((collectionKey: string) => {
-    const schema = GRAPH_SCHEMA[collectionKey]
-    if (!schema) return
-
-    const rootNode: GraphNode = {
-      id: `root-${collectionKey}`,
-      collectionKey,
-      label: schema.name,
-      x: 200,
-      y: 300,
-      layer: 0,
-      parentId: null
-    }
-
-    setNodes([rootNode])
-    setEdges([])
-    setSelectedNode(rootNode.id)
-    setShowStartPicker(false)
-  }, [])
 
   // Get node color
   const getNodeColor = (collectionKey: string) => {
-    if (collectionKey === 'company') return '#fbbf24'
-    if (collectionKey === 'awards') return '#fbbf24'
-    if (collectionKey.startsWith('sec')) return '#3b82f6'
-    if (collectionKey === 'marketdata') return '#10b981'
-    if (collectionKey === 'options') return '#8b5cf6'
-    if (collectionKey === 'futures' || collectionKey.startsWith('eia')) return '#f59e0b'
-    if (collectionKey.includes('prediction') || collectionKey === 'kalshi') return '#ec4899'
-    if (collectionKey === 'commodity_positions') return '#f97316'
-    return '#6b7280'
+    const option = COLLECTION_OPTIONS.find(o => o.key === collectionKey)
+    return option?.color || '#6b7280'
   }
+
+  // Add first node (shows dropdown immediately)
+  const handleAddFirstNode = useCallback((collectionKey: string) => {
+    const schema = GRAPH_SCHEMA[collectionKey]
+    if (!schema) return
+
+    const newNode: GraphNode = {
+      id: collectionKey, // Use collectionKey as ID (ensures uniqueness)
+      collectionKey,
+      label: schema.name,
+      x: 400,
+      y: 300
+    }
+
+    setNodes([newNode])
+    setSelectedNode(newNode.id)
+  }, [])
+
+  // Add additional node (only if doesn't exist)
+  const handleAddNode = useCallback((collectionKey: string, fromNodeId?: string) => {
+    // Check if node already exists
+    if (nodes.some(n => n.collectionKey === collectionKey)) {
+      console.log('Node already exists:', collectionKey)
+      return
+    }
+
+    const schema = GRAPH_SCHEMA[collectionKey]
+    if (!schema) return
+
+    // Calculate position - arrange in circle around center
+    const angleStep = (2 * Math.PI) / (nodes.length + 1)
+    const radius = 250
+    const centerX = 400
+    const centerY = 300
+    const angle = nodes.length * angleStep
+
+    const newNode: GraphNode = {
+      id: collectionKey,
+      collectionKey,
+      label: schema.name,
+      x: centerX + radius * Math.cos(angle),
+      y: centerY + radius * Math.sin(angle)
+    }
+
+    setNodes(prev => [...prev, newNode])
+    setSelectedNode(newNode.id)
+
+    // If adding from another node, create edge
+    if (fromNodeId) {
+      handleAddEdge(fromNodeId, collectionKey)
+    }
+
+    setExpandingNode(null)
+  }, [nodes])
+
+  // Add edge between two nodes
+  const handleAddEdge = useCallback((fromId: string, toId: string) => {
+    const fromNode = nodes.find(n => n.id === fromId)
+    const toNode = nodes.find(n => n.id === toId)
+    if (!fromNode || !toNode) return
+
+    // Check if edge already exists
+    const edgeExists = edges.some(e =>
+      (e.from === fromId && e.to === toId) ||
+      (e.from === toId && e.to === fromId)
+    )
+    if (edgeExists) return
+
+    // Find edge definition in schema
+    const fromSchema = GRAPH_SCHEMA[fromNode.collectionKey]
+    const connection = fromSchema?.connections.find(c => c.target === toNode.collectionKey)
+
+    if (connection) {
+      const newEdge: GraphEdge = {
+        id: `edge-${fromId}-${toId}`,
+        from: fromId,
+        to: toId,
+        label: connection.edge,
+        direction: connection.direction
+      }
+
+      setEdges(prev => [...prev, newEdge])
+    }
+
+    setExpandingNode(null)
+  }, [nodes, edges])
 
   // Get available connections for a node
   const getAvailableConnections = useCallback((node: GraphNode) => {
     const schema = GRAPH_SCHEMA[node.collectionKey]
     if (!schema) return []
 
-    const options: Array<{
-      target: string
-      targetNodeId?: string
-      edge: string
-      direction: 'OUTBOUND' | 'INBOUND'
-      label: string
-      isExisting: boolean
-    }> = []
+    return schema.connections
+      .map(conn => {
+        const targetSchema = GRAPH_SCHEMA[conn.target]
+        if (!targetSchema) return null
 
-    // Add new node options (OUTBOUND and INBOUND)
-    schema.connections.forEach(conn => {
-      const targetSchema = GRAPH_SCHEMA[conn.target]
-      if (!targetSchema) return
+        const targetExists = nodes.some(n => n.collectionKey === conn.target)
+        const edgeExists = edges.some(e =>
+          (e.from === node.id && e.to === conn.target) ||
+          (e.from === conn.target && e.to === node.id)
+        )
 
-      // Check if we already have edges to prevent duplicate connections
-      const existingEdge = edges.find(e =>
-        e.from === node.id &&
-        e.to.includes(conn.target) &&
-        e.edgeCollection === conn.edge
-      )
+        if (edgeExists) return null // Already connected
 
-      if (!existingEdge) {
         const dirLabel = conn.direction === 'OUTBOUND' ? '→' : '←'
-        options.push({
+
+        return {
           target: conn.target,
-          edge: conn.edge,
+          label: `${dirLabel} ${targetSchema.name}${targetExists ? ' (connect)' : ''}`,
+          exists: targetExists,
           direction: conn.direction,
-          label: `${dirLabel} ${targetSchema.name} (new)`,
-          isExisting: false
-        })
-      }
-    })
-
-    // Add existing node options (cross-connections)
-    nodes.forEach(existingNode => {
-      if (existingNode.id === node.id) return
-
-      // Check if there's a schema connection between these collections
-      const outboundConn = schema.connections.find(c =>
-        c.target === existingNode.collectionKey &&
-        c.direction === 'OUTBOUND'
-      )
-
-      const inboundConn = schema.connections.find(c =>
-        c.target === existingNode.collectionKey &&
-        c.direction === 'INBOUND'
-      )
-
-      // Check for existing edge
-      const hasExistingEdge = edges.some(e =>
-        e.from === node.id && e.to === existingNode.id
-      )
-
-      if (outboundConn && !hasExistingEdge) {
-        options.push({
-          target: existingNode.collectionKey,
-          targetNodeId: existingNode.id,
-          edge: outboundConn.edge,
-          direction: 'OUTBOUND',
-          label: `→ ${existingNode.label} (existing)`,
-          isExisting: true
-        })
-      }
-
-      if (inboundConn && !hasExistingEdge) {
-        options.push({
-          target: existingNode.collectionKey,
-          targetNodeId: existingNode.id,
-          edge: inboundConn.edge,
-          direction: 'INBOUND',
-          label: `← ${existingNode.label} (existing)`,
-          isExisting: true
-        })
-      }
-    })
-
-    return options
+          edgeLabel: conn.edge
+        }
+      })
+      .filter(Boolean)
   }, [nodes, edges])
 
-  // Add connection
-  const handleAddConnection = useCallback((
-    fromNodeId: string,
-    targetKey: string,
-    targetNodeId: string | undefined,
-    edgeCollection: string,
-    direction: 'OUTBOUND' | 'INBOUND'
-  ) => {
-    const fromNode = nodes.find(n => n.id === fromNodeId)
-    if (!fromNode) return
-
-    let toNode: GraphNode
-
-    if (targetNodeId) {
-      // Connect to existing node
-      toNode = nodes.find(n => n.id === targetNodeId)!
+  // Handle connection click
+  const handleConnectionClick = useCallback((fromNodeId: string, targetKey: string, exists: boolean) => {
+    if (exists) {
+      // Just add edge to existing node
+      handleAddEdge(fromNodeId, targetKey)
     } else {
-      // Create new node
-      const targetSchema = GRAPH_SCHEMA[targetKey]
-      if (!targetSchema) return
-
-      // Calculate position - layer to the right
-      const targetLayer = fromNode.layer + 1
-      const nodesInLayer = nodes.filter(n => n.layer === targetLayer)
-
-      const baseY = nodesInLayer.length > 0
-        ? Math.max(...nodesInLayer.map(n => n.y)) + 100
-        : fromNode.y
-
-      toNode = {
-        id: `${targetKey}-${Date.now()}`,
-        collectionKey: targetKey,
-        label: targetSchema.name,
-        x: fromNode.x + 300,
-        y: baseY,
-        layer: targetLayer,
-        parentId: fromNodeId
-      }
-
-      setNodes(prev => [...prev, toNode])
+      // Add new node + edge
+      handleAddNode(targetKey, fromNodeId)
     }
-
-    // Create edge
-    const newEdge: GraphEdge = {
-      id: `edge-${Date.now()}`,
-      from: fromNodeId,
-      to: toNode.id,
-      label: edgeCollection,
-      direction,
-      edgeCollection
-    }
-
-    setEdges(prev => [...prev, newEdge])
-    setExpandingNode(null)
-    setSelectedNode(toNode.id)
-  }, [nodes])
+  }, [handleAddEdge, handleAddNode])
 
   // Calculate viewBox
   const viewBox = useMemo(() => {
-    if (nodes.length === 0) return '0 0 1200 600'
+    if (nodes.length === 0) return '0 0 800 600'
 
     const padding = 150
     const xs = nodes.map(n => n.x)
@@ -244,16 +196,7 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
   const generateAQL = useCallback(() => {
     if (nodes.length === 0) return ''
 
-    // Find root node (layer 0)
-    const rootNode = nodes.find(n => n.layer === 0)
-    if (!rootNode) return ''
-
-    // Simple query for now - will enhance later
-    const collectionNames = nodes.map(n => {
-      const schema = GRAPH_SCHEMA[n.collectionKey]
-      return schema?.collection || n.collectionKey
-    }).join(', ')
-
+    const rootNode = nodes[0]
     const rootCollection = GRAPH_SCHEMA[rootNode.collectionKey]?.collection || rootNode.collectionKey
 
     let aql = `FOR doc IN ${rootCollection}\n`
@@ -262,7 +205,7 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
     aql += `  RETURN doc`
 
     return aql
-  }, [nodes, edges])
+  }, [nodes])
 
   // Reset
   const handleReset = () => {
@@ -271,7 +214,6 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
     setSelectedNode(null)
     setExpandingNode(null)
     setSelectedFields({})
-    setShowStartPicker(false)
   }
 
   return (
@@ -280,70 +222,36 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
       <div className="flex-1 flex flex-col p-6">
         <div className="flex-1 bg-dark-800/50 rounded-lg border border-green-500/20 overflow-hidden relative">
 
-          {/* Empty state - Start Query button */}
-          {nodes.length === 0 && !showStartPicker && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="absolute inset-0 flex items-center justify-center"
-            >
-              <button
-                onClick={() => setShowStartPicker(true)}
-                className="px-8 py-4 bg-green-500/20 hover:bg-green-500/30 border-2 border-green-500 rounded-lg text-green-400 font-bold text-lg transition-all hover:scale-105"
-              >
-                ▶ Start Query
-              </button>
-            </motion.div>
-          )}
-
-          {/* Collection picker modal */}
-          {showStartPicker && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="absolute inset-0 bg-dark-900/95 flex items-center justify-center z-50"
-            >
-              <div className="w-full max-w-2xl p-8">
-                <div className="mb-6 text-center">
-                  <h2 className="text-2xl font-bold text-white mb-2">Select Starting Collection</h2>
-                  <p className="text-gray-400 text-sm">Choose where to begin your query</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 max-h-[500px] overflow-y-auto">
+          {/* Empty state - Dropdown selector */}
+          {nodes.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-96">
+                <h2 className="text-xl font-bold text-white mb-4 text-center">Start Your Query</h2>
+                <div className="space-y-2">
                   {COLLECTION_OPTIONS.map(option => (
                     <button
                       key={option.key}
-                      onClick={() => handleStartQuery(option.key)}
-                      className="p-4 bg-dark-800 hover:bg-dark-700 border border-gray-700 hover:border-green-500/50 rounded-lg text-left transition-all group"
+                      onClick={() => handleAddFirstNode(option.key)}
+                      className="w-full p-3 bg-dark-800 hover:bg-dark-700 border border-gray-700 hover:border-green-500/50 rounded-lg text-left transition-all group flex items-center gap-3"
                     >
-                      <div className="flex items-start gap-3">
-                        <span className="text-2xl">{option.icon}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold text-white group-hover:text-green-400">
-                              {option.label}
-                            </h3>
-                            {option.badge && (
-                              <span className="px-1.5 py-0.5 bg-green-500/20 text-green-400 text-[9px] font-bold rounded">
-                                {option.badge}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-500">{option.description}</p>
+                      <span className="text-2xl">{option.icon}</span>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-white group-hover:text-green-400">
+                            {option.label}
+                          </span>
+                          {option.badge && (
+                            <span className="px-1.5 py-0.5 bg-green-500/20 text-green-400 text-[9px] font-bold rounded">
+                              {option.badge}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </button>
                   ))}
                 </div>
-
-                <button
-                  onClick={() => setShowStartPicker(false)}
-                  className="mt-6 w-full py-2 text-gray-400 hover:text-white transition-colors"
-                >
-                  Cancel
-                </button>
               </div>
-            </motion.div>
+            </div>
           )}
 
           {/* Graph SVG */}
@@ -357,8 +265,6 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                     <feMergeNode in="SourceGraphic"/>
                   </feMerge>
                 </filter>
-
-                {/* Arrow markers for different edge types */}
                 <marker id="arrow-outbound" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
                   <path d="M0,0 L0,6 L9,3 z" fill="#10b981" />
                 </marker>
@@ -377,39 +283,36 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                 const color = isOutbound ? '#10b981' : '#3b82f6'
                 const marker = isOutbound ? 'url(#arrow-outbound)' : 'url(#arrow-inbound)'
 
-                const fromX = fromNode.x + 35
-                const toX = toNode.x - 35
-                const midX = (fromX + toX) / 2
-                const midY = (fromNode.y + toNode.y) / 2
+                const angle = Math.atan2(toNode.y - fromNode.y, toNode.x - fromNode.x)
+                const fromX = fromNode.x + 40 * Math.cos(angle)
+                const fromY = fromNode.y + 40 * Math.sin(angle)
+                const toX = toNode.x - 40 * Math.cos(angle)
+                const toY = toNode.y - 40 * Math.sin(angle)
 
-                // Use curved path for cross-layer connections
-                const isCrossConnection = Math.abs(fromNode.layer - toNode.layer) > 1 ||
-                                        fromNode.layer === toNode.layer
+                const midX = (fromX + toX) / 2
+                const midY = (fromY + toY) / 2
 
                 return (
                   <motion.g key={edge.id}>
-                    <motion.path
-                      d={isCrossConnection
-                        ? `M ${fromX} ${fromNode.y} Q ${midX} ${midY - 50} ${toX} ${toNode.y}`
-                        : `M ${fromX} ${fromNode.y} Q ${midX} ${fromNode.y} ${toX} ${toNode.y}`
-                      }
+                    <motion.line
+                      x1={fromX}
+                      y1={fromY}
+                      x2={toX}
+                      y2={toY}
                       stroke={color}
                       strokeWidth="2"
-                      fill="none"
                       strokeOpacity="0.6"
                       markerEnd={marker}
                       initial={{ pathLength: 0 }}
                       animate={{ pathLength: 1 }}
                       transition={{ duration: 0.5 }}
                     />
-
-                    {/* Edge label */}
                     <text
                       x={midX}
-                      y={isCrossConnection ? midY - 55 : fromNode.y - 10}
+                      y={midY - 8}
                       textAnchor="middle"
                       fill={color}
-                      fontSize="9"
+                      fontSize="10"
                       fontWeight="600"
                       opacity="0.8"
                     >
@@ -438,7 +341,7 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                     <circle
                       cx={node.x}
                       cy={node.y}
-                      r={35}
+                      r={40}
                       fill="rgba(17, 24, 39, 0.95)"
                       stroke={color}
                       strokeWidth={isSelected ? 3 : 2}
@@ -454,25 +357,11 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                       textAnchor="middle"
                       dominantBaseline="middle"
                       fill={color}
-                      fontSize={11}
+                      fontSize={12}
                       fontWeight="600"
                       style={{ cursor: 'pointer', pointerEvents: 'none' }}
                     >
                       {node.label}
-                    </text>
-
-                    {/* Layer badge */}
-                    <circle cx={node.x - 26} cy={node.y - 26} r="9" fill="#374151" opacity="0.9" />
-                    <text
-                      x={node.x - 26}
-                      y={node.y - 22}
-                      textAnchor="middle"
-                      fill="white"
-                      fontSize="9"
-                      fontWeight="bold"
-                      style={{ pointerEvents: 'none' }}
-                    >
-                      {node.layer + 1}
                     </text>
 
                     {/* Expand button */}
@@ -482,20 +371,20 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                         setExpandingNode(isExpanding ? null : node.id)
                       }}>
                         <circle
-                          cx={node.x + 26}
-                          cy={node.y - 26}
-                          r="11"
+                          cx={node.x + 28}
+                          cy={node.y - 28}
+                          r="12"
                           fill={isExpanding ? '#10b981' : '#374151'}
                           stroke={isExpanding ? '#10b981' : '#6b7280'}
                           strokeWidth="2"
                           style={{ cursor: 'pointer' }}
                         />
                         <text
-                          x={node.x + 26}
-                          y={node.y - 21}
+                          x={node.x + 28}
+                          y={node.y - 22}
                           textAnchor="middle"
                           fill="white"
-                          fontSize="16"
+                          fontSize="18"
                           fontWeight="bold"
                           style={{ cursor: 'pointer', pointerEvents: 'none' }}
                         >
@@ -511,53 +400,47 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                         animate={{ opacity: 1, y: 0 }}
                       >
                         <rect
-                          x={node.x + 50}
-                          y={node.y - 40}
-                          width="200"
-                          height={Math.min(availableConnections.length * 30 + 20, 300)}
+                          x={node.x + 55}
+                          y={node.y - 50}
+                          width="220"
+                          height={Math.min(availableConnections.length * 32 + 20, 320)}
                           rx="6"
                           fill="rgba(31, 41, 55, 0.98)"
                           stroke="#10b981"
                           strokeWidth="2"
                         />
                         <text
-                          x={node.x + 60}
-                          y={node.y - 20}
+                          x={node.x + 65}
+                          y={node.y - 28}
                           fill="#9ca3af"
-                          fontSize="10"
+                          fontSize="11"
                           fontWeight="600"
                         >
                           Add Connection:
                         </text>
 
                         {availableConnections.slice(0, 8).map((conn, i) => {
-                          const connY = node.y + i * 30
+                          const connY = node.y - 8 + i * 32
 
                           return (
                             <g key={i}>
                               <rect
-                                x={node.x + 55}
+                                x={node.x + 60}
                                 y={connY}
-                                width="190"
-                                height="26"
+                                width="210"
+                                height="28"
                                 rx="4"
                                 fill="rgba(55, 65, 81, 0.5)"
                                 style={{ cursor: 'pointer' }}
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  handleAddConnection(
-                                    node.id,
-                                    conn.target,
-                                    conn.targetNodeId,
-                                    conn.edge,
-                                    conn.direction
-                                  )
+                                  handleConnectionClick(node.id, conn.target, conn.exists)
                                 }}
                                 className="hover:fill-[rgba(75,85,99,0.8)]"
                               />
                               <text
-                                x={node.x + 65}
-                                y={connY + 17}
+                                x={node.x + 70}
+                                y={connY + 18}
                                 fill="#e5e7eb"
                                 fontSize="11"
                                 fontWeight="500"
@@ -575,63 +458,58 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
               })}
 
               {/* Execute panel */}
-              {edges.length > 0 && (() => {
-                const maxX = Math.max(...nodes.map(n => n.x))
-                const avgY = nodes.reduce((sum, n) => sum + n.y, 0) / nodes.length
+              {edges.length > 0 && (
+                <motion.g
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <rect
+                    x={50}
+                    y={50}
+                    width="180"
+                    height="140"
+                    rx="8"
+                    fill="rgba(34, 197, 94, 0.1)"
+                    stroke="#10b981"
+                    strokeWidth="2"
+                  />
+                  <text x={140} y={85} textAnchor="middle" fill="#10b981" fontSize="14" fontWeight="bold">
+                    Query Summary
+                  </text>
+                  <text x={140} y={108} textAnchor="middle" fill="#9ca3af" fontSize="11">
+                    {nodes.length} collections
+                  </text>
+                  <text x={140} y={128} textAnchor="middle" fill="#9ca3af" fontSize="11">
+                    {edges.length} connections
+                  </text>
 
-                return (
-                  <motion.g
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.3 }}
+                  <rect
+                    x={70}
+                    y={145}
+                    width="140"
+                    height="35"
+                    rx="6"
+                    fill="#10b981"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => {
+                      const aql = generateAQL()
+                      onQueryChange(aql, `Journey: ${nodes.map(n => n.label).join(' → ')}`)
+                    }}
+                  />
+                  <text
+                    x={140}
+                    y={167}
+                    textAnchor="middle"
+                    fill="white"
+                    fontSize="12"
+                    fontWeight="bold"
+                    style={{ cursor: 'pointer', pointerEvents: 'none' }}
                   >
-                    <rect
-                      x={maxX + 80}
-                      y={avgY - 70}
-                      width="160"
-                      height="140"
-                      rx="8"
-                      fill="rgba(34, 197, 94, 0.1)"
-                      stroke="#10b981"
-                      strokeWidth="2"
-                    />
-                    <text x={maxX + 160} y={avgY - 40} textAnchor="middle" fill="#10b981" fontSize="13" fontWeight="bold">
-                      Query Summary
-                    </text>
-                    <text x={maxX + 160} y={avgY - 18} textAnchor="middle" fill="#9ca3af" fontSize="11">
-                      {nodes.length} collections
-                    </text>
-                    <text x={maxX + 160} y={avgY} textAnchor="middle" fill="#9ca3af" fontSize="11">
-                      {edges.length} connections
-                    </text>
-
-                    <rect
-                      x={maxX + 100}
-                      y={avgY + 25}
-                      width="120"
-                      height="35"
-                      rx="6"
-                      fill="#10b981"
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        const aql = generateAQL()
-                        onQueryChange(aql, `Journey: ${nodes.map(n => n.label).join(' → ')}`)
-                      }}
-                    />
-                    <text
-                      x={maxX + 160}
-                      y={avgY + 48}
-                      textAnchor="middle"
-                      fill="white"
-                      fontSize="12"
-                      fontWeight="bold"
-                      style={{ cursor: 'pointer', pointerEvents: 'none' }}
-                    >
-                      Execute Query
-                    </text>
-                  </motion.g>
-                )
-              })()}
+                    Execute Query
+                  </text>
+                </motion.g>
+              )}
             </svg>
           )}
 
@@ -643,7 +521,7 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
               className="absolute bottom-6 left-1/2 transform -translate-x-1/2 px-6 py-3 bg-green-500/10 border border-green-500/30 rounded-lg"
             >
               <p className="text-green-400 text-sm">
-                Click the <span className="font-bold">+</span> button to add connections
+                Click <span className="font-bold">+</span> to add connections
               </p>
             </motion.div>
           )}
@@ -753,7 +631,7 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
 
                   <div className="pt-4 border-t border-gray-700">
                     <p className="text-xs text-gray-500">
-                      Layer {node.layer + 1} • {nodeFields.length} of {schema.keyFields.length} fields selected
+                      {nodeFields.length} of {schema.keyFields.length} fields selected
                     </p>
                   </div>
                 </div>
