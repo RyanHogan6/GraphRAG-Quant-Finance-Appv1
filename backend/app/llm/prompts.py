@@ -30,15 +30,22 @@ CRITICAL_AQL_RULES = """
    ❌ DATE_SUB() - Does not exist in AQL!
 
    ⚠️ CRITICAL DATE FILTERING RULE:
-   When user says "this year", "recent", "latest", or doesn't specify a date:
-   ✅ ALWAYS filter by recent dates (last 365 days): FILTER doc.date >= DATE_SUBTRACT(DATE_NOW(), 365, "day")
+   When user says "show me", "recent", "latest" WITHOUT specifying a date range:
+   ✅ BEST: Use SORT date DESC + LIMIT (no date filter) to get most recent data
+   ✅ NEVER use hardcoded years like "2025-01-01" or "2026-01-01"
+   ✅ Example: "Show me XOM stock prices" → SORT marketdata.date DESC LIMIT 100
+
+   When user says "this year" or "last X days/months":
+   ✅ Use DATE_SUBTRACT: FILTER doc.date >= DATE_SUBTRACT(DATE_NOW(), 365, "day")
    ✅ For SEC filings: FILTER doc.filing_date >= DATE_SUBTRACT(DATE_NOW(), 365, "day")
    ✅ For Awards: FILTER doc.start_date >= DATE_SUBTRACT(DATE_NOW(), 365, "day")
-   ✅ For MarketData: FILTER doc.date >= DATE_SUBTRACT(DATE_NOW(), 365, "day")
    ❌ NEVER return data from 2023 or older years when user says "this year" or "recent"
 
    Example: "What are the most negative SEC filings this year?"
    → FILTER filing.filing_date >= DATE_SUBTRACT(DATE_NOW(), 365, "day")
+
+   Example: "Show me crude oil prices"
+   → SORT futures.date DESC LIMIT 100 (NO date filter!)
 
    ⚠️ CRITICAL PREDICTION MARKET FILTERING RULE:
    When querying prediction_markets_polymarket or prediction_markets_kalshi:
@@ -1651,8 +1658,12 @@ FOR ticker IN ["AAPL", "MSFT", "GOOGL"]
     percent_change: ROUND(((last.close - first.open) / first.open) * 100 * 100) / 100,
     avg_daily_volume: ROUND(AVG(data[*].volume))
   }
-Bind Variables: {"start_date": "2025-01-01", "end_date": "2026-01-01"}
+Bind Variables: {"start_date": "2026-01-01", "end_date": "2026-02-01"}
 Requires Embedding: false
+
+⚠️ CRITICAL: Example dates shown above are for illustration only!
+⚠️ When user doesn't specify dates, calculate them dynamically or use SORT DESC + LIMIT
+⚠️ NEVER hardcode "2025-01-01" - always use current year dates
 
 💡 This pattern returns 3 separate rows (one per ticker) for easy comparison
 💡 Each ticker gets its own summary statistics
