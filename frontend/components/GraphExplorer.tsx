@@ -407,9 +407,14 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
       const fromIdx = realNodes.findIndex(n => n.id === edge.from)
 
       query += `  FOR v${idx + 1} IN ${direction} v${fromIdx} ${edgeLabel}\n`
+
+      // Add intermediate limit for deep traversals to prevent cartesian explosion
+      if (idx < edges.length - 1 && edges.length >= 2) {
+        query += `  LIMIT 50\n`
+      }
     })
 
-    // Add limit
+    // Add final limit
     query += `  LIMIT 100\n`
 
     // Build RETURN clause with all nodes and their selected fields
@@ -816,6 +821,45 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
             <div>{nodes.filter(n => n.collectionKey).length} collections</div>
             <div>{edges.length} connections</div>
           </div>
+
+          {/* Active Filters Indicator */}
+          {selectedTickers.length > 0 && (
+            <div className="p-2 bg-blue-900/30 border border-blue-500/30 rounded">
+              <div className="text-xs text-blue-300 flex items-center gap-2">
+                <span>📍 Filter:</span>
+                <div className="flex flex-wrap gap-1">
+                  {selectedTickers.map(ticker => (
+                    <span key={ticker} className="px-1.5 py-0.5 bg-blue-500/20 rounded text-[10px] font-mono">
+                      {ticker}
+                    </span>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setSelectedTickers([])}
+                  className="ml-auto text-gray-400 hover:text-white text-xs"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Query Complexity Warning */}
+          {edges.length >= 3 && selectedTickers.length === 0 && nodes.some(n => n.collectionKey === 'company') && (
+            <div className="p-2 bg-yellow-900/30 border border-yellow-500/30 rounded">
+              <div className="text-xs text-yellow-300 flex items-start gap-2">
+                <span>⚠️</span>
+                <div>
+                  <div className="font-semibold mb-1">Complex Query</div>
+                  <div className="text-yellow-400/80 text-[10px]">
+                    {edges.length} connections without ticker filter may timeout.
+                    Click Company node to add filter.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {nodes.filter(n => n.collectionKey).length > 0 && (
             <button
               onClick={handleExecuteQuery}
@@ -1006,7 +1050,8 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                 <button
                   onClick={() => {
                     setShowTickerSelector(false)
-                    // TODO: Apply ticker filter to AQL query
+                    // Auto-execute query with filter applied
+                    handleExecuteQuery()
                   }}
                   className="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 rounded text-white transition-colors"
                 >
