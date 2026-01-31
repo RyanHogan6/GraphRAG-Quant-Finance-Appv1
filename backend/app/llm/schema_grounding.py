@@ -178,6 +178,14 @@ def get_collection_schema_focused(collection_name: str) -> Dict[str, Any]:
             if key.startswith('_'):
                 continue  # Skip internal fields
 
+            # Skip embedding fields - they're massive arrays (1536 floats)
+            if 'embedding' in key.lower():
+                fields[key] = {
+                    'type': 'array[1536]',
+                    'sample_value': '[semantic embedding - use COSINE_SIMILARITY]'
+                }
+                continue
+
             fields[key] = {
                 'type': type(value).__name__,
                 'sample_value': value if not isinstance(value, (list, dict)) else str(type(value).__name__)
@@ -287,211 +295,77 @@ def get_collection_specific_rules(collections: List[str]) -> str:
     """
     Get collection-specific query rules.
     Replaces generic rules with targeted guidance.
+    **CRITICAL: Keep rules concise to avoid token limits!**
     """
     rules = []
 
+    # CRITICAL: Limit to 3 most important rules to keep token count down
+    collections = collections[:3]
+
     if 'options_flow' in collections:
         rules.append("""
-**OPTIONS FLOW COLLECTION RULES:**
-- Use options_flow collection, NOT MarketData for options queries
-- Field: unusual_call_activity (1 = unusual, 0 = normal)
-- Field: potential_call_sweep (1 = sweep detected)
-- Field: put_call_volume_ratio (numeric)
-- Field: iv_avg (implied volatility average)
+**OPTIONS RULES:**
+- Fields: unusual_call_activity, potential_call_sweep, put_call_volume_ratio, iv_avg
 """)
 
     if 'futures_prices' in collections:
         rules.append("""
-**FUTURES PRICES COLLECTION RULES:**
-- CRITICAL: commodity field MUST be UPPERCASE with underscores
-- Examples: 'CRUDE_OIL', 'NATURAL_GAS', 'GOLD', 'SILVER', 'COPPER'
-- WRONG: 'crude oil', 'natural gas' (lowercase will return 0 results)
-- Use indexed field 'commodity' + 'date' for best performance
-
-Available technical indicators:
-- Price: open, high, low, close, volume
-- Moving averages: sma_5, sma_10, sma_20, sma_50, sma_200
-- Distance from MAs: dist_from_sma20, dist_from_sma50
-- MACD: macd, macd_signal, macd_histogram
-- 52-week: high_52w, low_52w, at_52w_high, at_52w_low, pct_off_high, pct_off_low
-- Volatility: daily_range_pct
-- Indicators: above_sma20, above_sma50, above_sma200 (boolean 0/1)
-
-⚠️ NOT available: rsi, rsi_14, stochastic, atr (use MACD/SMA distance instead)
+**FUTURES RULES:**
+- commodity must be UPPERCASE: 'CRUDE_OIL', 'NATURAL_GAS', 'GOLD'
+- Available: sma_20, macd, high_52w (NO rsi available)
 """)
 
     if any('eia_' in c for c in collections):
         rules.append("""
-**EIA COLLECTIONS RULES:**
-- Use eia_crude_inventory, eia_natgas_storage, eia_natgas_production (NOT MarketData!)
-- NEVER use MarketData with ticker='NATGAS' or ticker='CRUDE' (these don't exist)
-- CRITICAL: Hyphenated field names MUST use backticks in AQL!
-  - CORRECT: doc.`product-name`, doc.`area-name`, doc.`series-description`
-  - WRONG: doc.product-name (AQL interprets as subtraction: doc.product - name)
-- Field: report_date (for date filtering, no backticks needed)
-- Data frequency: WEEKLY (reported Wednesdays) - expect nulls on other days
-
-⚠️ CRITICAL: EIA has MULTIPLE records per date (different products/regions/processes)!
-When joining with futures_prices, you MUST filter to specific series:
-
-✅ CORRECT pattern for crude oil + inventory (use this!):
-FOR price IN futures_prices
-  FILTER price.commodity == "CRUDE_OIL"
-  FILTER price.date >= DATE_SUBTRACT(DATE_NOW(), 90, "day")
-  SORT price.date DESC
-
-  LET total_stocks = FIRST(
-    FOR inv IN eia_crude_inventory
-      FILTER inv.report_date == price.date
-        AND CONTAINS(inv.`series-description`, "U.S. Ending Stocks of Crude Oil")
-        AND inv.`product-name` == "Crude Oil"
-      LIMIT 1
-      RETURN {
-        value: inv.value,
-        change: inv.change_from_previous,
-        pct_change: inv.pct_change
-      }
-  )
-
-  RETURN {
-    date: price.date,
-    crude_price: price.close,
-    macd: price.macd,
-    dist_from_sma20: price.dist_from_sma20,
-    total_stocks: total_stocks.value,
-    weekly_change: total_stocks.change,
-    inventory_signal: total_stocks.change > 0 ? "Build" : "Draw"
-  }
-
-❌ WRONG pattern (creates cartesian product with 10+ rows per date):
-  FOR inventory IN eia_crude_inventory
-    FILTER inventory.report_date == price.date  // Matches ethanol, gasoline, regional data!
-
-Key series filters:
-- U.S. Crude Stocks: CONTAINS(`series-description`, "U.S. Ending Stocks of Crude Oil") AND `product-name` == "Crude Oil"
-- Natural Gas Storage: CONTAINS(`series-description`, "Lower 48 States Natural Gas Working")
-
-Available fields in eia_crude_inventory:
-- value: Stock level (thousands of barrels)
-- change_from_previous: Weekly change (positive = build, negative = draw)
-- pct_change: Percent change from previous week
-- report_date: Date of report
-
-⚠️ Data NOT available: Cushing storage, refinery utilization (not in collection)
+**EIA RULES:**
+- Hyphenated fields need backticks: doc.`product-name`, doc.`series-description`
+- Filter to specific series (e.g., "U.S. Ending Stocks of Crude Oil")
+- Use FIRST() + LIMIT 1 to avoid duplicate rows per date
 """)
 
     if 'Award' in collections:
         rules.append("""
-**AWARD COLLECTION RULES:**
-- Use CONTAINS(LOWER(doc.recipient_name), 'keyword') for company search
-- NEVER use exact match == on recipient_name (names have variations)
-- Use award_amount_float (NOT award_amount) for math operations
-- Indexed fields: ticker, start_date, award_amount_float
+**AWARD RULES:**
+- Use award_amount_float for math (NOT award_amount)
+- Use CONTAINS(LOWER(doc.recipient_name), 'keyword') not exact match
 """)
 
     if 'sec_filings' in collections:
         rules.append("""
-**SEC FILINGS COLLECTION RULES:**
-- 12 form types available: "10-K", "10-Q", "8-K", "4", "5", "SC 13D", "SC 13G", "13F-HR", "6-K", "S-1", "DEF 14A", "424B4"
-- INSIDER TRADING SIGNALS:
-  - Form 4/5 have `trades` array with buy/sell data
-  - Check: doc.trades[? ANY.code == "P"] for insider BUYING (bullish)
-  - Check: doc.trades[? ANY.code == "S"] for insider SELLING (bearish)
-  - Filter: doc.trades[? ANY.is_informed == true] to exclude tax withholding
-- SENTIMENT ANALYSIS:
-  - Use avg_finbert (-1 to +1) for overall filing sentiment
-  - Use avg_negative, avg_uncertainty for specific tone metrics
-- CRITICAL: sec_filings has NO text content - only metadata/sentiment
-  - For text search, use sec_sentences collection with CONTAINS()
-- Indexed fields: ticker, type, filing_date
+**SEC FILINGS RULES:**
+- Form 4/5 have `trades` array: code "P" = buying, "S" = selling
+- For sentiment, use sec_sentences (filings has NO sentiment)
+- Indexed: ticker, type, filing_date
 """)
 
     if 'sec_sentences' in collections:
         rules.append("""
-**SEC SENTENCES COLLECTION RULES:**
-- This is where actual SEC filing TEXT lives
-- Use CONTAINS(LOWER(doc.text), 'keyword') for text search
-- NO EMBEDDINGS: Cannot use semantic/vector search
-- Use finbert_score for sentiment filtering (< -0.3 for negative)
-- Available metrics: negative_per_1k, uncertainty_per_1k, litigious_per_1k
-- PERFORMANCE: Text search is SLOW on millions of sentences
-  - Always add ticker filter when possible (via JOIN to sec_filings)
-  - Always add date range filter when possible
-  - Keep results LIMIT low (10-20 max)
+**SEC SENTENCES RULES:**
+- Contains filing TEXT with finbert_score
+- Use CONTAINS(LOWER(doc.text), 'keyword')
+- NO embeddings - add ticker + date filters for performance
 """)
 
     if 'commodity_positions' in collections:
         rules.append("""
-**COMMODITY POSITIONS (CFTC) COLLECTION RULES:**
-- Use for CFTC Commitments of Traders data (weekly reports)
-- Field: Market_and_Exchange_Names contains commodity type
-- Use CONTAINS() for commodity matching (NOT exact ==)
-- Traverse from Company via HAS_COMMODITY_POSITION edge
-- Shows speculator vs commercial positioning
+**CFTC RULES:**
+- Field: Market_and_Exchange_Names (capital M!)
+- Use CONTAINS() for commodity matching
 """)
 
     if 'sec_xbrl_data' in collections:
         rules.append("""
-**SEC XBRL DATA COLLECTION RULES:**
-⚠️ CRITICAL PERFORMANCE: Query DIRECTLY from sec_xbrl_data (NOT via graph traversal)
-
-✅ FAST (use this):
-FOR xbrl IN sec_xbrl_data
-  FILTER xbrl.ticker == @ticker
-  FILTER xbrl.has_segment_data == true
-  SORT xbrl.filing_date DESC
-  LIMIT 5
-  RETURN xbrl
-
-❌ SLOW (60s timeout - do NOT use):
-FOR company IN Company
-  FOR filing IN OUTBOUND company HAS_FILING
-    FOR xbrl IN OUTBOUND filing has_xbrl_data  // 3-hop traversal = very slow!
-
-Why: sec_xbrl_data already has ticker field (indexed) - no need for graph traversal!
-
-Available fields:
-- ticker: Company ticker (indexed - use for filtering!)
-- filing_type: "10-K" or "10-Q" (only quarterly/annual filings have XBRL)
-- fiscal_year: Year of filing
-- has_segment_data: Boolean - true if revenue_segments exists
-- revenue_segments: Object with business segment breakdown (iPhone, Services, etc.)
-- revenue_geography: Object with geographic region breakdown (Americas, Europe, etc.)
-- debt: Object with debt details
-- costs: Object with cost breakdown
-- all_concepts: Array of all XBRL concepts found
-
-⚠️ NO embeddings - cannot use semantic search
-⚠️ Only 10-K and 10-Q have XBRL data (not 8-K, Form 4, etc.)
+**XBRL RULES:**
+- Query DIRECTLY: FOR xbrl IN sec_xbrl_data FILTER xbrl.ticker == @ticker
+- Don't use graph traversal (Company → filing → xbrl) - too slow
+- Fields: revenue_segments, debt, costs, cashflow
 """)
 
     if 'sec_exhibits' in collections:
         rules.append("""
-**SEC EXHIBITS COLLECTION RULES:**
-⚠️ CRITICAL PERFORMANCE: Query DIRECTLY from sec_exhibits (NOT via graph traversal)
-
-✅ FAST:
-FOR exhibit IN sec_exhibits
-  FILTER exhibit.ticker == @ticker
-  FILTER exhibit.is_material_contract == true
-  LIMIT 20
-  RETURN exhibit
-
-Available fields:
-- ticker: Company ticker (indexed)
-- exhibit_type: "EX-10.1", "EX-4.1", "EX-99.1" (10.x = material contracts)
-- contract_type: "credit_agreement", "employment", "merger", "lease"
-- is_material_contract: Boolean
-- description: Short description
-- text: Full exhibit text (can be 50k+ chars - use SUBSTRING to preview)
-- finbert_score: Sentiment of exhibit text
-
-Common queries:
-- Credit agreements: exhibit.contract_type == "credit_agreement"
-- CEO contracts: CONTAINS(LOWER(exhibit.description), "chief executive")
-- Material contracts: exhibit.is_material_contract == true
-
-⚠️ NO embeddings - cannot use semantic search
+**EXHIBITS RULES:**
+- Query directly: FOR exhibit IN sec_exhibits FILTER exhibit.ticker == @ticker
+- Filter: exhibit.contract_type, exhibit.is_material_contract
 """)
 
     return '\n'.join(rules)
