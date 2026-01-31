@@ -86,6 +86,11 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
   const [reportData, setReportData] = useState<any>(null)
   const [showReport, setShowReport] = useState(false)
 
+  // Company ticker selection
+  const [showTickerSelector, setShowTickerSelector] = useState(false)
+  const [selectedTickers, setSelectedTickers] = useState<string[]>([])
+  const [tickerInput, setTickerInput] = useState('')
+
   const svgRef = useRef<SVGSVGElement>(null)
 
   // Get node color
@@ -334,8 +339,17 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
     const rootSchema = GRAPH_SCHEMA[root.collectionKey!]
     const collection = rootSchema?.collection || root.collectionKey
 
-    return `FOR doc IN ${collection}\n  SORT doc.date DESC\n  LIMIT 100\n  RETURN doc`
-  }, [nodes])
+    let query = `FOR doc IN ${collection}\n`
+
+    // Add ticker filter if company node has selected tickers
+    if (root.collectionKey === 'company' && selectedTickers.length > 0) {
+      const tickerList = selectedTickers.map(t => `"${t}"`).join(', ')
+      query += `  FILTER doc.ticker IN [${tickerList}]\n`
+    }
+
+    query += `  SORT doc.date DESC\n  LIMIT 100\n  RETURN doc`
+    return query
+  }, [nodes, selectedTickers])
 
   // Handle ticker search
   const handleTickerSearch = useCallback(() => {
@@ -521,7 +535,13 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                       strokeWidth={isSelected ? 3 : 2}
                       filter={isSelected ? 'url(#glow)' : undefined}
                       style={{ cursor: node.isDragging ? 'grabbing' : 'grab' }}
-                      onClick={() => setSelectedNode(node.id)}
+                      onClick={() => {
+                        setSelectedNode(node.id)
+                        // Show ticker selector if clicking on company node
+                        if (node.collectionKey === 'company') {
+                          setShowTickerSelector(true)
+                        }
+                      }}
                       onMouseDown={(e) => handleMouseDown(node.id, e as any)}
                     />
 
@@ -766,43 +786,137 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                       })}
                     </div>
                   </div>
+
+                  {/* Node-specific controls */}
+                  <div className="mt-3 pt-3 border-t border-gray-700 space-y-2">
+                    {/* Ticker Search - only for company nodes */}
+                    {node.collectionKey === 'company' && (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={tickerSearch}
+                          onChange={(e) => setTickerSearch(e.target.value.toUpperCase())}
+                          onKeyDown={(e) => e.key === 'Enter' && handleTickerSearch()}
+                          placeholder="Filter ticker (e.g. AAPL)"
+                          className="flex-1 px-2 py-1 text-xs bg-dark-800 border border-gray-600 rounded text-white placeholder-gray-500 focus:border-gold/50 outline-none"
+                        />
+                        <button
+                          onClick={handleTickerSearch}
+                          className="px-2 py-1 text-xs bg-gold/20 hover:bg-gold/30 border border-gold/50 rounded text-gold transition-colors"
+                        >
+                          Go
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Show AQL */}
+                    {edges.length > 0 && (
+                      <button
+                        onClick={() => setShowAQL(!showAQL)}
+                        className="w-full px-3 py-1 text-xs bg-dark-700 hover:bg-dark-600 border border-gray-600 rounded text-white transition-colors"
+                      >
+                        {showAQL ? 'Hide' : 'Show'} AQL
+                      </button>
+                    )}
+                  </div>
                 </motion.div>
               )
             })()}
           </AnimatePresence>
-
-          {/* Controls at bottom right */}
-          <div className="mt-3 pt-3 border-t border-gray-700 space-y-2">
-            {/* Ticker Search */}
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={tickerSearch}
-                onChange={(e) => setTickerSearch(e.target.value.toUpperCase())}
-                onKeyDown={(e) => e.key === 'Enter' && handleTickerSearch()}
-                placeholder="Ticker (e.g. AAPL)"
-                className="flex-1 px-2 py-1 text-xs bg-dark-800 border border-gray-600 rounded text-white placeholder-gray-500 focus:border-gold/50 outline-none"
-              />
-              <button
-                onClick={handleTickerSearch}
-                className="px-2 py-1 text-xs bg-gold/20 hover:bg-gold/30 border border-gold/50 rounded text-gold transition-colors"
-              >
-                Go
-              </button>
-            </div>
-
-            {/* Show AQL */}
-            {edges.length > 0 && (
-              <button
-                onClick={() => setShowAQL(!showAQL)}
-                className="w-full px-3 py-1 text-xs bg-dark-700 hover:bg-dark-600 border border-gray-600 rounded text-white transition-colors"
-              >
-                {showAQL ? 'Hide' : 'Show'} AQL
-              </button>
-            )}
-          </div>
         </div>
       </div>
+
+      {/* Ticker Selector Modal */}
+      <AnimatePresence>
+        {showTickerSelector && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+            onClick={() => setShowTickerSelector(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-dark-800 rounded-lg border border-gold/30 w-full max-w-md p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold text-gold mb-4">Filter by Ticker</h3>
+
+              {/* Ticker Input */}
+              <div className="mb-4">
+                <label className="text-xs text-gray-400 mb-2 block">Enter ticker symbols (comma-separated)</label>
+                <input
+                  type="text"
+                  value={tickerInput}
+                  onChange={(e) => setTickerInput(e.target.value.toUpperCase())}
+                  placeholder="AAPL, MSFT, TSLA"
+                  className="w-full px-3 py-2 bg-dark-900 border border-gray-600 rounded text-white placeholder-gray-500 focus:border-gold/50 outline-none"
+                  autoFocus
+                />
+              </div>
+
+              {/* Selected Tickers */}
+              {selectedTickers.length > 0 && (
+                <div className="mb-4">
+                  <div className="text-xs text-gray-400 mb-2">Selected:</div>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedTickers.map(ticker => (
+                      <div
+                        key={ticker}
+                        className="px-2 py-1 bg-gold/20 border border-gold/50 rounded text-xs text-gold flex items-center gap-2"
+                      >
+                        {ticker}
+                        <button
+                          onClick={() => setSelectedTickers(prev => prev.filter(t => t !== ticker))}
+                          className="text-gold/70 hover:text-gold"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    const tickers = tickerInput.split(',').map(t => t.trim()).filter(Boolean)
+                    setSelectedTickers(prev => [...new Set([...prev, ...tickers])])
+                    setTickerInput('')
+                  }}
+                  className="flex-1 px-4 py-2 bg-gold/20 hover:bg-gold/30 border border-gold/50 rounded text-gold transition-colors"
+                >
+                  Add Tickers
+                </button>
+                <button
+                  onClick={() => {
+                    setShowTickerSelector(false)
+                    // TODO: Apply ticker filter to AQL query
+                  }}
+                  className="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 rounded text-white transition-colors"
+                >
+                  Apply Filter
+                </button>
+              </div>
+
+              <button
+                onClick={() => {
+                  setSelectedTickers([])
+                  setTickerInput('')
+                }}
+                className="w-full mt-2 text-xs text-gray-500 hover:text-gray-300"
+              >
+                Clear All
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Report Modal */}
       <AnimatePresence>
