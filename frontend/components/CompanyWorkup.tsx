@@ -24,16 +24,30 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
     const [selectedXbrlIndex, setSelectedXbrlIndex] = useState(0)
     const [selectedStatementTab, setSelectedStatementTab] = useState<'income' | 'balance' | 'cashflow'>('income')
 
-    // Extract nested data
+    // Extract nested data - handle both Company-centric and Filing-centric queries
     const company = data
+
+    // If query returned SEC filings (filing-centric), flatten the nested data
+    const isFiling = data.type || data.filing_date  // Detect if root is a filing
+
     const marketData = data.MarketData || []
-    const allSecFilings = data.sec_filings || []
-    const secExhibits = data.sec_exhibits || []
-    const secXbrlData = data.sec_xbrl_data || []
+    const allSecFilings = data.sec_filings || (isFiling ? [data] : [])
+    const secExhibits = data.sec_exhibits || (isFiling && data.sec_exhibits_data ? data.sec_exhibits_data : [])
+    const secXbrlData = data.sec_xbrl_data || (isFiling && data.sec_xbrl_data_data ? data.sec_xbrl_data_data : [])
+    const secSentences = data.sec_sentences || (isFiling && data.sec_sentences_data ? data.sec_sentences_data : [])
+    const secSections = data.sec_sections || (isFiling && data.sec_sections_data ? data.sec_sections_data : [])
     const polyMarkets = data.prediction_markets_polymarket || []
     const awards = data.Award || []
-    const optionsFlow = data.options_flow || []
+    const optionsFlow = data.options_flow || (isFiling && data.options_flow_data ? data.options_flow_data : [])
     const futuresPrices = data.futures_prices || []
+
+    console.log('[COMPANY WORKUP DEBUG] Data structure:', {
+        isFiling,
+        hasXbrl: secXbrlData.length,
+        hasSentences: secSentences.length,
+        hasExhibits: secExhibits.length,
+        hasSections: secSections.length
+    })
     const eiaData = {
         crude: data.eia_crude_inventory || [],
         natgasStorage: data.eia_natgas_storage || [],
@@ -1065,6 +1079,52 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                     )
                                 }
                             })()}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* SEC Sentences - Sentiment Analysis */}
+            {secSentences.length > 0 && (
+                <div className="mt-6">
+                    <div className="bg-dark-900/40 border border-indigo-500/10 rounded-xl p-4 shadow-xl backdrop-blur-sm">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-sm font-bold text-indigo-400 uppercase tracking-[0.2em] flex items-center gap-3">
+                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
+                                SEC Filing Sentiment Analysis
+                            </h3>
+                            <div className="text-xs text-gray-500">
+                                {secSentences.length} sentence{secSentences.length !== 1 ? 's' : ''} analyzed
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            {secSentences.slice(0, 10).map((sentence: any, i: number) => {
+                                const score = sentence.finbert_score || 0
+                                const sentiment = score > 0.2 ? 'Bullish' : score < -0.2 ? 'Bearish' : 'Neutral'
+                                const color = score > 0.2 ? 'text-green-400' : score < -0.2 ? 'text-red-400' : 'text-gray-400'
+                                const bgColor = score > 0.2 ? 'bg-green-500/10 border-green-500/20' : score < -0.2 ? 'bg-red-500/10 border-red-500/20' : 'bg-gray-500/10 border-gray-500/20'
+
+                                return (
+                                    <div key={i} className={`p-3 rounded-lg border ${bgColor} hover:bg-white/5 transition-all`}>
+                                        <div className="flex items-start gap-3">
+                                            <div className={`flex-shrink-0 px-2 py-1 rounded text-[10px] font-bold ${color}`}>
+                                                {sentiment}
+                                                <div className="text-[9px] opacity-70">{score.toFixed(3)}</div>
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-xs text-gray-300 leading-relaxed">
+                                                    {sentence.text}
+                                                </p>
+                                                {sentence.section_type && (
+                                                    <div className="mt-1 text-[9px] text-gray-500">
+                                                        Section: {sentence.section_type}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )
+                            })}
                         </div>
                     </div>
                 </div>
