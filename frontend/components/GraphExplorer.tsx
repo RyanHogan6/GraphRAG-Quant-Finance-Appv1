@@ -250,6 +250,16 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
     setDragOffset({ x: svgX - node.x, y: svgY - node.y })
   }, [nodes])
 
+  // Pan move
+  const handlePanMove = useCallback((e: React.MouseEvent) => {
+    if (isPanning) {
+      setPanOffset({
+        x: e.clientX - panStart.x,
+        y: e.clientY - panStart.y
+      })
+    }
+  }, [isPanning, panStart])
+
   // Mouse move - handle both panning and node dragging
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (isPanning) {
@@ -293,16 +303,6 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
       setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y })
     }
   }, [panOffset])
-
-  // Pan move
-  const handlePanMove = useCallback((e: React.MouseEvent) => {
-    if (isPanning) {
-      setPanOffset({
-        x: e.clientX - panStart.x,
-        y: e.clientY - panStart.y
-      })
-    }
-  }, [isPanning, panStart])
 
   // Zoom with scroll wheel
   const handleWheel = useCallback((e: React.WheelEvent) => {
