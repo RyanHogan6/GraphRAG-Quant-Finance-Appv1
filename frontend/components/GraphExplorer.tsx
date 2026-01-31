@@ -67,6 +67,12 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
     ))
     setExpandingNode(null)
     setSelectedNode(nodeId)
+
+    // Auto-select all fields for this node
+    setSelectedFields(prev => ({
+      ...prev,
+      [nodeId]: schema.keyFields
+    }))
   }, [])
 
   // Add new node from connection (auto-connects)
@@ -106,6 +112,12 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
       setEdges(prev => [...prev, newEdge])
       setExpandingNode(null)
       setSelectedNode(newNode.id)
+
+      // Auto-select all fields for this node
+      setSelectedFields(prev => ({
+        ...prev,
+        [newNode.id]: schema.keyFields
+      }))
     }
   }, [nodes])
 
@@ -382,34 +394,36 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                       {node.label}
                     </text>
 
-                    {/* Expand button */}
-                    <g
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setExpandingNode(isExpanding ? null : node.id)
-                      }}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <circle
-                        cx={node.x + 26}
-                        cy={node.y - 26}
-                        r={10}
-                        fill={isExpanding ? '#10b981' : '#374151'}
-                        stroke="#6b7280"
-                        strokeWidth="1.5"
-                      />
-                      <text
-                        x={node.x + 26}
-                        y={node.y - 21}
-                        fill="white"
-                        fontSize="16"
-                        fontWeight="bold"
-                        textAnchor="middle"
-                        style={{ pointerEvents: 'none' }}
+                    {/* Expand button - only show if node has connections or is uninitialized */}
+                    {(!node.collectionKey || connections.length > 0) && (
+                      <g
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setExpandingNode(isExpanding ? null : node.id)
+                        }}
+                        style={{ cursor: 'pointer' }}
                       >
-                        {isExpanding ? '−' : '+'}
-                      </text>
-                    </g>
+                        <circle
+                          cx={node.x + 26}
+                          cy={node.y - 26}
+                          r={10}
+                          fill={isExpanding ? '#10b981' : '#374151'}
+                          stroke="#6b7280"
+                          strokeWidth="1.5"
+                        />
+                        <text
+                          x={node.x + 26}
+                          y={node.y - 21}
+                          fill="white"
+                          fontSize="16"
+                          fontWeight="bold"
+                          textAnchor="middle"
+                          style={{ pointerEvents: 'none' }}
+                        >
+                          {isExpanding ? '−' : '+'}
+                        </text>
+                      </g>
+                    )}
 
                     {/* Connection menu */}
                     {isExpanding && (
