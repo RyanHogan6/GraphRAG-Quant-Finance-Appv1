@@ -162,7 +162,7 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
           edgeLabel: conn.edge
         }
       })
-      .filter(Boolean)
+      .filter((conn): conn is NonNullable<typeof conn> => conn !== null)
   }, [nodes, edges])
 
   // Handle connection click
