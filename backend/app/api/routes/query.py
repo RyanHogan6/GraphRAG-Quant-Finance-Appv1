@@ -768,14 +768,14 @@ async def execute_query_stream(request: Request, body: QueryRequest):
             if query_intent == 'db_only' and body.forced_plan_aql:
                 print(f"[ANALYSIS] Using concise builder-mode analysis")
                 analysis = f"I've executed your manual query. Found {len(results)} records matching your criteria. You can explore the structured results in the table below."
-            elif results and web_context_data.get('summary'):
+            elif query_intent == 'hybrid' and results and web_context_data.get('summary'):
                 print(f"[ANALYSIS] Using hybrid synthesis (DB + Web)")
                 analysis = synthesize_hybrid_response(
                     question=body.question,
                     db_results={'data': results, 'count': len(results)},
                     web_context=web_context_data
                 )
-            elif web_context_data.get('summary'):
+            elif query_intent == 'web_only' and web_context_data.get('summary'):
                 print(f"[ANALYSIS] Using web-only summary")
                 analysis = web_context_data['summary']
             elif results:

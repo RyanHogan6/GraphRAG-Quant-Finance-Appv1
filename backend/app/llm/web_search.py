@@ -231,7 +231,9 @@ def synthesize_hybrid_response(question: str, db_results: dict, web_context: dic
     if db_results.get('data') and len(db_results['data']) > 0:
         results_sample = db_results['data'][:10]  # Top 10 for table
         db_summary += f"Found {db_results.get('count', len(db_results['data']))} records\n\n"
-        db_summary += f"Sample data:\n```json\n{json.dumps(results_sample, indent=2)}\n```"
+        # Truncate to 5000 chars max (no indent to save tokens)
+        json_str = json.dumps(results_sample)[:5000]
+        db_summary += f"Sample data:\n```json\n{json_str}...\n```"
     else:
         db_summary += "No relevant data found in database"
 
