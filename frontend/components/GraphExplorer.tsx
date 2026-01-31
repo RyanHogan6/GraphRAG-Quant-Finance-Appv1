@@ -257,7 +257,7 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
     } else if (draggedNode && svgRef.current) {
       const svgRect = svgRef.current.getBoundingClientRect()
       const svgX = (e.clientX - svgRect.left) * (1000 / svgRect.width)
-      const svgY = (e.clientY - svgRect.top) * (500 / svgRef.height)
+      const svgY = (e.clientY - svgRect.top) * (500 / svgRect.height)
 
       // Constrain to boundaries (with padding for node radius)
       const padding = 40
