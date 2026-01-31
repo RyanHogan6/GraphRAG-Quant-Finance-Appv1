@@ -32,6 +32,7 @@ const COLLECTION_OPTIONS = [
   { key: 'futures', label: 'Commodities', icon: '🛢️', color: '#f59e0b' },
   { key: 'awards', label: 'Gov Contracts', icon: '🎖️', color: '#fbbf24' },
   { key: 'sec', label: 'SEC Filings', icon: '📄', color: '#3b82f6' },
+  { key: 'sec_xbrl_data', label: 'Financial Statements', icon: '💰', color: '#22c55e' },
   { key: 'predictionmarkets', label: 'Polymarket', icon: '🎲', color: '#ec4899' },
 ]
 

@@ -107,7 +107,7 @@ export const GRAPH_SCHEMA: Record<string, SchemaNode> = {
         keyFields: [
             "accession", "avg_finbert", "avg_negative", "avg_positive", "avg_uncertainty", "file_name",
             "filing_date", "fiscal_year", "sentence_count", "ticker", "type",
-            "trades (Form 4/5 only: array of {code, shares, price, post_shares, is_informed})"
+            "trades"  // Form 4/5 only: array of {code, shares, price, post_shares, is_informed}
         ],
         connections: [
             { target: 'sec_sections', edge: 'has_section', direction: 'OUTBOUND', type: 'direct' },

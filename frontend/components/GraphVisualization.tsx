@@ -68,7 +68,7 @@ const collectionData = {
     name: 'SEC Filings',
     count: '7.5K+',
     description: '12 form types: 10-K, 10-Q, 8-K, Form 4/5, SC 13D/G, 13F, S-1, 6-K, DEF 14A, 424B4',
-    keyFields: ['ticker', 'type', 'filing_date', 'avg_finbert', 'trades (Form 4/5)'],
+    keyFields: ['ticker', 'type', 'filing_date', 'avg_finbert', 'trades'],
     edges: ['HAS_FILING (FROM Company)', 'has_section → sec_sections', 'OPTIONS_BEFORE_FILING (FROM options_flow)'],
     exampleQuery: 'FOR f IN sec_filings FILTER f.ticker == "TSLA" AND f.avg_finbert < -0.5 RETURN f',
     sampleData: {
