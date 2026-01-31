@@ -35,6 +35,33 @@ const COLLECTION_OPTIONS = [
   { key: 'predictionmarkets', label: 'Polymarket', icon: '🎲', color: '#ec4899' },
 ]
 
+// Edge descriptions for tooltips
+const EDGE_DESCRIPTIONS: Record<string, string> = {
+  'HAS_MARKETDATA': 'Links company to daily stock prices, volume, and 40+ technical indicators',
+  'HAS_AWARD': 'Connects company to federal contract awards they received',
+  'HAS_FILING': 'Links company to their SEC filings (10-K, 10-Q, 8-K, Form 4, etc.)',
+  'COMPANY_HAS_OPTIONS': 'Connects company to daily options flow data for insider trading detection',
+  'COMPANY_TRADES_COMMODITY': 'Links company to commodity futures they produce/trade (energy, metals, agriculture)',
+  'HAS_COMMODITY_POSITION': 'CFTC positioning data showing who holds futures positions',
+  'market_mentions_company_polymarket': 'Prediction market explicitly mentions this company',
+  'market_mentions_company_kalshi': 'Kalshi market explicitly mentions this company',
+  'market_related_to_sector_polymarket': 'Prediction market related to company sector/industry',
+  'market_related_to_sector_kalshi': 'Kalshi market related to company sector/industry',
+  'HAS_OPTIONS_ACTIVITY': 'Links stock price data to same-day options activity',
+  'OPTIONS_BEFORE_AWARD': 'Unusual options activity detected before contract announcement',
+  'OPTIONS_BEFORE_FILING': 'Unusual options activity detected before SEC filing',
+  'POSITION_ON_COMMODITY': 'CFTC position data linked to commodity futures prices',
+  'INVENTORY_AFFECTS_PRICE': 'EIA crude oil inventory levels correlated with futures prices',
+  'STORAGE_AFFECTS_PRICE': 'EIA natural gas storage levels correlated with futures prices',
+  'MACRO_IMPACTS_COMMODITY': 'FRED economic indicators affecting commodity prices',
+  'has_section': 'Filing contains multiple sections (Risk Factors, MD&A, etc.)',
+  'has_sentence': 'Section broken into sentences with FinBERT sentiment scores',
+  'has_exhibit': 'Filing includes exhibits (contracts, financial statements)',
+  'has_xbrl_data': 'Filing has XBRL structured financial data',
+  'trader_has_position': 'Whale/trader holds position in prediction market',
+  'position_in_market': 'Position links to specific market',
+}
+
 export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
   const [nodes, setNodes] = useState<GraphNode[]>([
     { id: 'starter', collectionKey: null, label: 'Start', x: 500, y: 250 }
@@ -46,6 +73,14 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
   const [showAQL, setShowAQL] = useState(false)
   const [draggedNode, setDraggedNode] = useState<string | null>(null)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const [tickerSearch, setTickerSearch] = useState('')
+
+  // Pan and zoom state
+  const [isPanning, setIsPanning] = useState(false)
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 })
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+
   const svgRef = useRef<SVGSVGElement>(null)
 
   // Get node color
@@ -215,25 +250,27 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
     setDragOffset({ x: svgX - node.x, y: svgY - node.y })
   }, [nodes])
 
-  // Mouse move - drag node (with boundary constraints)
+  // Mouse move - handle both panning and node dragging
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!draggedNode || !svgRef.current) return
+    if (isPanning) {
+      handlePanMove(e)
+    } else if (draggedNode && svgRef.current) {
+      const svgRect = svgRef.current.getBoundingClientRect()
+      const svgX = (e.clientX - svgRect.left) * (1000 / svgRect.width)
+      const svgY = (e.clientY - svgRect.top) * (500 / svgRef.height)
 
-    const svgRect = svgRef.current.getBoundingClientRect()
-    const svgX = (e.clientX - svgRect.left) * (1000 / svgRect.width)
-    const svgY = (e.clientY - svgRect.top) * (500 / svgRect.height)
+      // Constrain to boundaries (with padding for node radius)
+      const padding = 40
+      const constrainedX = Math.max(padding, Math.min(1000 - padding, svgX - dragOffset.x))
+      const constrainedY = Math.max(padding, Math.min(500 - padding, svgY - dragOffset.y))
 
-    // Constrain to boundaries (with padding for node radius)
-    const padding = 40
-    const constrainedX = Math.max(padding, Math.min(1000 - padding, svgX - dragOffset.x))
-    const constrainedY = Math.max(padding, Math.min(500 - padding, svgY - dragOffset.y))
-
-    setNodes(prev => prev.map(n =>
-      n.id === draggedNode
-        ? { ...n, x: constrainedX, y: constrainedY, isDragging: true }
-        : n
-    ))
-  }, [draggedNode, dragOffset])
+      setNodes(prev => prev.map(n =>
+        n.id === draggedNode
+          ? { ...n, x: constrainedX, y: constrainedY, isDragging: true }
+          : n
+      ))
+    }
+  }, [draggedNode, dragOffset, isPanning, handlePanMove])
 
   // Mouse up - stop drag
   const handleMouseUp = useCallback(() => {
@@ -243,7 +280,36 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
       ))
       setDraggedNode(null)
     }
-  }, [draggedNode])
+    if (isPanning) {
+      setIsPanning(false)
+    }
+  }, [draggedNode, isPanning])
+
+  // Pan start - middle mouse button
+  const handlePanStart = useCallback((e: React.MouseEvent) => {
+    if (e.button === 1) { // Middle mouse button
+      e.preventDefault()
+      setIsPanning(true)
+      setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y })
+    }
+  }, [panOffset])
+
+  // Pan move
+  const handlePanMove = useCallback((e: React.MouseEvent) => {
+    if (isPanning) {
+      setPanOffset({
+        x: e.clientX - panStart.x,
+        y: e.clientY - panStart.y
+      })
+    }
+  }, [isPanning, panStart])
+
+  // Zoom with scroll wheel
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault()
+    const delta = e.deltaY > 0 ? 0.9 : 1.1
+    setZoom(prev => Math.max(0.1, Math.min(3, prev * delta)))
+  }, [])
 
   // Generate English description
   const englishDescription = useMemo(() => {
@@ -266,17 +332,51 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
     return `FOR doc IN ${collection}\n  SORT doc.date DESC\n  LIMIT 100\n  RETURN doc`
   }, [nodes])
 
+  // Handle ticker search
+  const handleTickerSearch = useCallback(() => {
+    if (!tickerSearch.trim()) return
+
+    const starterNode = nodes.find(n => n.collectionKey === null)
+    if (starterNode) {
+      handleInitializeNode(starterNode.id, 'company')
+      // Store ticker for AQL generation
+      setSelectedFields(prev => ({
+        ...prev,
+        '__ticker__': [tickerSearch.trim().toUpperCase()]
+      }))
+    }
+  }, [tickerSearch, nodes, handleInitializeNode])
+
   return (
     <div className="bg-dark-900/50 p-4 rounded-lg border border-gold/10 space-y-3 h-full flex flex-col">
-      {/* Header with description and AQL toggle */}
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-gray-300">
+      {/* Header with ticker search, description and AQL toggle */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-sm text-gray-300 flex-shrink">
           {englishDescription}
         </div>
+
+        {/* Ticker Search */}
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={tickerSearch}
+            onChange={(e) => setTickerSearch(e.target.value.toUpperCase())}
+            onKeyDown={(e) => e.key === 'Enter' && handleTickerSearch()}
+            placeholder="Ticker (e.g. AAPL)"
+            className="px-2 py-1 text-xs bg-dark-800 border border-gray-600 rounded text-white placeholder-gray-500 focus:border-gold/50 outline-none w-28"
+          />
+          <button
+            onClick={handleTickerSearch}
+            className="px-2 py-1 text-xs bg-gold/20 hover:bg-gold/30 border border-gold/50 rounded text-gold transition-colors"
+          >
+            Go
+          </button>
+        </div>
+
         {edges.length > 0 && (
           <button
             onClick={() => setShowAQL(!showAQL)}
-            className="px-3 py-1 text-xs bg-dark-700 hover:bg-dark-600 border border-gray-600 rounded text-white transition-colors"
+            className="px-3 py-1 text-xs bg-dark-700 hover:bg-dark-600 border border-gray-600 rounded text-white transition-colors flex-shrink-0"
           >
             {showAQL ? 'Hide' : 'Show'} AQL
           </button>
@@ -292,15 +392,20 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
 
       {/* Graph canvas - 80% height */}
       <div className="flex-1 bg-dark-800/30 rounded-lg border border-green-500/10 relative overflow-hidden">
+        {/* Checkered grid background */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
         <svg
           ref={svgRef}
-          className="w-full h-full"
+          className="w-full h-full relative z-10"
           viewBox="0 0 1000 500"
+          onMouseDown={handlePanStart}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
+          onWheel={handleWheel}
+          style={{ cursor: isPanning ? 'grabbing' : 'default' }}
         >
-              <defs>
+          <defs>
                 <filter id="glow">
                   <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
                   <feMerge>
@@ -316,8 +421,10 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                 </marker>
               </defs>
 
-              {/* Edges */}
-              {edges.map(edge => {
+              {/* Pan/Zoom transform group */}
+              <g transform={`translate(${panOffset.x},${panOffset.y}) scale(${zoom})`}>
+                {/* Edges */}
+                {edges.map(edge => {
                 const from = nodes.find(n => n.id === edge.from)
                 const to = nodes.find(n => n.id === edge.to)
                 if (!from || !to) return null
@@ -331,8 +438,11 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                 const toX = to.x - 35 * Math.cos(angle)
                 const toY = to.y - 35 * Math.sin(angle)
 
+                const tooltip = EDGE_DESCRIPTIONS[edge.label] || `${edge.direction} edge via ${edge.label}`
+
                 return (
-                  <g key={edge.id}>
+                  <g key={edge.id} style={{ cursor: 'help' }}>
+                    <title>{tooltip}</title>
                     <line
                       x1={fromX}
                       y1={fromY}
@@ -528,6 +638,7 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                   </g>
                 )
               })}
+              </g>
             </svg>
       </div>
 
