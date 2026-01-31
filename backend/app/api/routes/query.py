@@ -569,6 +569,40 @@ def execute_query(request: Request, body: QueryRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class ExecuteAQLRequest(BaseModel):
+    aql_query: str
+    bind_vars: Optional[Dict] = {}
+
+
+@router.post("/execute-aql")
+@limiter.limit("30/minute")
+def execute_aql_direct(request: Request, body: ExecuteAQLRequest):
+    """
+    Execute raw AQL query directly (for GraphExplorer)
+    Simple endpoint that just runs the query and returns results
+    """
+    start_time = time.time()
+
+    try:
+        # Execute query
+        results, error = execute_aql(body.aql_query, body.bind_vars or {})
+
+        if error:
+            raise HTTPException(status_code=400, detail=f"Query execution failed: {error}")
+
+        execution_time = time.time() - start_time
+
+        return {
+            "results": results or [],
+            "count": len(results) if results else 0,
+            "execution_time": execution_time,
+            "aql_query": body.aql_query
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/execute-stream")
 @limiter.limit("20/minute")
 async def execute_query_stream(request: Request, body: QueryRequest):

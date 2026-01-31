@@ -81,6 +81,11 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
 
+  // Report generation state
+  const [isExecuting, setIsExecuting] = useState(false)
+  const [reportData, setReportData] = useState<any>(null)
+  const [showReport, setShowReport] = useState(false)
+
   const svgRef = useRef<SVGSVGElement>(null)
 
   // Get node color
@@ -346,6 +351,50 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
       }))
     }
   }, [tickerSearch, nodes, handleInitializeNode])
+
+  // Execute query and get raw results
+  const handleExecuteQuery = useCallback(async () => {
+    if (!aqlQuery || !edges.length) return
+
+    setIsExecuting(true)
+    setShowReport(true)
+
+    try {
+      // Execute AQL query directly
+      const response = await fetch('/api/query/execute-aql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          aql_query: aqlQuery,
+          bind_vars: {}
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+      setReportData({
+        results: data.results || [],
+        count: data.count || 0,
+        execution_time: data.execution_time || 0,
+        aql_query: aqlQuery,
+        description: englishDescription
+      })
+
+      // Also notify parent component
+      onQueryChange(aqlQuery, englishDescription)
+
+    } catch (error) {
+      console.error('Execute query error:', error)
+      alert(`Failed to execute query: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsExecuting(false)
+    }
+  }, [aqlQuery, englishDescription, edges.length, nodes, onQueryChange])
 
   return (
     <div className="bg-dark-900/50 p-4 rounded-lg border border-gold/10 space-y-3 h-full flex flex-col">
@@ -653,12 +702,11 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
           </div>
           {edges.length > 0 && (
             <button
-              onClick={() => {
-                onQueryChange(aqlQuery, englishDescription)
-              }}
-              className="w-full px-3 py-1.5 bg-green-500 hover:bg-green-600 rounded text-white text-xs font-semibold transition-colors"
+              onClick={handleExecuteQuery}
+              disabled={isExecuting}
+              className="w-full px-3 py-1.5 bg-green-500 hover:bg-green-600 rounded text-white text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Execute Query
+              {isExecuting ? 'Generating Report...' : 'Execute Query'}
             </button>
           )}
         </div>
@@ -738,6 +786,97 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Report Modal */}
+      <AnimatePresence>
+        {showReport && reportData && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+            onClick={() => setShowReport(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-dark-800 rounded-lg border border-gold/30 w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-gold/20">
+                <div>
+                  <h2 className="text-lg font-bold text-gold">Query Results</h2>
+                  <p className="text-xs text-gray-400 mt-1">{reportData.description}</p>
+                </div>
+                <button
+                  onClick={() => setShowReport(false)}
+                  className="p-2 text-gray-400 hover:text-white transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {/* Stats */}
+                <div className="flex items-center gap-6 text-sm">
+                  <div>
+                    <span className="text-gray-500">Results:</span>
+                    <span className="ml-2 text-white font-semibold">{reportData.count}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Execution Time:</span>
+                    <span className="ml-2 text-green-400 font-mono">{reportData.execution_time?.toFixed(3)}s</span>
+                  </div>
+                </div>
+
+                {/* Results Table */}
+                {reportData.results && reportData.results.length > 0 ? (
+                  <div className="bg-dark-900 rounded border border-gray-700 overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-gray-700">
+                          {Object.keys(reportData.results[0]).map((key) => (
+                            <th key={key} className="text-left p-2 text-gray-400 font-semibold">
+                              {key}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reportData.results.slice(0, 100).map((row: any, idx: number) => (
+                          <tr key={idx} className="border-b border-gray-800 hover:bg-dark-800">
+                            {Object.keys(row).map((key) => (
+                              <td key={key} className="p-2 text-gray-300">
+                                {typeof row[key] === 'object'
+                                  ? JSON.stringify(row[key])
+                                  : String(row[key])}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {reportData.results.length > 100 && (
+                      <div className="p-2 text-center text-xs text-gray-500 border-t border-gray-700">
+                        Showing first 100 of {reportData.count} results
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-500 py-8">
+                    No results found
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
