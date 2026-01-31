@@ -942,16 +942,16 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                                         : 'bg-dark-800/30 hover:bg-dark-800/50'
                                                 }`}>
                                                     <span className={`text-xs font-semibold ${
-                                                        item.large ? 'text-emerald-300 text-sm' : item.highlight ? 'text-emerald-400' : 'text-gray-300'
+                                                        (item as any).large ? 'text-emerald-300 text-sm' : item.highlight ? 'text-emerald-400' : 'text-gray-300'
                                                     }`}>
                                                         {item.label}
                                                     </span>
                                                     <span className={`font-mono font-bold ${
-                                                        item.large
+                                                        (item as any).large
                                                             ? 'text-lg text-emerald-300 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]'
                                                             : item.highlight ? 'text-base text-emerald-400' : 'text-sm text-gray-200'
                                                     }`}>
-                                                        {item.currency !== false
+                                                        {(item as any).currency !== false
                                                             ? `$${(item.value / 1e6).toFixed(1)}M`
                                                             : `$${item.value?.toFixed(2)}`
                                                         }
@@ -1001,9 +1001,9 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                                             <span className={`font-mono font-bold ${
                                                                 item.highlight ? 'text-base text-emerald-400' : 'text-sm text-gray-200'
                                                             }`}>
-                                                                {item.currency !== false
+                                                                {(item as any).currency !== false
                                                                     ? `$${(item.value / 1e6).toFixed(1)}M`
-                                                                    : item.unit === 'M' ? `${(item.value / 1e6).toFixed(1)}M` : item.value?.toFixed(2)
+                                                                    : (item as any).unit === 'M' ? `${(item.value / 1e6).toFixed(1)}M` : item.value?.toFixed(2)
                                                                 }
                                                             </span>
                                                         </div>
@@ -1046,12 +1046,12 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                                                 : 'bg-dark-800/30 hover:bg-dark-800/50'
                                                         }`}>
                                                             <span className={`text-xs font-semibold ${
-                                                                item.large ? 'text-emerald-300 text-sm' : item.highlight ? 'text-emerald-400' : 'text-gray-300'
+                                                                (item as any).large ? 'text-emerald-300 text-sm' : item.highlight ? 'text-emerald-400' : 'text-gray-300'
                                                             }`}>
                                                                 {item.label}
                                                             </span>
                                                             <span className={`font-mono font-bold ${
-                                                                item.large
+                                                                (item as any).large
                                                                     ? 'text-lg text-emerald-300 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]'
                                                                     : item.highlight ? 'text-base text-emerald-400' : 'text-sm text-gray-200'
                                                             }`}>
