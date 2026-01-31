@@ -37,7 +37,7 @@ const COLLECTION_OPTIONS = [
 
 export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
   const [nodes, setNodes] = useState<GraphNode[]>([
-    { id: 'starter', collectionKey: null, label: 'Start', x: 500, y: 300 }
+    { id: 'starter', collectionKey: null, label: 'Start', x: 500, y: 250 }
   ])
   const [edges, setEdges] = useState<GraphEdge[]>([])
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
@@ -196,24 +196,29 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
     if (!node) return
 
     const svgRect = svgRef.current.getBoundingClientRect()
-    const svgX = (e.clientX - svgRect.left) * (800 / svgRect.width)
-    const svgY = (e.clientY - svgRect.top) * (600 / svgRect.height)
+    const svgX = (e.clientX - svgRect.left) * (1000 / svgRect.width)
+    const svgY = (e.clientY - svgRect.top) * (500 / svgRect.height)
 
     setDraggedNode(nodeId)
     setDragOffset({ x: svgX - node.x, y: svgY - node.y })
   }, [nodes])
 
-  // Mouse move - drag node
+  // Mouse move - drag node (with boundary constraints)
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!draggedNode || !svgRef.current) return
 
     const svgRect = svgRef.current.getBoundingClientRect()
-    const svgX = (e.clientX - svgRect.left) * (800 / svgRect.width)
-    const svgY = (e.clientY - svgRect.top) * (600 / svgRect.height)
+    const svgX = (e.clientX - svgRect.left) * (1000 / svgRect.width)
+    const svgY = (e.clientY - svgRect.top) * (500 / svgRect.height)
+
+    // Constrain to boundaries (with padding for node radius)
+    const padding = 40
+    const constrainedX = Math.max(padding, Math.min(1000 - padding, svgX - dragOffset.x))
+    const constrainedY = Math.max(padding, Math.min(500 - padding, svgY - dragOffset.y))
 
     setNodes(prev => prev.map(n =>
       n.id === draggedNode
-        ? { ...n, x: svgX - dragOffset.x, y: svgY - dragOffset.y, isDragging: true }
+        ? { ...n, x: constrainedX, y: constrainedY, isDragging: true }
         : n
     ))
   }, [draggedNode, dragOffset])
@@ -250,42 +255,39 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
   }, [nodes])
 
   return (
-    <div className="w-full h-full flex bg-dark-900">
-      {/* Main graph area */}
-      <div className="flex-1 flex flex-col">
-        {/* Compact header */}
-        <div className="px-6 py-3 border-b border-gray-800 flex items-center justify-between">
-          <div className="text-sm text-gray-400">
-            {englishDescription}
-          </div>
-          {edges.length > 0 && (
-            <button
-              onClick={() => setShowAQL(!showAQL)}
-              className="px-3 py-1 text-xs bg-dark-700 hover:bg-dark-600 border border-gray-600 rounded text-white transition-colors"
-            >
-              {showAQL ? 'Hide' : 'Show'} AQL
-            </button>
-          )}
+    <div className="bg-dark-900/50 p-4 rounded-lg border border-gold/10 space-y-3 h-full flex flex-col">
+      {/* Header with description and AQL toggle */}
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-gray-300">
+          {englishDescription}
         </div>
-
-        {/* AQL display */}
-        {showAQL && aqlQuery && (
-          <div className="mx-6 mt-3 p-3 bg-dark-800 border border-gray-700 rounded font-mono text-xs text-green-400">
-            {aqlQuery}
-          </div>
+        {edges.length > 0 && (
+          <button
+            onClick={() => setShowAQL(!showAQL)}
+            className="px-3 py-1 text-xs bg-dark-700 hover:bg-dark-600 border border-gray-600 rounded text-white transition-colors"
+          >
+            {showAQL ? 'Hide' : 'Show'} AQL
+          </button>
         )}
+      </div>
 
-        {/* Graph canvas */}
-        <div className="flex-1 flex items-center justify-center p-6">
-          <div className="w-full h-full max-w-5xl bg-dark-800/30 rounded-lg border border-green-500/10 relative overflow-hidden">
-            <svg
-              ref={svgRef}
-              className="w-full h-full"
-              viewBox="0 0 800 600"
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-            >
+      {/* AQL display */}
+      {showAQL && aqlQuery && (
+        <div className="p-3 bg-dark-800 border border-gray-700 rounded font-mono text-xs text-green-400">
+          {aqlQuery}
+        </div>
+      )}
+
+      {/* Graph canvas - 80% height */}
+      <div className="flex-1 bg-dark-800/30 rounded-lg border border-green-500/10 relative overflow-hidden">
+        <svg
+          ref={svgRef}
+          className="w-full h-full"
+          viewBox="0 0 1000 500"
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+        >
               <defs>
                 <filter id="glow">
                   <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
@@ -513,15 +515,13 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
                 )
               })}
             </svg>
-          </div>
-        </div>
       </div>
 
-      {/* Right sidebar - compact */}
-      <div className="w-80 bg-dark-800 border-l border-gray-800 flex flex-col">
-        {/* Query summary */}
-        <div className="p-4 border-b border-gray-700">
-          <h3 className="text-sm font-bold text-green-400 mb-2">Query Summary</h3>
+      {/* Bottom 20% - Query info */}
+      <div className="bg-dark-800/50 rounded-lg border border-gray-700 p-3 flex gap-4 h-[20%] min-h-[120px]">
+        {/* Query summary - left side */}
+        <div className="flex-shrink-0 w-48 space-y-2">
+          <h3 className="text-xs font-bold text-green-400 uppercase tracking-wider">Query</h3>
           <div className="space-y-1 text-xs text-gray-400">
             <div>{nodes.filter(n => n.collectionKey).length} collections</div>
             <div>{edges.length} connections</div>
@@ -531,89 +531,87 @@ export default function GraphExplorer({ onQueryChange }: GraphExplorerProps) {
               onClick={() => {
                 onQueryChange(aqlQuery, englishDescription)
               }}
-              className="w-full mt-3 px-4 py-2 bg-green-500 hover:bg-green-600 rounded text-white text-sm font-semibold transition-colors"
+              className="w-full px-3 py-1.5 bg-green-500 hover:bg-green-600 rounded text-white text-xs font-semibold transition-colors"
             >
               Execute Query
             </button>
           )}
         </div>
 
-        {/* Field selection */}
-        <AnimatePresence>
-          {selectedNode && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex-1 overflow-y-auto p-4"
-            >
-              {(() => {
-                const node = nodes.find(n => n.id === selectedNode)
-                if (!node?.collectionKey) return null
+        {/* Field selection - right side */}
+        <div className="flex-1 overflow-hidden">
+          <AnimatePresence>
+            {selectedNode && (() => {
+              const node = nodes.find(n => n.id === selectedNode)
+              if (!node?.collectionKey) return null
 
-                const schema = GRAPH_SCHEMA[node.collectionKey]
-                if (!schema) return null
+              const schema = GRAPH_SCHEMA[node.collectionKey]
+              if (!schema) return null
 
-                const fields = selectedFields[node.id] || []
+              const fields = selectedFields[node.id] || []
 
-                return (
-                  <div className="space-y-4">
+              return (
+                <motion.div
+                  key={selectedNode}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="h-full flex flex-col"
+                >
+                  <div className="flex items-center justify-between mb-2">
                     <div>
-                      <h3 className="text-sm font-bold text-white mb-1">{node.label}</h3>
-                      <p className="text-xs text-gray-500">{schema.description}</p>
+                      <h3 className="text-xs font-bold text-white">{node.label}</h3>
+                      <p className="text-[10px] text-gray-500 truncate">{schema.description}</p>
                     </div>
+                    <button
+                      onClick={() => {
+                        setSelectedFields(prev => ({
+                          ...prev,
+                          [node.id]: fields.length === schema.keyFields.length ? [] : schema.keyFields
+                        }))
+                      }}
+                      className="text-xs text-green-400 hover:text-green-300"
+                    >
+                      {fields.length === schema.keyFields.length ? 'Clear' : 'All'}
+                    </button>
+                  </div>
 
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-semibold text-gray-400">Fields</span>
-                        <button
-                          onClick={() => {
-                            setSelectedFields(prev => ({
-                              ...prev,
-                              [node.id]: fields.length === schema.keyFields.length ? [] : schema.keyFields
-                            }))
-                          }}
-                          className="text-xs text-green-400 hover:text-green-300"
-                        >
-                          {fields.length === schema.keyFields.length ? 'Clear' : 'All'}
-                        </button>
-                      </div>
-
-                      <div className="space-y-1 max-h-96 overflow-y-auto">
-                        {schema.keyFields.map(field => {
-                          const selected = fields.includes(field)
-                          return (
-                            <button
-                              key={field}
-                              onClick={() => {
-                                setSelectedFields(prev => {
-                                  const current = prev[node.id] || []
-                                  return {
-                                    ...prev,
-                                    [node.id]: selected
-                                      ? current.filter(f => f !== field)
-                                      : [...current, field]
-                                  }
-                                })
-                              }}
-                              className={`w-full px-2 py-1 rounded text-left text-xs transition-colors ${
-                                selected
-                                  ? 'bg-green-500/20 text-green-300'
-                                  : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
-                              }`}
-                            >
-                              {field}
-                            </button>
-                          )
-                        })}
-                      </div>
+                  <div className="flex-1 overflow-y-auto">
+                    <div className="grid grid-cols-3 gap-1">
+                      {schema.keyFields.map(field => {
+                        const selected = fields.includes(field)
+                        return (
+                          <button
+                            key={field}
+                            onClick={() => {
+                              setSelectedFields(prev => {
+                                const current = prev[node.id] || []
+                                return {
+                                  ...prev,
+                                  [node.id]: selected
+                                    ? current.filter(f => f !== field)
+                                    : [...current, field]
+                                }
+                              })
+                            }}
+                            className={`px-2 py-1 rounded text-left text-[10px] transition-colors truncate ${
+                              selected
+                                ? 'bg-green-500/20 text-green-300'
+                                : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
+                            }`}
+                            title={field}
+                          >
+                            {field}
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
-                )
-              })()}
-            </motion.div>
-          )}
-        </AnimatePresence>
+                </motion.div>
+              )
+            })()}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   )
