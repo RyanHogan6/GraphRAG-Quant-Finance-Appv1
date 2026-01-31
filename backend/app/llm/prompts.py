@@ -3118,6 +3118,74 @@ Strategy:
 
 ---
 
+EXAMPLE 30b - Financial Statements Query (10-K/10-Q Financials):
+Question: "Show me PLTR's 10K financials" OR "Show me Apple's balance sheet" OR "What are NVDA's financial statements?" OR "Show me Tesla's income statement"
+Intent: company_financial_statements
+Collections: ["Company", "MarketData", "sec_xbrl_data"]
+Strategy:
+⚠️ CRITICAL: "10K financials", "balance sheet", "income statement", "financial statements" = sec_xbrl_data, NOT just MarketData!
+- Use comprehensive company workup pattern (from EXAMPLE 7d)
+- Include sec_xbrl_data for actual financial statements
+- Include MarketData for stock prices
+- This enables frontend CompanyWorkup component to show both charts AND financial statements
+
+AQL:
+FOR company IN Company
+  FILTER company.ticker == @ticker
+  LIMIT 1
+
+  LET market_data = (
+    FOR m IN OUTBOUND company HAS_MARKETDATA
+      SORT m.date DESC
+      LIMIT 365
+      RETURN m
+  )
+
+  LET sec_xbrl_data = (
+    FOR filing IN OUTBOUND company HAS_FILING
+      FOR xbrl IN OUTBOUND filing has_xbrl_data
+        SORT xbrl.filing_date DESC
+        LIMIT 10
+        RETURN xbrl
+  )
+
+  LET sec_filings = (
+    FOR filing IN OUTBOUND company HAS_FILING
+      SORT filing.filing_date DESC
+      LIMIT 20
+      RETURN filing
+  )
+
+  LET awards = (
+    FOR award IN OUTBOUND company HAS_AWARD
+      SORT award.start_date DESC
+      LIMIT 20
+      RETURN award
+  )
+
+  RETURN MERGE(company, {
+    MarketData: market_data,
+    sec_xbrl_data: sec_xbrl_data,
+    sec_filings: sec_filings,
+    Award: awards
+  })
+
+Bind Variables: {"ticker": "PLTR"}
+Requires Embedding: false
+
+Strategy:
+✅ "10K financials" = User wants financial statements, NOT just stock prices!
+✅ sec_xbrl_data contains: income statement (costs), balance sheet (debt, equity), cash flow (cashflow)
+✅ Frontend CompanyWorkup displays:
+   - 13 Point Fundamental Checklist (calculated from XBRL if MarketData missing)
+   - Financial Statements Viewer (Income/Balance/Cash Flow tabs)
+   - Period selector to switch between quarters/years
+✅ MUST include MarketData for price charts
+✅ MUST include sec_xbrl_data for actual financial statements
+⚠️ Don't confuse "2025 financials" with date filter on MarketData - user wants latest 10-K/10-Q filings!
+
+---
+
 EXAMPLE 31 - SEC XBRL: Debt Maturity Analysis:
 Question: "Which tech companies have the most long-term debt?"
 Intent: xbrl_debt_analysis
