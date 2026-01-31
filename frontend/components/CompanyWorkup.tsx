@@ -190,8 +190,57 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
 
     // Moneycontain "13 Essential Financial Metrics"
     const fundamentalMetrics = useMemo(() => {
-        const calculateMetrics = (companyData: any, marketData: any) => {
+        const calculateMetrics = (companyData: any, marketData: any, xbrlData: any[]) => {
             const all = { ...companyData, ...marketData }
+
+            // Get latest XBRL data for financial statement calculations
+            const latestXbrl = xbrlData && xbrlData.length > 0 ? xbrlData[0] : null
+            const prevXbrl = xbrlData && xbrlData.length > 1 ? xbrlData[1] : null
+
+            // Debug: Log what fundamental fields are available
+            console.log('[FUNDAMENTAL DEBUG] Company data keys:', Object.keys(companyData))
+            console.log('[FUNDAMENTAL DEBUG] Market data keys:', Object.keys(marketData))
+            console.log('[FUNDAMENTAL DEBUG] XBRL available:', !!latestXbrl)
+            console.log('[FUNDAMENTAL DEBUG] Fundamental fields from MarketData:', {
+                revenueGrowth: all.revenueGrowth,
+                ebitdaMargins: all.ebitdaMargins,
+                profitMargins: all.profitMargins,
+                returnOnEquity: all.returnOnEquity,
+                debtToEquity: all.debtToEquity,
+                currentRatio: all.currentRatio,
+                freeCashflow: all.freeCashflow
+            })
+
+            // Calculate metrics from XBRL data if MarketData is missing
+            const xbrlRevenue = latestXbrl?.costs?.Revenues
+            const xbrlPrevRevenue = prevXbrl?.costs?.Revenues
+            const xbrlNetIncome = latestXbrl?.costs?.NetIncomeLoss
+            const xbrlEquity = latestXbrl?.equity?.StockholdersEquity
+            const xbrlDebt = latestXbrl?.debt?.LongTermDebt || latestXbrl?.debt?.DebtCurrent || 0
+            const xbrlFreeCashflow = latestXbrl?.cashflow?.NetCashProvidedByUsedInOperatingActivities
+
+            // Calculate fallback values from XBRL
+            const xbrlRevenueGrowth = (xbrlRevenue && xbrlPrevRevenue)
+                ? (xbrlRevenue - xbrlPrevRevenue) / xbrlPrevRevenue
+                : null
+            const xbrlProfitMargin = (xbrlNetIncome && xbrlRevenue)
+                ? xbrlNetIncome / xbrlRevenue
+                : null
+            const xbrlROE = (xbrlNetIncome && xbrlEquity)
+                ? xbrlNetIncome / xbrlEquity
+                : null
+            const xbrlDebtToEquity = (xbrlDebt && xbrlEquity)
+                ? xbrlDebt / xbrlEquity
+                : null
+
+            console.log('[FUNDAMENTAL DEBUG] Calculated from XBRL:', {
+                revenue: xbrlRevenue,
+                netIncome: xbrlNetIncome,
+                revenueGrowth: xbrlRevenueGrowth,
+                profitMargin: xbrlProfitMargin,
+                roe: xbrlROE,
+                debtToEquity: xbrlDebtToEquity
+            })
 
             // Derive Revenue and Absolute Margins if raw fields are missing
             const calcRevenue = (all.revenuePerShare && all.sharesOutstanding)
@@ -219,19 +268,19 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                         : null;
 
             const metricsList = [
-                { name: 'Revenue Growth', val: all.revenueGrowth, benchmark: '> 10%', type: 'pct', check: (v: number) => v > 0.1 },
+                { name: 'Revenue Growth', val: all.revenueGrowth ?? xbrlRevenueGrowth, benchmark: '> 10%', type: 'pct', check: (v: number) => v > 0.1 },
                 { name: 'EBITDA', val: calcEbitda, benchmark: 'Growing', type: 'currency' },
                 { name: 'EBITDA Margin', val: all.ebitdaMargins, benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 },
-                { name: 'Net Profit (PAT)', val: calcNetIncome, benchmark: 'Growing', type: 'currency' },
-                { name: 'PAT Margin', val: all.profitMargins, benchmark: '> 10%', type: 'pct', check: (v: number) => v > 0.1 },
-                { name: 'ROE', val: all.returnOnEquity, benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 },
+                { name: 'Net Profit (PAT)', val: calcNetIncome ?? xbrlNetIncome, benchmark: 'Growing', type: 'currency' },
+                { name: 'PAT Margin', val: all.profitMargins ?? xbrlProfitMargin, benchmark: '> 10%', type: 'pct', check: (v: number) => v > 0.1 },
+                { name: 'ROE', val: all.returnOnEquity ?? xbrlROE, benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 },
                 { name: 'ROA', val: all.returnOnAssets, benchmark: '> 7%', type: 'pct', check: (v: number) => v > 0.07 },
-                { name: 'Debt-to-Equity', val: all.debtToEquity, benchmark: '< 1', type: 'ratio', check: (v: number) => v < 1 },
+                { name: 'Debt-to-Equity', val: all.debtToEquity ?? xbrlDebtToEquity, benchmark: '< 1', type: 'ratio', check: (v: number) => v < 1 },
                 { name: 'Current Ratio', val: all.currentRatio, benchmark: '> 1.5', type: 'ratio', check: (v: number) => v > 1.5 },
-                { name: 'Free Cash Flow', val: all.freeCashflow, benchmark: 'Positive', type: 'currency', check: (v: number) => v > 0 },
+                { name: 'Free Cash Flow', val: all.freeCashflow ?? xbrlFreeCashflow, benchmark: 'Positive', type: 'currency', check: (v: number) => v > 0 },
                 { name: 'EPS', val: all.trailingEps || all.epsTrailingTwelveMonths || all.forwardEps, benchmark: 'Growing', type: 'number' },
                 { name: 'P/E Ratio', val: all.trailingPE || all.forwardPE, benchmark: '< 20 (Fair)', type: 'number', check: (v: number) => v < 20 },
-                { name: 'ROCE', val: (all.totalDebt && all.returnOnEquity && all.debtToEquity) ? (all.returnOnEquity * (1 + all.debtToEquity)) : (all.returnOnEquity || null), benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 }
+                { name: 'ROCE', val: (all.totalDebt && all.returnOnEquity && all.debtToEquity) ? (all.returnOnEquity * (1 + all.debtToEquity)) : (all.returnOnEquity || xbrlROE || null), benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 }
             ]
 
             return metricsList.map(m => ({
@@ -241,17 +290,43 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
             }))
         }
 
-        return calculateMetrics(company, latestMarket)
-    }, [company, latestMarket])
+        return calculateMetrics(company, latestMarket, secXbrlData)
+    }, [company, latestMarket, secXbrlData])
 
     // Peer fundamental metrics (if in comparison mode)
     const peerFundamentalMetrics = useMemo(() => {
         if (!comparisonMode || !peerData) return null
 
         const peerLatestMarket = peerData.MarketData?.[0] || {}
+        const peerXbrlData = peerData.sec_xbrl_data || []
 
-        const calculateMetrics = (companyData: any, marketData: any) => {
+        const calculateMetrics = (companyData: any, marketData: any, xbrlData: any[]) => {
             const all = { ...companyData, ...marketData }
+
+            // Get latest XBRL data for peer
+            const latestXbrl = xbrlData && xbrlData.length > 0 ? xbrlData[0] : null
+            const prevXbrl = xbrlData && xbrlData.length > 1 ? xbrlData[1] : null
+
+            // Calculate metrics from XBRL data if MarketData is missing
+            const xbrlRevenue = latestXbrl?.costs?.Revenues
+            const xbrlPrevRevenue = prevXbrl?.costs?.Revenues
+            const xbrlNetIncome = latestXbrl?.costs?.NetIncomeLoss
+            const xbrlEquity = latestXbrl?.equity?.StockholdersEquity
+            const xbrlDebt = latestXbrl?.debt?.LongTermDebt || latestXbrl?.debt?.DebtCurrent || 0
+            const xbrlFreeCashflow = latestXbrl?.cashflow?.NetCashProvidedByUsedInOperatingActivities
+
+            const xbrlRevenueGrowth = (xbrlRevenue && xbrlPrevRevenue)
+                ? (xbrlRevenue - xbrlPrevRevenue) / xbrlPrevRevenue
+                : null
+            const xbrlProfitMargin = (xbrlNetIncome && xbrlRevenue)
+                ? xbrlNetIncome / xbrlRevenue
+                : null
+            const xbrlROE = (xbrlNetIncome && xbrlEquity)
+                ? xbrlNetIncome / xbrlEquity
+                : null
+            const xbrlDebtToEquity = (xbrlDebt && xbrlEquity)
+                ? xbrlDebt / xbrlEquity
+                : null
 
             const calcRevenue = (all.revenuePerShare && all.sharesOutstanding)
                 ? (all.revenuePerShare * all.sharesOutstanding)
@@ -276,19 +351,19 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                         : null;
 
             const metricsList = [
-                { name: 'Revenue Growth', val: all.revenueGrowth, type: 'pct', check: (v: number) => v > 0.1 },
+                { name: 'Revenue Growth', val: all.revenueGrowth ?? xbrlRevenueGrowth, type: 'pct', check: (v: number) => v > 0.1 },
                 { name: 'EBITDA', val: calcEbitda, type: 'currency' },
                 { name: 'EBITDA Margin', val: all.ebitdaMargins, type: 'pct', check: (v: number) => v > 0.15 },
-                { name: 'Net Profit (PAT)', val: calcNetIncome, type: 'currency' },
-                { name: 'PAT Margin', val: all.profitMargins, type: 'pct', check: (v: number) => v > 0.1 },
-                { name: 'ROE', val: all.returnOnEquity, type: 'pct', check: (v: number) => v > 0.15 },
+                { name: 'Net Profit (PAT)', val: calcNetIncome ?? xbrlNetIncome, type: 'currency' },
+                { name: 'PAT Margin', val: all.profitMargins ?? xbrlProfitMargin, type: 'pct', check: (v: number) => v > 0.1 },
+                { name: 'ROE', val: all.returnOnEquity ?? xbrlROE, type: 'pct', check: (v: number) => v > 0.15 },
                 { name: 'ROA', val: all.returnOnAssets, type: 'pct', check: (v: number) => v > 0.07 },
-                { name: 'Debt-to-Equity', val: all.debtToEquity, type: 'ratio', check: (v: number) => v < 1 },
+                { name: 'Debt-to-Equity', val: all.debtToEquity ?? xbrlDebtToEquity, type: 'ratio', check: (v: number) => v < 1 },
                 { name: 'Current Ratio', val: all.currentRatio, type: 'ratio', check: (v: number) => v > 1.5 },
-                { name: 'Free Cash Flow', val: all.freeCashflow, type: 'currency', check: (v: number) => v > 0 },
+                { name: 'Free Cash Flow', val: all.freeCashflow ?? xbrlFreeCashflow, type: 'currency', check: (v: number) => v > 0 },
                 { name: 'EPS', val: all.trailingEps || all.epsTrailingTwelveMonths || all.forwardEps, type: 'number' },
                 { name: 'P/E Ratio', val: all.trailingPE || all.forwardPE, type: 'number', check: (v: number) => v < 20 },
-                { name: 'ROCE', val: (all.totalDebt && all.returnOnEquity && all.debtToEquity) ? (all.returnOnEquity * (1 + all.debtToEquity)) : (all.returnOnEquity || null), type: 'pct', check: (v: number) => v > 0.15 }
+                { name: 'ROCE', val: (all.totalDebt && all.returnOnEquity && all.debtToEquity) ? (all.returnOnEquity * (1 + all.debtToEquity)) : (all.returnOnEquity || xbrlROE || null), type: 'pct', check: (v: number) => v > 0.15 }
             ]
 
             return metricsList.map(m => ({
@@ -298,8 +373,8 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
             }))
         }
 
-        return calculateMetrics(peerData, peerLatestMarket)
-    }, [peerData, comparisonMode])
+        return calculateMetrics(peerData, peerLatestMarket, peerXbrlData)
+    }, [peerData, comparisonMode, peerXbrlData])
 
     function formatVal(val: any, type: string) {
         if (val == null || isNaN(val)) return 'N/A'
@@ -509,14 +584,20 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                     return (
                                         <div key={i} className="grid grid-cols-7 gap-2 items-center border-b border-white/5 pb-2 hover:bg-white/5 transition-all px-2 rounded">
                                             <div className="col-span-2 text-[9px] text-gray-400 uppercase font-bold">{m.name}</div>
-                                            <div className={`col-span-2 text-right font-mono font-bold text-sm ${primaryBetter ? 'text-gold' : 'text-gray-300'}`}>
+                                            <div className={`col-span-2 text-right font-mono font-bold text-base ${
+                                                m.displayVal === 'N/A' ? 'text-gray-600' :
+                                                primaryBetter ? 'text-gold drop-shadow-[0_0_8px_rgba(212,175,55,0.5)]' : 'text-gray-300'
+                                            }`}>
                                                 {m.displayVal}
-                                                {primaryBetter && <span className="ml-1 text-[10px] text-gold/50">✓</span>}
+                                                {primaryBetter && m.displayVal !== 'N/A' && <span className="ml-1 text-[10px] text-gold/50">✓</span>}
                                             </div>
                                             <div className="col-span-1 text-center text-[9px] text-gray-600">vs</div>
-                                            <div className={`col-span-2 text-left font-mono font-bold text-sm ${peerBetter ? 'text-blue-400' : 'text-gray-300'}`}>
+                                            <div className={`col-span-2 text-left font-mono font-bold text-base ${
+                                                peerMetric.displayVal === 'N/A' ? 'text-gray-600' :
+                                                peerBetter ? 'text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.5)]' : 'text-gray-300'
+                                            }`}>
                                                 {peerMetric.displayVal}
-                                                {peerBetter && <span className="ml-1 text-[10px] text-blue-400/50">✓</span>}
+                                                {peerBetter && peerMetric.displayVal !== 'N/A' && <span className="ml-1 text-[10px] text-blue-400/50">✓</span>}
                                             </div>
                                         </div>
                                     )
@@ -530,10 +611,16 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                             <div className="text-[8px] md:text-[9px] text-gray-500 uppercase font-black tracking-tighter group-hover:text-gold transition-colors">{m.name}</div>
                                             <div className="text-[7px] md:text-[8px] text-gray-600 font-mono tracking-tighter hidden sm:block">Ref: {m.benchmark}</div>
                                         </div>
-                                        <div className={`text-sm md:text-base font-mono font-black ${m.status === 'good' ? 'text-green-400' : m.status === 'bad' ? 'text-red-400' : 'text-gray-200'}`}>
+                                        <div className={`text-lg md:text-xl font-mono font-black tracking-tight ${
+                                            m.displayVal === 'N/A'
+                                                ? 'text-gray-600'
+                                                : m.status === 'good' ? 'text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.5)]'
+                                                : m.status === 'bad' ? 'text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.5)]'
+                                                : 'text-gray-100 drop-shadow-[0_0_6px_rgba(255,255,255,0.3)]'
+                                        }`}>
                                             {m.displayVal}
-                                            {m.status !== 'neutral' && (
-                                                <span className={`ml-0.5 text-[8px] md:text-[10px] ${m.status === 'good' ? 'text-green-400/50' : 'text-red-400/50'}`}>
+                                            {m.status !== 'neutral' && m.displayVal !== 'N/A' && (
+                                                <span className={`ml-1 text-[10px] md:text-xs ${m.status === 'good' ? 'text-green-400/70' : 'text-red-400/70'}`}>
                                                     {m.status === 'good' ? '▲' : '▼'}
                                                 </span>
                                             )}
