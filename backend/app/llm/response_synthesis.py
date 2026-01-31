@@ -251,155 +251,19 @@ def generate_context_aware_prompt(
 
 **Analysis Type:** {analysis_type.replace('_', ' ').title()}"""
 
-    # Add NO TABLE warning at the top for company overview
+    # Add NO TABLE warning for company overview
     if analysis_type == "company_overview":
-        prompt += """
-
-═══════════════════════════════════════════════════════════════════════════════
-🚨 MANDATORY INSTRUCTION - FAILURE TO COMPLY WILL RESULT IN INCORRECT OUTPUT 🚨
-═══════════════════════════════════════════════════════════════════════════════
-
-THIS IS A COMPANY OVERVIEW QUERY.
-
-YOU MUST NOT CREATE ANY TABLES WHATSOEVER.
-
-SPECIFICALLY PROHIBITED:
-❌ NO markdown tables with | pipes
-❌ NO tables with Date/Close Price/Volume columns
-❌ NO formatted data grids
-❌ NO "Apple Stock Data from Database" sections
-❌ NO tabular layouts of ANY kind
-
-WHY: The frontend CompanyWorkup component already displays:
-- Interactive price charts with full history
-- Fundamental metrics in a structured layout
-- All company data in visual format
-
-YOUR JOB: Write ONLY natural language analysis (paragraphs + bullet points)
-
-═══════════════════════════════════════════════════════════════════════════════
-"""
+        prompt += "\n\n🚨 NO TABLES - Write natural language analysis only (frontend already displays data)"
 
     prompt += f"""
 
-**Data Retrieved:** {result_count} results from {', '.join(query_plan.get('collections', []))}
+**Data:** {result_count} results from {', '.join(query_plan.get('collections', []))}
 
-**Data Retrieved:** {result_count} results from {', '.join(query_plan.get('collections', []))}
+**Sample:** {json.dumps(results)[:3000]}...
 
-**Results Sample:**
-{json.dumps(results, indent=2)}
+**Focus:** {strategy.get('focus', 'Analyze')}
 
-**Analysis Focus:** {strategy.get('focus', 'General data analysis')}
-
-**Key Metrics to Highlight:**
-{chr(10).join(f'- {metric}' for metric in strategy.get('key_metrics', []))}
-
-**Novelty Checks:**
-{chr(10).join(f'- {check}' for check in strategy.get('novelty_checks', []))}
-
-**Domain-Specific Synthesis Strategy:**
-{strategy.get('synthesis', 'Provide general insights and patterns')}
-
-**CRITICAL INSTRUCTIONS:**
-
-1. **Start with Executive Summary (2-3 sentences)**
-   - What's the key finding? Is it significant?
-   - If data shows nothing unusual, say so clearly
-"""
-
-    # Add table instruction ONLY for non-company-overview queries
-    if analysis_type != "company_overview":
-        prompt += """
-2. **Present Data in Markdown Table**
-   - Top 10 rows (or all if less)
-   - 5-7 most relevant columns only
-   - Format numbers properly ($, %, dates)
-
-3. **Provide Domain-Specific Analysis (not generic insights!)**
-"""
-    else:
-        prompt += """
-2. **Provide Domain-Specific Intelligence Synthesis**
-   🚨 CRITICAL: DO NOT CREATE ANY TABLES OR FORMATTED DATA! 🚨
-   🚨 NO MARKDOWN TABLES (|---|---) ALLOWED! 🚨
-   🚨 The frontend CompanyWorkup component already displays ALL company data with interactive charts! 🚨
-
-   Your ONLY job is to write a natural language paragraph (4-5 sentences) that synthesizes the key insights:
-"""
-
-    prompt += """   - Apply the novelty checks listed above
-   - Explain WHY patterns matter, not just WHAT they are
-   - Connect to broader market context
-   - Identify anomalies, outliers, or significant patterns
-"""
-
-    if analysis_type != "company_overview":
-        prompt += """
-4. **Synthesis (if applicable)**
-   - If multiple data sources: connect the dots
-   - If time series: identify trends, breakouts, reversals
-   - If screening: explain what makes these results stand out
-
-5. **Avoid Generic Fluff**
-   - DON'T just describe the table
-   - DON'T provide obvious observations
-   - DO explain significance and implications
-   - DO highlight anything unusual or actionable
-"""
-    else:
-        prompt += """
-3. **Key Insights (3-4 bullet points)**
-   - Price action and technical signals
-   - Fundamental strength/weakness
-   - Corporate developments (filings, awards, options activity)
-   - Smart money signals (unusual options, insider patterns)
-"""
-
-    prompt += """
-**Example of Good vs Bad Analysis:**
-
-❌ BAD: "The table shows 5 stocks with high call volume. NVDA has 10,000 calls."
-✅ GOOD: "NVDA shows 3x normal call volume with P/C ratio of 0.3, suggesting strong bullish positioning. This is significant because it coincides with earnings in 2 weeks - similar patterns preceded the last 3 earnings beats."
-
-**Response Format:**"""
-
-    if analysis_type == "company_overview":
-        prompt += """
-
-🚨 COMPANY OVERVIEW FORMAT (NO TABLES!) 🚨
-
-❌ DO NOT DO THIS:
-| Date | Close Price | Volume |
-|------|-------------|--------|
-| 2025-12-31 | $26.06 | 1.2M |
-
-✅ DO THIS INSTEAD:
-## AI Intelligence Summary
-
-[Write a flowing paragraph synthesizing the data - NO TABLES!]
-
-Apple has declined approximately 8.5% over the past month, closing at $248.04 as of January 23, 2026, down from its end-of-year price of $271.86. The stock shows structural momentum with technical indicators suggesting... Recent SEC filings indicate bearish sentiment with BIAS scores of -0.244 and -0.274... Options activity remains within normal ranges with no unusual volume spikes... The company maintains strong fundamentals with 34.78% revenue growth and 22.96% profit margins.
-
-## Key Insights
-- [Technical/price signal]
-- [Fundamental strength/weakness]
-- [Corporate development]
-- [Smart money signal]
-"""
-    else:
-        prompt += """
-## [Executive Summary]
-
-[Table]
-
-## Analysis
-
-[Domain-specific insights]
-
-## Key Takeaways
-- [Actionable insight 1]
-- [Actionable insight 2]
-"""
+Provide concise analysis with key insights."""
 
     return prompt
 
