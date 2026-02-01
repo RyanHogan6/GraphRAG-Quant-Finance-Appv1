@@ -417,19 +417,58 @@ def enrich_single_company_results(results: List[Dict], query_plan: Dict) -> List
             """
             data, _ = execute_aql(query, {"ticker": ticker})
             return data[0] if data else {}
-        
+
+        def fetch_sec_xbrl():
+            query = """
+            FOR xbrl IN sec_xbrl_data
+              FILTER xbrl.ticker == @ticker
+              SORT xbrl.filing_date DESC
+              LIMIT 10
+              RETURN xbrl
+            """
+            data, _ = execute_aql(query, {"ticker": ticker})
+            return data or []
+
+        def fetch_sec_exhibits():
+            query = """
+            FOR ex IN sec_exhibits
+              FILTER ex.ticker == @ticker
+              SORT ex.filing_date DESC
+              LIMIT 20
+              RETURN ex
+            """
+            data, _ = execute_aql(query, {"ticker": ticker})
+            return data or []
+
+        def fetch_options_flow():
+            query = """
+            FOR opt IN options_flow
+              FILTER opt.ticker == @ticker
+              SORT opt.date DESC
+              LIMIT 20
+              RETURN opt
+            """
+            data, _ = execute_aql(query, {"ticker": ticker})
+            return data or []
+
         # Execute all queries in parallel
-        with ThreadPoolExecutor(max_workers=4) as executor:
+        with ThreadPoolExecutor(max_workers=7) as executor:
             market_future = executor.submit(fetch_market_data)
             sec_future = executor.submit(fetch_sec_filings)
             award_future = executor.submit(fetch_awards)
             company_future = executor.submit(fetch_company_info)
-            
+            xbrl_future = executor.submit(fetch_sec_xbrl)
+            exhibits_future = executor.submit(fetch_sec_exhibits)
+            options_future = executor.submit(fetch_options_flow)
+
             market_data = market_future.result()
             sec_data = sec_future.result()
             award_data = award_future.result()
             company_info = company_future.result()
-        
+            xbrl_data = xbrl_future.result()
+            exhibits_data = exhibits_future.result()
+            options_data = options_future.result()
+
         # Build enriched structure matching CompanyWorkup expectations
         # Merge all company fields (sector, industry, etc.) into enriched result
         enriched = {
@@ -437,11 +476,14 @@ def enrich_single_company_results(results: List[Dict], query_plan: Dict) -> List
             "ticker": ticker,
             "MarketData": market_data,
             "sec_filings": sec_data,
+            "sec_xbrl_data": xbrl_data,
+            "sec_exhibits": exhibits_data,
             "Award": award_data,
+            "options_flow": options_data,
             "prediction_markets_polymarket": []  # Optional: can add later
         }
         
-        print(f"[ENRICH] Enriched {ticker} with {len(market_data)} market records, {len(sec_data)} filings, {len(award_data)} awards")
+        print(f"[ENRICH] Enriched {ticker} with {len(market_data)} market records, {len(sec_data)} filings, {len(xbrl_data)} XBRL statements, {len(exhibits_data)} exhibits, {len(options_data)} options records, {len(award_data)} awards")
         return [enriched]
         
     except Exception as e:

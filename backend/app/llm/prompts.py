@@ -3119,8 +3119,8 @@ Strategy:
 ---
 
 EXAMPLE 30b - Financial Statements Query (10-K/10-Q Financials):
-Question: "Show me PLTR's 10K financials" OR "Show me Apple's balance sheet" OR "What are NVDA's financial statements?" OR "Show me Tesla's income statement"
-Intent: company_financial_statements
+Question: "Show me PLTR's complete financial picture" OR "Show me PLTR's 10K financials" OR "Show me Apple's balance sheet" OR "What are NVDA's financial statements?" OR "Show me Tesla's income statement" OR "Tell me about AAPL" OR "PLTR overview"
+Intent: company_comprehensive_workup
 Collections: ["Company", "MarketData", "sec_xbrl_data"]
 Strategy:
 ⚠️ CRITICAL: "10K financials", "balance sheet", "income statement", "financial statements" = sec_xbrl_data, NOT just MarketData!
