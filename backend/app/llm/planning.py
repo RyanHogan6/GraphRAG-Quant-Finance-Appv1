@@ -21,6 +21,12 @@ from app.llm.schema_grounding import (
     get_collection_specific_rules
 )
 from app.llm.query_validation import execute_with_validation
+from app.llm.schema_introspection import (
+    get_cached_schema,
+    get_collection_schema_dynamic,
+    format_collection_for_prompt,
+    get_relevant_collections_dynamic
+)
 
 # Initialize OpenAI client lazily to avoid import-time errors
 def get_openai_client():
@@ -57,241 +63,62 @@ MAX_CACHE_SIZE = 50  # Keep last 50 queries
 def get_relevant_schema(question, intent):
     """
     Return only relevant schema sections based on question.
-    Ported from working Streamlit version - CRITICAL for correct query generation!
+    NOW USES DYNAMIC RUNTIME INTROSPECTION - no hard-coded schemas!
     """
-    schemas = {
-        "Award": {
-            "description": "Government contract awards with semantic search",
-            "key_fields": [
-                "ticker", "award_amount_float", "start_date", "end_date",
-                "awarding_agency", "recipient_name", "description",
-                "description_embedding (for semantic search)",
-                "contract_year", "award_id"
-            ],
-            "critical_notes": "✅ HAS description_embedding - use COSINE_SIMILARITY for semantic search",
-            "sample_query": "FOR doc IN Award FILTER doc.ticker == @ticker SORT doc.award_amount_float DESC LIMIT 20 RETURN doc"
-        },
-        "Company": {
-            "description": "Company master data - CRITICAL: camelCase field names! - ACTUAL DB FIELDS",
-            "key_fields": [
-                "ticker (str)", "company (str)", "sector (str)", "industry (str)",
-                "country (str)", "city (str)", "cik (str)", "website (str)",
-                "sharesOutstanding (int - camelCase!)", "marketCap (int - camelCase!)",
-                "fullTimeEmployees (int - camelCase!)",
-                "sp500_member (bool - snake_case!)",
-                "lastUpdated (str)", "recordCount (int)"
-            ],
-            "critical_notes": "⚠️ Mix of camelCase (financial fields) and snake_case (sp500_member)",
-            "sample_query": "FOR c IN Company FILTER c.ticker == @ticker RETURN c"
-        },
-        "MarketData": {
-            "description": "Daily OHLCV + technical/fundamental indicators",
-            "key_fields": [
-                "ticker", "date", "open", "high", "low", "close", "volume",
-                "sma_20, sma_50, sma_200 (snake_case)",
-                "ema_12, ema_26",
-                "macd, macd_signal, macd_histogram",
-                "golden_cross, death_cross",
-                "above_sma20, above_sma50",
-                "targetMeanPrice (camelCase)",
-                "forwardEps, trailingPE (camelCase)",
-                "beta, dividendYield"
-            ],
-            "critical_notes": "Mix of snake_case (technical) and camelCase (fundamentals)",
-            "sample_query": "FOR m IN MarketData FILTER m.ticker == @ticker AND m.date >= DATE_SUBTRACT(DATE_NOW(), 180, 'day') SORT m.date DESC LIMIT 100 RETURN m"
-        },
-        "EconomicData": {
-            "description": "Macroeconomic indicators (all snake_case)",
-            "key_fields": [
-                "date", "sandp_500_index", "federal_funds_rate",
-                "unemployment_rate", "10y_2y_treasury_spread",
-                "yield_curve_inverted", "vix_volatility_index"
-            ],
-            "critical_notes": "All fields use snake_case",
-            "sample_query": "FOR e IN EconomicData FILTER e.date >= @start_date SORT e.date DESC RETURN e"
-        },
-        "sec_filings": {
-            "description": "SEC filing metadata with aggregated sentiment (NO embeddings!)",
-            "key_fields": [
-                "ticker", "type", "filing_date", "fiscal_year",
-                "avg_finbert", "avg_uncertainty", "avg_negative",
-                "sentence_count", "form_type"
-            ],
-            "critical_notes": "❌ NO embeddings - use text filters only",
-            "sample_query": "FOR f IN sec_filings FILTER f.ticker == @ticker AND f.type == '10-K' SORT f.filing_date DESC LIMIT 20 RETURN f"
-        },
-        "sec_sections": {
-            "description": "SEC filing sections (Risk Factors, MD&A, etc.) with semantic search",
-            "key_fields": [
-                "filing_id", "section_type", "start_char", "length",
-                "section_embedding (array[1536] - for semantic search!)",
-                "risk_topics (list)", "dollar_mentions (int)", "max_dollar_amount (float)"
-            ],
-            "critical_notes": "✅ HAS section_embedding - use COSINE_SIMILARITY(doc.section_embedding, @query_vector) for semantic search over Risk Factors/MD&A",
-            "sample_query": "FOR doc IN sec_sections FILTER doc.section_type == 'Item 1A Risk Factors' SORT COSINE_SIMILARITY(doc.section_embedding, @query_vector) DESC LIMIT 10 RETURN doc"
-        },
-        "sec_sentences": {
-            "description": "Individual SEC sentences with sentiment (NO embeddings!)",
-            "key_fields": [
-                "text", "finbert_score", "finbert_probs",
-                "negative_per_1k", "positive_per_1k",
-                "uncertainty_per_1k", "section_id"
-            ],
-            "critical_notes": "❌ NO embeddings - use CONTAINS(LOWER(doc.text), 'keyword')",
-            "sample_query": "FOR doc IN sec_sentences FILTER CONTAINS(LOWER(doc.text), @keyword) AND doc.finbert_score < -0.3 LIMIT 20 RETURN doc"
-        },
-        "prediction_markets_polymarket": {
-            "description": "Polymarket prediction market data with semantic search - ACTUAL DB FIELDS",
-            "key_fields": [
-                "_key (str)", "condition_id (str)", "question (str)", "description (str)",
-                "market_slug (str)", "end_date (str)", "category (str)",
-                "volume (float)", "volume_24h (int - NOTE: integer!)", "liquidity (float)",
-                "closed (bool)", "outcomes (list)", "outcome_prices (list)",
-                "yes_probability (float)", "no_probability (float)",
-                "question_embedding (array[1536] - for semantic search!)",
-                "fetched_at (str)"
-            ],
-            "critical_notes": "✅ HAS question_embedding - use COSINE_SIMILARITY(doc.question_embedding, @query_vector) for semantic | Keyword search: CONTAINS(LOWER(doc.question), 'keyword') | volume_24h is INT not float!",
-            "sample_query": "FOR m IN prediction_markets_polymarket FILTER m.closed == false AND m.category == @category SORT m.volume_24h DESC LIMIT 20 RETURN m"
-        },
-        "polymarket_traders": {
-            "description": "Polymarket trader data - ACTUAL DB FIELDS",
-            "key_fields": [
-                "_key (str)", "address (str)", "trader_key (str)",
-                "total_volume (float)", "total_trades (int)", "total_profit (float)",
-                "is_whale (bool)", "volume_rank (int)", "avg_position_size (float)",
-                "activity_level (str)", "profit_ratio (float)", "is_profitable (int)",
-                "fetched_at (str)", "updated_at (str)"
-            ],
-            "critical_notes": "Use for trader analysis, whales, top performers",
-            "sample_query": "FOR t IN polymarket_traders FILTER t.is_whale == true SORT t.total_volume DESC LIMIT 20 RETURN t"
-        },
-        "polymarket_positions": {
-            "description": "Polymarket trader positions - ACTUAL DB FIELDS",
-            "key_fields": [
-                "_key (str)", "position_id (str)", "trader_address (str)", "trader_key (str)",
-                "market_condition_id (str)", "market_key (str)", "market_question (str)",
-                "outcome_index (int)", "size (float)", "average_price (float)",
-                "realized_profit (float)", "unrealized_profit (int - NOTE: integer!)",
-                "fetched_at (str)", "updated_at (str)"
-            ],
-            "critical_notes": "Links traders to markets, use for position analysis | unrealized_profit is INT",
-            "sample_query": "FOR p IN polymarket_positions FILTER p.trader_key == @trader_key SORT p.size DESC LIMIT 20 RETURN p"
-        },
-        "polymarket_price_history": {
-            "description": "Polymarket historical price snapshots - ACTUAL DB FIELDS",
-            "key_fields": [
-                "_key (str)", "market_id (str)", "condition_id (str)",
-                "timestamp (int)", "datetime (str)",
-                "yes_price (float)", "no_price (float)",
-                "volume (float)", "volume_24h (float)", "liquidity (float)"
-            ],
-            "critical_notes": "Time-series data for market probability changes",
-            "sample_query": "FOR h IN polymarket_price_history FILTER h.market_id == @market_id SORT h.timestamp DESC LIMIT 100 RETURN h"
-        },
-        "prediction_markets_kalshi": {
-            "description": "Kalshi prediction market data with semantic search",
-            "key_fields": [
-                "title", "yes_price", "no_price", "volume",
-                "status", "category", "close_time",
-                "title_embedding (array[1536] - for semantic search!)"
-            ],
-            "critical_notes": "✅ HAS title_embedding - use COSINE_SIMILARITY(doc.title_embedding, @query_vector) for semantic | Keyword: CONTAINS(LOWER(doc.title), 'keyword')",
-            "sample_query": "FOR m IN prediction_markets_kalshi FILTER m.status == 'active' SORT m.volume DESC LIMIT 20 RETURN m"
-        },
-        "commodity_positions": {
-            "description": "CFTC Commitments of Traders data",
-            "key_fields": [
-                "ticker", "Market_and_Exchange_Names (Capital M!)",
-                "as_of_date", "Noncommercial_Positions_Long_All",
-                "Noncommercial_Positions_Short_All"
-            ],
-            "critical_notes": "⚠️ Some fields have Capital letters!",
-            "sample_query": "FOR c IN commodity_positions FILTER c.ticker == @ticker SORT c.as_of_date DESC LIMIT 50 RETURN c"
-        }
-    }
+    # Get relevant collections using dynamic detection
+    relevant_collections = get_relevant_collections_dynamic(question)
 
-    # Smart detection: which collections are relevant to this question?
-    question_lower = question.lower()
-    relevant_schemas = []
-
-    # Intent-based selection
+    # Add intent-based collections
     if intent and intent.get("type") == "ticker":
-        # For ticker queries, include Company + MarketData (NOT Award unless explicitly mentioned)
-        relevant_schemas.extend(["Company", "MarketData"])
+        # For ticker queries, ensure Company + MarketData are included
+        if "Company" not in relevant_collections:
+            relevant_collections.insert(0, "Company")
+        if "MarketData" not in relevant_collections:
+            relevant_collections.insert(1, "MarketData")
         print(f"[SCHEMA SELECTION] Ticker query detected: {intent.get('value')}")
 
-    # Keyword-based detection for government contracts
-    if any(word in question_lower for word in ['contract', 'award', 'government', 'federal', 'usaspending']):
-        if "Award" not in relevant_schemas:
-            relevant_schemas.append("Award")
-            print(f"[SCHEMA SELECTION] Award collection added - contract keyword detected")
-
-    # Geopolitical queries - search government contracts with semantic embeddings
+    # Geopolitical queries - add additional collections
     geopolitical_keywords = [
         'iran', 'china', 'russia', 'north korea', 'syria', 'ukraine', 'taiwan',
         'conflict', 'war', 'military', 'defense', 'geopolitical', 'sanctions',
         'bomb', 'strike', 'invasion', 'attack', 'troops', 'deployment'
     ]
+    question_lower = question.lower()
     if any(word in question_lower for word in geopolitical_keywords):
-        if "Award" not in relevant_schemas:
-            relevant_schemas.append("Award")
-            print(f"[SCHEMA SELECTION] Award collection added - geopolitical keyword detected")
-        if "prediction_markets_polymarket" not in relevant_schemas:
-            relevant_schemas.append("prediction_markets_polymarket")
-            print(f"[SCHEMA SELECTION] Polymarket added - geopolitical topic detected")
-        if "sec_filings" not in relevant_schemas:
-            relevant_schemas.append("sec_filings")
-            print(f"[SCHEMA SELECTION] SEC filings added - defense contractors may mention topic")
+        for coll in ["Award", "prediction_markets_polymarket", "sec_filings"]:
+            if coll not in relevant_collections:
+                relevant_collections.append(coll)
+        print(f"[SCHEMA SELECTION] Geopolitical query - added Award, Polymarket, SEC filings")
 
-    # Trader-specific queries
-    if any(word in question_lower for word in ['trader', 'whale', 'position', 'top trader', 'biggest bet']):
-        for coll in ["polymarket_traders", "polymarket_positions"]:
-            if coll not in relevant_schemas:
-                relevant_schemas.append(coll)
+    print(f"[SCHEMA SELECTION] Selected collections: {relevant_collections}")
 
-    if any(word in question_lower for word in ['stock', 'price', 'market data', 'technical', 'sma', 'ema', 'macd']):
-        if "MarketData" not in relevant_schemas:
-            relevant_schemas.append("MarketData")
-
-    if any(word in question_lower for word in ['sec', 'filing', '10-k', '10-q', 'sentiment', 'risk', 'uncertainty']):
-        relevant_schemas.extend([s for s in ["sec_filings", "sec_sentences"] if s not in relevant_schemas])
-
-    if any(word in question_lower for word in ['polymarket', 'prediction market', 'betting', 'odds', 'probability']):
-        if "prediction_markets_polymarket" not in relevant_schemas:
-            relevant_schemas.append("prediction_markets_polymarket")
-
-    # Semantic prediction market queries (concepts, not specific keywords)
-    if any(phrase in question_lower for phrase in ['markets about', 'predictions about', 'betting on', 'markets related to', 'markets concerning']):
-        if "prediction_markets_polymarket" not in relevant_schemas:
-            relevant_schemas.append("prediction_markets_polymarket")
-
-    if any(word in question_lower for word in ['kalshi', 'event contract']):
-        if "prediction_markets_kalshi" not in relevant_schemas:
-            relevant_schemas.append("prediction_markets_kalshi")
-
-    if any(word in question_lower for word in ['commodity', 'cftc', 'futures', 'copper', 'gold', 'oil']):
-        if "commodity_positions" not in relevant_schemas:
-            relevant_schemas.append("commodity_positions")
-
-    if any(word in question_lower for word in ['economy', 'economic', 'fed', 'unemployment', 's&p 500', 'gdp']):
-        if "EconomicData" not in relevant_schemas:
-            relevant_schemas.append("EconomicData")
-
-    # If no matches, return MINIMAL core collections (no Award fallback!)
-    if not relevant_schemas:
-        relevant_schemas = ["Company", "MarketData"]
-        print("[SCHEMA SELECTION] No keywords matched, using minimal default: Company + MarketData")
+    # Get cached schema
+    full_schema = get_cached_schema()
 
     # Format schema output
     schema_text = "RELEVANT COLLECTIONS:\n\n"
-    for coll_name in relevant_schemas:
-        if coll_name in schemas:
-            schema = schemas[coll_name]
-            schema_text += f"**{coll_name}** - {schema['description']}\n"
-            schema_text += f"Fields: {', '.join(schema['key_fields'])}\n"
-            schema_text += f"⚠️ {schema['critical_notes']}\n"
-            schema_text += f"Example: {schema['sample_query']}\n\n"
+    for coll_name in relevant_collections:
+        coll_schema = full_schema['collections'].get(coll_name)
+        if coll_schema:
+            schema_text += format_collection_for_prompt(coll_name, coll_schema)
+
+            # Add sample query if available (for common collections)
+            sample_queries = {
+                "Company": "FOR c IN Company FILTER c.ticker == @ticker RETURN c",
+                "MarketData": "FOR m IN MarketData FILTER m.ticker == @ticker AND m.date >= DATE_SUBTRACT(DATE_NOW(), 180, 'day') SORT m.date DESC LIMIT 100 RETURN m",
+                "Award": "FOR doc IN Award FILTER doc.ticker == @ticker SORT doc.award_amount_float DESC LIMIT 20 RETURN doc",
+                "sec_filings": "FOR f IN sec_filings FILTER f.ticker == @ticker AND f.type == '10-K' SORT f.filing_date DESC LIMIT 20 RETURN f"
+            }
+            if coll_name in sample_queries:
+                schema_text += f"Example: {sample_queries[coll_name]}\n"
+
+            schema_text += "\n"
+
+    # If no collections found, use default
+    if not relevant_collections:
+        schema_text += "Using default: Company, MarketData\n"
+        schema_text += format_collection_for_prompt("Company", full_schema['collections'].get("Company", {}))
+        schema_text += format_collection_for_prompt("MarketData", full_schema['collections'].get("MarketData", {}))
 
     return schema_text
 
