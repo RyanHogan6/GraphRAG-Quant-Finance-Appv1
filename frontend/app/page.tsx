@@ -22,6 +22,7 @@ import ComplexQueryGallery from '@/components/ComplexQueryGallery'
 import InsiderTradingSignal from '@/components/InsiderTradingSignal'
 import SentimentDivergence from '@/components/SentimentDivergence'
 import AnomalyHighlight from '@/components/AnomalyHighlight'
+import ResponseRouter from '@/components/ResponseRouter'
 import { Market } from '@/lib/types'
 
 interface Message {
@@ -188,52 +189,32 @@ export default function HomePage() {
 
         {message.results && message.results.length > 0 && (
           <div className="mt-3 md:mt-4 space-y-3 md:space-y-4">
+            {/* Use ResponseRouter to intelligently route to appropriate template */}
             {(() => {
-              // Check for specialized presentation types first
-              if (message.presentationType === 'insider_trading') {
-                return <InsiderTradingSignal signals={message.results} />;
-              }
+              // Check if single company workup for peer comparison support
+              const primaryData = message.results.find((r: any) =>
+                r.MarketData || r.sec_filings || r.Award || r.prediction_markets_polymarket
+              );
+              const isInComparisonMode = primaryData &&
+                peerComparisonData.primaryTicker === primaryData.ticker &&
+                peerComparisonData.peerData;
 
-              if (message.presentationType === 'sentiment_divergence') {
-                return <SentimentDivergence signals={message.results} />;
-              }
-
-              // Then check for company workups
-              const isWorkup = (r: any) =>
-                r.MarketData || r.sec_filings || r.Award || r.prediction_markets_polymarket;
-
-              const workupResults = message.results.filter(isWorkup);
-
-              if (workupResults.length === 2) {
-                return (
-                  <CompanyCompare
-                    companyA={workupResults[0]}
-                    companyB={workupResults[1]}
+              return (
+                <div className="relative">
+                  {isPeerLoading && (
+                    <div className="absolute top-4 right-4 z-10 bg-dark-800 border border-blue-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-xs text-blue-400">Loading peer data...</span>
+                    </div>
+                  )}
+                  <ResponseRouter
+                    message={message}
+                    onCompare={primaryData ? (ticker) => handlePeerCompare(primaryData.ticker, ticker) : undefined}
+                    peerData={isInComparisonMode ? peerComparisonData.peerData : null}
+                    comparisonMode={isInComparisonMode}
                   />
-                );
-              } else if (workupResults.length === 1) {
-                const primaryData = workupResults[0];
-                const isInComparisonMode = peerComparisonData.primaryTicker === primaryData.ticker && peerComparisonData.peerData;
-
-                return (
-                  <div className="relative">
-                    {isPeerLoading && (
-                      <div className="absolute top-4 right-4 z-10 bg-dark-800 border border-blue-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                        <span className="text-xs text-blue-400">Loading peer data...</span>
-                      </div>
-                    )}
-                    <CompanyWorkup
-                      data={primaryData}
-                      onCompare={(ticker) => handlePeerCompare(primaryData.ticker, ticker)}
-                      peerData={isInComparisonMode ? peerComparisonData.peerData : null}
-                      comparisonMode={isInComparisonMode}
-                    />
-                  </div>
-                );
-              } else {
-                return <ResultsTable data={message.results} />;
-              }
+                </div>
+              );
             })()}
 
             {/* Data Source Attribution */}

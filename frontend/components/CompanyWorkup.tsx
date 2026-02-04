@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import TimeSeriesChart from './TimeSeriesChart'
 import { motion, AnimatePresence } from 'framer-motion'
 import SECFilingsExplorer from './SECFilingsExplorer'
+import SentimentIndicators from './company/SentimentIndicators'
 import type { Key } from 'react'
 
 interface CompanyWorkupProps {
@@ -14,7 +15,7 @@ interface CompanyWorkupProps {
 }
 
 export default function CompanyWorkup({ data, onCompare, peerData, comparisonMode = false }: CompanyWorkupProps) {
-    const [timeframe, setTimeframe] = useState<'1M' | '3M' | '6M' | '1Y' | '5Y'>('1M')
+    const [timeframe, setTimeframe] = useState<'1W' | '1M' | '3M' | '6M' | '1Y' | '5Y' | 'ALL'>('1M')
     const [showAllMetrics, setShowAllMetrics] = useState(false)
     const [selectedDetail, setSelectedDetail] = useState<{ type: 'SEC' | 'Award', data: any } | null>(null)
     const [selectedFormType, setSelectedFormType] = useState<string>('all')
@@ -99,11 +100,13 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
             // Filter by timeframe
             const now = new Date()
             const filterDate = new Date()
-            if (timeframe === '1M') filterDate.setMonth(now.getMonth() - 1)
+            if (timeframe === '1W') filterDate.setDate(now.getDate() - 7)
+            else if (timeframe === '1M') filterDate.setMonth(now.getMonth() - 1)
             else if (timeframe === '3M') filterDate.setMonth(now.getMonth() - 3)
             else if (timeframe === '6M') filterDate.setMonth(now.getMonth() - 6)
             else if (timeframe === '1Y') filterDate.setFullYear(now.getFullYear() - 1)
             else if (timeframe === '5Y') filterDate.setFullYear(now.getFullYear() - 5)
+            else if (timeframe === 'ALL') filterDate.setFullYear(1900)  // Show all data
 
             filtered = filtered.filter(d => new Date(d.date) >= filterDate)
             const sorted = filtered.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
@@ -228,10 +231,14 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
             })
 
             // Calculate metrics from XBRL data if MarketData is missing
-            const xbrlRevenue = latestXbrl?.costs?.Revenues
-            const xbrlPrevRevenue = prevXbrl?.costs?.Revenues
-            const xbrlNetIncome = latestXbrl?.costs?.NetIncomeLoss
-            const xbrlEquity = latestXbrl?.equity?.StockholdersEquity
+            // Note: Revenues and NetIncomeLoss are in all_concepts, not costs
+            const xbrlRevenue = latestXbrl?.all_concepts?.Revenues
+                             || latestXbrl?.revenue_segments?.[Object.keys(latestXbrl.revenue_segments || {})[0]]
+            const xbrlPrevRevenue = prevXbrl?.all_concepts?.Revenues
+                                 || prevXbrl?.revenue_segments?.[Object.keys(prevXbrl?.revenue_segments || {})[0]]
+            const xbrlNetIncome = latestXbrl?.all_concepts?.NetIncomeLoss
+            const xbrlEquity = latestXbrl?.all_concepts?.StockholdersEquity
+                            || latestXbrl?.equity?.StockholdersEquity
             const xbrlDebt = latestXbrl?.debt?.LongTermDebt || latestXbrl?.debt?.DebtCurrent || 0
             const xbrlFreeCashflow = latestXbrl?.cashflow?.NetCashProvidedByUsedInOperatingActivities
 
@@ -324,10 +331,14 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
             const prevXbrl = xbrlData && xbrlData.length > 1 ? xbrlData[1] : null
 
             // Calculate metrics from XBRL data if MarketData is missing
-            const xbrlRevenue = latestXbrl?.costs?.Revenues
-            const xbrlPrevRevenue = prevXbrl?.costs?.Revenues
-            const xbrlNetIncome = latestXbrl?.costs?.NetIncomeLoss
-            const xbrlEquity = latestXbrl?.equity?.StockholdersEquity
+            // Note: Revenues and NetIncomeLoss are in all_concepts, not costs
+            const xbrlRevenue = latestXbrl?.all_concepts?.Revenues
+                             || latestXbrl?.revenue_segments?.[Object.keys(latestXbrl.revenue_segments || {})[0]]
+            const xbrlPrevRevenue = prevXbrl?.all_concepts?.Revenues
+                                 || prevXbrl?.revenue_segments?.[Object.keys(prevXbrl?.revenue_segments || {})[0]]
+            const xbrlNetIncome = latestXbrl?.all_concepts?.NetIncomeLoss
+            const xbrlEquity = latestXbrl?.all_concepts?.StockholdersEquity
+                            || latestXbrl?.equity?.StockholdersEquity
             const xbrlDebt = latestXbrl?.debt?.LongTermDebt || latestXbrl?.debt?.DebtCurrent || 0
             const xbrlFreeCashflow = latestXbrl?.cashflow?.NetCashProvidedByUsedInOperatingActivities
 
@@ -479,6 +490,14 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                 </div>
             </div>
 
+            {/* 3 Sentiment Indicators - Quick Insights */}
+            <SentimentIndicators
+                marketData={marketData}
+                secFilings={allSecFilings}
+                optionsFlow={optionsFlow}
+                xbrlData={secXbrlData}
+            />
+
             {/* Main Content Sections - Full Width Layout */}
             <div className="space-y-4">
 
@@ -491,7 +510,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                             </div>
                             <div className="flex gap-2">
                                 <div className="flex bg-dark-800 rounded-xl p-0.5 border border-white/10 shadow-inner">
-                                    {['1M', '3M', '6M', '1Y', '5Y'].map(tf => (
+                                    {['1W', '1M', '3M', '6M', '1Y', '5Y', 'ALL'].map(tf => (
                                         <button
                                             key={tf}
                                             onClick={() => setTimeframe(tf as any)}
