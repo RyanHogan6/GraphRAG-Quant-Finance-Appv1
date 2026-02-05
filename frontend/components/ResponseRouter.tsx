@@ -6,6 +6,11 @@ import CompanyWorkup from './CompanyWorkup'
 import InsiderTradingSignal from './InsiderTradingSignal'
 import SentimentDivergence from './SentimentDivergence'
 import ResultsTable from './ResultsTable'
+import SectorComparison from './SectorComparison'
+import PeerAnalysis from './PeerAnalysis'
+import MetricFocusedView from './MetricFocusedView'
+import TimeSeriesView from './TimeSeriesView'
+import { extractMetric } from '@/lib/responseClassifier'
 
 interface Message {
   role: string
@@ -69,61 +74,51 @@ export default function ResponseRouter({
 
     case 'sector_comparison':
       // Multiple companies in same sector
-      // TODO: Phase 4 - Create SectorComparison component
       return (
         <div className="space-y-4">
-          <div className="text-xs text-yellow-500 italic mb-2">
-            🏢 Sector Comparison (Coming in Phase 4)
+          <div className="text-xs text-gray-500 italic mb-2">
+            🏢 {getQueryTypeDescription(queryType)}
           </div>
-          <div className="text-sm text-gray-400 mb-4">
-            Comparing {message.results!.length} companies in {message.results![0]?.sector || 'sector'}
-          </div>
-          <ResultsTable data={message.results!} />
+          <SectorComparison companies={message.results!} />
         </div>
       )
 
     case 'peer_analysis':
       // Multiple companies comparison
-      // TODO: Phase 4 - Create PeerAnalysis component
       return (
         <div className="space-y-4">
-          <div className="text-xs text-yellow-500 italic mb-2">
-            📈 Peer Analysis (Coming in Phase 4)
+          <div className="text-xs text-gray-500 italic mb-2">
+            📈 {getQueryTypeDescription(queryType)}
           </div>
-          <div className="text-sm text-gray-400 mb-4">
-            Comparing {message.results!.length} companies
-          </div>
-          <ResultsTable data={message.results!} />
+          <PeerAnalysis companies={message.results!} />
         </div>
       )
 
     case 'time_series':
       // Historical trend analysis
-      // TODO: Phase 5 - Create TimeSeriesView component
       return (
         <div className="space-y-4">
-          <div className="text-xs text-yellow-500 italic mb-2">
-            📉 Time Series Analysis (Coming in Phase 5)
+          <div className="text-xs text-gray-500 italic mb-2">
+            📉 {getQueryTypeDescription(queryType)}
           </div>
-          <div className="text-sm text-gray-400 mb-4">
-            Chart-first view with trend analysis
-          </div>
-          <ResultsTable data={message.results!} />
+          <TimeSeriesView
+            data={message.results!}
+            chartData={message.queryPlan?.chart_data}
+          />
         </div>
       )
 
     case 'metric_focused':
       // Specific metric deep dive
-      // TODO: Phase 5 - Create MetricFocusedView component
       return (
         <div className="space-y-4">
-          <div className="text-xs text-yellow-500 italic mb-2">
-            🎯 Metric Focus (Coming in Phase 5)
+          <div className="text-xs text-gray-500 italic mb-2">
+            🎯 {getQueryTypeDescription(queryType)}
           </div>
-          <div className="text-sm text-gray-400 mb-4">
-            Detailed analysis of specific financial metric
-          </div>
-          <ResultsTable data={message.results!} />
+          <MetricFocusedView
+            metric={extractMetric(message.content)}
+            data={message.results!}
+          />
         </div>
       )
 
