@@ -210,106 +210,121 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
     // Moneycontain "13 Essential Financial Metrics"
     const fundamentalMetrics = useMemo(() => {
         const calculateMetrics = (companyData: any, marketData: any, xbrlData: any[]) => {
+            // Merge company and market data
             const all = { ...companyData, ...marketData }
 
-            // Get latest XBRL data for financial statement calculations
-            const latestXbrl = xbrlData && xbrlData.length > 0 ? xbrlData[0] : null
-            const prevXbrl = xbrlData && xbrlData.length > 1 ? xbrlData[1] : null
+            // Try both camelCase and snake_case field names for compatibility
+            const getValue = (camelCase: string, snakeCase: string) => {
+                return all[camelCase] ?? all[snakeCase] ?? null
+            }
 
-            // Debug: Log what fundamental fields are available
-            console.log('[FUNDAMENTAL DEBUG] Company data keys:', Object.keys(companyData))
-            console.log('[FUNDAMENTAL DEBUG] Market data keys:', Object.keys(marketData))
-            console.log('[FUNDAMENTAL DEBUG] XBRL available:', !!latestXbrl)
-            console.log('[FUNDAMENTAL DEBUG] Fundamental fields from MarketData:', {
-                revenueGrowth: all.revenueGrowth,
-                ebitdaMargins: all.ebitdaMargins,
-                profitMargins: all.profitMargins,
-                returnOnEquity: all.returnOnEquity,
-                debtToEquity: all.debtToEquity,
-                currentRatio: all.currentRatio,
-                freeCashflow: all.freeCashflow
-            })
+            // Get latest XBRL data
+            const latestXbrl = xbrlData?.[0] || null
+            const prevXbrl = xbrlData?.[1] || null
 
-            // Calculate metrics from XBRL data if MarketData is missing
-            // Note: Revenues and NetIncomeLoss are in all_concepts, not costs
+            // Extract XBRL financials
             const xbrlRevenue = latestXbrl?.all_concepts?.Revenues
-                             || latestXbrl?.revenue_segments?.[Object.keys(latestXbrl.revenue_segments || {})[0]]
+                             || latestXbrl?.all_concepts?.RevenueFromContractWithCustomerExcludingAssessedTax
+                             || Object.values(latestXbrl?.revenue_segments || {})[0]
+                             || null
             const xbrlPrevRevenue = prevXbrl?.all_concepts?.Revenues
-                                 || prevXbrl?.revenue_segments?.[Object.keys(prevXbrl?.revenue_segments || {})[0]]
-            const xbrlNetIncome = latestXbrl?.all_concepts?.NetIncomeLoss
+                                 || prevXbrl?.all_concepts?.RevenueFromContractWithCustomerExcludingAssessedTax
+                                 || Object.values(prevXbrl?.revenue_segments || {})[0]
+                                 || null
+            const xbrlNetIncome = latestXbrl?.all_concepts?.NetIncomeLoss || null
             const xbrlEquity = latestXbrl?.all_concepts?.StockholdersEquity
                             || latestXbrl?.equity?.StockholdersEquity
-            const xbrlDebt = latestXbrl?.debt?.LongTermDebt || latestXbrl?.debt?.DebtCurrent || 0
-            const xbrlFreeCashflow = latestXbrl?.cashflow?.NetCashProvidedByUsedInOperatingActivities
+                            || null
+            const xbrlDebt = latestXbrl?.debt?.LongTermDebt || latestXbrl?.debt?.DebtCurrent || null
+            const xbrlFreeCashflow = latestXbrl?.cashflow?.NetCashProvidedByUsedInOperatingActivities || null
 
-            // Calculate fallback values from XBRL
-            const xbrlRevenueGrowth = (xbrlRevenue && xbrlPrevRevenue)
+            // Calculate fallbacks from XBRL
+            const xbrlRevenueGrowth = (xbrlRevenue && xbrlPrevRevenue && xbrlPrevRevenue !== 0)
                 ? (xbrlRevenue - xbrlPrevRevenue) / xbrlPrevRevenue
                 : null
-            const xbrlProfitMargin = (xbrlNetIncome && xbrlRevenue)
+            const xbrlProfitMargin = (xbrlNetIncome && xbrlRevenue && xbrlRevenue !== 0)
                 ? xbrlNetIncome / xbrlRevenue
                 : null
-            const xbrlROE = (xbrlNetIncome && xbrlEquity)
+            const xbrlROE = (xbrlNetIncome && xbrlEquity && xbrlEquity !== 0)
                 ? xbrlNetIncome / xbrlEquity
                 : null
-            const xbrlDebtToEquity = (xbrlDebt && xbrlEquity)
+            const xbrlDebtToEquity = (xbrlDebt && xbrlEquity && xbrlEquity !== 0)
                 ? xbrlDebt / xbrlEquity
                 : null
 
-            console.log('[FUNDAMENTAL DEBUG] Calculated from XBRL:', {
-                revenue: xbrlRevenue,
-                netIncome: xbrlNetIncome,
-                revenueGrowth: xbrlRevenueGrowth,
-                profitMargin: xbrlProfitMargin,
-                roe: xbrlROE,
-                debtToEquity: xbrlDebtToEquity
-            })
-
-            // Derive Revenue and Absolute Margins if raw fields are missing
-            const calcRevenue = (all.revenuePerShare && all.sharesOutstanding)
-                ? (all.revenuePerShare * all.sharesOutstanding)
-                : (all.priceToSalesTrailing12Months && all.close && all.sharesOutstanding)
-                    ? ((all.close * all.sharesOutstanding) / all.priceToSalesTrailing12Months)
-                    : null;
-
-            // Try multiple fallback calculations for EBITDA
-            const calcEbitda = all.ebitda
-                ? all.ebitda
-                : (calcRevenue && all.ebitdaMargins)
-                    ? calcRevenue * all.ebitdaMargins
-                    : (all.operatingCashflow)
-                        ? all.operatingCashflow * 1.15  // Rough approximation: EBITDA ≈ operating CF * 1.15
-                        : null;
-
-            // Try multiple fallback calculations for Net Income
-            const calcNetIncome = all.netIncome
-                ? all.netIncome
-                : (calcRevenue && all.profitMargins)
-                    ? calcRevenue * all.profitMargins
-                    : (all.trailingEps && all.sharesOutstanding)
-                        ? all.trailingEps * all.sharesOutstanding
-                        : null;
-
+            // Build metrics list with robust fallbacks
             const metricsList = [
-                { name: 'Revenue Growth', val: all.revenueGrowth ?? xbrlRevenueGrowth, benchmark: '> 10%', type: 'pct', check: (v: number) => v > 0.1 },
-                { name: 'EBITDA', val: calcEbitda, benchmark: 'Growing', type: 'currency' },
-                { name: 'EBITDA Margin', val: all.ebitdaMargins, benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 },
-                { name: 'Net Profit (PAT)', val: calcNetIncome ?? xbrlNetIncome, benchmark: 'Growing', type: 'currency' },
-                { name: 'PAT Margin', val: all.profitMargins ?? xbrlProfitMargin, benchmark: '> 10%', type: 'pct', check: (v: number) => v > 0.1 },
-                { name: 'ROE', val: all.returnOnEquity ?? xbrlROE, benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 },
-                { name: 'ROA', val: all.returnOnAssets, benchmark: '> 7%', type: 'pct', check: (v: number) => v > 0.07 },
-                { name: 'Debt-to-Equity', val: all.debtToEquity ?? xbrlDebtToEquity, benchmark: '< 1', type: 'ratio', check: (v: number) => v < 1 },
-                { name: 'Current Ratio', val: all.currentRatio, benchmark: '> 1.5', type: 'ratio', check: (v: number) => v > 1.5 },
-                { name: 'Free Cash Flow', val: all.freeCashflow ?? xbrlFreeCashflow, benchmark: 'Positive', type: 'currency', check: (v: number) => v > 0 },
-                { name: 'EPS', val: all.trailingEps || all.epsTrailingTwelveMonths || all.forwardEps, benchmark: 'Growing', type: 'number' },
-                { name: 'P/E Ratio', val: all.trailingPE || all.forwardPE, benchmark: '< 20 (Fair)', type: 'number', check: (v: number) => v < 20 },
-                { name: 'ROCE', val: (all.totalDebt && all.returnOnEquity && all.debtToEquity) ? (all.returnOnEquity * (1 + all.debtToEquity)) : (all.returnOnEquity || xbrlROE || null), benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15 }
+                {
+                    name: 'Revenue Growth',
+                    val: getValue('revenueGrowth', 'revenue_growth') ?? xbrlRevenueGrowth,
+                    benchmark: '> 10%', type: 'pct', check: (v: number) => v > 0.1
+                },
+                {
+                    name: 'EBITDA Margin',
+                    val: getValue('ebitdaMargins', 'ebitda_margins'),
+                    benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15
+                },
+                {
+                    name: 'PAT Margin',
+                    val: getValue('profitMargins', 'profit_margins') ?? xbrlProfitMargin,
+                    benchmark: '> 10%', type: 'pct', check: (v: number) => v > 0.1
+                },
+                {
+                    name: 'ROE',
+                    val: getValue('returnOnEquity', 'return_on_equity') ?? xbrlROE,
+                    benchmark: '> 15%', type: 'pct', check: (v: number) => v > 0.15
+                },
+                {
+                    name: 'ROA',
+                    val: getValue('returnOnAssets', 'return_on_assets'),
+                    benchmark: '> 7%', type: 'pct', check: (v: number) => v > 0.07
+                },
+                {
+                    name: 'Debt-to-Equity',
+                    val: getValue('debtToEquity', 'debt_to_equity') ?? xbrlDebtToEquity,
+                    benchmark: '< 1', type: 'ratio', check: (v: number) => v < 1
+                },
+                {
+                    name: 'Current Ratio',
+                    val: getValue('currentRatio', 'current_ratio'),
+                    benchmark: '> 1.5', type: 'ratio', check: (v: number) => v > 1.5
+                },
+                {
+                    name: 'Free Cash Flow',
+                    val: getValue('freeCashflow', 'free_cashflow') ?? xbrlFreeCashflow,
+                    benchmark: 'Positive', type: 'currency', check: (v: number) => v > 0
+                },
+                {
+                    name: 'EPS',
+                    val: getValue('trailingEps', 'trailing_eps') || getValue('epsTrailingTwelveMonths', 'eps_trailing_twelve_months') || getValue('forwardEps', 'forward_eps'),
+                    benchmark: 'Growing', type: 'number'
+                },
+                {
+                    name: 'P/E Ratio',
+                    val: getValue('trailingPE', 'trailing_pe') || getValue('forwardPE', 'forward_pe'),
+                    benchmark: '< 20 (Fair)', type: 'number', check: (v: number) => v < 20
+                },
+                {
+                    name: 'Operating Margin',
+                    val: getValue('operatingMargins', 'operating_margins'),
+                    benchmark: '> 12%', type: 'pct', check: (v: number) => v > 0.12
+                },
+                {
+                    name: 'Gross Margin',
+                    val: getValue('grossMargins', 'gross_margins'),
+                    benchmark: '> 30%', type: 'pct', check: (v: number) => v > 0.30
+                },
+                {
+                    name: 'Quick Ratio',
+                    val: getValue('quickRatio', 'quick_ratio'),
+                    benchmark: '> 1', type: 'ratio', check: (v: number) => v > 1
+                }
             ]
 
             return metricsList.map(m => ({
                 ...m,
                 displayVal: formatVal(m.val, m.type),
-                status: m.check ? (m.check(m.val) ? 'good' : 'bad') : 'neutral'
+                status: m.val != null && m.check ? (m.check(m.val) ? 'good' : 'bad') : 'neutral'
             }))
         }
 
@@ -326,77 +341,61 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
         const calculateMetrics = (companyData: any, marketData: any, xbrlData: any[]) => {
             const all = { ...companyData, ...marketData }
 
-            // Get latest XBRL data for peer
-            const latestXbrl = xbrlData && xbrlData.length > 0 ? xbrlData[0] : null
-            const prevXbrl = xbrlData && xbrlData.length > 1 ? xbrlData[1] : null
+            const getValue = (camelCase: string, snakeCase: string) => {
+                return all[camelCase] ?? all[snakeCase] ?? null
+            }
 
-            // Calculate metrics from XBRL data if MarketData is missing
-            // Note: Revenues and NetIncomeLoss are in all_concepts, not costs
+            const latestXbrl = xbrlData?.[0] || null
+            const prevXbrl = xbrlData?.[1] || null
+
             const xbrlRevenue = latestXbrl?.all_concepts?.Revenues
-                             || latestXbrl?.revenue_segments?.[Object.keys(latestXbrl.revenue_segments || {})[0]]
+                             || latestXbrl?.all_concepts?.RevenueFromContractWithCustomerExcludingAssessedTax
+                             || Object.values(latestXbrl?.revenue_segments || {})[0]
+                             || null
             const xbrlPrevRevenue = prevXbrl?.all_concepts?.Revenues
-                                 || prevXbrl?.revenue_segments?.[Object.keys(prevXbrl?.revenue_segments || {})[0]]
-            const xbrlNetIncome = latestXbrl?.all_concepts?.NetIncomeLoss
+                                 || prevXbrl?.all_concepts?.RevenueFromContractWithCustomerExcludingAssessedTax
+                                 || Object.values(prevXbrl?.revenue_segments || {})[0]
+                                 || null
+            const xbrlNetIncome = latestXbrl?.all_concepts?.NetIncomeLoss || null
             const xbrlEquity = latestXbrl?.all_concepts?.StockholdersEquity
                             || latestXbrl?.equity?.StockholdersEquity
-            const xbrlDebt = latestXbrl?.debt?.LongTermDebt || latestXbrl?.debt?.DebtCurrent || 0
-            const xbrlFreeCashflow = latestXbrl?.cashflow?.NetCashProvidedByUsedInOperatingActivities
+                            || null
+            const xbrlDebt = latestXbrl?.debt?.LongTermDebt || latestXbrl?.debt?.DebtCurrent || null
+            const xbrlFreeCashflow = latestXbrl?.cashflow?.NetCashProvidedByUsedInOperatingActivities || null
 
-            const xbrlRevenueGrowth = (xbrlRevenue && xbrlPrevRevenue)
+            const xbrlRevenueGrowth = (xbrlRevenue && xbrlPrevRevenue && xbrlPrevRevenue !== 0)
                 ? (xbrlRevenue - xbrlPrevRevenue) / xbrlPrevRevenue
                 : null
-            const xbrlProfitMargin = (xbrlNetIncome && xbrlRevenue)
+            const xbrlProfitMargin = (xbrlNetIncome && xbrlRevenue && xbrlRevenue !== 0)
                 ? xbrlNetIncome / xbrlRevenue
                 : null
-            const xbrlROE = (xbrlNetIncome && xbrlEquity)
+            const xbrlROE = (xbrlNetIncome && xbrlEquity && xbrlEquity !== 0)
                 ? xbrlNetIncome / xbrlEquity
                 : null
-            const xbrlDebtToEquity = (xbrlDebt && xbrlEquity)
+            const xbrlDebtToEquity = (xbrlDebt && xbrlEquity && xbrlEquity !== 0)
                 ? xbrlDebt / xbrlEquity
                 : null
 
-            const calcRevenue = (all.revenuePerShare && all.sharesOutstanding)
-                ? (all.revenuePerShare * all.sharesOutstanding)
-                : (all.priceToSalesTrailing12Months && all.close && all.sharesOutstanding)
-                    ? ((all.close * all.sharesOutstanding) / all.priceToSalesTrailing12Months)
-                    : null;
-
-            const calcEbitda = all.ebitda
-                ? all.ebitda
-                : (calcRevenue && all.ebitdaMargins)
-                    ? calcRevenue * all.ebitdaMargins
-                    : (all.operatingCashflow)
-                        ? all.operatingCashflow * 1.15
-                        : null;
-
-            const calcNetIncome = all.netIncome
-                ? all.netIncome
-                : (calcRevenue && all.profitMargins)
-                    ? calcRevenue * all.profitMargins
-                    : (all.trailingEps && all.sharesOutstanding)
-                        ? all.trailingEps * all.sharesOutstanding
-                        : null;
-
             const metricsList = [
-                { name: 'Revenue Growth', val: all.revenueGrowth ?? xbrlRevenueGrowth, type: 'pct', check: (v: number) => v > 0.1 },
-                { name: 'EBITDA', val: calcEbitda, type: 'currency' },
-                { name: 'EBITDA Margin', val: all.ebitdaMargins, type: 'pct', check: (v: number) => v > 0.15 },
-                { name: 'Net Profit (PAT)', val: calcNetIncome ?? xbrlNetIncome, type: 'currency' },
-                { name: 'PAT Margin', val: all.profitMargins ?? xbrlProfitMargin, type: 'pct', check: (v: number) => v > 0.1 },
-                { name: 'ROE', val: all.returnOnEquity ?? xbrlROE, type: 'pct', check: (v: number) => v > 0.15 },
-                { name: 'ROA', val: all.returnOnAssets, type: 'pct', check: (v: number) => v > 0.07 },
-                { name: 'Debt-to-Equity', val: all.debtToEquity ?? xbrlDebtToEquity, type: 'ratio', check: (v: number) => v < 1 },
-                { name: 'Current Ratio', val: all.currentRatio, type: 'ratio', check: (v: number) => v > 1.5 },
-                { name: 'Free Cash Flow', val: all.freeCashflow ?? xbrlFreeCashflow, type: 'currency', check: (v: number) => v > 0 },
-                { name: 'EPS', val: all.trailingEps || all.epsTrailingTwelveMonths || all.forwardEps, type: 'number' },
-                { name: 'P/E Ratio', val: all.trailingPE || all.forwardPE, type: 'number', check: (v: number) => v < 20 },
-                { name: 'ROCE', val: (all.totalDebt && all.returnOnEquity && all.debtToEquity) ? (all.returnOnEquity * (1 + all.debtToEquity)) : (all.returnOnEquity || xbrlROE || null), type: 'pct', check: (v: number) => v > 0.15 }
+                { name: 'Revenue Growth', val: getValue('revenueGrowth', 'revenue_growth') ?? xbrlRevenueGrowth, type: 'pct', check: (v: number) => v > 0.1 },
+                { name: 'EBITDA Margin', val: getValue('ebitdaMargins', 'ebitda_margins'), type: 'pct', check: (v: number) => v > 0.15 },
+                { name: 'PAT Margin', val: getValue('profitMargins', 'profit_margins') ?? xbrlProfitMargin, type: 'pct', check: (v: number) => v > 0.1 },
+                { name: 'ROE', val: getValue('returnOnEquity', 'return_on_equity') ?? xbrlROE, type: 'pct', check: (v: number) => v > 0.15 },
+                { name: 'ROA', val: getValue('returnOnAssets', 'return_on_assets'), type: 'pct', check: (v: number) => v > 0.07 },
+                { name: 'Debt-to-Equity', val: getValue('debtToEquity', 'debt_to_equity') ?? xbrlDebtToEquity, type: 'ratio', check: (v: number) => v < 1 },
+                { name: 'Current Ratio', val: getValue('currentRatio', 'current_ratio'), type: 'ratio', check: (v: number) => v > 1.5 },
+                { name: 'Free Cash Flow', val: getValue('freeCashflow', 'free_cashflow') ?? xbrlFreeCashflow, type: 'currency', check: (v: number) => v > 0 },
+                { name: 'EPS', val: getValue('trailingEps', 'trailing_eps') || getValue('epsTrailingTwelveMonths', 'eps_trailing_twelve_months') || getValue('forwardEps', 'forward_eps'), type: 'number' },
+                { name: 'P/E Ratio', val: getValue('trailingPE', 'trailing_pe') || getValue('forwardPE', 'forward_pe'), type: 'number', check: (v: number) => v < 20 },
+                { name: 'Operating Margin', val: getValue('operatingMargins', 'operating_margins'), type: 'pct', check: (v: number) => v > 0.12 },
+                { name: 'Gross Margin', val: getValue('grossMargins', 'gross_margins'), type: 'pct', check: (v: number) => v > 0.30 },
+                { name: 'Quick Ratio', val: getValue('quickRatio', 'quick_ratio'), type: 'ratio', check: (v: number) => v > 1 }
             ]
 
             return metricsList.map(m => ({
                 ...m,
                 displayVal: formatVal(m.val, m.type),
-                status: m.check ? (m.check(m.val) ? 'good' : 'bad') : 'neutral'
+                status: m.val != null && m.check ? (m.check(m.val) ? 'good' : 'bad') : 'neutral'
             }))
         }
 
