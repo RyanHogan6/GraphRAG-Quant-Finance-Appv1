@@ -75,7 +75,7 @@ export default function SectorComparison({ companies }: SectorComparisonProps) {
         debt: latest.debtToEquity,
         marketCap: marketCap,
         volume: latest.volume,
-        performance6M: chartData.find(s => s?.ticker === company.ticker)?.values.slice(-1)[0] - 100 || 0
+        performance6M: (chartData.find(s => s?.ticker === company.ticker)?.values?.slice(-1)[0] ?? 100) - 100
       }
     }).sort((a, b) => {
       if (sortBy === 'marketCap') return (b.marketCap || 0) - (a.marketCap || 0)
