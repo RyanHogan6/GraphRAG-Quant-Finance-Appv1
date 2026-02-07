@@ -278,24 +278,26 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
             }
 
             // Extract XBRL financials (use conceptVal so all_concepts array shape is handled)
-            const xbrlRevenue = conceptVal(latestXbrl, 'Revenues') ?? conceptVal(latestXbrl, 'RevenueFromContractWithCustomerExcludingAssessedTax') ?? Object.values(latestXbrl?.revenue_segments || {})[0] ?? null
-            const xbrlPrevRevenue = conceptVal(prevXbrl, 'Revenues') ?? conceptVal(prevXbrl, 'RevenueFromContractWithCustomerExcludingAssessedTax') ?? Object.values(prevXbrl?.revenue_segments || {})[0] ?? null
+            const revRaw = conceptVal(latestXbrl, 'Revenues') ?? conceptVal(latestXbrl, 'RevenueFromContractWithCustomerExcludingAssessedTax') ?? Object.values(latestXbrl?.revenue_segments || {})[0] ?? null
+            const prevRevRaw = conceptVal(prevXbrl, 'Revenues') ?? conceptVal(prevXbrl, 'RevenueFromContractWithCustomerExcludingAssessedTax') ?? Object.values(prevXbrl?.revenue_segments || {})[0] ?? null
+            const xbrlRevenue: number | null = typeof revRaw === 'number' ? revRaw : null
+            const xbrlPrevRevenue: number | null = typeof prevRevRaw === 'number' ? prevRevRaw : null
             const xbrlNetIncome = conceptVal(latestXbrl, 'NetIncomeLoss')
             const xbrlEquity = conceptVal(latestXbrl, 'StockholdersEquity') ?? conceptVal(latestXbrl, 'Equity')
             const xbrlDebt = conceptVal(latestXbrl, 'LongTermDebt') ?? conceptVal(latestXbrl, 'DebtCurrent')
             const xbrlFreeCashflow = conceptVal(latestXbrl, 'NetCashProvidedByUsedInOperatingActivities')
 
             // Calculate fallbacks from XBRL
-            const xbrlRevenueGrowth = (xbrlRevenue && xbrlPrevRevenue && xbrlPrevRevenue !== 0)
+            const xbrlRevenueGrowth = (xbrlRevenue != null && xbrlPrevRevenue != null && xbrlPrevRevenue !== 0)
                 ? (xbrlRevenue - xbrlPrevRevenue) / xbrlPrevRevenue
                 : null
-            const xbrlProfitMargin = (xbrlNetIncome && xbrlRevenue && xbrlRevenue !== 0)
+            const xbrlProfitMargin = (xbrlNetIncome != null && xbrlRevenue != null && xbrlRevenue !== 0)
                 ? xbrlNetIncome / xbrlRevenue
                 : null
-            const xbrlROE = (xbrlNetIncome && xbrlEquity && xbrlEquity !== 0)
+            const xbrlROE = (xbrlNetIncome != null && xbrlEquity != null && xbrlEquity !== 0)
                 ? xbrlNetIncome / xbrlEquity
                 : null
-            const xbrlDebtToEquity = (xbrlDebt && xbrlEquity && xbrlEquity !== 0)
+            const xbrlDebtToEquity = (xbrlDebt != null && xbrlEquity != null && xbrlEquity !== 0)
                 ? xbrlDebt / xbrlEquity
                 : null
 
@@ -408,23 +410,25 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                 return null
             }
 
-            const xbrlRevenue = conceptVal(latestXbrl, 'Revenues') ?? conceptVal(latestXbrl, 'RevenueFromContractWithCustomerExcludingAssessedTax') ?? Object.values(latestXbrl?.revenue_segments || {})[0] ?? null
-            const xbrlPrevRevenue = conceptVal(prevXbrl, 'Revenues') ?? conceptVal(prevXbrl, 'RevenueFromContractWithCustomerExcludingAssessedTax') ?? Object.values(prevXbrl?.revenue_segments || {})[0] ?? null
+            const revRaw = conceptVal(latestXbrl, 'Revenues') ?? conceptVal(latestXbrl, 'RevenueFromContractWithCustomerExcludingAssessedTax') ?? Object.values(latestXbrl?.revenue_segments || {})[0] ?? null
+            const prevRevRaw = conceptVal(prevXbrl, 'Revenues') ?? conceptVal(prevXbrl, 'RevenueFromContractWithCustomerExcludingAssessedTax') ?? Object.values(prevXbrl?.revenue_segments || {})[0] ?? null
+            const xbrlRevenue: number | null = typeof revRaw === 'number' ? revRaw : null
+            const xbrlPrevRevenue: number | null = typeof prevRevRaw === 'number' ? prevRevRaw : null
             const xbrlNetIncome = conceptVal(latestXbrl, 'NetIncomeLoss')
             const xbrlEquity = conceptVal(latestXbrl, 'StockholdersEquity') ?? conceptVal(latestXbrl, 'Equity')
             const xbrlDebt = conceptVal(latestXbrl, 'LongTermDebt') ?? conceptVal(latestXbrl, 'DebtCurrent')
             const xbrlFreeCashflow = conceptVal(latestXbrl, 'NetCashProvidedByUsedInOperatingActivities')
 
-            const xbrlRevenueGrowth = (xbrlRevenue && xbrlPrevRevenue && xbrlPrevRevenue !== 0)
+            const xbrlRevenueGrowth = (xbrlRevenue != null && xbrlPrevRevenue != null && xbrlPrevRevenue !== 0)
                 ? (xbrlRevenue - xbrlPrevRevenue) / xbrlPrevRevenue
                 : null
-            const xbrlProfitMargin = (xbrlNetIncome && xbrlRevenue && xbrlRevenue !== 0)
+            const xbrlProfitMargin = (xbrlNetIncome != null && xbrlRevenue != null && xbrlRevenue !== 0)
                 ? xbrlNetIncome / xbrlRevenue
                 : null
-            const xbrlROE = (xbrlNetIncome && xbrlEquity && xbrlEquity !== 0)
+            const xbrlROE = (xbrlNetIncome != null && xbrlEquity != null && xbrlEquity !== 0)
                 ? xbrlNetIncome / xbrlEquity
                 : null
-            const xbrlDebtToEquity = (xbrlDebt && xbrlEquity && xbrlEquity !== 0)
+            const xbrlDebtToEquity = (xbrlDebt != null && xbrlEquity != null && xbrlEquity !== 0)
                 ? xbrlDebt / xbrlEquity
                 : null
 
