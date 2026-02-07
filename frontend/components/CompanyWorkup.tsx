@@ -263,21 +263,27 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
             const latestXbrl = xbrlData?.[0] || null
             const prevXbrl = xbrlData?.[1] || null
 
-            // Extract XBRL financials
-            const xbrlRevenue = latestXbrl?.all_concepts?.Revenues
-                             || latestXbrl?.all_concepts?.RevenueFromContractWithCustomerExcludingAssessedTax
-                             || Object.values(latestXbrl?.revenue_segments || {})[0]
-                             || null
-            const xbrlPrevRevenue = prevXbrl?.all_concepts?.Revenues
-                                 || prevXbrl?.all_concepts?.RevenueFromContractWithCustomerExcludingAssessedTax
-                                 || Object.values(prevXbrl?.revenue_segments || {})[0]
-                                 || null
-            const xbrlNetIncome = latestXbrl?.all_concepts?.NetIncomeLoss || null
-            const xbrlEquity = latestXbrl?.all_concepts?.StockholdersEquity
-                            || latestXbrl?.equity?.StockholdersEquity
-                            || null
-            const xbrlDebt = latestXbrl?.debt?.LongTermDebt || latestXbrl?.debt?.DebtCurrent || null
-            const xbrlFreeCashflow = latestXbrl?.cashflow?.NetCashProvidedByUsedInOperatingActivities || null
+            /** Resolve a numeric value from XBRL doc: buckets (costs/debt/equity/cashflow) or all_concepts (may be array of {value, context}) */
+            const conceptVal = (x: any, name: string): number | null => {
+                if (!x) return null
+                const fromBucket = x.costs?.[name] ?? x.debt?.[name] ?? x.equity?.[name] ?? x.cashflow?.[name]
+                if (typeof fromBucket === 'number') return fromBucket
+                const fromAll = x.all_concepts?.[name]
+                if (typeof fromAll === 'number') return fromAll
+                if (Array.isArray(fromAll) && fromAll.length) {
+                    const v = fromAll[0]?.value
+                    return typeof v === 'number' ? v : null
+                }
+                return null
+            }
+
+            // Extract XBRL financials (use conceptVal so all_concepts array shape is handled)
+            const xbrlRevenue = conceptVal(latestXbrl, 'Revenues') ?? conceptVal(latestXbrl, 'RevenueFromContractWithCustomerExcludingAssessedTax') ?? Object.values(latestXbrl?.revenue_segments || {})[0] ?? null
+            const xbrlPrevRevenue = conceptVal(prevXbrl, 'Revenues') ?? conceptVal(prevXbrl, 'RevenueFromContractWithCustomerExcludingAssessedTax') ?? Object.values(prevXbrl?.revenue_segments || {})[0] ?? null
+            const xbrlNetIncome = conceptVal(latestXbrl, 'NetIncomeLoss')
+            const xbrlEquity = conceptVal(latestXbrl, 'StockholdersEquity') ?? conceptVal(latestXbrl, 'Equity')
+            const xbrlDebt = conceptVal(latestXbrl, 'LongTermDebt') ?? conceptVal(latestXbrl, 'DebtCurrent')
+            const xbrlFreeCashflow = conceptVal(latestXbrl, 'NetCashProvidedByUsedInOperatingActivities')
 
             // Calculate fallbacks from XBRL
             const xbrlRevenueGrowth = (xbrlRevenue && xbrlPrevRevenue && xbrlPrevRevenue !== 0)
@@ -389,20 +395,25 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
             const latestXbrl = xbrlData?.[0] || null
             const prevXbrl = xbrlData?.[1] || null
 
-            const xbrlRevenue = latestXbrl?.all_concepts?.Revenues
-                             || latestXbrl?.all_concepts?.RevenueFromContractWithCustomerExcludingAssessedTax
-                             || Object.values(latestXbrl?.revenue_segments || {})[0]
-                             || null
-            const xbrlPrevRevenue = prevXbrl?.all_concepts?.Revenues
-                                 || prevXbrl?.all_concepts?.RevenueFromContractWithCustomerExcludingAssessedTax
-                                 || Object.values(prevXbrl?.revenue_segments || {})[0]
-                                 || null
-            const xbrlNetIncome = latestXbrl?.all_concepts?.NetIncomeLoss || null
-            const xbrlEquity = latestXbrl?.all_concepts?.StockholdersEquity
-                            || latestXbrl?.equity?.StockholdersEquity
-                            || null
-            const xbrlDebt = latestXbrl?.debt?.LongTermDebt || latestXbrl?.debt?.DebtCurrent || null
-            const xbrlFreeCashflow = latestXbrl?.cashflow?.NetCashProvidedByUsedInOperatingActivities || null
+            const conceptVal = (x: any, name: string): number | null => {
+                if (!x) return null
+                const fromBucket = x.costs?.[name] ?? x.debt?.[name] ?? x.equity?.[name] ?? x.cashflow?.[name]
+                if (typeof fromBucket === 'number') return fromBucket
+                const fromAll = x.all_concepts?.[name]
+                if (typeof fromAll === 'number') return fromAll
+                if (Array.isArray(fromAll) && fromAll.length) {
+                    const v = fromAll[0]?.value
+                    return typeof v === 'number' ? v : null
+                }
+                return null
+            }
+
+            const xbrlRevenue = conceptVal(latestXbrl, 'Revenues') ?? conceptVal(latestXbrl, 'RevenueFromContractWithCustomerExcludingAssessedTax') ?? Object.values(latestXbrl?.revenue_segments || {})[0] ?? null
+            const xbrlPrevRevenue = conceptVal(prevXbrl, 'Revenues') ?? conceptVal(prevXbrl, 'RevenueFromContractWithCustomerExcludingAssessedTax') ?? Object.values(prevXbrl?.revenue_segments || {})[0] ?? null
+            const xbrlNetIncome = conceptVal(latestXbrl, 'NetIncomeLoss')
+            const xbrlEquity = conceptVal(latestXbrl, 'StockholdersEquity') ?? conceptVal(latestXbrl, 'Equity')
+            const xbrlDebt = conceptVal(latestXbrl, 'LongTermDebt') ?? conceptVal(latestXbrl, 'DebtCurrent')
+            const xbrlFreeCashflow = conceptVal(latestXbrl, 'NetCashProvidedByUsedInOperatingActivities')
 
             const xbrlRevenueGrowth = (xbrlRevenue && xbrlPrevRevenue && xbrlPrevRevenue !== 0)
                 ? (xbrlRevenue - xbrlPrevRevenue) / xbrlPrevRevenue
@@ -1109,6 +1120,21 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                 const selectedXbrl = secXbrlData[selectedXbrlIndex]
                                 if (!selectedXbrl) return <div className="text-gray-500 text-sm">No data available</div>
 
+                                /** Get numeric value for an XBRL concept from costs, debt, equity, cashflow, or all_concepts (array of {value, context}) */
+                                const getConcept = (conceptName: string): number | null | undefined => {
+                                    const x = selectedXbrl as any
+                                    const fromBucket = x.costs?.[conceptName] ?? x.debt?.[conceptName] ?? x.equity?.[conceptName] ?? x.cashflow?.[conceptName]
+                                    if (fromBucket != null && typeof fromBucket === 'number') return fromBucket
+                                    const fromAll = x.all_concepts?.[conceptName]
+                                    if (fromAll == null) return undefined
+                                    if (typeof fromAll === 'number') return fromAll
+                                    if (Array.isArray(fromAll) && fromAll.length) {
+                                        const vals = fromAll.map((e: any) => (e && typeof e.value === 'number') ? e.value : null).filter((v: number | null) => v != null) as number[]
+                                        if (vals.length) return Math.abs(vals[0]) >= Math.abs(vals[vals.length - 1]) ? vals[0] : vals[vals.length - 1]
+                                    }
+                                    return undefined
+                                }
+
                                 const fmt = (val: number | null | undefined, currency = true, unit?: string, signed = false): string => {
                                     if (val == null) return '—'
                                     if (currency) {
@@ -1135,36 +1161,36 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
 
                                 // Income Statement
                                 if (selectedStatementTab === 'income') {
-                                    const rev = selectedXbrl.costs?.Revenues
-                                    const cogs = selectedXbrl.costs?.CostOfRevenue ?? selectedXbrl.costs?.CostOfGoodsAndServicesSold
+                                    const rev = getConcept('Revenues') ?? getConcept('RevenueFromContractWithCustomerExcludingAssessedTax') ?? getConcept('RevenueFromContractWithCustomerIncludingAssessedTax')
+                                    const cogs = getConcept('CostOfRevenue') ?? getConcept('CostOfGoodsAndServicesSold')
                                     const gross = (rev != null && cogs != null) ? rev - cogs : null
                                     return (
                                         <div className="space-y-4">
                                             <div>
                                                 <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Revenue</h4>
                                                 <div className="space-y-0">
-                                                    {row('Revenue', rev, { highlight: true })}
-                                                    {row('Cost of Revenue', cogs)}
+                                                    {row('Revenue', rev ?? undefined, { highlight: true })}
+                                                    {row('Cost of Revenue', cogs ?? undefined)}
                                                     {row('Gross Profit', gross, { highlight: true })}
                                                 </div>
                                             </div>
                                             <div>
                                                 <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Operating</h4>
                                                 <div className="space-y-0">
-                                                    {row('R&D Expense', selectedXbrl.costs?.ResearchAndDevelopmentExpense)}
-                                                    {row('SG&A Expense', selectedXbrl.costs?.SellingGeneralAndAdministrativeExpense)}
-                                                    {row('Operating Expense', selectedXbrl.costs?.OperatingExpense)}
-                                                    {row('Operating Income', selectedXbrl.costs?.OperatingIncomeLoss, { highlight: true })}
+                                                    {row('R&D Expense', getConcept('ResearchAndDevelopmentExpense') ?? undefined)}
+                                                    {row('SG&A Expense', getConcept('SellingGeneralAndAdministrativeExpense') ?? undefined)}
+                                                    {row('Operating Expense', getConcept('OperatingExpense') ?? undefined)}
+                                                    {row('Operating Income', getConcept('OperatingIncomeLoss') ?? undefined, { highlight: true })}
                                                 </div>
                                             </div>
                                             <div>
                                                 <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Net Income</h4>
                                                 <div className="space-y-0">
-                                                    {row('Interest Expense', selectedXbrl.costs?.InterestExpense)}
-                                                    {row('Income Tax', selectedXbrl.costs?.IncomeTaxExpenseBenefit)}
-                                                    {row('Net Income', selectedXbrl.costs?.NetIncomeLoss, { highlight: true, large: true })}
-                                                    {row('EPS (Basic)', selectedXbrl.costs?.EarningsPerShareBasic, { currency: false })}
-                                                    {row('EPS (Diluted)', selectedXbrl.costs?.EarningsPerShareDiluted, { currency: false })}
+                                                    {row('Interest Expense', getConcept('InterestExpense') ?? undefined)}
+                                                    {row('Income Tax', getConcept('IncomeTaxExpenseBenefit') ?? undefined)}
+                                                    {row('Net Income', getConcept('NetIncomeLoss') ?? undefined, { highlight: true, large: true })}
+                                                    {row('EPS (Basic)', getConcept('EarningsPerShareBasic') ?? undefined, { currency: false })}
+                                                    {row('EPS (Diluted)', getConcept('EarningsPerShareDiluted') ?? undefined, { currency: false })}
                                                 </div>
                                             </div>
                                         </div>
@@ -1173,31 +1199,31 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
 
                                 // Balance Sheet - Assets / Liabilities and Equity with total tie-in
                                 if (selectedStatementTab === 'balance') {
-                                    const totalAssets = selectedXbrl.equity?.Assets
-                                    const currentDebt = selectedXbrl.debt?.DebtCurrent ?? selectedXbrl.debt?.CurrentDebt
-                                    const ltDebt = selectedXbrl.debt?.LongTermDebt
+                                    const totalAssets = getConcept('Assets') ?? undefined
+                                    const currentDebt = getConcept('DebtCurrent') ?? getConcept('CurrentDebt') ?? getConcept('LongTermDebtMaturitiesRepaymentsOfPrincipalInNextTwelveMonths')
+                                    const ltDebt = getConcept('LongTermDebt')
                                     const totalDebt = (currentDebt != null || ltDebt != null) ? (currentDebt || 0) + (ltDebt || 0) : null
-                                    const equity = selectedXbrl.equity?.StockholdersEquity
+                                    const equity = getConcept('StockholdersEquity') ?? getConcept('Equity')
                                     const totalLiabEquity = (totalDebt != null && equity != null) ? totalDebt + equity : (equity != null ? equity : null)
                                     return (
                                         <div className="space-y-4">
                                             <div>
                                                 <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Assets</h4>
                                                 <div className="space-y-0">
-                                                    {row('Cash & Equivalents', selectedXbrl.cashflow?.CashAndCashEquivalentsAtCarryingValue)}
+                                                    {row('Cash & Equivalents', getConcept('CashAndCashEquivalentsAtCarryingValue') ?? getConcept('Cash') ?? undefined)}
                                                     {row('Total Assets', totalAssets, { highlight: true })}
                                                 </div>
                                             </div>
                                             <div>
                                                 <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Liabilities and Equity</h4>
                                                 <div className="space-y-0">
-                                                    {row('Current Debt', currentDebt)}
-                                                    {row('Long-Term Debt', ltDebt)}
+                                                    {row('Current Debt', currentDebt ?? undefined)}
+                                                    {row('Long-Term Debt', ltDebt ?? undefined)}
                                                     {row('Total Debt', totalDebt, { highlight: true })}
-                                                    {row('Stockholders Equity', equity, { highlight: true })}
-                                                    {row('Retained Earnings', selectedXbrl.equity?.RetainedEarningsAccumulatedDeficit)}
-                                                    {row('Treasury Stock', selectedXbrl.equity?.TreasuryStockValue)}
-                                                    {row('Shares Outstanding', selectedXbrl.equity?.CommonStockSharesOutstanding, { currency: false, unit: 'M' })}
+                                                    {row('Stockholders Equity', equity ?? undefined, { highlight: true })}
+                                                    {row('Retained Earnings', getConcept('RetainedEarningsAccumulatedDeficit') ?? undefined)}
+                                                    {row('Treasury Stock', getConcept('TreasuryStockValue') ?? undefined)}
+                                                    {row('Shares Outstanding', getConcept('CommonStockSharesOutstanding') ?? undefined, { currency: false, unit: 'M' })}
                                                     {totalLiabEquity != null && totalAssets != null && (
                                                         <div className="flex justify-between items-center py-1.5 px-2 mt-2 pt-2 border-t border-emerald-500/20">
                                                             <span className="text-xs font-bold text-emerald-400">Total liabilities and equity</span>
@@ -1212,31 +1238,31 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
 
                                 // Cash Flow Statement
                                 if (selectedStatementTab === 'cashflow') {
-                                    const opCf = selectedXbrl.cashflow?.NetCashProvidedByUsedInOperatingActivities
-                                    const invCf = selectedXbrl.cashflow?.NetCashProvidedByUsedInInvestingActivities
-                                    const finCf = selectedXbrl.cashflow?.NetCashProvidedByUsedInFinancingActivities
+                                    const opCf = getConcept('NetCashProvidedByUsedInOperatingActivities')
+                                    const invCf = getConcept('NetCashProvidedByUsedInInvestingActivities')
+                                    const finCf = getConcept('NetCashProvidedByUsedInFinancingActivities')
                                     const fcf = (opCf != null && invCf != null) ? opCf + invCf : null
                                     return (
                                         <div className="space-y-4">
                                             <div>
                                                 <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Operating Activities</h4>
                                                 <div className="space-y-0">
-                                                    {row('Operating Cash Flow', opCf, { highlight: true, signed: true })}
+                                                    {row('Operating Cash Flow', opCf ?? undefined, { highlight: true, signed: true })}
                                                 </div>
                                             </div>
                                             <div>
                                                 <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Investing Activities</h4>
                                                 <div className="space-y-0">
-                                                    {row('Investing Cash Flow', invCf, { highlight: true, signed: true })}
-                                                    {row('Business Acquisitions', selectedXbrl.cashflow?.PaymentsToAcquireBusinessesNetOfCashAcquired, { signed: true })}
+                                                    {row('Investing Cash Flow', invCf ?? undefined, { highlight: true, signed: true })}
+                                                    {row('Business Acquisitions', getConcept('PaymentsToAcquireBusinessesNetOfCashAcquired') ?? undefined, { signed: true })}
                                                 </div>
                                             </div>
                                             <div>
                                                 <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Financing Activities</h4>
                                                 <div className="space-y-0">
-                                                    {row('Financing Cash Flow', finCf, { highlight: true, signed: true })}
-                                                    {row('Dividends Paid', selectedXbrl.cashflow?.PaymentsOfDividends, { signed: true })}
-                                                    {row('Stock Repurchases', selectedXbrl.cashflow?.PaymentsForRepurchaseOfCommonStock, { signed: true })}
+                                                    {row('Financing Cash Flow', finCf ?? undefined, { highlight: true, signed: true })}
+                                                    {row('Dividends Paid', getConcept('PaymentsOfDividends') ?? undefined, { signed: true })}
+                                                    {row('Stock Repurchases', getConcept('PaymentsForRepurchaseOfCommonStock') ?? undefined, { signed: true })}
                                                 </div>
                                             </div>
                                             <div>
