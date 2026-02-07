@@ -874,7 +874,9 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                 }
                 const exhibitDate = (ex: any) => ex.filing_date || ex.filed_date || ex.parent_filing_date || '—'
                 const secCompanyUrl = company.ticker ? `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${encodeURIComponent(company.ticker)}` : null
-                const grouped = secExhibits.reduce((acc: { type: string; exhibits: any[] }[], ex: any) => {
+                type ExhibitGroup = { type: string; exhibits: any[] }
+                const initialGroups: ExhibitGroup[] = []
+                const grouped = secExhibits.reduce<ExhibitGroup[]>((acc, ex) => {
                     const type = (ex.exhibit_category || ex.exhibit_type || 'Other').toString().replace(/\d.*$/, '').trim() || 'Other'
                     let group = acc.find(g => g.type === type)
                     if (!group) {
@@ -883,7 +885,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                     }
                     group.exhibits.push(ex)
                     return acc
-                }, [] as { type: string; exhibits: any[] }).sort((a, b) => a.type.localeCompare(b.type))
+                }, initialGroups).sort((a, b) => a.type.localeCompare(b.type))
 
                 return (
                     <div ref={exhibitsSectionRef} className="mt-4">

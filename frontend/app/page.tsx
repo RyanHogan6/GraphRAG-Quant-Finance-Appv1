@@ -147,20 +147,23 @@ export default function HomePage() {
             message.content
           )}
         </div>
-        {!!message.queryPlan?.is_time_series && message.queryPlan?.chart_data &&
-          // Only show standalone chart if NOT showing CompanyWorkup (which has its own charts)
-          !message.results?.some((r: any) => r.MarketData || r.sec_filings || r.Award || r.prediction_markets_polymarket) && (() => {
-            const cd = message.queryPlan!.chart_data!;
-            const label = cd.ticker ? `${cd.ticker} Stock Performance` : (cd.label || 'Time Series');
-            return (
-              <TimeSeriesChart
-                dates={cd.dates}
-                values={cd.values}
-                label={label}
-                ticker={cd.ticker}
-              />
-            );
-          })()}
+        {!!message.queryPlan?.is_time_series && message.queryPlan?.chart_data && (() => {
+          // Only show standalone chart if NOT showing single CompanyWorkup (which has its own Market Performance Hub chart)
+          const result = message.results?.[0];
+          const isWorkup = (r: any) => r?.ticker && (r?.MarketData || r?.sec_filings || r?.Award || r?.prediction_markets_polymarket);
+          const singleWorkup = message.results?.length === 1 && result && isWorkup(result);
+          if (singleWorkup) return null;
+          const cd = message.queryPlan!.chart_data!;
+          const label = cd.ticker ? `${cd.ticker} Stock Performance` : (cd.label || 'Time Series');
+          return (
+            <TimeSeriesChart
+              dates={cd.dates}
+              values={cd.values}
+              label={label}
+              ticker={cd.ticker}
+            />
+          );
+        })()}
         {showAdvancedMode && message.queryPlan && message.queryPlan.aql_query && (
           <details className="mt-2 mb-2">
             <summary className="cursor-pointer text-[10px] md:text-xs text-purple-400 hover:text-purple-300 font-semibold opacity-80 hover:opacity-100 transition-opacity">
