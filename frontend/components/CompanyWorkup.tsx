@@ -24,6 +24,8 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
     const [peerSearchTerm, setPeerSearchTerm] = useState('')
     const [selectedXbrlIndex, setSelectedXbrlIndex] = useState(0)
     const [selectedStatementTab, setSelectedStatementTab] = useState<'income' | 'balance' | 'cashflow'>('income')
+    const [expandedXbrlBreakdownIndex, setExpandedXbrlBreakdownIndex] = useState<number | null>(null)
+    const [showMoreSecSentences, setShowMoreSecSentences] = useState(false)
 
     // Extract nested data - handle both Company-centric and Filing-centric queries
     const company = data
@@ -94,6 +96,27 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
     // Prepare chart data based on timeframe
     const chartData = useMemo(() => {
         // Helper to filter and sort market data by timeframe
+        // Sanitize price series: cap single-point spikes (likely bad data) so chart is readable
+        const sanitizeCloseValues = (values: number[]): number[] => {
+            if (values.length <= 1) return values
+            const out = [...values]
+            const median = [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)] || 0
+            const maxReasonable = Math.max(median * 3, 1000) // cap at 3x median or 1000
+            for (let i = 1; i < out.length; i++) {
+                const prev = out[i - 1]
+                const curr = out[i]
+                if (curr == null || curr <= 0) {
+                    out[i] = prev
+                    continue
+                }
+                // Single-day move > 100% or value way above rest of series → treat as bad data
+                if (prev > 0 && (curr > prev * 2 || curr > maxReasonable)) {
+                    out[i] = prev
+                }
+            }
+            return out
+        }
+
         const prepareSeriesData = (data: any[], ticker: string, color: string) => {
             let filtered = [...data]
 
@@ -110,10 +133,12 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
 
             filtered = filtered.filter(d => new Date(d.date) >= filterDate)
             const sorted = filtered.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+            const rawValues = sorted.map(d => typeof d.close === 'number' ? d.close : Number(d.close) || 0)
+            const values = sanitizeCloseValues(rawValues)
 
             return {
                 dates: sorted.map(d => d.date),
-                values: sorted.map(d => d.close),
+                values,
                 label: ticker,
                 color,
                 ticker
@@ -666,9 +691,54 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                     </div>
             </div>
 
+            {/* Options Activity */}
+            {optionsFlow.length > 0 && (
+                <div className="mt-4">
+                    <div className="bg-dark-900/40 border border-green-500/10 rounded-xl p-4 shadow-xl backdrop-blur-sm">
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-sm font-bold text-green-400 uppercase tracking-[0.2em] flex items-center gap-3">
+                                <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                                Options Activity
+                            </h3>
+                            <span className="text-[10px] text-gray-500 font-mono">
+                                {optionsFlow[0].put_call_ratio != null
+                                    ? (optionsFlow[0].put_call_ratio > 1 ? 'Bearish' : optionsFlow[0].put_call_ratio < 0.7 ? 'Bullish' : 'Neutral') + ` positioning, P/C ${optionsFlow[0].put_call_ratio?.toFixed(2)}`
+                                    : `${optionsFlow.length} day(s)`}
+                            </span>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                                <thead>
+                                    <tr className="border-b border-green-500/10">
+                                        <th className="text-left text-gray-300 font-semibold pb-2 px-2">Date</th>
+                                        <th className="text-right text-gray-300 font-semibold pb-2 px-2">P/C Ratio</th>
+                                        <th className="text-right text-gray-300 font-semibold pb-2 px-2">Call Vol</th>
+                                        <th className="text-right text-gray-300 font-semibold pb-2 px-2">Put Vol</th>
+                                        <th className="text-right text-gray-300 font-semibold pb-2 px-2">Total Vol</th>
+                                        <th className="text-right text-gray-300 font-semibold pb-2 px-2">IV</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {optionsFlow.slice(0, 10).map((row: any, i: number) => (
+                                        <tr key={i} className="border-b border-white/5 hover:bg-green-500/5 transition-colors">
+                                            <td className="py-2 px-2 text-gray-300 font-mono">{row.date || '—'}</td>
+                                            <td className="py-2 px-2 text-right font-mono text-gray-200">{row.put_call_ratio != null ? row.put_call_ratio.toFixed(2) : '—'}</td>
+                                            <td className="py-2 px-2 text-right font-mono text-gray-200">{row.call_volume != null ? row.call_volume.toLocaleString() : '—'}</td>
+                                            <td className="py-2 px-2 text-right font-mono text-gray-200">{row.put_volume != null ? row.put_volume.toLocaleString() : '—'}</td>
+                                            <td className="py-2 px-2 text-right font-mono text-gray-200">{row.total_volume != null ? row.total_volume.toLocaleString() : '—'}</td>
+                                            <td className="py-2 px-2 text-right font-mono text-gray-200">{row.implied_volatility != null ? (row.implied_volatility * 100).toFixed(1) + '%' : '—'}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* XBRL & Exhibits Alert Cards */}
             {(secXbrlData.length > 0 || secExhibits.length > 0) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     {/* XBRL Highlights */}
                     {secXbrlData.length > 0 && (
                         <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-4 hover:border-cyan-500/50 transition-all cursor-pointer group">
@@ -738,14 +808,14 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
 
             {/* SEC Filings Explorer - Full Width Section */}
             {allSecFilings.length > 0 && (
-                <div className="mt-6">
+                <div className="mt-4">
                     <SECFilingsExplorer filings={allSecFilings} ticker={company.ticker} />
                 </div>
             )}
 
             {/* SEC Exhibits - Material Contracts */}
             {secExhibits.length > 0 && (
-                <div className="mt-6">
+                <div className="mt-4">
                     <div className="bg-dark-900/40 border border-purple-500/10 rounded-xl p-4 shadow-xl backdrop-blur-sm">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-sm font-bold text-purple-400 uppercase tracking-[0.2em] flex items-center gap-3">
@@ -794,11 +864,11 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                 </div>
             )}
 
-            {/* SEC XBRL Data - Financial Breakdowns */}
+            {/* SEC XBRL Data - Financial Breakdowns (condensed: one line per filing, expand on click) */}
             {secXbrlData.length > 0 && (
-                <div className="mt-6">
+                <div className="mt-4">
                     <div className="bg-dark-900/40 border border-cyan-500/10 rounded-xl p-4 shadow-xl backdrop-blur-sm">
-                        <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center justify-between mb-3">
                             <h3 className="text-sm font-bold text-cyan-400 uppercase tracking-[0.2em] flex items-center gap-3">
                                 <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
                                 Financial Breakdowns (XBRL)
@@ -807,79 +877,71 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                 {secXbrlData.length} filing{secXbrlData.length !== 1 ? 's' : ''}
                             </div>
                         </div>
-                        <div className="space-y-4">
-                            {secXbrlData.slice(0, 3).map((xbrl: any, i: number) => (
-                                <div key={i} className="bg-dark-800/50 border border-cyan-500/10 rounded-lg p-4">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center gap-3">
+                        <div className="space-y-1">
+                            {secXbrlData.map((xbrl: any, i: number) => {
+                                const conceptCount = xbrl.concepts_found ?? [xbrl.debt, xbrl.costs, xbrl.revenue_segments].filter(Boolean).length
+                                const isExpanded = expandedXbrlBreakdownIndex === i
+                                return (
+                                    <div key={i} className="bg-dark-800/50 border border-cyan-500/10 rounded-lg overflow-hidden">
+                                        <button
+                                            type="button"
+                                            onClick={() => setExpandedXbrlBreakdownIndex(isExpanded ? null : i)}
+                                            className="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-left hover:bg-cyan-500/5 transition-colors"
+                                        >
                                             <span className="text-xs font-semibold text-cyan-300">
-                                                {xbrl.filing_type} - FY{xbrl.fiscal_year}
+                                                {xbrl.filing_type} FY{xbrl.fiscal_year}
                                             </span>
-                                            <span className="text-[10px] text-gray-500">{xbrl.filing_date}</span>
-                                        </div>
-                                        <div className="text-[10px] text-gray-500">
-                                            {xbrl.concepts_found} concepts
-                                        </div>
+                                            <span className="text-[10px] text-gray-500 font-mono flex-shrink-0">
+                                                {conceptCount} concepts
+                                            </span>
+                                            <span className={`text-cyan-400 text-[10px] transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
+                                        </button>
+                                        {isExpanded && (
+                                            <div className="px-4 pb-4 pt-0 border-t border-cyan-500/10 space-y-3">
+                                                {xbrl.has_segment_data && xbrl.revenue_segments && (
+                                                    <div>
+                                                        <div className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider mb-1">Revenue Segments</div>
+                                                        <div className="grid grid-cols-2 gap-1">
+                                                            {Object.entries(xbrl.revenue_segments).slice(0, 4).map(([key, value]: [string, any], j: number) => (
+                                                                <div key={j} className="flex justify-between px-2 py-1 bg-dark-900/50 rounded text-[10px]">
+                                                                    <span className="text-gray-400 truncate">{key}</span>
+                                                                    <span className="text-white font-mono">${(value / 1e6).toFixed(1)}M</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {xbrl.debt && Object.keys(xbrl.debt).length > 0 && (
+                                                    <div>
+                                                        <div className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider mb-1">Debt & Obligations</div>
+                                                        <div className="grid grid-cols-2 gap-1">
+                                                            {Object.entries(xbrl.debt).slice(0, 4).map(([key, value]: [string, any], j: number) => (
+                                                                <div key={j} className="flex justify-between px-2 py-1 bg-dark-900/50 rounded text-[10px]">
+                                                                    <span className="text-gray-400">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                                                                    <span className="text-white font-mono">${(value / 1e6).toFixed(1)}M</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {xbrl.costs && Object.keys(xbrl.costs).length > 0 && (
+                                                    <div>
+                                                        <div className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider mb-1">Operating Costs</div>
+                                                        <div className="grid grid-cols-2 gap-1">
+                                                            {Object.entries(xbrl.costs).slice(0, 4).map(([key, value]: [string, any], j: number) => (
+                                                                <div key={j} className="flex justify-between px-2 py-1 bg-dark-900/50 rounded text-[10px]">
+                                                                    <span className="text-gray-400">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                                                                    <span className="text-white font-mono">${(value / 1e6).toFixed(1)}M</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
-
-                                    {/* Revenue Segments */}
-                                    {xbrl.has_segment_data && xbrl.revenue_segments && (
-                                        <div className="mb-3">
-                                            <div className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider mb-2">
-                                                Revenue Segments
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                {Object.entries(xbrl.revenue_segments).slice(0, 4).map(([key, value]: [string, any], j: number) => (
-                                                    <div key={j} className="flex justify-between items-center px-2 py-1 bg-dark-900/50 rounded">
-                                                        <span className="text-[10px] text-gray-400">{key}</span>
-                                                        <span className="text-[10px] text-white font-mono">
-                                                            ${(value / 1e6).toFixed(1)}M
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Debt Info */}
-                                    {xbrl.debt && Object.keys(xbrl.debt).length > 0 && (
-                                        <div>
-                                            <div className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider mb-2">
-                                                Debt & Obligations
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                {Object.entries(xbrl.debt).slice(0, 4).map(([key, value]: [string, any], j: number) => (
-                                                    <div key={j} className="flex justify-between items-center px-2 py-1 bg-dark-900/50 rounded">
-                                                        <span className="text-[10px] text-gray-400">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                                                        <span className="text-[10px] text-white font-mono">
-                                                            ${(value / 1e6).toFixed(1)}M
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Costs Breakdown */}
-                                    {xbrl.costs && Object.keys(xbrl.costs).length > 0 && (
-                                        <div className="mt-3">
-                                            <div className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider mb-2">
-                                                Operating Costs
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                {Object.entries(xbrl.costs).slice(0, 4).map(([key, value]: [string, any], j: number) => (
-                                                    <div key={j} className="flex justify-between items-center px-2 py-1 bg-dark-900/50 rounded">
-                                                        <span className="text-[10px] text-gray-400">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                                                        <span className="text-[10px] text-white font-mono">
-                                                            ${(value / 1e6).toFixed(1)}M
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+                                )
+                            })}
                         </div>
                     </div>
                 </div>
@@ -887,7 +949,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
 
             {/* Full Financial Statements Viewer */}
             {secXbrlData.length > 0 && (
-                <div className="mt-6">
+                <div className="mt-4">
                     <div className="bg-gradient-to-br from-emerald-900/20 via-dark-900/40 to-blue-900/20 border border-emerald-500/20 rounded-xl shadow-2xl backdrop-blur-sm overflow-hidden">
                         {/* Header */}
                         <div className="p-4 border-b border-emerald-500/10 bg-dark-800/50">
@@ -942,157 +1004,143 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                             ))}
                         </div>
 
-                        {/* Statement Content */}
+                        {/* Statement Content - accounting-style: label left, value right, monospace values, — for missing */}
                         <div className="p-4">
                             {(() => {
                                 const selectedXbrl = secXbrlData[selectedXbrlIndex]
                                 if (!selectedXbrl) return <div className="text-gray-500 text-sm">No data available</div>
 
+                                const fmt = (val: number | null | undefined, currency = true, unit?: string, signed = false): string => {
+                                    if (val == null) return '—'
+                                    if (currency) {
+                                        const s = (val / 1e6).toFixed(1)
+                                        return signed ? (val >= 0 ? `+$${s}M` : `-$${(Math.abs(val) / 1e6).toFixed(1)}M`) : `$${s}M`
+                                    }
+                                    if (unit === 'M') return `${(val / 1e6).toFixed(1)}M`
+                                    if (typeof val === 'number' && !currency) return val.toFixed(2)
+                                    return String(val)
+                                }
+                                const row = (label: string, value: number | null | undefined, opts?: { highlight?: boolean; large?: boolean; currency?: boolean; unit?: string; signed?: boolean }) => (
+                                    <div key={label} className={`flex justify-between items-center py-1.5 px-2 border-b border-white/5 last:border-0 ${opts?.highlight ? 'bg-emerald-500/5' : ''}`}>
+                                        <span className={`text-xs ${opts?.highlight ? 'text-emerald-400 font-semibold' : 'text-gray-300'}`}>{label}</span>
+                                        <span className={`font-mono text-sm tabular-nums text-right min-w-[7rem] ${opts?.highlight ? 'text-emerald-300 font-bold' : 'text-gray-200'}`}>
+                                            {fmt(value, opts?.currency !== false, opts?.unit, opts?.signed)}
+                                        </span>
+                                    </div>
+                                )
+
                                 // Income Statement
                                 if (selectedStatementTab === 'income') {
-                                    const incomeData = [
-                                        { label: 'Revenue', value: selectedXbrl.costs?.Revenues, highlight: true },
-                                        { label: 'Cost of Revenue', value: selectedXbrl.costs?.CostOfRevenue || selectedXbrl.costs?.CostOfGoodsAndServicesSold },
-                                        { label: 'Gross Profit', value: (selectedXbrl.costs?.Revenues || 0) - (selectedXbrl.costs?.CostOfRevenue || selectedXbrl.costs?.CostOfGoodsAndServicesSold || 0), highlight: true },
-                                        { label: 'R&D Expense', value: selectedXbrl.costs?.ResearchAndDevelopmentExpense },
-                                        { label: 'SG&A Expense', value: selectedXbrl.costs?.SellingGeneralAndAdministrativeExpense },
-                                        { label: 'Operating Expense', value: selectedXbrl.costs?.OperatingExpense },
-                                        { label: 'Operating Income', value: selectedXbrl.costs?.OperatingIncomeLoss, highlight: true },
-                                        { label: 'Interest Expense', value: selectedXbrl.costs?.InterestExpense },
-                                        { label: 'Income Tax', value: selectedXbrl.costs?.IncomeTaxExpenseBenefit },
-                                        { label: 'Net Income', value: selectedXbrl.costs?.NetIncomeLoss, highlight: true, large: true },
-                                        { label: 'EPS (Basic)', value: selectedXbrl.costs?.EarningsPerShareBasic, currency: false },
-                                        { label: 'EPS (Diluted)', value: selectedXbrl.costs?.EarningsPerShareDiluted, currency: false }
-                                    ].filter(item => item.value != null)
-
+                                    const rev = selectedXbrl.costs?.Revenues
+                                    const cogs = selectedXbrl.costs?.CostOfRevenue ?? selectedXbrl.costs?.CostOfGoodsAndServicesSold
+                                    const gross = (rev != null && cogs != null) ? rev - cogs : null
                                     return (
-                                        <div className="space-y-2">
-                                            {incomeData.map((item, i) => (
-                                                <div key={i} className={`flex justify-between items-center px-4 py-2.5 rounded-lg transition-all ${
-                                                    item.highlight
-                                                        ? 'bg-emerald-500/10 border border-emerald-500/20'
-                                                        : 'bg-dark-800/30 hover:bg-dark-800/50'
-                                                }`}>
-                                                    <span className={`text-xs font-semibold ${
-                                                        (item as any).large ? 'text-emerald-300 text-sm' : item.highlight ? 'text-emerald-400' : 'text-gray-300'
-                                                    }`}>
-                                                        {item.label}
-                                                    </span>
-                                                    <span className={`font-mono font-bold ${
-                                                        (item as any).large
-                                                            ? 'text-lg text-emerald-300 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]'
-                                                            : item.highlight ? 'text-base text-emerald-400' : 'text-sm text-gray-200'
-                                                    }`}>
-                                                        {(item as any).currency !== false
-                                                            ? `$${(item.value / 1e6).toFixed(1)}M`
-                                                            : `$${item.value?.toFixed(2)}`
-                                                        }
-                                                    </span>
+                                        <div className="space-y-4">
+                                            <div>
+                                                <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Revenue</h4>
+                                                <div className="space-y-0">
+                                                    {row('Revenue', rev, { highlight: true })}
+                                                    {row('Cost of Revenue', cogs)}
+                                                    {row('Gross Profit', gross, { highlight: true })}
                                                 </div>
-                                            ))}
+                                            </div>
+                                            <div>
+                                                <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Operating</h4>
+                                                <div className="space-y-0">
+                                                    {row('R&D Expense', selectedXbrl.costs?.ResearchAndDevelopmentExpense)}
+                                                    {row('SG&A Expense', selectedXbrl.costs?.SellingGeneralAndAdministrativeExpense)}
+                                                    {row('Operating Expense', selectedXbrl.costs?.OperatingExpense)}
+                                                    {row('Operating Income', selectedXbrl.costs?.OperatingIncomeLoss, { highlight: true })}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Net Income</h4>
+                                                <div className="space-y-0">
+                                                    {row('Interest Expense', selectedXbrl.costs?.InterestExpense)}
+                                                    {row('Income Tax', selectedXbrl.costs?.IncomeTaxExpenseBenefit)}
+                                                    {row('Net Income', selectedXbrl.costs?.NetIncomeLoss, { highlight: true, large: true })}
+                                                    {row('EPS (Basic)', selectedXbrl.costs?.EarningsPerShareBasic, { currency: false })}
+                                                    {row('EPS (Diluted)', selectedXbrl.costs?.EarningsPerShareDiluted, { currency: false })}
+                                                </div>
+                                            </div>
                                         </div>
                                     )
                                 }
 
-                                // Balance Sheet
+                                // Balance Sheet - Assets / Liabilities and Equity with total tie-in
                                 if (selectedStatementTab === 'balance') {
-                                    const balanceData = [
-                                        { section: 'Assets', items: [
-                                            { label: 'Cash & Equivalents', value: selectedXbrl.cashflow?.CashAndCashEquivalentsAtCarryingValue },
-                                            { label: 'Total Assets', value: selectedXbrl.equity?.Assets, highlight: true }
-                                        ]},
-                                        { section: 'Liabilities', items: [
-                                            { label: 'Current Debt', value: selectedXbrl.debt?.DebtCurrent || selectedXbrl.debt?.CurrentDebt },
-                                            { label: 'Long-Term Debt', value: selectedXbrl.debt?.LongTermDebt },
-                                            { label: 'Total Debt', value: (selectedXbrl.debt?.LongTermDebt || 0) + (selectedXbrl.debt?.DebtCurrent || selectedXbrl.debt?.CurrentDebt || 0), highlight: true }
-                                        ]},
-                                        { section: 'Equity', items: [
-                                            { label: 'Stockholders Equity', value: selectedXbrl.equity?.StockholdersEquity, highlight: true },
-                                            { label: 'Retained Earnings', value: selectedXbrl.equity?.RetainedEarningsAccumulatedDeficit },
-                                            { label: 'Treasury Stock', value: selectedXbrl.equity?.TreasuryStockValue },
-                                            { label: 'Shares Outstanding', value: selectedXbrl.equity?.CommonStockSharesOutstanding, currency: false, unit: 'M' }
-                                        ]}
-                                    ]
-
+                                    const totalAssets = selectedXbrl.equity?.Assets
+                                    const currentDebt = selectedXbrl.debt?.DebtCurrent ?? selectedXbrl.debt?.CurrentDebt
+                                    const ltDebt = selectedXbrl.debt?.LongTermDebt
+                                    const totalDebt = (currentDebt != null || ltDebt != null) ? (currentDebt || 0) + (ltDebt || 0) : null
+                                    const equity = selectedXbrl.equity?.StockholdersEquity
+                                    const totalLiabEquity = (totalDebt != null && equity != null) ? totalDebt + equity : (equity != null ? equity : null)
                                     return (
                                         <div className="space-y-4">
-                                            {balanceData.map((section, sIdx) => (
-                                                <div key={sIdx} className="space-y-2">
-                                                    <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider px-2">{section.section}</h4>
-                                                    {section.items.filter(item => item.value != null).map((item, i) => (
-                                                        <div key={i} className={`flex justify-between items-center px-4 py-2.5 rounded-lg transition-all ${
-                                                            item.highlight
-                                                                ? 'bg-emerald-500/10 border border-emerald-500/20'
-                                                                : 'bg-dark-800/30 hover:bg-dark-800/50'
-                                                        }`}>
-                                                            <span className={`text-xs font-semibold ${
-                                                                item.highlight ? 'text-emerald-400' : 'text-gray-300'
-                                                            }`}>
-                                                                {item.label}
-                                                            </span>
-                                                            <span className={`font-mono font-bold ${
-                                                                item.highlight ? 'text-base text-emerald-400' : 'text-sm text-gray-200'
-                                                            }`}>
-                                                                {(item as any).currency !== false
-                                                                    ? `$${(item.value / 1e6).toFixed(1)}M`
-                                                                    : (item as any).unit === 'M' ? `${(item.value / 1e6).toFixed(1)}M` : item.value?.toFixed(2)
-                                                                }
-                                                            </span>
-                                                        </div>
-                                                    ))}
+                                            <div>
+                                                <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Assets</h4>
+                                                <div className="space-y-0">
+                                                    {row('Cash & Equivalents', selectedXbrl.cashflow?.CashAndCashEquivalentsAtCarryingValue)}
+                                                    {row('Total Assets', totalAssets, { highlight: true })}
                                                 </div>
-                                            ))}
+                                            </div>
+                                            <div>
+                                                <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Liabilities and Equity</h4>
+                                                <div className="space-y-0">
+                                                    {row('Current Debt', currentDebt)}
+                                                    {row('Long-Term Debt', ltDebt)}
+                                                    {row('Total Debt', totalDebt, { highlight: true })}
+                                                    {row('Stockholders Equity', equity, { highlight: true })}
+                                                    {row('Retained Earnings', selectedXbrl.equity?.RetainedEarningsAccumulatedDeficit)}
+                                                    {row('Treasury Stock', selectedXbrl.equity?.TreasuryStockValue)}
+                                                    {row('Shares Outstanding', selectedXbrl.equity?.CommonStockSharesOutstanding, { currency: false, unit: 'M' })}
+                                                    {totalLiabEquity != null && totalAssets != null && (
+                                                        <div className="flex justify-between items-center py-1.5 px-2 mt-2 pt-2 border-t border-emerald-500/20">
+                                                            <span className="text-xs font-bold text-emerald-400">Total liabilities and equity</span>
+                                                            <span className="font-mono text-sm font-bold text-emerald-300 tabular-nums text-right min-w-[7rem]">{fmt(totalLiabEquity)}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
                                     )
                                 }
 
                                 // Cash Flow Statement
                                 if (selectedStatementTab === 'cashflow') {
-                                    const cashflowData = [
-                                        { section: 'Operating Activities', items: [
-                                            { label: 'Operating Cash Flow', value: selectedXbrl.cashflow?.NetCashProvidedByUsedInOperatingActivities, highlight: true }
-                                        ]},
-                                        { section: 'Investing Activities', items: [
-                                            { label: 'Investing Cash Flow', value: selectedXbrl.cashflow?.NetCashProvidedByUsedInInvestingActivities, highlight: true },
-                                            { label: 'Business Acquisitions', value: selectedXbrl.cashflow?.PaymentsToAcquireBusinessesNetOfCashAcquired }
-                                        ]},
-                                        { section: 'Financing Activities', items: [
-                                            { label: 'Financing Cash Flow', value: selectedXbrl.cashflow?.NetCashProvidedByUsedInFinancingActivities, highlight: true },
-                                            { label: 'Dividends Paid', value: selectedXbrl.cashflow?.PaymentsOfDividends },
-                                            { label: 'Stock Repurchases', value: selectedXbrl.cashflow?.PaymentsForRepurchaseOfCommonStock }
-                                        ]},
-                                        { section: 'Net Change', items: [
-                                            { label: 'Free Cash Flow', value: (selectedXbrl.cashflow?.NetCashProvidedByUsedInOperatingActivities || 0) + (selectedXbrl.cashflow?.NetCashProvidedByUsedInInvestingActivities || 0), highlight: true, large: true }
-                                        ]}
-                                    ]
-
+                                    const opCf = selectedXbrl.cashflow?.NetCashProvidedByUsedInOperatingActivities
+                                    const invCf = selectedXbrl.cashflow?.NetCashProvidedByUsedInInvestingActivities
+                                    const finCf = selectedXbrl.cashflow?.NetCashProvidedByUsedInFinancingActivities
+                                    const fcf = (opCf != null && invCf != null) ? opCf + invCf : null
                                     return (
                                         <div className="space-y-4">
-                                            {cashflowData.map((section, sIdx) => (
-                                                <div key={sIdx} className="space-y-2">
-                                                    <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider px-2">{section.section}</h4>
-                                                    {section.items.filter(item => item.value != null).map((item, i) => (
-                                                        <div key={i} className={`flex justify-between items-center px-4 py-2.5 rounded-lg transition-all ${
-                                                            item.highlight
-                                                                ? 'bg-emerald-500/10 border border-emerald-500/20'
-                                                                : 'bg-dark-800/30 hover:bg-dark-800/50'
-                                                        }`}>
-                                                            <span className={`text-xs font-semibold ${
-                                                                (item as any).large ? 'text-emerald-300 text-sm' : item.highlight ? 'text-emerald-400' : 'text-gray-300'
-                                                            }`}>
-                                                                {item.label}
-                                                            </span>
-                                                            <span className={`font-mono font-bold ${
-                                                                (item as any).large
-                                                                    ? 'text-lg text-emerald-300 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]'
-                                                                    : item.highlight ? 'text-base text-emerald-400' : 'text-sm text-gray-200'
-                                                            }`}>
-                                                                {item.value >= 0 ? '+' : ''}{`$${(item.value / 1e6).toFixed(1)}M`}
-                                                            </span>
-                                                        </div>
-                                                    ))}
+                                            <div>
+                                                <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Operating Activities</h4>
+                                                <div className="space-y-0">
+                                                    {row('Operating Cash Flow', opCf, { highlight: true, signed: true })}
                                                 </div>
-                                            ))}
+                                            </div>
+                                            <div>
+                                                <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Investing Activities</h4>
+                                                <div className="space-y-0">
+                                                    {row('Investing Cash Flow', invCf, { highlight: true, signed: true })}
+                                                    {row('Business Acquisitions', selectedXbrl.cashflow?.PaymentsToAcquireBusinessesNetOfCashAcquired, { signed: true })}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Financing Activities</h4>
+                                                <div className="space-y-0">
+                                                    {row('Financing Cash Flow', finCf, { highlight: true, signed: true })}
+                                                    {row('Dividends Paid', selectedXbrl.cashflow?.PaymentsOfDividends, { signed: true })}
+                                                    {row('Stock Repurchases', selectedXbrl.cashflow?.PaymentsForRepurchaseOfCommonStock, { signed: true })}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Net Change</h4>
+                                                <div className="space-y-0">
+                                                    {row('Free Cash Flow', fcf, { highlight: true, signed: true })}
+                                                </div>
+                                            </div>
                                         </div>
                                     )
                                 }
@@ -1102,11 +1150,11 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                 </div>
             )}
 
-            {/* SEC Sentences - Sentiment Analysis */}
+            {/* SEC Sentences - Sentiment Analysis (5 default, Show more) */}
             {secSentences.length > 0 && (
-                <div className="mt-6">
+                <div className="mt-4">
                     <div className="bg-dark-900/40 border border-indigo-500/10 rounded-xl p-4 shadow-xl backdrop-blur-sm">
-                        <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center justify-between mb-3">
                             <h3 className="text-sm font-bold text-indigo-400 uppercase tracking-[0.2em] flex items-center gap-3">
                                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
                                 SEC Filing Sentiment Analysis
@@ -1116,7 +1164,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                             </div>
                         </div>
                         <div className="space-y-2">
-                            {secSentences.slice(0, 10).map((sentence: any, i: number) => {
+                            {(showMoreSecSentences ? secSentences : secSentences.slice(0, 5)).map((sentence: any, i: number) => {
                                 const score = sentence.finbert_score || 0
                                 const sentiment = score > 0.2 ? 'Bullish' : score < -0.2 ? 'Bearish' : 'Neutral'
                                 const color = score > 0.2 ? 'text-green-400' : score < -0.2 ? 'text-red-400' : 'text-gray-400'
@@ -1143,6 +1191,15 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                     </div>
                                 )
                             })}
+                            {secSentences.length > 5 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowMoreSecSentences(!showMoreSecSentences)}
+                                    className="w-full py-2 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 rounded-lg hover:bg-indigo-500/10 transition-colors"
+                                >
+                                    {showMoreSecSentences ? 'Show less' : `Show more (${secSentences.length - 5} more)`}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -1150,9 +1207,9 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
 
             {/* Awards Table - Full Width Section */}
             {awards.length > 0 && (
-                <div className="mt-6">
+                <div className="mt-4">
                     <div className="bg-dark-900/40 border border-gold/10 rounded-xl p-4 shadow-xl backdrop-blur-sm">
-                        <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center justify-between mb-3">
                             <h3 className="text-sm font-bold text-gold uppercase tracking-[0.2em] flex items-center gap-3">
                                 <div className="w-1.5 h-1.5 rounded-full bg-gold shadow-[0_0_8px_rgba(255,215,0,0.5)]" />
                                 Federal Contract Awards
@@ -1162,13 +1219,13 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                             </div>
                         </div>
                         <div className="overflow-x-auto">
-                            <table className="w-full text-xs">
+                            <table className="w-full text-[11px]">
                                 <thead>
                                     <tr className="border-b border-gold/10">
-                                        <th className="text-left text-gray-300 font-semibold pb-2 px-2">Agency</th>
-                                        <th className="text-left text-gray-300 font-semibold pb-2 px-2">Description</th>
-                                        <th className="text-center text-gray-300 font-semibold pb-2 px-2">Year</th>
-                                        <th className="text-right text-gray-300 font-semibold pb-2 px-2">Amount</th>
+                                        <th className="text-left text-gray-300 font-semibold pb-1.5 pt-0 px-2">Agency</th>
+                                        <th className="text-left text-gray-300 font-semibold pb-1.5 pt-0 px-2">Description</th>
+                                        <th className="text-center text-gray-300 font-semibold pb-1.5 pt-0 px-2">Year</th>
+                                        <th className="text-right text-gray-300 font-semibold pb-1.5 pt-0 px-2">Amount</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1178,10 +1235,10 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                             onClick={() => setSelectedDetail({ type: 'Award', data: a })}
                                             className="border-b border-white/5 hover:bg-gold/10 transition-colors cursor-pointer"
                                         >
-                                            <td className="py-2 px-2 text-gray-100 truncate max-w-[150px]">{a.awarding_agency}</td>
-                                            <td className="py-2 px-2 text-gray-300 truncate max-w-[300px]">{a.description || 'Contract Award'}</td>
-                                            <td className="py-2 px-2 text-center text-gray-300">FY-{a.contract_year || '26'}</td>
-                                            <td className="py-2 px-2 text-right text-gold font-mono font-bold">${(a.award_amount_float / 1e6).toFixed(1)}M</td>
+                                            <td className="py-1.5 px-2 text-gray-100 truncate max-w-[150px]">{a.awarding_agency}</td>
+                                            <td className="py-1.5 px-2 text-gray-300 truncate max-w-[300px]">{a.description || 'Contract Award'}</td>
+                                            <td className="py-1.5 px-2 text-center text-gray-300">FY-{a.contract_year || '26'}</td>
+                                            <td className="py-1.5 px-2 text-right text-gold font-mono font-bold">${(a.award_amount_float / 1e6).toFixed(1)}M</td>
                                         </tr>
                                     ))}
                                 </tbody>

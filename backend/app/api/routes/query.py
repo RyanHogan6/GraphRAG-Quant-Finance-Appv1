@@ -146,6 +146,23 @@ def detect_presentation_type(aql_query: str, results: list, question: str) -> st
     return 'table'
 
 
+def _sanitize_chart_values(values: list) -> list:
+    """Cap single-point price spikes (likely bad data) so charts stay readable."""
+    if len(values) <= 1:
+        return values
+    out = list(values)
+    median = sorted(out)[len(out) // 2] if out else 0
+    max_reasonable = max(median * 3, 1000.0)
+    for i in range(1, len(out)):
+        prev, curr = out[i - 1], out[i]
+        if curr is None or curr <= 0:
+            out[i] = prev
+            continue
+        if prev and (curr > prev * 2 or curr > max_reasonable):
+            out[i] = prev
+    return out
+
+
 def analyze_query_metadata(aql_query: str, results: List[Dict]) -> Dict[str, Any]:
     """
     Analyze AQL query and results to determine what data types are present.
@@ -386,13 +403,37 @@ def enrich_single_company_results(results: List[Dict], query_plan: Dict) -> List
             data, _ = execute_aql(query, {"ticker": ticker})
             return data or []
         
+        def fetch_sec_sentences():
+            query = """
+            FOR s IN sec_sentences
+              FILTER s.ticker == @ticker
+              FILTER s.finbert_score != null
+              SORT ABS(s.finbert_score) DESC
+              LIMIT 100
+              RETURN s
+            """
+            data, _ = execute_aql(query, {"ticker": ticker})
+            return data or []
+
         def fetch_sec_filings():
             query = """
-            FOR s IN sec_filings
-              FILTER s.ticker == @ticker
-              SORT s.filing_date DESC
-              LIMIT 50
-              RETURN s
+            FOR company IN Company
+              FILTER company.ticker == @ticker
+              FOR filing IN OUTBOUND company HAS_FILING
+                SORT filing.filing_date DESC
+                LIMIT 20
+                LET top_sentences = (
+                  FOR section IN OUTBOUND filing has_section
+                    FOR sentence IN OUTBOUND section has_sentence
+                      FILTER sentence.finbert_score != null
+                      SORT ABS(sentence.finbert_score) DESC
+                      LIMIT 5
+                      RETURN {
+                        text: sentence.text,
+                        score: sentence.finbert_score
+                      }
+                )
+                RETURN MERGE(filing, { top_sentences: top_sentences })
             """
             data, _ = execute_aql(query, {"ticker": ticker})
             return data or []
@@ -452,9 +493,10 @@ def enrich_single_company_results(results: List[Dict], query_plan: Dict) -> List
             return data or []
 
         # Execute all queries in parallel
-        with ThreadPoolExecutor(max_workers=7) as executor:
+        with ThreadPoolExecutor(max_workers=8) as executor:
             market_future = executor.submit(fetch_market_data)
             sec_future = executor.submit(fetch_sec_filings)
+            sec_sentences_future = executor.submit(fetch_sec_sentences)
             award_future = executor.submit(fetch_awards)
             company_future = executor.submit(fetch_company_info)
             xbrl_future = executor.submit(fetch_sec_xbrl)
@@ -463,6 +505,7 @@ def enrich_single_company_results(results: List[Dict], query_plan: Dict) -> List
 
             market_data = market_future.result()
             sec_data = sec_future.result()
+            sec_sentences_data = sec_sentences_future.result()
             award_data = award_future.result()
             company_info = company_future.result()
             xbrl_data = xbrl_future.result()
@@ -476,6 +519,7 @@ def enrich_single_company_results(results: List[Dict], query_plan: Dict) -> List
             "ticker": ticker,
             "MarketData": market_data,
             "sec_filings": sec_data,
+            "sec_sentences": sec_sentences_data,
             "sec_xbrl_data": xbrl_data,
             "sec_exhibits": exhibits_data,
             "Award": award_data,
@@ -483,7 +527,7 @@ def enrich_single_company_results(results: List[Dict], query_plan: Dict) -> List
             "prediction_markets_polymarket": []  # Optional: can add later
         }
         
-        print(f"[ENRICH] Enriched {ticker} with {len(market_data)} market records, {len(sec_data)} filings, {len(xbrl_data)} XBRL statements, {len(exhibits_data)} exhibits, {len(options_data)} options records, {len(award_data)} awards")
+        print(f"[ENRICH] Enriched {ticker} with {len(market_data)} market records, {len(sec_data)} filings, {len(sec_sentences_data)} sec_sentences, {len(xbrl_data)} XBRL statements, {len(exhibits_data)} exhibits, {len(options_data)} options records, {len(award_data)} awards")
         return [enriched]
         
     except Exception as e:
@@ -573,10 +617,11 @@ def execute_query(request: Request, body: QueryRequest):
                 sorted_results = sorted(results, key=lambda x: x.get('date', ''))
                 # Add chart metadata to query_plan
                 query_plan['is_time_series'] = True
+                raw_values = [float(r.get('close') or 0) for r in sorted_results]
                 query_plan['chart_data'] = {
                     'type': 'line',
                     'dates': [r.get('date', '') for r in sorted_results],
-                    'values': [float(r.get('close') or 0) for r in sorted_results],
+                    'values': _sanitize_chart_values(raw_values),
                     'label': f"{sorted_results[0].get('ticker', 'Stock')} Close Price",
                     'ticker': sorted_results[0].get('ticker', 'Unknown')
                 }
@@ -866,10 +911,11 @@ async def execute_query_stream(request: Request, body: QueryRequest):
                     sorted_results = sorted(results, key=lambda x: x.get('date', ''))
                     # Add chart metadata to query_plan
                     query_plan['is_time_series'] = True
+                    raw_values = [float(r.get('close') or 0) for r in sorted_results]
                     query_plan['chart_data'] = {
                         'type': 'line',
                         'dates': [r.get('date', '') for r in sorted_results],
-                        'values': [float(r.get('close') or 0) for r in sorted_results],
+                        'values': _sanitize_chart_values(raw_values),
                         'label': f"{sorted_results[0].get('ticker', 'Stock')} Close Price",
                         'ticker': sorted_results[0].get('ticker', 'Unknown')
                     }
