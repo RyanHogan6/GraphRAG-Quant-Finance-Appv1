@@ -73,13 +73,13 @@ export default function ResponseRouter({
       )
 
     case 'sector_comparison':
-      // Multiple companies in same sector
+      // Multiple companies: same sector, sector keyword, or screener-style query
       return (
         <div className="space-y-4">
           <div className="text-xs text-gray-500 italic mb-2">
             🏢 {getQueryTypeDescription(queryType)}
           </div>
-          <SectorComparison companies={message.results!} />
+          <SectorComparison companies={message.results!} title={message.content || undefined} />
         </div>
       )
 

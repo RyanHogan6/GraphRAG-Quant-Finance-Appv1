@@ -55,8 +55,10 @@ export function classifyQuery(message: Message): QueryType {
   // If no results, treat as general query
   if (!results || results.length === 0) return 'general_query'
 
-  // Check result count and data types
-  const tickers = metadata?.tickers || []
+  // Check result count and data types (derive tickers from results if metadata missing)
+  const tickers = metadata?.tickers?.length
+    ? metadata.tickers
+    : [...new Set((results || []).map((r: any) => r.ticker).filter(Boolean))] as string[]
   const hasSingleTicker = tickers.length === 1
   const hasMultipleTickers = tickers.length > 1
   const isTimeSeries = queryPlan?.is_time_series || false
@@ -77,6 +79,21 @@ export function classifyQuery(message: Message): QueryType {
     content.toLowerCase().includes(kw)
   )
 
+  // Screener / comparison-style query: multiple companies + filter criteria (dividend, FCF, large-cap, etc.)
+  const screenerKeywords = [
+    'dividend payers', 'dividend payers with', 'dividend stocks',
+    'free cash flow', 'stable or growing', 'growing free cash flow',
+    'large-cap', 'large cap', 'large cap dividend',
+    'screen', 'screener', 'show me', 'find', 'list of',
+    'companies with', 'stocks with', 'with stable', 'with growing'
+  ]
+  const hasScreenerKeyword = screenerKeywords.some(kw =>
+    content.toLowerCase().includes(kw)
+  )
+  const isMultiCompanyScreener = results.length >= 3 &&
+    hasMultipleTickers &&
+    (hasScreenerKeyword || hasSectorKeyword)
+
   // Check if multiple companies are from same sector
   const allSameSector = (results: any[]): boolean => {
     if (results.length < 2) return false
@@ -96,9 +113,10 @@ export function classifyQuery(message: Message): QueryType {
     return 'company_deep_dive'
   }
 
-  // Multiple companies, same sector OR sector keyword → Sector comparison
+  // Multiple companies: sector comparison (same sector, sector keyword, or screener-style query)
   if ((hasMultipleTickers && allSameSector(results)) ||
-      (hasMultipleTickers && hasSectorKeyword)) {
+      (hasMultipleTickers && hasSectorKeyword) ||
+      isMultiCompanyScreener) {
     return 'sector_comparison'
   }
 

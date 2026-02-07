@@ -9,13 +9,15 @@ from typing import Dict, Any
 # TWO-STEP FLOW: JSON intent prompt (NL -> JSON plan -> AQL via json_to_aql)
 # =============================================================================
 
-def build_json_intent_prompt(schema: Dict[str, Any], user_query: str) -> str:
+def build_json_intent_prompt(schema: Dict[str, Any], user_query: str, hint: str = "") -> str:
     """Build prompt for LLM to output structured JSON query plan (same schema as validation script)."""
     schema_str = json.dumps(schema, indent=2)
+    hint_block = f"\n{hint}" if hint else ""
     return f"""You are a query intent parser. Convert natural language questions into structured JSON query plans.
 
 Database Schema (LIVE):
 {schema_str}
+{hint_block}
 
 Output JSON Schema:
 {{
@@ -61,7 +63,7 @@ Rules:
 
 Query: {user_query}
 
-Return ONLY valid JSON."""
+Return ONLY valid JSON (no markdown, no explanation)."""
 
 
 # =============================================================================
@@ -92,6 +94,11 @@ DATES:
 COLLECTION AND FIELD NAMES:
 - Use exact names from the schema: Award, Company, MarketData, sec_filings, sec_sentences, prediction_markets_polymarket, prediction_markets_kalshi, etc. (case-sensitive).
 - Use exact field names from schema (e.g. award_amount_float, volume_24h, yes_probability, finbert_score, closed, status).
+
+COMPANY + MARKETDATA (ticker-specific queries):
+- When the question mentions a specific stock ticker (e.g. "PLTR's financials", "AAPL in 2025", "Show me TSLA"), you MUST include a filter on Company.ticker with that ticker value. Example: "filters": {{ "Company.ticker": {{ "operator": "==", "value": "PLTR" }} }}. Without this, the query would return data for ALL companies.
+- For a specific year on MarketData (e.g. "financials for 2025"), add a filter MarketData.year with integer value: {{ "MarketData.year": {{ "operator": "==", "value": 2025 }} }}. MarketData.year is an integer, not a string.
+- MarketData collection uses field "volume" for trading volume (NOT "volume_24h"; volume_24h is for prediction_markets_polymarket only).
 """
 
 

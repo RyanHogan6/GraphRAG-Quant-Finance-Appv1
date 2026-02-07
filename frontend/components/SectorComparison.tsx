@@ -5,17 +5,98 @@ import TimeSeriesChart from './TimeSeriesChart'
 
 interface SectorComparisonProps {
   companies: any[]
+  /** Optional title for screener-style results (e.g. from query) */
+  title?: string
 }
 
 /**
  * Sector Comparison - Shows multiple companies from same sector
- * with normalized performance chart and key metrics table
+ * with normalized performance chart and key metrics table.
+ * Also supports "screener" mode when results are flat (ticker + metrics only, no MarketData).
  */
-export default function SectorComparison({ companies }: SectorComparisonProps) {
+export default function SectorComparison({ companies, title }: SectorComparisonProps) {
   const [sortBy, setSortBy] = useState<'marketCap' | 'pe' | 'roe' | 'debt'>('marketCap')
 
-  // Extract sector from first company
+  // Detect flat screener results: ticker + metric(s), no MarketData/sector
+  const isScreenerResults = useMemo(() => {
+    if (!companies.length) return false
+    const first = companies[0]
+    const hasTicker = first.ticker != null
+    const hasRichData = first.MarketData?.length > 0 || first.sector != null
+    return hasTicker && !hasRichData
+  }, [companies])
+
+  // Extract sector from first company (when not screener)
   const sector = companies[0]?.sector || 'Unknown Sector'
+
+  // Screener mode: table of ticker + whatever columns the results have
+  if (isScreenerResults) {
+    const first = companies[0] as Record<string, any>
+    const columns = Object.keys(first).filter(k => k !== '_key' && k !== '_id' && k !== '_rev')
+    const tickerCol = columns.find(c => c.toLowerCase() === 'ticker') || columns[0]
+    const metricCols = columns.filter(c => c !== tickerCol)
+    const formatVal = (val: any, key: string): string => {
+      if (val == null) return '—'
+      if (typeof val === 'number') {
+        if (key.toLowerCase().includes('average') || key.toLowerCase().includes('flow') || key.toLowerCase().includes('amount')) {
+          if (Math.abs(val) >= 1e9) return `$${(val / 1e9).toFixed(2)}B`
+          if (Math.abs(val) >= 1e6) return `$${(val / 1e6).toFixed(2)}M`
+          if (Math.abs(val) >= 1e3) return `$${(val / 1e3).toFixed(2)}K`
+          return `$${val.toLocaleString()}`
+        }
+        return val.toLocaleString(undefined, { maximumFractionDigits: 2 })
+      }
+      return String(val)
+    }
+    return (
+      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="border-b border-gold/20 pb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-3xl">🏢</span>
+            <h2 className="text-2xl md:text-3xl font-bold text-white">
+              {title || 'Screener Results'}
+            </h2>
+          </div>
+          <p className="text-sm text-gray-400">
+            {companies.length} companies matching criteria
+          </p>
+        </div>
+        <div className="bg-dark-900/40 border border-gold/10 rounded-xl overflow-hidden shadow-xl">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-dark-800/50 border-b border-gold/10">
+                  <th className="text-left px-4 py-3 text-xs font-bold text-gold uppercase tracking-wide">Ticker</th>
+                  {metricCols.map(col => (
+                    <th key={col} className="text-right px-4 py-3 text-xs font-bold text-gold uppercase tracking-wide">
+                      {col.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {companies.map((row: any, idx: number) => (
+                  <tr key={row.ticker || idx} className="border-b border-white/5 hover:bg-gold/5 transition-colors">
+                    <td className="px-4 py-3 text-sm font-bold text-white">{row[tickerCol] ?? '—'}</td>
+                    {metricCols.map(col => (
+                      <td key={col} className="px-4 py-3 text-right text-sm text-gray-200 font-mono">
+                        {formatVal(row[col], col)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div className="flex justify-center">
+          <button className="px-6 py-2 bg-dark-800 border border-gold/30 rounded-lg text-sm text-gold hover:bg-gold/10 transition-all">
+            Select Company for Deep Dive →
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   // Prepare normalized chart data (all start at 100)
   const chartData = useMemo(() => {

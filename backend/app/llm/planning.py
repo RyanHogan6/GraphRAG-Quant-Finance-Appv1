@@ -434,7 +434,8 @@ def plan_query_with_llm(question: str, intent_hint=None, conversation_history: l
     hint_text = ""
     if intent_hint:
         if intent_hint.get("type") == "ticker":
-            hint_text = f"\n\n🎯 CONFIRMED: This is a TICKER query for '{intent_hint.get('value')}'. Use doc.ticker == @ticker"
+            ticker_val = intent_hint.get("value", "")
+            hint_text = f"\n\n🎯 CONFIRMED: This is a TICKER query for '{ticker_val}'. You MUST include in filters: \"Company.ticker\": {{\"operator\": \"==\", \"value\": \"{ticker_val}\"}}. Without this the query would return data for all companies."
         elif intent_hint.get("type") == "concept":
             hint_text = f"\n\n🎯 CONFIRMED: This is a CONCEPT/SEMANTIC query about '{intent_hint.get('value')}'. Use semantic search with embeddings."
 
@@ -442,7 +443,7 @@ def plan_query_with_llm(question: str, intent_hint=None, conversation_history: l
     print("[PLANNING] Two-step flow: NL -> JSON intent -> AQL")
     full_schema = get_cached_schema()
     schema_for_intent = _schema_for_json_intent(full_schema)
-    planning_prompt = build_json_intent_prompt(schema_for_intent, question)
+    planning_prompt = build_json_intent_prompt(schema_for_intent, question, hint=hint_text)
 
     prompt_chars = len(planning_prompt)
     estimated_tokens = prompt_chars // 4
@@ -476,12 +477,15 @@ def plan_query_with_llm(question: str, intent_hint=None, conversation_history: l
             if to_coll and to_coll not in collections:
                 collections.append(to_coll)
 
+        bind_vars = dict(json_plan.get("bind_vars") or {})
+        if intent_hint and intent_hint.get("type") == "ticker" and intent_hint.get("value"):
+            bind_vars["ticker"] = intent_hint["value"]
         plan = {
             "intent": json_plan.get("intent", "json_intent"),
             "collections": collections,
             "requires_embedding": False,
             "aql_query": aql_query,
-            "bind_vars": {},
+            "bind_vars": bind_vars,
             "explanation": f"Two-step: {json_plan.get('intent', '')}"
         }
 

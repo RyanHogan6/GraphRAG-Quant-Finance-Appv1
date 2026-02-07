@@ -37,6 +37,13 @@ def json_to_aql(
     variables[primary] = primary_var
     aql_parts.append(f"FOR {primary_var} IN {primary}")
 
+    # When query is Company -> MarketData, require ticker filter so we don't return all companies
+    filters = json_plan.get("filters", {})
+    if primary == "Company" and traversals and any(t.get("to_collection") == "MarketData" for t in traversals):
+        if not any(k.strip() == "Company.ticker" for k in filters.keys()):
+            out("  [AUTO-FIX] No Company.ticker filter; adding FILTER c.ticker == @ticker (set bind_vars.ticker)")
+            aql_parts.append(f"  FILTER {primary_var}.ticker == @ticker")
+
     for trav in traversals:
         from_coll = trav["from_collection"]
         to_coll = trav["to_collection"]
@@ -69,7 +76,6 @@ def json_to_aql(
         aql_parts.append(f"    FOR {to_var} IN {to_coll}")
         aql_parts.append(f"      FILTER {to_var}._id == {edge_var}._to")
 
-    filters = json_plan.get("filters", {})
     if filters:
         for field_path, condition in filters.items():
             if "." not in field_path:
@@ -81,10 +87,15 @@ def json_to_aql(
                 continue
             operator = condition.get("operator", "==")
             value = condition.get("value")
-            if isinstance(value, str):
+            # Bind variable: value starting with @ is emitted as-is (e.g. @ticker)
+            if isinstance(value, str) and value.startswith("@"):
+                value = value
+            elif isinstance(value, str):
                 value = f'"{value}"'
             elif isinstance(value, bool):
                 value = str(value).lower()
+            elif isinstance(value, (int, float)):
+                value = str(value)
             indent = "      " if len(traversals) > 0 else "  "
             if operator == "CONTAINS":
                 field_access = f"{var}['{field}']" if ("-" in field or " " in field) else f"{var}.{field}"
