@@ -876,7 +876,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                 const secCompanyUrl = company.ticker ? `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${encodeURIComponent(company.ticker)}` : null
                 type ExhibitGroup = { type: string; exhibits: any[] }
                 const initialGroups: ExhibitGroup[] = []
-                const grouped = secExhibits.reduce<ExhibitGroup[]>((acc, ex) => {
+                const grouped = secExhibits.reduce((acc: ExhibitGroup[], ex: any) => {
                     const type = (ex.exhibit_category || ex.exhibit_type || 'Other').toString().replace(/\d.*$/, '').trim() || 'Other'
                     let group = acc.find(g => g.type === type)
                     if (!group) {
