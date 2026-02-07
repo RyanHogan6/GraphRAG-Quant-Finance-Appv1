@@ -137,6 +137,17 @@ def download_stock_data(tickers, period='1mo', batch_size=1, sleep_between_ticke
             if all(col in df.columns for col in required_cols):
                 df = df.dropna(subset=required_cols)
                 if len(df) > 0:
+                    # Fetch fundamental data for this ticker
+                    try:
+                        info = yf.Ticker(ticker).info or {}
+                        for col in REVISED_STATIC_COLS:
+                            df[col] = info.get(col)
+                        if idx <= 3:
+                            print(f"  [DEBUG] Added {len(REVISED_STATIC_COLS)} fundamental fields")
+                    except Exception as e:
+                        if idx <= 3:
+                            print(f"  [WARN] Could not fetch fundamentals for {ticker}: {e}")
+
                     all_records.append(df)
                 else:
                     failed_tickers.append(ticker)

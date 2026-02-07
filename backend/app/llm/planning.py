@@ -573,8 +573,8 @@ def format_time_series_analysis(user_question: str, results: list, query_plan: d
 
     # Extract time series data
     dates = [r.get('date', '') for r in sorted_results]
-    closes = [float(r.get('close', 0)) for r in sorted_results]
-    volumes = [float(r.get('volume', 0)) for r in sorted_results]
+    closes = [float(r.get('close') or 0) for r in sorted_results]
+    volumes = [float(r.get('volume') or 0) for r in sorted_results]
 
     # Calculate statistics
     if closes:

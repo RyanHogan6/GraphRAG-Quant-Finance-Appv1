@@ -14,8 +14,29 @@ BATCH_SIZE = 50
 MIN_REQUIRED_ROWS = 300
 
 REVISED_STATIC_COLS = [
-    'targetMeanPrice', 'forwardEps', 'returnOnEquity',
-    'dividendRate', 'grossMargins', 'ebitdaMargins',
-    'returnOnAssets', 'sharesOutstanding', 'marketCap',
-    'sector', 'industry'
+    # Valuation
+    'targetMeanPrice', 'targetHighPrice', 'targetLowPrice', 'targetMedianPrice',
+    'forwardEps', 'trailingEps', 'forwardPE', 'trailingPE',
+    'priceToBook', 'priceToSalesTrailing12Months', 'enterpriseToRevenue', 'enterpriseToEbitda',
+
+    # Growth
+    'revenueGrowth', 'earningsGrowth', 'earningsQuarterlyGrowth', 'revenuePerShare',
+
+    # Profitability
+    'grossMargins', 'ebitdaMargins', 'operatingMargins', 'profitMargins',
+    'returnOnEquity', 'returnOnAssets',
+
+    # Financial Health
+    'debtToEquity', 'currentRatio', 'quickRatio',
+    'totalCash', 'totalDebt', 'freeCashflow', 'operatingCashflow',
+
+    # Dividends
+    'dividendRate', 'dividendYield', 'payoutRatio', 'fiveYearAvgDividendYield',
+
+    # Analyst
+    'recommendationKey', 'numberOfAnalystOpinions',
+
+    # Other
+    'sharesOutstanding', 'marketCap', 'sector', 'industry', 'beta',
+    'fiftyDayAverage', 'twoHundredDayAverage', 'fiftyTwoWeekHigh', 'fiftyTwoWeekLow'
 ]

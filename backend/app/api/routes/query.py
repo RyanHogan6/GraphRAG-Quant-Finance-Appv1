@@ -576,7 +576,7 @@ def execute_query(request: Request, body: QueryRequest):
                 query_plan['chart_data'] = {
                     'type': 'line',
                     'dates': [r.get('date', '') for r in sorted_results],
-                    'values': [float(r.get('close', 0)) for r in sorted_results],
+                    'values': [float(r.get('close') or 0) for r in sorted_results],
                     'label': f"{sorted_results[0].get('ticker', 'Stock')} Close Price",
                     'ticker': sorted_results[0].get('ticker', 'Unknown')
                 }
@@ -869,7 +869,7 @@ async def execute_query_stream(request: Request, body: QueryRequest):
                     query_plan['chart_data'] = {
                         'type': 'line',
                         'dates': [r.get('date', '') for r in sorted_results],
-                        'values': [float(r.get('close', 0)) for r in sorted_results],
+                        'values': [float(r.get('close') or 0) for r in sorted_results],
                         'label': f"{sorted_results[0].get('ticker', 'Stock')} Close Price",
                         'ticker': sorted_results[0].get('ticker', 'Unknown')
                     }
