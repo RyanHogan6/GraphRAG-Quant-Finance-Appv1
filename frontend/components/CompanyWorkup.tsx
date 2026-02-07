@@ -908,7 +908,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                 </a>
                             )}
                             <div className="overflow-x-auto space-y-4">
-                                {grouped.map(({ type, exhibits }) => (
+                                {grouped.map(({ type, exhibits }: { type: string; exhibits: any[] }) => (
                                     <div key={type}>
                                         <div className="text-[10px] text-purple-400/80 font-semibold uppercase tracking-wider mb-1.5">
                                             {type}
