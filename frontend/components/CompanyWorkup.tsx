@@ -885,7 +885,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                     }
                     group.exhibits.push(ex)
                     return acc
-                }, initialGroups).sort((a, b) => a.type.localeCompare(b.type))
+                }, initialGroups).sort((a: ExhibitGroup, b: ExhibitGroup) => a.type.localeCompare(b.type))
 
                 return (
                     <div ref={exhibitsSectionRef} className="mt-4">
