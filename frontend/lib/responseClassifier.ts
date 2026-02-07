@@ -58,7 +58,7 @@ export function classifyQuery(message: Message): QueryType {
   // Check result count and data types (derive tickers from results if metadata missing)
   const tickers = metadata?.tickers?.length
     ? metadata.tickers
-    : [...new Set((results || []).map((r: any) => r.ticker).filter(Boolean))] as string[]
+    : Array.from(new Set((results || []).map((r: any) => r.ticker).filter(Boolean))) as string[]
   const hasSingleTicker = tickers.length === 1
   const hasMultipleTickers = tickers.length > 1
   const isTimeSeries = queryPlan?.is_time_series || false
