@@ -13,13 +13,10 @@ from typing import Optional
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 import config
-from app.llm.prompts import CRITICAL_AQL_RULES
+from app.llm.prompts import CRITICAL_AQL_RULES, build_json_intent_prompt
+from app.llm.json_to_aql import json_to_aql
 from app.llm.response_synthesis import get_enhanced_analysis_prompt
-from app.llm.schema_grounding import (
-    detect_relevant_collections,
-    build_focused_schema_prompt,
-    get_collection_specific_rules
-)
+# Schema grounding kept for potential future use; two-step flow uses get_cached_schema + build_json_intent_prompt
 from app.llm.query_validation import execute_with_validation
 from app.llm.schema_introspection import (
     get_cached_schema,
@@ -178,6 +175,29 @@ def check_similar_previous_question(question: str) -> Optional[dict]:
         pass
 
     return None
+
+
+def _schema_for_json_intent(full_schema: dict) -> dict:
+    """Convert get_cached_schema() format to JSON intent prompt format (collections with fields list, edges with from/to strings)."""
+    collections_out = {}
+    for coll_name, coll_data in full_schema.get("collections", {}).items():
+        fields = coll_data.get("fields", {})
+        if isinstance(fields, dict):
+            fields = list(fields.keys())
+        collections_out[coll_name] = {
+            "fields": fields,
+            "description": f"{coll_name} collection"
+        }
+    edges_out = {}
+    for edge_name, edge_data in full_schema.get("edges", {}).items():
+        from_coll = edge_data.get("from")
+        to_coll = edge_data.get("to")
+        if isinstance(from_coll, list):
+            from_coll = from_coll[0] if from_coll else ""
+        if isinstance(to_coll, list):
+            to_coll = to_coll[0] if to_coll else ""
+        edges_out[edge_name] = {"from": from_coll, "to": to_coll}
+    return {"collections": collections_out, "edges": edges_out}
 
 
 def add_to_query_cache(question: str, plan: dict):
@@ -418,112 +438,15 @@ def plan_query_with_llm(question: str, intent_hint=None, conversation_history: l
         elif intent_hint.get("type") == "concept":
             hint_text = f"\n\n🎯 CONFIRMED: This is a CONCEPT/SEMANTIC query about '{intent_hint.get('value')}'. Use semantic search with embeddings."
 
-    # CRITICAL FIX: Use schema grounding to get focused schema (2-3 collections max)
-    # Industry standard: Reduces prompt from 15k → 3k tokens, improves accuracy
-    print("[SCHEMA GROUNDING] Building focused schema for query")
-    focused_schema = build_focused_schema_prompt(question)
-    relevant_collections = detect_relevant_collections(question, max_collections=3)
-    collection_rules = get_collection_specific_rules(relevant_collections)
-    print(f"[SCHEMA GROUNDING] Selected collections: {relevant_collections}")
+    # TWO-STEP FLOW: NL -> JSON intent -> deterministic AQL (replaces hard-coded AQL prompts)
+    print("[PLANNING] Two-step flow: NL -> JSON intent -> AQL")
+    full_schema = get_cached_schema()
+    schema_for_intent = _schema_for_json_intent(full_schema)
+    planning_prompt = build_json_intent_prompt(schema_for_intent, question)
 
-    planning_prompt = f"""You are a database query planner for ArangoDB.
-
-{focused_schema}
-
-{collection_rules}
-
-{CRITICAL_AQL_RULES}
-
-CRITICAL: AQL CLAUSE ORDER MUST BE:
-FOR → FILTER → SORT → LIMIT → RETURN
-⚠️ LIMIT always comes BEFORE RETURN!
-
-⚠️ QUERY PATTERNS (Focus on schema and rules above - examples kept minimal to save tokens):
-
-1. Simple filter: FOR doc IN Award FILTER doc.award_amount_float > 1000000 SORT doc.award_amount_float DESC LIMIT 10 RETURN doc
-
-2. Company workup: FOR company IN Company FILTER company.ticker == @ticker LET enrichments = (...subqueries...) RETURN MERGE(company, enrichments)
-
-3. Graph traversal: FOR company IN Company FILTER... FOR related IN OUTBOUND company HAS_AWARD RETURN {{company, related}}
-
-{history_context}
-
-USER QUESTION: "{question}"{hint_text}
-
-Current Date: {current_date}
-
-⚠️ **CRITICAL: DATE RANGE PARSING**
-When user mentions a specific month/year or time period, convert to EXACT date ranges:
-
-Examples:
-- "October 2020" → start_date: "2020-10-01", end_date: "2020-11-01" (first day of next month)
-- "Q1 2021" → start_date: "2021-01-01", end_date: "2021-04-01"
-- "January 2024" → start_date: "2024-01-01", end_date: "2024-02-01"
-- "2023" → start_date: "2023-01-01", end_date: "2024-01-01"
-- "last 30 days" → use DATE_SUBTRACT(DATE_NOW(), 30, "day")
-
-⚠️ NEVER use DATE_NOW() for historical queries! User asking about "October 2020" wants data from 2020, NOT recent data!
-
-**INSTRUCTIONS:**
-1. Match the user question to the closest example above
-2. Adapt that example's pattern for the user's specific needs
-3. Keep the same structure: FOR → FILTER → SORT → LIMIT → RETURN
-4. Use EXACT field names from examples (award_amount_float, volume_24h, etc.)
-5. For ticker queries, use bind variable: @ticker
-6. For semantic search, MUST set requires_embedding: true
-7. **For date ranges:** Parse natural language dates into specific YYYY-MM-DD strings
-
-**QUERY OUTPUT STRATEGY:**
-For company queries: Return nested structure with MarketData/filings/awards/options for CompanyWorkup display.
-For date-specific queries: Add proper date filters using start_date/end_date bind variables.
-
-3. **Daily Format** (date range <= 7 days OR user says "daily/detailed"):
-   - Return individual rows per day
-   - Use Example 3 pattern
-   - Limit to reasonable number (30-50 rows max)
-
-4. **Multi-Ticker Comparison** (user compares multiple stocks):
-   - Return separate summary for EACH ticker
-   - Use Example 5c pattern with FOR loop over ticker array
-   - DO NOT interleave data from different tickers
-   - Each ticker gets its own row with summary stats
-
-Generate a JSON response with:
-- "intent": classification (e.g., "top_contracts", "active_markets", "semantic_awards", "whale_positions", "stock_data", "sec_sentiment")
-- "collections": array of collection names used
-- "requires_embedding": boolean (true ONLY if doing semantic/similarity search on Award or Polymarket)
-- "embedding_text": text to embed (if requires_embedding is true)
-- "aql_query": valid AQL query (MUST follow proven examples above)
-- "bind_vars": object with bind variables (e.g., {{"ticker": "AAPL"}})
-- "explanation": brief strategy explanation
-
-CRITICAL VALIDATION CHECKLIST:
-✅ Collection names EXACT: Award, prediction_markets_polymarket, polymarket_traders, MarketData, sec_sentences
-✅ Field names EXACT: award_amount_float, volume_24h, yes_probability, finbert_score, closed
-✅ NEVER use: award_amount (wrong), market.volume (wrong), markets (wrong)
-✅ Date functions: DATE_SUBTRACT(DATE_NOW(), 30, "day") - NOT DATE_SUB()
-✅ Boolean filters: market.closed == false (NOT market.closed = false)
-✅ Text search: CONTAINS(LOWER(doc.text), "keyword") - always LOWER()
-✅ Order MUST be: FOR → FILTER → SORT → LIMIT → RETURN
-✅ LIMIT is REQUIRED and comes BEFORE RETURN
-✅ For ticker queries, use @ticker bind variable
-✅ Semantic search: requires_embedding: true, similarity >= 0.70 for Award
-
-Return ONLY valid JSON, no markdown formatting.
-
-Response:"""
-
-    # Debug: Check prompt size to prevent token explosions
     prompt_chars = len(planning_prompt)
-    estimated_tokens = prompt_chars // 4  # Rough estimate: 1 token ≈ 4 characters
+    estimated_tokens = prompt_chars // 4
     print(f"[TOKEN CHECK] Prompt size: {prompt_chars:,} chars (~{estimated_tokens:,} tokens)")
-
-    if estimated_tokens > 25000:
-        print(f"⚠️  WARNING: Prompt is {estimated_tokens:,} tokens - may hit rate limits!")
-        print(f"  - Focused schema: {len(focused_schema):,} chars")
-        print(f"  - Collection rules: {len(collection_rules):,} chars")
-        print(f"  - Critical rules: {len(CRITICAL_AQL_RULES):,} chars")
-        print(f"  - History context: {len(history_context):,} chars")
 
     try:
         client = get_openai_client()
@@ -535,26 +458,46 @@ Response:"""
             response_format={"type": "json_object"}
         )
 
-        plan = json.loads(response.choices[0].message.content)
+        json_plan = json.loads(response.choices[0].message.content)
 
-        # CRITICAL FIX: Validate and auto-fix AQL syntax before returning!
-        if 'aql_query' in plan:
-            try:
-                corrected_query, errors, bind_params = validate_aql_syntax(plan['aql_query'], question)
-                plan['aql_query'] = corrected_query  # Use corrected version
-                if errors:
-                    plan['validation_warnings'] = errors  # Add warnings to plan
-                    print(f"Query validation: {len(errors)} warnings/fixes")
-                    for error in errors:
-                        print(f"  - {error}")
-            except ValueError as ve:
-                # Critical validation error - query is invalid
-                print(f"CRITICAL validation error: {ve}")
-                return None
+        # Deterministic JSON -> AQL (no second LLM call)
+        aql_query = json_to_aql(json_plan, log=print)
 
-        # Add successful plan to cache for future similarity checks
+        if not aql_query or aql_query.startswith("//"):
+            print("[PLANNING] json_to_aql produced no valid AQL")
+            return None
+
+        # Build plan in the shape the rest of the backend expects
+        primary = json_plan.get("primary_collection", "Company")
+        traversals = json_plan.get("traversals", [])
+        collections = [primary]
+        for t in traversals:
+            to_coll = t.get("to_collection")
+            if to_coll and to_coll not in collections:
+                collections.append(to_coll)
+
+        plan = {
+            "intent": json_plan.get("intent", "json_intent"),
+            "collections": collections,
+            "requires_embedding": False,
+            "aql_query": aql_query,
+            "bind_vars": {},
+            "explanation": f"Two-step: {json_plan.get('intent', '')}"
+        }
+
+        # Optional: run existing AQL validation/correction on generated query
+        try:
+            corrected_query, errors, bind_params = validate_aql_syntax(plan["aql_query"], question)
+            plan["aql_query"] = corrected_query
+            if errors:
+                plan["validation_warnings"] = errors
+                for error in errors:
+                    print(f"  - {error}")
+        except ValueError as ve:
+            print(f"CRITICAL validation error: {ve}")
+            return None
+
         add_to_query_cache(question, plan)
-
         return plan
 
     except Exception as e:

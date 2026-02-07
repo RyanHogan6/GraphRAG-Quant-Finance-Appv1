@@ -2,6 +2,98 @@
 prompts.py - Schema descriptions and few-shot examples for AQL query generation
 Last updated: 2026-01-06 with Kalshi support
 """
+import json
+from typing import Dict, Any
+
+# =============================================================================
+# TWO-STEP FLOW: JSON intent prompt (NL -> JSON plan -> AQL via json_to_aql)
+# =============================================================================
+
+def build_json_intent_prompt(schema: Dict[str, Any], user_query: str) -> str:
+    """Build prompt for LLM to output structured JSON query plan (same schema as validation script)."""
+    schema_str = json.dumps(schema, indent=2)
+    return f"""You are a query intent parser. Convert natural language questions into structured JSON query plans.
+
+Database Schema (LIVE):
+{schema_str}
+
+Output JSON Schema:
+{{
+  "intent": "brief description",
+  "primary_collection": "collection name",
+  "filters": {{
+    "collection.field": {{"operator": "==|>|<|>=|<=|!=|CONTAINS", "value": "..."}},
+  }},
+  "traversals": [
+    {{
+      "from_collection": "Company",
+      "edge_collection": "HAS_MARKETDATA",
+      "to_collection": "MarketData",
+      "direction": "OUTBOUND"
+    }}
+  ],
+  "aggregations": {{
+    "type": "COUNT|SUM|AVG|MAX|MIN",
+    "field": "collection.field",
+    "group_by": ["collection.field"]
+  }},
+  "sort": {{
+    "field": "collection.field",
+    "direction": "ASC|DESC"
+  }},
+  "limit": 10,
+  "return_fields": ["collection.field", ...]
+}}
+
+Rules:
+1. Use EXACT field names from schema
+2. Use collection.field format
+3. For traversals, use edge collections from schema
+4. CONTAINS for text search, == for exact match
+5. CRITICAL - primary_collection MUST be the source (from_collection) of the FIRST traversal
+   - If query needs Company->MarketData, primary_collection="Company" (NOT "MarketData")
+   - If query needs sec_filings->sec_exhibits, primary_collection="sec_filings" (NOT "sec_exhibits")
+   - If no traversals needed, use the collection with the data you are querying
+6. All filters must reference collections that exist in the query path (primary + traversed collections)
+   - DO NOT filter on collections you have not traversed to
+
+{JSON_INTENT_CRITICAL_RULES}
+
+Query: {user_query}
+
+Return ONLY valid JSON."""
+
+
+# =============================================================================
+# JSON INTENT RULES (domain rules for two-step flow; no raw AQL)
+# =============================================================================
+
+JSON_INTENT_CRITICAL_RULES = """
+Domain rules (apply when building your JSON plan):
+
+MARKETS DISAMBIGUATION:
+- "prediction markets", "betting", "polymarket", "kalshi", "whales" → use prediction_markets_polymarket or prediction_markets_kalshi (not MarketData).
+- "stock prices", "OHLCV", "trading data", "closing price" → use MarketData (often with Company).
+- If user says "markets" without context: prefer prediction_markets when question mentions probability, betting, whales; else MarketData.
+
+PREDICTION MARKETS:
+- Polymarket: always add a filter like prediction_markets_polymarket.closed with value false unless user asks for "closed" or "all".
+- Kalshi: always add a filter like prediction_markets_kalshi.status with value "active" unless user asks for closed/all.
+- Include close_time or end_date in return_fields when returning prediction market data.
+
+SEC DATA:
+- "Bearish 10-K", "negative filings", "sentiment" → use sec_sentences (has finbert_score). Do NOT use sec_filings for sentiment.
+- "Insider buying", "Form 4", "insider transactions" → use sec_filings.
+
+DATES:
+- "Recent", "latest", "show me" without a date range → do NOT add a date filter; use sort by date DESC and a reasonable limit (e.g. 100).
+- "This year", "last 30 days", "last year" → add a filter on the appropriate date field (e.g. date, filing_date, start_date) with the right range; use value strings the converter can pass through.
+
+COLLECTION AND FIELD NAMES:
+- Use exact names from the schema: Award, Company, MarketData, sec_filings, sec_sentences, prediction_markets_polymarket, prediction_markets_kalshi, etc. (case-sensitive).
+- Use exact field names from schema (e.g. award_amount_float, volume_24h, yes_probability, finbert_score, closed, status).
+"""
+
 
 # =============================================================================
 # CRITICAL AQL RULES (Condensed version - only essential syntax rules)
