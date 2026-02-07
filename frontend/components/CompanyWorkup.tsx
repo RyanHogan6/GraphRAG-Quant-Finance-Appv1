@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import TimeSeriesChart from './TimeSeriesChart'
 import { motion, AnimatePresence } from 'framer-motion'
 import SECFilingsExplorer from './SECFilingsExplorer'
@@ -26,8 +26,24 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
     const [selectedStatementTab, setSelectedStatementTab] = useState<'income' | 'balance' | 'cashflow'>('income')
     const [expandedXbrlBreakdownIndex, setExpandedXbrlBreakdownIndex] = useState<number | null>(null)
     const [showMoreSecSentences, setShowMoreSecSentences] = useState(false)
+    const [showMoreSecModalExcerpts, setShowMoreSecModalExcerpts] = useState(false)
+    const [expandedExcerptIndex, setExpandedExcerptIndex] = useState<number | null>(null)
+    const [showFullAmounts, setShowFullAmounts] = useState(false)
+    const xbrlSectionRef = useRef<HTMLDivElement>(null)
+    const exhibitsSectionRef = useRef<HTMLDivElement>(null)
 
-    // Extract nested data - handle both Company-centric and Filing-centric queries
+    const closeDetail = () => {
+        setSelectedDetail(null)
+        setShowMoreSecModalExcerpts(false)
+        setExpandedExcerptIndex(null)
+    }
+    const openSecDetail = (filing: any) => {
+        setShowMoreSecModalExcerpts(false)
+        setExpandedExcerptIndex(null)
+        setSelectedDetail({ type: 'SEC', data: filing })
+    }
+
+    // Extract nested data - handle both Company-centric and Filing-centric queries - handle both Company-centric and Filing-centric queries
     const company = data
 
     // If query returned SEC filings (filing-centric), flatten the nested data
@@ -189,7 +205,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
         } : null;
 
         const latestOptions = optionsFlow[0]
-        const putCallRatio = latestOptions?.put_call_ratio || 0
+        const putCallRatio = latestOptions?.put_call_ratio ?? latestOptions?.put_call_volume_ratio ?? 0
         const optionsSignal = putCallRatio > 1.5 ? 'bearish positioning with elevated put activity' : putCallRatio < 0.5 ? 'bullish positioning with strong call demand' : 'neutral options flow'
 
         const avgRsi = latestMarket?.rsi || 50
@@ -214,7 +230,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                 : `${company.company} maintains focused commercial market exposure with ${company.sector} industry leadership, supported by institutional ownership patterns and steady revenue generation from core business operations.`,
 
             optionsFlow.length > 0
-                ? `Options market activity reflects ${optionsSignal} with put/call ratio of ${putCallRatio.toFixed(2)}, total options volume of ${latestOptions?.total_volume?.toLocaleString()} contracts, and implied volatility at ${(latestOptions?.implied_volatility * 100)?.toFixed(1)}%, indicating ${putCallRatio > 1.5 ? 'defensive hedging' : putCallRatio < 0.5 ? 'aggressive upside speculation' : 'standard market expectations'}.`
+                ? `Options market activity reflects ${optionsSignal} with put/call ratio of ${putCallRatio.toFixed(2)}, total options volume of ${latestOptions?.total_volume?.toLocaleString()} contracts, and implied volatility at ${((latestOptions?.implied_volatility ?? latestOptions?.iv_avg) != null ? (Number(latestOptions.implied_volatility ?? latestOptions.iv_avg) * 100).toFixed(1) : 'N/A')}%, indicating ${putCallRatio > 1.5 ? 'defensive hedging' : putCallRatio < 0.5 ? 'aggressive upside speculation' : 'standard market expectations'}.`
                 : `Options flow data not yet available for this ticker, with trading activity primarily focused on equity markets and institutional block transactions.`,
 
             `Technical indicators place ${ticker} in ${technicalSignal}, with ${latestMarket?.sma_50 && latestMarket?.sma_200 ? (latestMarket.sma_50 > latestMarket.sma_200 ? 'bullish golden cross formation' : 'bearish death cross warning') : 'developing trend structure'} as moving averages ${latestMarket?.sma_50 && latestMarket?.sma_200 ? (latestMarket.sma_50 > latestMarket.sma_200 ? 'confirm' : 'challenge') : 'establish'} current price action.`,
@@ -354,7 +370,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
         }
 
         return calculateMetrics(company, latestMarket, secXbrlData)
-    }, [company, latestMarket, secXbrlData])
+    }, [company, latestMarket, secXbrlData, showFullAmounts])
 
     // Peer fundamental metrics (if in comparison mode)
     const peerFundamentalMetrics = useMemo(() => {
@@ -425,11 +441,12 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
         }
 
         return calculateMetrics(peerData, peerLatestMarket, peerXbrlData)
-    }, [peerData, comparisonMode])
+    }, [peerData, comparisonMode, showFullAmounts])
 
     function formatVal(val: any, type: string) {
         if (val == null || isNaN(val)) return 'N/A'
         if (type === 'currency') {
+            if (showFullAmounts) return `$${Number(val).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
             if (val > 1e12) return `$${(val / 1e12).toFixed(2)}T`
             if (val > 1e9) return `$${(val / 1e9).toFixed(2)}B`
             if (val > 1e6) return `$${(val / 1e6).toFixed(2)}M`
@@ -508,6 +525,12 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                             )}
                         </>
                     )}
+                    <button
+                        onClick={() => setShowFullAmounts(!showFullAmounts)}
+                        className={`px-3 py-1.5 border rounded-lg text-xs transition-all ${showFullAmounts ? 'bg-gold/20 border-gold/50 text-gold' : 'bg-dark-800 border-gold/30 text-gray-400 hover:text-white'}`}
+                    >
+                        {showFullAmounts ? 'Full $ amounts' : 'Abbreviated $'}
+                    </button>
                     <button className="px-3 py-1.5 bg-dark-800 border border-gold/30 rounded-lg text-xs text-gray-400 hover:text-white transition-all">
                         PDF Mode
                     </button>
@@ -585,7 +608,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                     {s}
                                     {i === 1 && secFilings.length > 0 && (
                                         <span
-                                            onClick={() => setSelectedDetail({ type: 'SEC', data: secFilings[0] })}
+                                            onClick={() => openSecDetail(secFilings[0])}
                                             className="ml-1 text-[10px] text-blue-400 font-mono cursor-pointer hover:underline bg-blue-500/10 px-1 rounded"
                                         >
                                             [SEC-{secFilings[0].filing_date}]
@@ -701,9 +724,17 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                 Options Activity
                             </h3>
                             <span className="text-[10px] text-gray-500 font-mono">
-                                {optionsFlow[0].put_call_ratio != null
-                                    ? (optionsFlow[0].put_call_ratio > 1 ? 'Bearish' : optionsFlow[0].put_call_ratio < 0.7 ? 'Bullish' : 'Neutral') + ` positioning, P/C ${optionsFlow[0].put_call_ratio?.toFixed(2)}`
-                                    : `${optionsFlow.length} day(s)`}
+                                {(() => {
+                                    const pc = optionsFlow[0].put_call_ratio ?? optionsFlow[0].put_call_volume_ratio;
+                                    if (pc != null) {
+                                        const stance = pc > 1 ? 'Bearish' : pc < 0.7 ? 'Bullish' : 'Neutral';
+                                        return `${stance} positioning, P/C ${Number(pc).toFixed(2)}`;
+                                    }
+                                    const first = optionsFlow[optionsFlow.length - 1]?.date;
+                                    const last = optionsFlow[0]?.date;
+                                    if (first && last) return `${first} – ${last}`;
+                                    return `Last ${optionsFlow.length} days`;
+                                })()}
                             </span>
                         </div>
                         <div className="overflow-x-auto">
@@ -719,16 +750,20 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {optionsFlow.slice(0, 10).map((row: any, i: number) => (
+                                    {optionsFlow.slice(0, 20).map((row: any, i: number) => {
+                                        const pc = row.put_call_ratio ?? row.put_call_volume_ratio;
+                                        const iv = row.implied_volatility ?? row.iv_avg;
+                                        return (
                                         <tr key={i} className="border-b border-white/5 hover:bg-green-500/5 transition-colors">
                                             <td className="py-2 px-2 text-gray-300 font-mono">{row.date || '—'}</td>
-                                            <td className="py-2 px-2 text-right font-mono text-gray-200">{row.put_call_ratio != null ? row.put_call_ratio.toFixed(2) : '—'}</td>
+                                            <td className="py-2 px-2 text-right font-mono text-gray-200">{pc != null ? Number(pc).toFixed(2) : '—'}</td>
                                             <td className="py-2 px-2 text-right font-mono text-gray-200">{row.call_volume != null ? row.call_volume.toLocaleString() : '—'}</td>
                                             <td className="py-2 px-2 text-right font-mono text-gray-200">{row.put_volume != null ? row.put_volume.toLocaleString() : '—'}</td>
                                             <td className="py-2 px-2 text-right font-mono text-gray-200">{row.total_volume != null ? row.total_volume.toLocaleString() : '—'}</td>
-                                            <td className="py-2 px-2 text-right font-mono text-gray-200">{row.implied_volatility != null ? (row.implied_volatility * 100).toFixed(1) + '%' : '—'}</td>
+                                            <td className="py-2 px-2 text-right font-mono text-gray-200">{iv != null ? (Number(iv) * 100).toFixed(1) + '%' : '—'}</td>
                                         </tr>
-                                    ))}
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
@@ -741,7 +776,13 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     {/* XBRL Highlights */}
                     {secXbrlData.length > 0 && (
-                        <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-4 hover:border-cyan-500/50 transition-all cursor-pointer group">
+                        <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => xbrlSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                            onKeyDown={(e) => e.key === 'Enter' && xbrlSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                            className="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-4 hover:border-cyan-500/50 transition-all cursor-pointer group"
+                        >
                             <div className="flex items-center gap-2 mb-2">
                                 <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
                                 <h4 className="text-sm font-bold text-cyan-400 group-hover:text-cyan-300 transition-colors">📊 Financial Breakdowns Available</h4>
@@ -774,7 +815,13 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
 
                     {/* Material Contracts Alert */}
                     {secExhibits.length > 0 && (
-                        <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 hover:border-purple-500/50 transition-all cursor-pointer group">
+                        <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => exhibitsSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                            onKeyDown={(e) => e.key === 'Enter' && exhibitsSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                            className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 hover:border-purple-500/50 transition-all cursor-pointer group"
+                        >
                             <div className="flex items-center gap-2 mb-2">
                                 <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
                                 <h4 className="text-sm font-bold text-purple-400 group-hover:text-purple-300 transition-colors">📄 Material Contracts</h4>
@@ -809,64 +856,113 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
             {/* SEC Filings Explorer - Full Width Section */}
             {allSecFilings.length > 0 && (
                 <div className="mt-4">
-                    <SECFilingsExplorer filings={allSecFilings} ticker={company.ticker} />
+                    <SECFilingsExplorer filings={allSecFilings} ticker={company.ticker} onSelectFiling={openSecDetail} />
                 </div>
             )}
 
             {/* SEC Exhibits - Material Contracts */}
-            {secExhibits.length > 0 && (
-                <div className="mt-4">
-                    <div className="bg-dark-900/40 border border-purple-500/10 rounded-xl p-4 shadow-xl backdrop-blur-sm">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-sm font-bold text-purple-400 uppercase tracking-[0.2em] flex items-center gap-3">
-                                <div className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.5)]" />
-                                SEC Exhibits & Material Contracts
-                            </h3>
-                            <div className="text-xs text-gray-500">
-                                {secExhibits.length} exhibit{secExhibits.length !== 1 ? 's' : ''}
+            {secExhibits.length > 0 && (() => {
+                const exhibitTypeHint: Record<string, string> = {
+                    'EX-10': 'Material contracts (credit, employment, M&A, etc.)',
+                    'EX-4': 'Debt instruments, indentures',
+                    'EX-21': 'Subsidiaries list',
+                    'EX-99': 'Additional exhibits (press releases, etc.)',
+                }
+                const getCategoryHint = (ex: any) => {
+                    const cat = (ex.exhibit_category || ex.exhibit_type || '').toString().replace(/\d.*$/, '').trim()
+                    return exhibitTypeHint[cat] || ''
+                }
+                const exhibitDate = (ex: any) => ex.filing_date || ex.filed_date || ex.parent_filing_date || '—'
+                const secCompanyUrl = company.ticker ? `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${encodeURIComponent(company.ticker)}` : null
+                const grouped = secExhibits.reduce((acc: { type: string; exhibits: any[] }[], ex: any) => {
+                    const type = (ex.exhibit_category || ex.exhibit_type || 'Other').toString().replace(/\d.*$/, '').trim() || 'Other'
+                    let group = acc.find(g => g.type === type)
+                    if (!group) {
+                        group = { type, exhibits: [] }
+                        acc.push(group)
+                    }
+                    group.exhibits.push(ex)
+                    return acc
+                }, [] as { type: string; exhibits: any[] }).sort((a, b) => a.type.localeCompare(b.type))
+
+                return (
+                    <div ref={exhibitsSectionRef} className="mt-4">
+                        <div className="bg-dark-900/40 border border-purple-500/10 rounded-xl p-4 shadow-xl backdrop-blur-sm">
+                            <div className="flex items-center justify-between mb-2">
+                                <h3 className="text-sm font-bold text-purple-400 uppercase tracking-[0.2em] flex items-center gap-3">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.5)]" />
+                                    SEC Exhibits & Material Contracts
+                                </h3>
+                                <div className="text-xs text-gray-500">
+                                    {secExhibits.length} exhibit{secExhibits.length !== 1 ? 's' : ''}
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-gray-500 mb-3">
+                                How to read: EX-10 = material contracts, EX-4 = debt instruments, EX-21 = subsidiaries, EX-99 = additional exhibits.
+                            </p>
+                            {secCompanyUrl && (
+                                <a href={secCompanyUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-purple-400 hover:text-purple-300 mb-3 inline-block">
+                                    View {company.ticker} on SEC EDGAR →
+                                </a>
+                            )}
+                            <div className="overflow-x-auto space-y-4">
+                                {grouped.map(({ type, exhibits }) => (
+                                    <div key={type}>
+                                        <div className="text-[10px] text-purple-400/80 font-semibold uppercase tracking-wider mb-1.5">
+                                            {type}
+                                            {exhibitTypeHint[type] && <span className="text-gray-500 font-normal normal-case ml-1.5">— {exhibitTypeHint[type]}</span>}
+                                        </div>
+                                        <table className="w-full text-xs">
+                                            <thead>
+                                                <tr className="border-b border-purple-500/10">
+                                                    <th className="text-left text-gray-300 font-semibold pb-2 px-2">Type</th>
+                                                    <th className="text-left text-gray-300 font-semibold pb-2 px-2">Category</th>
+                                                    <th className="text-left text-gray-300 font-semibold pb-2 px-2">Description</th>
+                                                    <th className="text-center text-gray-300 font-semibold pb-2 px-2">Date</th>
+                                                    <th className="text-center text-gray-300 font-semibold pb-2 px-2">Sentiment</th>
+                                                    {secCompanyUrl && <th className="text-center text-gray-300 font-semibold pb-2 px-2 w-20" />}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {exhibits.slice(0, 15).map((ex: any, i: number) => {
+                                                    const sentiment = ex.finbert_score || 0
+                                                    const sentimentColor = sentiment > 0.2 ? 'text-green-400' : sentiment < -0.2 ? 'text-red-400' : 'text-gray-400'
+                                                    const hint = getCategoryHint(ex)
+                                                    return (
+                                                        <tr key={i} className="border-b border-white/5 hover:bg-purple-500/10 transition-colors">
+                                                            <td className="py-2 px-2 text-purple-300 font-mono font-semibold">{ex.exhibit_type || '—'}</td>
+                                                            <td className="py-2 px-2 text-gray-300 truncate max-w-[100px]" title={hint}>{ex.contract_type || ex.exhibit_category || '—'}</td>
+                                                            <td className="py-2 px-2 text-gray-300 truncate max-w-[300px]" title={ex.description || ''}>{ex.description || 'Exhibit'}</td>
+                                                            <td className="py-2 px-2 text-center text-gray-400">{exhibitDate(ex)}</td>
+                                                            <td className={`py-2 px-2 text-center font-mono ${sentimentColor}`}>
+                                                                {sentiment !== 0 ? (sentiment > 0 ? '+' : '') + sentiment.toFixed(3) : '—'}
+                                                            </td>
+                                                            {secCompanyUrl && (
+                                                                <td className="py-2 px-2 text-center">
+                                                                    <a href={secCompanyUrl} target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 text-[10px]">
+                                                                        View on SEC
+                                                                    </a>
+                                                                </td>
+                                                            )}
+                                                        </tr>
+                                                    )
+                                                })}
+                                            </tbody>
+                                        </table>
+                                        {exhibits.length > 15 && (
+                                            <div className="text-[10px] text-gray-500 mt-1 px-2">+ {exhibits.length - 15} more in this group</div>
+                                        )}
+                                    </div>
+                                ))}
                             </div>
                         </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-xs">
-                                <thead>
-                                    <tr className="border-b border-purple-500/10">
-                                        <th className="text-left text-gray-300 font-semibold pb-2 px-2">Type</th>
-                                        <th className="text-left text-gray-300 font-semibold pb-2 px-2">Category</th>
-                                        <th className="text-left text-gray-300 font-semibold pb-2 px-2">Description</th>
-                                        <th className="text-center text-gray-300 font-semibold pb-2 px-2">Date</th>
-                                        <th className="text-center text-gray-300 font-semibold pb-2 px-2">Sentiment</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {secExhibits.slice(0, 10).map((ex: any, i: number) => {
-                                        const sentiment = ex.finbert_score || 0
-                                        const sentimentColor = sentiment > 0.2 ? 'text-green-400' : sentiment < -0.2 ? 'text-red-400' : 'text-gray-400'
-
-                                        return (
-                                            <tr
-                                                key={i}
-                                                className="border-b border-white/5 hover:bg-purple-500/10 transition-colors cursor-pointer"
-                                            >
-                                                <td className="py-2 px-2 text-purple-300 font-mono font-semibold">{ex.exhibit_type}</td>
-                                                <td className="py-2 px-2 text-gray-300 truncate max-w-[100px]">{ex.contract_type || ex.exhibit_category}</td>
-                                                <td className="py-2 px-2 text-gray-300 truncate max-w-[300px]">{ex.description || 'Exhibit'}</td>
-                                                <td className="py-2 px-2 text-center text-gray-400">{ex.filing_date}</td>
-                                                <td className={`py-2 px-2 text-center font-mono ${sentimentColor}`}>
-                                                    {sentiment > 0 ? '+' : ''}{sentiment.toFixed(3)}
-                                                </td>
-                                            </tr>
-                                        )
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
                     </div>
-                </div>
-            )}
+                )
+            })()}
 
             {/* SEC XBRL Data - Financial Breakdowns (condensed: one line per filing, expand on click) */}
             {secXbrlData.length > 0 && (
-                <div className="mt-4">
+                <div ref={xbrlSectionRef} className="mt-4">
                     <div className="bg-dark-900/40 border border-cyan-500/10 rounded-xl p-4 shadow-xl backdrop-blur-sm">
                         <div className="flex items-center justify-between mb-3">
                             <h3 className="text-sm font-bold text-cyan-400 uppercase tracking-[0.2em] flex items-center gap-3">
@@ -890,6 +986,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                         >
                                             <span className="text-xs font-semibold text-cyan-300">
                                                 {xbrl.filing_type} FY{xbrl.fiscal_year}
+                                                {xbrl.filing_date && <span className="text-gray-500 font-normal ml-1">(filed {xbrl.filing_date})</span>}
                                             </span>
                                             <span className="text-[10px] text-gray-500 font-mono flex-shrink-0">
                                                 {conceptCount} concepts
@@ -905,7 +1002,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                                             {Object.entries(xbrl.revenue_segments).slice(0, 4).map(([key, value]: [string, any], j: number) => (
                                                                 <div key={j} className="flex justify-between px-2 py-1 bg-dark-900/50 rounded text-[10px]">
                                                                     <span className="text-gray-400 truncate">{key}</span>
-                                                                    <span className="text-white font-mono">${(value / 1e6).toFixed(1)}M</span>
+                                                                    <span className="text-white font-mono">{showFullAmounts ? `$${Number(value).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : `$${(value / 1e6).toFixed(1)}M`}</span>
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -918,7 +1015,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                                             {Object.entries(xbrl.debt).slice(0, 4).map(([key, value]: [string, any], j: number) => (
                                                                 <div key={j} className="flex justify-between px-2 py-1 bg-dark-900/50 rounded text-[10px]">
                                                                     <span className="text-gray-400">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                                                                    <span className="text-white font-mono">${(value / 1e6).toFixed(1)}M</span>
+                                                                    <span className="text-white font-mono">{showFullAmounts ? `$${Number(value).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : `$${(value / 1e6).toFixed(1)}M`}</span>
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -931,7 +1028,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                                             {Object.entries(xbrl.costs).slice(0, 4).map(([key, value]: [string, any], j: number) => (
                                                                 <div key={j} className="flex justify-between px-2 py-1 bg-dark-900/50 rounded text-[10px]">
                                                                     <span className="text-gray-400">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                                                                    <span className="text-white font-mono">${(value / 1e6).toFixed(1)}M</span>
+                                                                    <span className="text-white font-mono">{showFullAmounts ? `$${Number(value).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : `$${(value / 1e6).toFixed(1)}M`}</span>
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -975,8 +1072,8 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                                 : 'bg-dark-800/50 text-gray-400 border border-white/5 hover:border-emerald-500/20'
                                         }`}
                                     >
-                                        {xbrl.filing_type} - FY{xbrl.fiscal_year}
-                                        <span className="ml-1.5 text-[9px] opacity-70">{xbrl.filing_date}</span>
+                                        {xbrl.filing_type} FY{xbrl.fiscal_year}
+                                        {xbrl.filing_date && <span className="ml-1.5 text-[10px] text-gray-400">· Filed {xbrl.filing_date}</span>}
                                     </button>
                                 ))}
                             </div>
@@ -1013,10 +1110,15 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                 const fmt = (val: number | null | undefined, currency = true, unit?: string, signed = false): string => {
                                     if (val == null) return '—'
                                     if (currency) {
+                                        if (showFullAmounts) {
+                                            const n = Number(val)
+                                            const str = n.toLocaleString('en-US', { maximumFractionDigits: 0 })
+                                            return signed ? (val >= 0 ? `+$${str}` : `-$${Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 })}`) : `$${str}`
+                                        }
                                         const s = (val / 1e6).toFixed(1)
                                         return signed ? (val >= 0 ? `+$${s}M` : `-$${(Math.abs(val) / 1e6).toFixed(1)}M`) : `$${s}M`
                                     }
-                                    if (unit === 'M') return `${(val / 1e6).toFixed(1)}M`
+                                    if (unit === 'M') return showFullAmounts ? val.toLocaleString('en-US', { maximumFractionDigits: 0 }) : `${(val / 1e6).toFixed(1)}M`
                                     if (typeof val === 'number' && !currency) return val.toFixed(2)
                                     return String(val)
                                 }
@@ -1224,7 +1326,8 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                     <tr className="border-b border-gold/10">
                                         <th className="text-left text-gray-300 font-semibold pb-1.5 pt-0 px-2">Agency</th>
                                         <th className="text-left text-gray-300 font-semibold pb-1.5 pt-0 px-2">Description</th>
-                                        <th className="text-center text-gray-300 font-semibold pb-1.5 pt-0 px-2">Year</th>
+                                        <th className="text-center text-gray-300 font-semibold pb-1.5 pt-0 px-2">FY</th>
+                                        <th className="text-center text-gray-300 font-semibold pb-1.5 pt-0 px-2">Date</th>
                                         <th className="text-right text-gray-300 font-semibold pb-1.5 pt-0 px-2">Amount</th>
                                     </tr>
                                 </thead>
@@ -1237,8 +1340,9 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                         >
                                             <td className="py-1.5 px-2 text-gray-100 truncate max-w-[150px]">{a.awarding_agency}</td>
                                             <td className="py-1.5 px-2 text-gray-300 truncate max-w-[300px]">{a.description || 'Contract Award'}</td>
-                                            <td className="py-1.5 px-2 text-center text-gray-300">FY-{a.contract_year || '26'}</td>
-                                            <td className="py-1.5 px-2 text-right text-gold font-mono font-bold">${(a.award_amount_float / 1e6).toFixed(1)}M</td>
+                                            <td className="py-1.5 px-2 text-center text-gray-300">FY-{a.contract_year || '—'}</td>
+                                            <td className="py-1.5 px-2 text-center text-gray-400 text-[10px]">{a.award_date || a.start_date || '—'}</td>
+                                            <td className="py-1.5 px-2 text-right text-gold font-mono font-bold">{showFullAmounts ? `$${Number(a.award_amount_float).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : `$${(a.award_amount_float / 1e6).toFixed(1)}M`}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -1256,7 +1360,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[150] flex items-center justify-center p-4 md:p-8"
-                        onClick={() => setSelectedDetail(null)}
+                        onClick={closeDetail}
                     >
                         <motion.div
                             initial={{ scale: 0.95, opacity: 0 }}
@@ -1269,51 +1373,84 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                     <h4 className="text-blue-400 font-bold uppercase tracking-[0.3em] text-[10px] mb-1">SEC Filing Analysis</h4>
                                     <div className="text-sm text-white font-bold">
                                         Form {selectedDetail.data.type || selectedDetail.data.form_type}
+                                        {company.ticker && <span className="text-gray-400 font-normal ml-2">· {company.ticker}</span>}
                                     </div>
                                 </div>
-                                <button onClick={() => setSelectedDetail(null)} className="p-2 bg-dark-700 rounded-full text-gray-400 hover:text-white border border-white/10 transition-all">✕</button>
+                                <button onClick={closeDetail} className="p-2 bg-dark-700 rounded-full text-gray-400 hover:text-white border border-white/10 transition-all">✕</button>
                             </div>
-                            <div className="flex-1 overflow-y-auto p-8 space-y-8">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <div className="text-3xl font-black text-white tracking-tighter">Form {selectedDetail.data.type || selectedDetail.data.form_type}</div>
-                                        <div className="text-xs text-gray-400 mt-1 uppercase font-bold tracking-widest">Filed: {selectedDetail.data.filing_date || 'Unknown'}</div>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Sentiment Score</div>
-                                        <div className={`text-2xl font-mono font-black ${
-                                            (selectedDetail.data.avg_finbert || 0) > 0.05
-                                                ? 'text-green-400 shadow-[0_0_20px_rgba(74,222,128,0.2)]'
-                                                : (selectedDetail.data.avg_finbert || 0) < -0.05
-                                                    ? 'text-red-400 shadow-[0_0_20px_rgba(248,113,113,0.2)]'
-                                                    : 'text-gray-400 shadow-[0_0_20px_rgba(156,163,175,0.2)]'
-                                        }`}>
-                                            {(selectedDetail.data.avg_finbert || 0).toFixed(4)}
-                                        </div>
-                                        {Math.abs(selectedDetail.data.avg_finbert || 0) < 0.05 && (
-                                            <div className="text-[9px] text-gray-500 mt-1">Neutral/No Text</div>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="space-y-5">
-                                    <h5 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] border-b border-blue-500/20 pb-2">Key Excerpts</h5>
-                                    {(selectedDetail.data.top_sentences || selectedDetail.data.sec_sentences) && (selectedDetail.data.top_sentences || selectedDetail.data.sec_sentences).length > 0 ? (
-                                        (selectedDetail.data.top_sentences || selectedDetail.data.sec_sentences).slice(0, 10).map((s: any, j: number) => (
-                                            <div key={j} className="bg-dark-900/50 p-5 rounded-2xl border border-white/5 relative group">
-                                                <div className="absolute top-0 left-0 w-1 h-0 bg-blue-500 group-hover:h-full transition-all duration-300" />
-                                                <p className="text-xs text-gray-300 leading-relaxed italic">"{s.text}"</p>
-                                                <div className="mt-3 flex items-center justify-between">
-                                                    <div className="text-[10px] text-blue-500 font-bold uppercase tracking-wider">Sentiment Signal</div>
-                                                    <div className="text-[10px] text-gray-500 font-mono">Score: {(s.score || s.finbert_score || 0).toFixed(3)}</div>
-                                                </div>
+                            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                                {(() => {
+                                    const avg = selectedDetail.data.avg_finbert ?? 0;
+                                    const sentimentLabel = avg > 0.05 ? 'Positive' : avg < -0.05 ? 'Negative' : 'Neutral';
+                                    const sentimentClass = avg > 0.05 ? 'bg-green-500/20 text-green-400 border-green-500/40' : avg < -0.05 ? 'bg-red-500/20 text-red-400 border-red-500/40' : 'bg-gray-500/20 text-gray-400 border-gray-500/40';
+                                    const formType = selectedDetail.data.type || selectedDetail.data.form_type || 'Filing';
+                                    const filedDate = selectedDetail.data.filing_date || 'Unknown date';
+                                    return (
+                                        <>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className={`text-xs font-bold px-2.5 py-1 rounded border ${sentimentClass}`}>
+                                                    {sentimentLabel} ({(avg).toFixed(3)})
+                                                </span>
+                                                <span className="text-xs text-gray-500">Filed: {filedDate}</span>
                                             </div>
-                                        ))
-                                    ) : (
-                                        <div className="text-xs text-gray-500 italic text-center py-8 border border-dashed border-gray-700 rounded-lg">
-                                            No sentence-level analysis available for this filing.
-                                        </div>
-                                    )}
-                                </div>
+                                            <p className="text-xs text-gray-400">
+                                                {formType} filed on {filedDate}{company.ticker ? ` for ${company.ticker}` : ''}.
+                                            </p>
+                                            <div>
+                                                <h5 className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-3">Key Excerpts (by sentiment)</h5>
+                                                {(selectedDetail.data.top_sentences || selectedDetail.data.sec_sentences)?.length > 0 ? (
+                                                    <div className="space-y-2">
+                                                        {(selectedDetail.data.top_sentences || selectedDetail.data.sec_sentences)
+                                                            .slice(0, showMoreSecModalExcerpts ? undefined : 5)
+                                                            .map((s: any, j: number) => {
+                                                                const score = s.score ?? s.finbert_score ?? 0;
+                                                                const isPositive = score > 0.2;
+                                                                const isNegative = score < -0.2;
+                                                                const expanded = expandedExcerptIndex === j;
+                                                                const text = (s.text || '').trim();
+                                                                const trunc = text.length > 80 ? text.slice(0, 80) + '…' : text;
+                                                                return (
+                                                                    <div
+                                                                        key={j}
+                                                                        className={`rounded-lg border px-3 py-2 text-left ${isPositive ? 'border-green-500/30 bg-green-500/5' : isNegative ? 'border-red-500/30 bg-red-500/5' : 'border-white/10 bg-dark-900/50'}`}
+                                                                    >
+                                                                        <div className="flex items-start justify-between gap-2">
+                                                                            <p className="text-xs text-gray-300 flex-1 italic">"{expanded ? text : trunc}"</p>
+                                                                            <span className={`text-[10px] font-mono font-bold shrink-0 ${isPositive ? 'text-green-400' : isNegative ? 'text-red-400' : 'text-gray-400'}`}>
+                                                                                {score > 0 ? '+' : ''}{(score).toFixed(2)}
+                                                                            </span>
+                                                                        </div>
+                                                                        {text.length > 80 && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => setExpandedExcerptIndex(expanded ? null : j)}
+                                                                                className="mt-1.5 text-[10px] text-blue-400 hover:text-blue-300"
+                                                                            >
+                                                                                {expanded ? 'Show less' : 'Show more'}
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        {(selectedDetail.data.top_sentences || selectedDetail.data.sec_sentences).length > 5 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setShowMoreSecModalExcerpts(!showMoreSecModalExcerpts)}
+                                                                className="w-full py-2 text-xs text-blue-400 hover:text-blue-300 border border-blue-500/20 rounded-lg mt-2"
+                                                            >
+                                                                {showMoreSecModalExcerpts ? 'Show less' : `Show more (${(selectedDetail.data.top_sentences || selectedDetail.data.sec_sentences).length - 5} more excerpts)`}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-xs text-gray-500 italic text-center py-6 border border-dashed border-gray-700 rounded-lg">
+                                                        No sentence-level analysis available for this filing.
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </>
+                                    );
+                                })()}
                             </div>
                         </motion.div>
                     </motion.div>
@@ -1328,7 +1465,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[150] flex items-center justify-center p-4 md:p-8"
-                        onClick={() => setSelectedDetail(null)}
+                        onClick={closeDetail}
                     >
                         <motion.div
                             initial={{ scale: 0.95, opacity: 0 }}
@@ -1343,7 +1480,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                         {selectedDetail.data.awarding_agency}
                                     </div>
                                 </div>
-                                <button onClick={() => setSelectedDetail(null)} className="p-2 bg-dark-700 rounded-full text-gray-400 hover:text-white border border-white/10 transition-all">✕</button>
+                                <button onClick={closeDetail} className="p-2 bg-dark-700 rounded-full text-gray-400 hover:text-white border border-white/10 transition-all">✕</button>
                             </div>
                             <div className="flex-1 overflow-y-auto p-8 space-y-6">
                                 <div className="flex justify-between items-start">
@@ -1358,7 +1495,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                     <div className="text-right ml-6">
                                         <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Award Amount</div>
                                         <div className="text-3xl font-mono font-black text-gold shadow-[0_0_20px_rgba(255,215,0,0.2)]">
-                                            ${(selectedDetail.data.award_amount_float / 1e6).toFixed(2)}M
+                                            {showFullAmounts ? `$${Number(selectedDetail.data.award_amount_float).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : `$${(selectedDetail.data.award_amount_float / 1e6).toFixed(2)}M`}
                                         </div>
                                     </div>
                                 </div>

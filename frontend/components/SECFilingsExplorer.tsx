@@ -6,9 +6,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 interface SECFilingsExplorerProps {
     filings: any[]
     ticker: string
+    /** When provided, clicking a row calls this instead of opening the built-in detail modal (e.g. parent opens its own modal). */
+    onSelectFiling?: (filing: any) => void
 }
 
-export default function SECFilingsExplorer({ filings, ticker }: SECFilingsExplorerProps) {
+export default function SECFilingsExplorer({ filings, ticker, onSelectFiling }: SECFilingsExplorerProps) {
     const [selectedFormType, setSelectedFormType] = useState<string>('all')
     const [sortBy, setSortBy] = useState<'negative' | 'positive' | 'recent'>('recent')
     const [searchQuery, setSearchQuery] = useState('')
@@ -163,28 +165,34 @@ export default function SECFilingsExplorer({ filings, ticker }: SECFilingsExplor
                             const sentiment = filing.avg_finbert || 0
                             const sentimentColor = sentiment > 0.2 ? 'text-green-400' : sentiment < -0.2 ? 'text-red-400' : 'text-gray-400'
                             const sentimentBg = sentiment > 0.2 ? 'bg-green-500/10' : sentiment < -0.2 ? 'bg-red-500/10' : 'bg-gray-500/10'
+                            const formType = filing.type || filing.form_type || '—'
+                            const filedDate = filing.filing_date || 'Unknown date'
 
                             return (
                                 <button
                                     key={idx}
-                                    onClick={() => setSelectedFiling(filing)}
+                                    onClick={() => {
+                                        if (onSelectFiling) {
+                                            onSelectFiling(filing)
+                                        } else {
+                                            setSelectedFiling(filing)
+                                        }
+                                    }}
                                     className="w-full bg-dark-800/50 border border-green-500/10 rounded-lg p-3 text-left hover:border-green-500/30 hover:bg-dark-800 transition-all group"
                                 >
-                                    <div className="flex items-start justify-between mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xs font-semibold text-green-300">
-                                                Form {filing.type || filing.form_type}
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div className="flex items-center gap-2 flex-wrap min-w-0">
+                                            <span className="text-xs font-semibold text-green-300 shrink-0">
+                                                {formType}
                                             </span>
-                                            <span className={`text-[10px] px-2 py-0.5 rounded ${sentimentBg} ${sentimentColor} font-mono`}>
-                                                {sentiment > 0 ? '+' : ''}{sentiment.toFixed(3)}
+                                            <span className="text-[10px] text-gray-500 shrink-0">·</span>
+                                            <span className="text-[10px] text-gray-400 shrink-0">{filedDate}</span>
+                                            <span className={`text-[10px] px-2 py-0.5 rounded shrink-0 ${sentimentBg} ${sentimentColor} font-mono`} title="Sentiment score">
+                                                {sentiment > 0 ? '+' : ''}{sentiment.toFixed(2)}
                                             </span>
-                                        </div>
-                                        <div className="text-[10px] text-gray-500">
-                                            {filing.filing_date || 'Unknown date'}
                                         </div>
                                     </div>
 
-                                    {/* Preview of top sentences */}
                                     {filing.top_sentences && filing.top_sentences.length > 0 && (
                                         <div className="mt-2 pt-2 border-t border-white/5">
                                             <div className="text-[10px] text-gray-400 italic line-clamp-2 group-hover:text-gray-300 transition-colors">
@@ -199,9 +207,9 @@ export default function SECFilingsExplorer({ filings, ticker }: SECFilingsExplor
                 </div>
             </div>
 
-            {/* Filing Detail Modal */}
+            {/* Filing Detail Modal (only when parent does not handle selection) */}
             <AnimatePresence>
-                {selectedFiling && (
+                {selectedFiling && !onSelectFiling && (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}

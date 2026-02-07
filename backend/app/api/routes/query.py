@@ -486,7 +486,7 @@ def enrich_single_company_results(results: List[Dict], query_plan: Dict) -> List
             FOR opt IN options_flow
               FILTER opt.ticker == @ticker
               SORT opt.date DESC
-              LIMIT 20
+              LIMIT 60
               RETURN opt
             """
             data, _ = execute_aql(query, {"ticker": ticker})
