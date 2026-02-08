@@ -627,8 +627,12 @@ def format_time_series_analysis(user_question: str, results: list, query_plan: d
         avg_price = sum(closes) / len(closes)
         avg_volume = sum(volumes) / len(volumes) if volumes else 0
 
-        # Format summary
-        ticker = sorted_results[0].get('ticker', 'Unknown')
+        # Format summary (prefer bind_vars.ticker when result rows lack ticker)
+        ticker = (
+            sorted_results[0].get('ticker')
+            or (query_plan.get('bind_vars') or {}).get('ticker')
+            or 'Unknown'
+        )
         period_start = dates[0] if dates else 'N/A'
         period_end = dates[-1] if dates else 'N/A'
 

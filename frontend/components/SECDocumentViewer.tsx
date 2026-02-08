@@ -48,6 +48,20 @@ function decodeHtmlEntities(text: string): string {
         .replace(/&apos;/g, "'")
 }
 
+/** Chunk exhibit text into paragraphs for readable spacing (double newlines, or sentence groups) */
+function chunkExhibitText(decoded: string): string[] {
+    if (!decoded.trim()) return []
+    const byParagraph = decoded.split(/\n\n+/).map(p => p.trim()).filter(Boolean)
+    if (byParagraph.length > 1) return byParagraph
+    const bySentence = decoded.split(/(?<=[.!?])\s+/).filter(Boolean)
+    if (bySentence.length <= 1) return [decoded]
+    const chunks: string[] = []
+    for (let i = 0; i < bySentence.length; i += 3) {
+        chunks.push(bySentence.slice(i, i + 3).join(' '))
+    }
+    return chunks
+}
+
 export default function SECDocumentViewer({
     filings,
     exhibits,
@@ -318,9 +332,9 @@ export default function SECDocumentViewer({
                 )}
             </div>
 
-            {/* Bottom: Detail (left) + Content (right) */}
-            <div className="flex flex-1 min-h-[200px] max-h-[280px] shrink-0">
-                <div className="w-1/2 border-r border-white/10 overflow-y-auto p-4 bg-dark-800/30">
+            {/* Bottom: Detail (left) + Content (right) - content pane takes more space, full height */}
+            <div className="flex flex-1 min-h-0 shrink-0">
+                <div className="w-[35%] min-w-[180px] flex-shrink-0 border-r border-white/10 overflow-y-auto p-4 bg-dark-800/30">
                     <h4 className="text-[10px] text-gold uppercase tracking-wider font-bold mb-2">Document details</h4>
                     {selectedDoc ? (() => {
                         const desc = selectedDoc.item.description != null ? selectedDoc.item.description : (selectedDoc.snippet || '—')
@@ -364,7 +378,7 @@ export default function SECDocumentViewer({
                         <p className="text-gray-500 text-xs">Select a row above to view details</p>
                     )}
                 </div>
-                <div className="w-1/2 overflow-y-auto p-4 bg-dark-900/50">
+                <div className="flex-1 min-w-0 overflow-y-auto p-4 bg-dark-900/50">
                     <h4 className="text-[10px] text-gold uppercase tracking-wider font-bold mb-2">Content</h4>
                             {selectedDoc ? (
                         <>
@@ -399,11 +413,15 @@ export default function SECDocumentViewer({
                                 <p className="text-gray-500 text-xs">Full text is on SEC EDGAR. Use the link above to open the document.</p>
                             )}
                             {selectedDoc.kind === 'exhibit' && selectedDoc.item.text && (
-                                <div className="space-y-2">
+                                <div className="space-y-4">
                                     <p className="text-[10px] text-gray-500 uppercase tracking-wider">In-house exhibit text</p>
-                                    <pre className="whitespace-pre-wrap break-words text-xs text-gray-300 bg-dark-800/50 border border-white/10 rounded p-3 max-h-[220px] overflow-y-auto font-sans leading-relaxed">
-                                        {decodeHtmlEntities(selectedDoc.item.text)}
-                                    </pre>
+                                    <div className="space-y-4 overflow-y-auto text-xs text-gray-300 bg-dark-800/50 border border-white/10 rounded p-4 leading-relaxed">
+                                        {chunkExhibitText(decodeHtmlEntities(selectedDoc.item.text)).map((block, idx) => (
+                                            <p key={idx} className="whitespace-pre-wrap break-words">
+                                                {block}
+                                            </p>
+                                        ))}
+                                    </div>
                                     {selectedDoc.item.truncated && (
                                         <p className="text-[10px] text-amber-400">Text truncated at 50,000 characters. View on SEC for full document.</p>
                                     )}

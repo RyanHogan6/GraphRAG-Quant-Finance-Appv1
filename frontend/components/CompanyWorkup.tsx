@@ -7,6 +7,7 @@ import SECFilingsExplorer from './SECFilingsExplorer'
 import SECDocumentViewer from './SECDocumentViewer'
 import SectorComparison from './SectorComparison'
 import SentimentIndicators from './company/SentimentIndicators'
+import PerformanceSummaryCard from './PerformanceSummaryCard'
 import type { Key } from 'react'
 
 const API_BASE = typeof process !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') : 'http://localhost:8000'
@@ -178,10 +179,12 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
             const sorted = filtered.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
             const rawValues = sorted.map(d => typeof d.close === 'number' ? d.close : Number(d.close) || 0)
             const values = sanitizeCloseValues(rawValues)
+            const volumes = sorted.map(d => Number((d as any).volume) || 0)
 
             return {
                 dates: sorted.map(d => d.date),
                 values,
+                volumes,
                 label: ticker,
                 color,
                 ticker
@@ -207,6 +210,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
         return {
             dates: primarySeries.dates,
             values: primarySeries.values,
+            volumes: primarySeries.volumes,
             ticker: company.ticker
         }
     }, [marketData, company.ticker, timeframe, comparisonMode, peerData])
@@ -679,6 +683,16 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
             {/* Main Content Sections - Full Width Layout */}
             <div className="space-y-4">
 
+                {/* Performance Summary Card - first section */}
+                {!comparisonMode && chartData.values.length > 0 && (
+                    <PerformanceSummaryCard
+                        dates={chartData.dates}
+                        values={chartData.values}
+                        volumes={(chartData as any).volumes}
+                        ticker={company.ticker}
+                    />
+                )}
+
                 {/* Chart Section - Full Width */}
                 <div className="bg-dark-900/40 border border-gold/10 rounded-xl p-3 md:p-4 shadow-xl backdrop-blur-sm">
                         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-3 md:mb-4 gap-3">
@@ -723,25 +737,23 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                         )}
                     </div>
 
-                {/* Deep Intelligence Synthesis - indicator cards */}
+                {/* Deep Intelligence Synthesis - paragraph-style analysis below chart */}
                 <div className="bg-dark-900/40 border border-gold/20 rounded-xl p-3 relative overflow-hidden">
                     <h3 className="text-[9px] md:text-[10px] font-bold text-gold uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-gold" />
                         Deep Intelligence Synthesis
                     </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 relative z-10">
-                        {synthesisIndicators.map((ind, i) => (
-                            <div key={i} className="bg-dark-800/50 border border-gold/10 rounded-lg p-3">
-                                <div className="text-[10px] font-semibold text-gold uppercase tracking-wider mb-1">{ind.title}</div>
-                                <div className="text-xs text-gray-300 font-mono flex flex-wrap items-center gap-1">
-                                    {ind.value}
-                                    {ind.secChip && secFilings.length > 0 && (
-                                        <span onClick={() => openSecDetail(secFilings[0])} className="text-[10px] text-blue-400 cursor-pointer hover:underline bg-blue-500/10 px-1 rounded">[SEC]</span>
-                                    )}
-                                    {ind.awardChip && awards.length > 0 && (
-                                        <span onClick={() => setSelectedDetail({ type: 'Award', data: awards[0] })} className="text-[10px] text-gold cursor-pointer hover:underline bg-gold/10 px-1 rounded">[Award]</span>
-                                    )}
-                                </div>
+                    <div className="space-y-2.5 text-xs md:text-sm text-gray-300 leading-relaxed">
+                        {aiSummary.map((line, i) => (
+                            <div key={i} className="flex flex-wrap items-baseline gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-gold shrink-0 mt-1.5" />
+                                <span className="flex-1">{line}</span>
+                                {i === 1 && secFilings.length > 0 && (
+                                    <span onClick={() => openSecDetail(secFilings[0])} className="text-[10px] text-blue-400 cursor-pointer hover:underline bg-blue-500/10 px-1 rounded shrink-0">[SEC]</span>
+                                )}
+                                {i === 2 && awards.length > 0 && (
+                                    <span onClick={() => setSelectedDetail({ type: 'Award', data: awards[0] })} className="text-[10px] text-gold cursor-pointer hover:underline bg-gold/10 px-1 rounded shrink-0">[Award]</span>
+                                )}
                             </div>
                         ))}
                     </div>
