@@ -10,6 +10,7 @@ import MarketDetailModal from '@/components/MarketDetailModal'
 import ScrollToTop from '@/components/ScrollToTop'
 import AnimatedLogo from '@/components/AnimatedLogo'
 import TimeSeriesChart from '@/components/TimeSeriesChart'
+import PerformanceSummaryCard from '@/components/PerformanceSummaryCard'
 import QueryBuilder from '../components/QueryBuilder'
 import GraphExplorer from '../components/GraphExplorer'
 import WhaleTracker from '@/components/WhaleTracker'
@@ -141,9 +142,43 @@ export default function HomePage() {
   const [collectionOffset, setCollectionOffset] = useState(0)
   const [hasMoreCollectionData, setHasMoreCollectionData] = useState(true)
 
-  const renderMessageContent = (message: Message) => (
+  const renderMessageContent = (message: Message) => {
+    const result = message.results?.[0];
+    const isWorkup = (r: any) => r?.ticker && (r?.MarketData || r?.sec_filings || r?.Award || r?.prediction_markets_polymarket);
+    const singleWorkup = message.results?.length === 1 && result && isWorkup(result);
+    const cd = message.queryPlan?.chart_data;
+    const isTimeSeriesStandalone = !!(message.queryPlan?.is_time_series && cd && !singleWorkup);
+
+    return (
     <>
       <div className="flex-1">
+        {isTimeSeriesStandalone ? (
+          <>
+            <PerformanceSummaryCard
+              dates={cd!.dates}
+              values={cd!.values}
+              volumes={(cd as any).volumes}
+              ticker={cd!.ticker}
+              label={cd!.label}
+            />
+            <div className="mt-3">
+              <TimeSeriesChart
+                dates={cd!.dates}
+                values={cd!.values}
+                label={cd!.ticker ? `${cd!.ticker} Stock Performance` : (cd!.label || 'Time Series')}
+                ticker={cd!.ticker}
+              />
+            </div>
+            <div className="text-xs md:text-sm mt-3 leading-relaxed">
+              {message.useMarkdown ? (
+                <MarkdownRenderer content={message.content} />
+              ) : (
+                message.content
+              )}
+            </div>
+          </>
+        ) : (
+          <>
         <div className="text-xs md:text-sm mb-1.5 md:mb-2 leading-relaxed">
           {message.useMarkdown ? (
             <MarkdownRenderer content={message.content} />
@@ -151,23 +186,20 @@ export default function HomePage() {
             message.content
           )}
         </div>
-        {!!message.queryPlan?.is_time_series && message.queryPlan?.chart_data && (() => {
-          // Only show standalone chart if NOT showing single CompanyWorkup (which has its own Market Performance Hub chart)
-          const result = message.results?.[0];
-          const isWorkup = (r: any) => r?.ticker && (r?.MarketData || r?.sec_filings || r?.Award || r?.prediction_markets_polymarket);
-          const singleWorkup = message.results?.length === 1 && result && isWorkup(result);
-          if (singleWorkup) return null;
-          const cd = message.queryPlan!.chart_data!;
-          const label = cd.ticker ? `${cd.ticker} Stock Performance` : (cd.label || 'Time Series');
+        {!!message.queryPlan?.is_time_series && message.queryPlan?.chart_data && !singleWorkup && (() => {
+          const chartData = message.queryPlan!.chart_data!;
+          const label = chartData.ticker ? `${chartData.ticker} Stock Performance` : (chartData.label || 'Time Series');
           return (
             <TimeSeriesChart
-              dates={cd.dates}
-              values={cd.values}
+              dates={chartData.dates}
+              values={chartData.values}
               label={label}
-              ticker={cd.ticker}
+              ticker={chartData.ticker}
             />
           );
         })()}
+          </>
+        )}
         {showAdvancedMode && message.queryPlan && message.queryPlan.aql_query && (
           <details className="mt-2 mb-2">
             <summary className="cursor-pointer text-[10px] md:text-xs text-purple-400 hover:text-purple-300 font-semibold opacity-80 hover:opacity-100 transition-opacity">
@@ -259,7 +291,7 @@ export default function HomePage() {
       </div>
     </>
   );
-  /* Removed duplicate hasMoreCollectionData */
+  };
 
   // Collection name translations
   const collectionDisplayNames: Record<string, string> = {
