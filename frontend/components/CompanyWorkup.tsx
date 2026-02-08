@@ -506,6 +506,36 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
         return calculateMetrics(peerData, peerLatestMarket, peerXbrlData)
     }, [peerData, comparisonMode, showFullAmounts])
 
+    // Award KPIs for Federal Contract Awards section (Total Value, Count, Avg, Largest, FY Range, Top Agency)
+    const awardKpis = useMemo(() => {
+        if (!awards.length) return null
+        const totalValue = awards.reduce((sum: number, a: any) => sum + (a.award_amount_float || 0), 0)
+        const count = awards.length
+        const amounts = awards.map((a: any) => a.award_amount_float || 0).filter((n: number) => n > 0)
+        const largest = amounts.length ? Math.max(...amounts) : 0
+        const years = awards.map((a: any) => a.contract_year).filter(Boolean)
+        const fyMin = years.length ? Math.min(...years) : null
+        const fyMax = years.length ? Math.max(...years) : null
+        const fyRange = fyMin != null && fyMax != null ? `FY${fyMin} – FY${fyMax}` : '—'
+        const byAgency = awards.reduce((acc: Record<string, { total: number; count: number }>, a: any) => {
+            const ag = a.awarding_agency || 'Unknown'
+            if (!acc[ag]) acc[ag] = { total: 0, count: 0 }
+            acc[ag].total += a.award_amount_float || 0
+            acc[ag].count += 1
+            return acc
+        }, {})
+        const topAgencyEntry = Object.entries(byAgency).sort((a, b) => b[1].total - a[1].total)[0]
+        const topAgency = topAgencyEntry ? `${topAgencyEntry[0]} (${topAgencyEntry[1].count})` : '—'
+        return {
+            totalValue,
+            count,
+            avgAward: count ? totalValue / count : 0,
+            largest,
+            fyRange,
+            topAgency
+        }
+    }, [awards])
+
     function formatVal(val: any, type: string) {
         if (val == null || isNaN(val)) return 'N/A'
         if (type === 'currency') {
@@ -1191,8 +1221,8 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                 </div>
             )}
 
-            {/* Awards Table - Full Width Section */}
-            {awards.length > 0 && (
+            {/* Awards Table - KPI strip + reference-style table */}
+            {awards.length > 0 && awardKpis && (
                 <div className="mt-4">
                     <div className="bg-dark-900/40 border border-gold/10 rounded-xl p-4 shadow-xl backdrop-blur-sm">
                         <div className="flex items-center justify-between mb-3">
@@ -1204,33 +1234,99 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                 {awards.length} award{awards.length !== 1 ? 's' : ''}
                             </div>
                         </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-[11px]">
-                                <thead>
-                                    <tr className="border-b border-gold/10">
-                                        <th className="text-left text-gray-300 font-semibold pb-1.5 pt-0 px-2">Agency</th>
-                                        <th className="text-left text-gray-300 font-semibold pb-1.5 pt-0 px-2">Description</th>
-                                        <th className="text-center text-gray-300 font-semibold pb-1.5 pt-0 px-2">FY</th>
-                                        <th className="text-center text-gray-300 font-semibold pb-1.5 pt-0 px-2">Date</th>
-                                        <th className="text-right text-gray-300 font-semibold pb-1.5 pt-0 px-2">Amount</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {awards.slice(0, 10).map((a: any, i: number) => (
-                                        <tr
-                                            key={i}
-                                            onClick={() => setSelectedDetail({ type: 'Award', data: a })}
-                                            className="border-b border-white/5 hover:bg-gold/10 transition-colors cursor-pointer"
-                                        >
-                                            <td className="py-1.5 px-2 text-gray-100 truncate max-w-[150px]">{a.awarding_agency}</td>
-                                            <td className="py-1.5 px-2 text-gray-300 truncate max-w-[300px]">{a.description || 'Contract Award'}</td>
-                                            <td className="py-1.5 px-2 text-center text-gray-300">FY-{a.contract_year || '—'}</td>
-                                            <td className="py-1.5 px-2 text-center text-gray-400 text-[10px]">{a.award_date || a.start_date || '—'}</td>
-                                            <td className="py-1.5 px-2 text-right text-gold font-mono font-bold">{showFullAmounts ? `$${Number(a.award_amount_float).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : `$${(a.award_amount_float / 1e6).toFixed(1)}M`}</td>
+
+                        {/* Key Performance Indicators strip */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mb-4 p-3 rounded-lg border border-gold/10 bg-dark-800/50">
+                            <div>
+                                <div className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Total Value</div>
+                                <div className="text-sm font-bold text-gold font-mono">
+                                    {showFullAmounts ? `$${Number(awardKpis.totalValue).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : `$${(awardKpis.totalValue / 1e6).toFixed(1)}M`}
+                                </div>
+                            </div>
+                            <div>
+                                <div className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Award Count</div>
+                                <div className="text-sm font-bold text-white">{awardKpis.count}</div>
+                            </div>
+                            <div>
+                                <div className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Avg Award</div>
+                                <div className="text-sm font-bold text-gray-200 font-mono">
+                                    {showFullAmounts ? `$${Number(awardKpis.avgAward).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : `$${(awardKpis.avgAward / 1e6).toFixed(1)}M`}
+                                </div>
+                            </div>
+                            <div>
+                                <div className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Largest Award</div>
+                                <div className="text-sm font-bold text-gold font-mono">
+                                    {showFullAmounts ? `$${Number(awardKpis.largest).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : `$${(awardKpis.largest / 1e6).toFixed(1)}M`}
+                                </div>
+                            </div>
+                            <div>
+                                <div className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">FY Range</div>
+                                <div className="text-sm font-bold text-gray-200">{awardKpis.fyRange}</div>
+                            </div>
+                            <div>
+                                <div className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Top Agency</div>
+                                <div className="text-xs font-bold text-gray-300 truncate" title={awardKpis.topAgency}>{awardKpis.topAgency}</div>
+                            </div>
+                        </div>
+
+                        {/* Table - distinct header, alternating rows, copy on Amount, scroll */}
+                        <div className="rounded-lg border border-gold/20 overflow-hidden">
+                            <div className="max-h-[400px] overflow-y-auto overflow-x-auto">
+                                <table className="w-full text-[11px]">
+                                    <thead className="sticky top-0 z-10 bg-gold/20 border-b border-gold/30">
+                                        <tr>
+                                            <th className="text-left text-gold font-semibold uppercase tracking-wider py-2.5 px-2">Agency</th>
+                                            <th className="text-left text-gold font-semibold uppercase tracking-wider py-2.5 px-2">Description</th>
+                                            <th className="text-center text-gold font-semibold uppercase tracking-wider py-2.5 px-2">FY</th>
+                                            <th className="text-center text-gold font-semibold uppercase tracking-wider py-2.5 px-2">Date</th>
+                                            <th className="text-right text-gold font-semibold uppercase tracking-wider py-2.5 px-2">Amount</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {awards.map((a: any, i: number) => {
+                                            const amtStr = showFullAmounts ? `$${Number(a.award_amount_float).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : `$${(a.award_amount_float / 1e6).toFixed(1)}M`
+                                            const descStr = (a.description || 'Contract Award').toString()
+                                            return (
+                                                <tr
+                                                    key={i}
+                                                    onClick={() => setSelectedDetail({ type: 'Award', data: a })}
+                                                    className={`border-b border-white/5 hover:bg-gold/10 transition-colors cursor-pointer ${i % 2 === 1 ? 'bg-white/[0.02]' : ''}`}
+                                                >
+                                                    <td className="py-1.5 px-2 text-gray-100 truncate max-w-[150px]">{a.awarding_agency}</td>
+                                                    <td className="py-1.5 px-2 text-gray-300 truncate max-w-[300px]">
+                                                        <span className="inline-flex items-center gap-1 max-w-full">
+                                                            <span className="truncate">{descStr}</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(descStr).catch(() => {}); }}
+                                                                className="opacity-60 hover:opacity-100 text-gray-400 hover:text-gold p-0.5 rounded flex-shrink-0"
+                                                                title="Copy description"
+                                                            >
+                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                                            </button>
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-1.5 px-2 text-center text-gray-300">FY-{a.contract_year || '—'}</td>
+                                                    <td className="py-1.5 px-2 text-center text-gray-400 text-[10px]">{a.award_date || a.start_date || '—'}</td>
+                                                    <td className="py-1.5 px-2 text-right text-gold font-mono font-bold">
+                                                        <span className="inline-flex items-center gap-1">
+                                                            {amtStr}
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(amtStr).catch(() => {}); }}
+                                                                className="opacity-60 hover:opacity-100 text-gray-400 hover:text-gold p-0.5 rounded"
+                                                                title="Copy amount"
+                                                            >
+                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                                            </button>
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            )
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
