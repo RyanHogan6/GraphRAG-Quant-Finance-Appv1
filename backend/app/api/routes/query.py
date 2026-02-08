@@ -625,7 +625,7 @@ def execute_query(request: Request, body: QueryRequest):
                 # Sort results by date for chart
                 sorted_results = sorted(results, key=lambda x: x.get('date', ''))
                 bind_vars = (query_plan or {}).get('bind_vars', {})
-                ticker = sorted_results[0].get('ticker') or bind_vars.get('ticker') or 'Unknown'
+                ticker = bind_vars.get('ticker') or (sorted_results[0].get('ticker') if sorted_results else None) or 'Unknown'
                 query_plan['is_time_series'] = True
                 raw_values = [float(r.get('close') or 0) for r in sorted_results]
                 query_plan['chart_data'] = {
@@ -927,7 +927,7 @@ async def execute_query_stream(request: Request, body: QueryRequest):
                     # Sort results by date for chart
                     sorted_results = sorted(results, key=lambda x: x.get('date', ''))
                     bind_vars = (query_plan or {}).get('bind_vars', {})
-                    ticker = sorted_results[0].get('ticker') or bind_vars.get('ticker') or 'Unknown'
+                    ticker = bind_vars.get('ticker') or (sorted_results[0].get('ticker') if sorted_results else None) or 'Unknown'
                     query_plan['is_time_series'] = True
                     raw_values = [float(r.get('close') or 0) for r in sorted_results]
                     query_plan['chart_data'] = {

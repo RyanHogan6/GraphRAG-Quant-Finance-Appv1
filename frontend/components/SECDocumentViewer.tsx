@@ -35,6 +35,19 @@ function getFiscalYearQuarter(xbrl: any): { year: number; quarter: number } | nu
 
 type UnifiedDoc = { kind: 'filing' | 'exhibit' | 'xbrl'; date: string; formType: string; docType: string; name: string; snippet: string; item: any }
 
+/** Decode HTML/XML entities for display (e.g. &#160; &#224; &amp;) without using innerHTML */
+function decodeHtmlEntities(text: string): string {
+    if (!text || typeof text !== 'string') return text
+    return text
+        .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(parseInt(d, 10)))
+        .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+}
+
 export default function SECDocumentViewer({
     filings,
     exhibits,
@@ -388,8 +401,8 @@ export default function SECDocumentViewer({
                             {selectedDoc.kind === 'exhibit' && selectedDoc.item.text && (
                                 <div className="space-y-2">
                                     <p className="text-[10px] text-gray-500 uppercase tracking-wider">In-house exhibit text</p>
-                                    <pre className="whitespace-pre-wrap break-words text-xs text-gray-300 bg-dark-800/50 border border-white/10 rounded p-3 max-h-[220px] overflow-y-auto font-sans">
-                                        {selectedDoc.item.text}
+                                    <pre className="whitespace-pre-wrap break-words text-xs text-gray-300 bg-dark-800/50 border border-white/10 rounded p-3 max-h-[220px] overflow-y-auto font-sans leading-relaxed">
+                                        {decodeHtmlEntities(selectedDoc.item.text)}
                                     </pre>
                                     {selectedDoc.item.truncated && (
                                         <p className="text-[10px] text-amber-400">Text truncated at 50,000 characters. View on SEC for full document.</p>

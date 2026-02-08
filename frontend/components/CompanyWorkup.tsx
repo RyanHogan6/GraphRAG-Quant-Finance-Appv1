@@ -24,8 +24,6 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
     const [selectedDetail, setSelectedDetail] = useState<{ type: 'SEC' | 'Award', data: any } | null>(null)
     const [selectedFormType, setSelectedFormType] = useState<string>('all')
     const [secSortBy, setSecSortBy] = useState<'negative' | 'positive' | 'recent'>('negative')
-    const [showPeerSelector, setShowPeerSelector] = useState(false)
-    const [peerSearchTerm, setPeerSearchTerm] = useState('')
     const [selectedXbrlIndex, setSelectedXbrlIndex] = useState(0)
     const [selectedStatementTab, setSelectedStatementTab] = useState<'income' | 'balance' | 'cashflow'>('income')
     const [showMoreSecSentences, setShowMoreSecSentences] = useState(false)
@@ -37,6 +35,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
     const [sectorPeers, setSectorPeers] = useState<any[] | null>(null)
     const [sectorPeersLoading, setSectorPeersLoading] = useState(false)
     const [sectorPeersError, setSectorPeersError] = useState<string | null>(null)
+    const [sectorSectionExpanded, setSectorSectionExpanded] = useState(true)
     const closeDetail = () => {
         setSelectedDetail(null)
         setShowMoreSecModalExcerpts(false)
@@ -136,12 +135,6 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
     }, [allSecFilings])
 
     const latestMarket = marketData[0] || {}
-
-    // S&P 500 tickers for peer selection (sample - should come from backend)
-    const availablePeers = useMemo(() => {
-        const sp500Tickers = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'BRK.B', 'V', 'JPM', 'WMT', 'XOM', 'UNH', 'MA', 'PG', 'JNJ', 'HD', 'CVX', 'MRK', 'ABBV', 'PEP', 'KO', 'COST', 'AVGO', 'LLY', 'TMO', 'ADBE', 'MCD', 'CSCO', 'ACN', 'NFLX', 'ABT', 'CRM', 'DHR', 'NKE', 'WFC', 'VZ', 'TXN', 'PM', 'ORCL', 'NEE', 'RTX', 'UPS', 'MS', 'BMY', 'QCOM', 'LOW', 'HON', 'INTU', 'T', 'UNP', 'AMD', 'IBM', 'BA', 'SPGI', 'GE', 'SBUX', 'CAT', 'DE', 'AXP', 'GS', 'PLD', 'MDT', 'BLK', 'AMGN', 'GILD', 'AMAT', 'LMT', 'ISRG', 'SYK', 'ADI', 'MMM', 'TJX', 'CI', 'MDLZ', 'CB', 'ADP', 'C', 'VRTX', 'SO', 'BKNG', 'ZTS', 'CME', 'SCHW', 'REGN', 'FISV', 'MMC', 'DUK', 'PGR', 'TMUS', 'MO', 'BDX', 'CVS', 'USB', 'PNC', 'NOC', 'COP', 'ITW', 'EOG', 'TGT']
-        return sp500Tickers.filter(t => t !== company.ticker && t.toLowerCase().includes(peerSearchTerm.toLowerCase()))
-    }, [company.ticker, peerSearchTerm])
 
     // Prepare chart data based on timeframe
     const chartData = useMemo(() => {
@@ -271,6 +264,33 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
         ].filter(Boolean)
         return points.slice(0, 4)
     }, [company, timeframe, chartData, awards, secFilings, polyMarkets, secXbrlData, secExhibits])
+
+    // Indicator-style synthesis cards (same data as aiSummary, compact)
+    const synthesisIndicators = useMemo(() => {
+        const ticker = company.ticker
+        const priceChangeNum = chartData.values.length > 1
+            ? ((chartData.values[chartData.values.length - 1] - chartData.values[0]) / chartData.values[0] * 100)
+            : 0
+        const priceChange = priceChangeNum !== 0 ? priceChangeNum.toFixed(1) : 'N/A'
+        const sentiment = secFilings[0]?.avg_finbert != null
+            ? (secFilings[0].avg_finbert > 0.05 ? 'Bullish' : secFilings[0].avg_finbert < -0.05 ? 'Bearish' : 'Neutral')
+            : 'Neutral'
+        const latestOptions = optionsFlow[0]
+        const putCallRatio = latestOptions?.put_call_ratio ?? latestOptions?.put_call_volume_ratio ?? 0
+        const totalAwardValue = awards.reduce((sum: number, a: any) => sum + (a.award_amount_float || 0), 0)
+        const marketCapB = company.marketCap
+            ? (company.marketCap / 1e9).toFixed(2)
+            : (latestMarket?.close && latestMarket?.sharesOutstanding)
+                ? ((latestMarket.close * latestMarket.sharesOutstanding) / 1e9).toFixed(2)
+                : 'N/A'
+        const avgRsi = latestMarket?.rsi || 50
+        return [
+            { title: 'Price', value: `${priceChange}% · $${latestMarket?.close?.toFixed(2) ?? '—'} · $${marketCapB}B cap`, secChip: false, awardChip: false },
+            { title: 'SEC', value: `${sentiment} · ${secFilings.length} filings`, secChip: true, awardChip: false },
+            { title: awards.length > 0 ? 'Contracts' : 'Options', value: awards.length > 0 ? `$${(totalAwardValue / 1e6).toFixed(1)}M · ${awards.length} awards` : (optionsFlow.length > 0 ? `P/C ${Number(putCallRatio).toFixed(2)}` : '—'), secChip: false, awardChip: awards.length > 0 },
+            { title: 'Technical', value: `RSI ${avgRsi.toFixed(0)}${latestMarket?.sma_50 && latestMarket?.sma_200 ? (latestMarket.sma_50 > latestMarket.sma_200 ? ' · Golden cross' : ' · Death cross') : ''}`, secChip: false, awardChip: false }
+        ]
+    }, [company, chartData, awards, secFilings, optionsFlow, latestMarket])
 
     // Moneycontain "13 Essential Financial Metrics"
     const fundamentalMetrics = useMemo(() => {
@@ -511,8 +531,8 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                         {[company.sector || data.sector, company.industry || data.industry, (company.city || company.country) ? [company.city, company.country].filter(Boolean).join(', ') : null].filter(Boolean).join(' | ') || '—'}
                     </p>
                 </div>
-                <div className="flex gap-2 relative">
-                    {comparisonMode && peerData ? (
+                <div className="flex gap-2">
+                    {comparisonMode && peerData && (
                         <button
                             onClick={() => onCompare?.(company.ticker)}
                             className="px-4 py-2 bg-red-900/20 border border-red-500/30 rounded-lg text-xs text-red-400 hover:bg-red-900/30 transition-all flex items-center gap-2"
@@ -522,90 +542,53 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                             </svg>
                             Exit Comparison
                         </button>
-                    ) : (
-                        <>
-                            <button
-                                onClick={() => setShowPeerSelector(!showPeerSelector)}
-                                className="px-4 py-2 bg-dark-800 border border-gold/30 rounded-lg text-xs text-gold hover:bg-gold/10 transition-all flex items-center gap-2"
-                            >
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                                </svg>
-                                Compare Peer
-                            </button>
-                            {showPeerSelector && (
-                                <div className="absolute top-full mt-2 right-0 bg-dark-800 border border-gold/30 rounded-lg shadow-2xl z-50 w-64 max-h-80 overflow-hidden flex flex-col">
-                                    <div className="p-2 border-b border-gold/20">
-                                        <input
-                                            type="text"
-                                            placeholder="Search ticker..."
-                                            value={peerSearchTerm}
-                                            onChange={(e) => setPeerSearchTerm(e.target.value)}
-                                            className="w-full px-3 py-2 bg-dark-900 border border-gold/20 rounded text-xs text-white placeholder-gray-500 focus:border-gold/50 outline-none"
-                                            autoFocus
-                                        />
-                                    </div>
-                                    <div className="overflow-y-auto max-h-64">
-                                        {availablePeers.slice(0, 50).map((ticker) => (
-                                            <button
-                                                key={ticker}
-                                                onClick={() => {
-                                                    onCompare?.(ticker)
-                                                    setShowPeerSelector(false)
-                                                    setPeerSearchTerm('')
-                                                }}
-                                                className="w-full px-4 py-2 text-left text-xs text-gray-300 hover:bg-gold/10 hover:text-gold transition-all border-b border-white/5"
-                                            >
-                                                {ticker}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </>
                     )}
-                    <button
-                        onClick={() => setShowFullAmounts(!showFullAmounts)}
-                        className={`px-3 py-1.5 border rounded-lg text-xs transition-all ${showFullAmounts ? 'bg-gold/20 border-gold/50 text-gold' : 'bg-dark-800 border-gold/30 text-gray-400 hover:text-white'}`}
-                    >
-                        {showFullAmounts ? 'Full $ amounts' : 'Abbreviated $'}
-                    </button>
-                    <button className="px-3 py-1.5 bg-dark-800 border border-gold/30 rounded-lg text-xs text-gray-400 hover:text-white transition-all">
-                        PDF Mode
-                    </button>
                 </div>
             </div>
 
-            {/* Stack up in sector - compare to sector peers */}
+            {/* Stack up in sector - compare to sector peers (collapsible) */}
             {(company.sector || data.sector) && (
                 <div className="rounded-lg border border-gold/20 bg-gold/5 px-4 py-3">
-                    <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Sector</span>
-                        <span className="text-xs text-gold">{company.sector || data.sector}</span>
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Sector</span>
+                            <span className="text-xs text-gold">{company.sector || data.sector}</span>
+                        </div>
                         <button
                             type="button"
-                            onClick={loadSectorPeers}
-                            disabled={sectorPeersLoading}
-                            className="text-xs font-semibold text-gold hover:text-gold/80 border border-gold/30 rounded-lg px-3 py-1.5 bg-gold/10 hover:bg-gold/20 transition-all disabled:opacity-50"
+                            onClick={() => setSectorSectionExpanded(!sectorSectionExpanded)}
+                            className="text-[10px] font-semibold text-gold hover:text-gold/80 border border-gold/30 rounded px-2 py-1 transition-all"
                         >
-                            {sectorPeersLoading ? 'Loading…' : 'Compare to sector peers'}
+                            {sectorSectionExpanded ? 'Collapse' : 'Expand'}
                         </button>
-                        {onCompare && (company.ticker || data.ticker) && (
-                            <button type="button" onClick={() => onCompare?.(company.ticker || data.ticker)} className="text-[11px] text-amber-400 hover:text-amber-300">
-                                Compare to another company →
-                            </button>
-                        )}
                     </div>
-                    {sectorPeers && sectorPeers.length > 0 && (
-                        <div className="mt-4">
-                            <SectorComparison companies={sectorPeers} title={`${company.sector || data.sector} peers`} />
-                        </div>
-                    )}
-                    {sectorPeersError && <p className="mt-2 text-[11px] text-red-400">{sectorPeersError}</p>}
-                    {sectorPeers && sectorPeers.length === 0 && !sectorPeersLoading && !sectorPeersError && (
-                        <p className="mt-2 text-[11px] text-gray-500">No sector peers returned. Try again or use Compare Peer above.</p>
+                    {sectorSectionExpanded && (
+                        <>
+                            <div className="mt-2 flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={loadSectorPeers}
+                                    disabled={sectorPeersLoading}
+                                    className="text-xs font-semibold text-gold hover:text-gold/80 border border-gold/30 rounded-lg px-3 py-1.5 bg-gold/10 hover:bg-gold/20 transition-all disabled:opacity-50"
+                                >
+                                    {sectorPeersLoading ? 'Loading…' : 'Compare to sector peers'}
+                                </button>
+                                {onCompare && (company.ticker || data.ticker) && (
+                                    <button type="button" onClick={() => onCompare?.(company.ticker || data.ticker)} className="text-[11px] text-amber-400 hover:text-amber-300">
+                                        Compare to another company →
+                                    </button>
+                                )}
+                            </div>
+                            {sectorPeers && sectorPeers.length > 0 && (
+                                <div className="mt-4">
+                                    <SectorComparison companies={sectorPeers} title={`${company.sector || data.sector} peers`} />
+                                </div>
+                            )}
+                            {sectorPeersError && <p className="mt-2 text-[11px] text-red-400">{sectorPeersError}</p>}
+                            {sectorPeers && sectorPeers.length === 0 && !sectorPeersLoading && !sectorPeersError && (
+                                <p className="mt-2 text-[11px] text-gray-500">No sector peers returned. Try again.</p>
+                            )}
+                        </>
                     )}
                 </div>
             )}
@@ -740,47 +723,25 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                         )}
                     </div>
 
-                {/* AI Intelligence Summary - Below Chart */}
-                <div className="bg-gradient-to-br from-gold/10 to-transparent border border-gold/20 rounded-xl p-3 md:p-4 relative overflow-hidden group shadow-2xl">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-gold/50" />
-                    <div className="absolute -right-12 -top-12 w-48 h-48 bg-gold/5 rounded-full blur-3xl group-hover:bg-gold/10 transition-all" />
-                    <h3 className="text-[9px] md:text-[10px] font-bold text-gold uppercase tracking-[0.2em] mb-2 md:mb-3 flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" />
+                {/* Deep Intelligence Synthesis - indicator cards */}
+                <div className="bg-dark-900/40 border border-gold/20 rounded-xl p-3 relative overflow-hidden">
+                    <h3 className="text-[9px] md:text-[10px] font-bold text-gold uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-gold" />
                         Deep Intelligence Synthesis
                     </h3>
-                    <div className="space-y-3 relative z-10">
-                        {aiSummary.filter((s): s is string => Boolean(s)).map((s: string, i: number) => (
-                            <div key={i} className="flex items-start gap-3">
-                                <div className="w-1.5 h-1.5 rounded-full bg-gold/50 mt-2 flex-shrink-0" />
-                                <p className="text-[13px] md:text-sm text-gray-300 leading-relaxed font-medium">
-                                    {s}
-                                    {i === 1 && secFilings.length > 0 && (
-                                        <span
-                                            onClick={() => openSecDetail(secFilings[0])}
-                                            className="ml-1 text-[10px] text-blue-400 font-mono cursor-pointer hover:underline bg-blue-500/10 px-1 rounded"
-                                        >
-                                            [SEC-{secFilings[0].filing_date}]
-                                        </span>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 relative z-10">
+                        {synthesisIndicators.map((ind, i) => (
+                            <div key={i} className="bg-dark-800/50 border border-gold/10 rounded-lg p-3">
+                                <div className="text-[10px] font-semibold text-gold uppercase tracking-wider mb-1">{ind.title}</div>
+                                <div className="text-xs text-gray-300 font-mono flex flex-wrap items-center gap-1">
+                                    {ind.value}
+                                    {ind.secChip && secFilings.length > 0 && (
+                                        <span onClick={() => openSecDetail(secFilings[0])} className="text-[10px] text-blue-400 cursor-pointer hover:underline bg-blue-500/10 px-1 rounded">[SEC]</span>
                                     )}
-                                    {i === 2 && awards.length > 0 && (
-                                        <span
-                                            onClick={() => setSelectedDetail({ type: 'Award', data: awards[0] })}
-                                            className="ml-1 text-[10px] text-gold font-mono cursor-pointer hover:underline bg-gold/10 px-1 rounded"
-                                        >
-                                            [AWARD-${(awards[0].award_amount_float / 1e6).toFixed(1)}M]
-                                        </span>
+                                    {ind.awardChip && awards.length > 0 && (
+                                        <span onClick={() => setSelectedDetail({ type: 'Award', data: awards[0] })} className="text-[10px] text-gold cursor-pointer hover:underline bg-gold/10 px-1 rounded">[Award]</span>
                                     )}
-                                    {i === 3 && polyMarkets.length > 0 && (
-                                        <span className="ml-1 text-[10px] text-purple-400 font-mono cursor-pointer hover:underline bg-purple-500/10 px-1 rounded">
-                                            [MARKET-{(polyMarkets[0].yes_probability * 100).toFixed(0)}%]
-                                        </span>
-                                    )}
-                                    {i === 4 && optionsFlow.length > 0 && (
-                                        <span className="ml-1 text-[10px] text-green-400 font-mono bg-green-500/10 px-1 rounded">
-                                            [OPTIONS-P/C:{optionsFlow[0].put_call_ratio?.toFixed(2)}]
-                                        </span>
-                                    )}
-                                </p>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -993,14 +954,17 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                     if (typeof val === 'number' && !currency) return val.toFixed(2)
                                     return String(val)
                                 }
-                                const row = (label: string, value: number | null | undefined, opts?: { highlight?: boolean; large?: boolean; currency?: boolean; unit?: string; signed?: boolean }) => (
-                                    <div key={label} className={`flex justify-between items-center py-1.5 px-2 border-b border-white/5 last:border-0 ${opts?.highlight ? 'bg-emerald-500/5' : ''}`}>
-                                        <span className={`text-xs ${opts?.highlight ? 'text-emerald-400 font-semibold' : 'text-gray-300'}`}>{label}</span>
-                                        <span className={`font-mono text-sm tabular-nums text-right min-w-[7rem] ${opts?.highlight ? 'text-emerald-300 font-bold' : 'text-gray-200'}`}>
-                                            {fmt(value, opts?.currency !== false, opts?.unit, opts?.signed)}
-                                        </span>
-                                    </div>
-                                )
+                                const row = (label: string, value: number | null | undefined, opts?: { highlight?: boolean; large?: boolean; currency?: boolean; unit?: string; signed?: boolean }) => {
+                                    if (value == null || value === undefined) return null
+                                    return (
+                                        <div key={label} className={`flex justify-between items-center py-1.5 px-2 border-b border-white/5 last:border-0 ${opts?.highlight ? 'bg-emerald-500/5' : ''}`}>
+                                            <span className={`text-xs ${opts?.highlight ? 'text-emerald-400 font-semibold' : 'text-gray-300'}`}>{label}</span>
+                                            <span className={`font-mono text-sm tabular-nums text-right min-w-[7rem] ${opts?.highlight ? 'text-emerald-300 font-bold' : 'text-gray-200'}`}>
+                                                {fmt(value, opts?.currency !== false, opts?.unit, opts?.signed)}
+                                            </span>
+                                        </div>
+                                    )
+                                }
 
                                 // Income Statement
                                 if (selectedStatementTab === 'income') {
@@ -1125,7 +1089,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
 
             {/* SEC Sentences - Discoverable list with search and sentiment filter */}
             {secSentences.length > 0 && (
-                <div className="mt-4">
+                <div id="sec-sentences-section" className="mt-4">
                     <div className="bg-dark-900/40 border border-indigo-500/10 rounded-xl p-4 shadow-xl backdrop-blur-sm">
                         <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                             <h3 className="text-sm font-bold text-indigo-400 uppercase tracking-[0.2em] flex items-center gap-3">
@@ -1357,9 +1321,19 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                                     </div>
                                                 ) : (
                                                     <div className="text-xs text-gray-500 text-center py-6 border border-dashed border-gray-700 rounded-lg space-y-2">
-                                                        <p className="italic">No excerpt content available for this filing.</p>
+                                                        <p className="italic">No sentence-level excerpts for this filing.</p>
+                                                        <p className="text-[10px]">View SEC Sentences below for ticker-level sentiment.</p>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => { closeDetail(); document.getElementById('sec-sentences-section')?.scrollIntoView({ behavior: 'smooth' }) }}
+                                                            className="text-[10px] text-blue-400 hover:text-blue-300 underline"
+                                                        >
+                                                            Go to SEC Sentences
+                                                        </button>
                                                         {secFilingUrl && (
-                                                            <a href={secFilingUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-500 hover:text-blue-400 transition-colors">Open on SEC EDGAR</a>
+                                                            <span className="block mt-2">
+                                                                <a href={secFilingUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-500 hover:text-blue-400 transition-colors">Open on SEC EDGAR</a>
+                                                            </span>
                                                         )}
                                                     </div>
                                                 )}

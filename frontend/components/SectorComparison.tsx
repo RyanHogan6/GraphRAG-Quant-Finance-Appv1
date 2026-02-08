@@ -16,6 +16,7 @@ interface SectorComparisonProps {
  */
 export default function SectorComparison({ companies, title }: SectorComparisonProps) {
   const [sortBy, setSortBy] = useState<'marketCap' | 'pe' | 'roe' | 'debt'>('marketCap')
+  const [hiddenTickers, setHiddenTickers] = useState<Set<string>>(new Set())
 
   // Detect flat screener results: ticker + metric(s), no MarketData/sector
   const isScreenerResults = useMemo(() => {
@@ -137,6 +138,18 @@ export default function SectorComparison({ companies, title }: SectorComparisonP
     return series
   }, [companies])
 
+  const visibleChartData = useMemo(() =>
+    chartData.filter(s => !hiddenTickers.has(s.ticker || s.label || '')),
+  [chartData, hiddenTickers])
+  const toggleTickerVisibility = (ticker: string) => {
+    setHiddenTickers(prev => {
+      const next = new Set(prev)
+      if (next.has(ticker)) next.delete(ticker)
+      else next.add(ticker)
+      return next
+    })
+  }
+
   // Calculate key metrics for comparison
   const companyMetrics = useMemo(() => {
     return companies.map(company => {
@@ -210,11 +223,28 @@ export default function SectorComparison({ companies, title }: SectorComparisonP
           <div className="text-xs text-gray-500 mb-3 italic">
             All series normalized to 100 at start date for comparison
           </div>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            <span className="text-[10px] text-gray-500 uppercase tracking-wider mr-1">Tickers:</span>
+            {chartData.map(s => {
+              const ticker = s.ticker || s.label || ''
+              const hidden = hiddenTickers.has(ticker)
+              return (
+                <button
+                  key={ticker}
+                  type="button"
+                  onClick={() => toggleTickerVisibility(ticker)}
+                  className={`px-2 py-0.5 text-[10px] font-mono rounded border transition-all ${hidden ? 'bg-dark-800 text-gray-500 border-white/10 hover:border-gold/30' : 'bg-gold/10 text-gold border-gold/40'}`}
+                >
+                  {hidden ? `+ ${ticker}` : ticker}
+                </button>
+              )
+            })}
+          </div>
           <div className="h-80 w-full">
             <TimeSeriesChart
-              series={chartData}
-              dates={chartData[0]?.dates || []}
-              values={chartData[0]?.values || []}
+              series={visibleChartData}
+              dates={visibleChartData[0]?.dates || []}
+              values={visibleChartData[0]?.values || []}
               label="Sector Comparison"
             />
           </div>
