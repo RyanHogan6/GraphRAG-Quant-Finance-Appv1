@@ -5,6 +5,7 @@ Ported from Streamlit llm.py
 from openai import OpenAI
 import json
 import re
+import copy
 from datetime import datetime
 import sys
 import os
@@ -375,7 +376,20 @@ def plan_query_with_llm(question: str, intent_hint=None, conversation_history: l
     # TRY 2: Check similarity cache (fast - 1 LLM call for embedding)
     similar_plan = check_similar_previous_question(question)
     if similar_plan:
-        print("✓ Reusing similar query plan from cache")
+        # Re-extract ticker from current question so we don't return wrong-company data (e.g. LDOS vs LHX)
+        ticker_match = re.search(r'\b([A-Z]{2,5})\b', question)
+        if ticker_match:
+            extracted_ticker = ticker_match.group(1)
+            plan_bind_vars = similar_plan.get('bind_vars') or {}
+            cached_ticker = plan_bind_vars.get('ticker')
+            if cached_ticker is not None and str(cached_ticker).upper() != str(extracted_ticker).upper():
+                similar_plan = copy.deepcopy(similar_plan)
+                similar_plan['bind_vars'] = { **similar_plan.get('bind_vars', {}), 'ticker': extracted_ticker }
+                print(f"✓ Reusing similar query plan from cache (ticker overridden to {extracted_ticker})")
+            else:
+                print("✓ Reusing similar query plan from cache")
+        else:
+            print("✓ Reusing similar query plan from cache")
         return similar_plan
 
     # TRY 3: Full LLM planning (slowest - full query generation)

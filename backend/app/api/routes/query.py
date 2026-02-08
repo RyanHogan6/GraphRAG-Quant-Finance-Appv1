@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, validator, constr
 from typing import Optional, Dict, List, Any
+import re
 import time
 import json
 import asyncio
@@ -735,6 +736,13 @@ async def execute_query_stream(request: Request, body: QueryRequest):
 
             # Step 0: Check cache first
             cached_result = query_cache.get(body.question)
+            # If cache has a ticker-scoped result, verify current question asks for same ticker
+            if cached_result:
+                cached_ticker = (cached_result.get('metadata') or {}).get('result_ticker') or (cached_result.get('query_plan') or {}).get('bind_vars', {}).get('ticker')
+                ticker_match = re.search(r'\b([A-Z]{2,5})\b', body.question)
+                question_ticker = ticker_match.group(1) if ticker_match else None
+                if cached_ticker is not None and question_ticker is not None and str(cached_ticker).upper() != str(question_ticker).upper():
+                    cached_result = None  # Mismatch: re-run so we don't return wrong company
             if cached_result:
                 # Cache hit! Return immediately
                 yield f"data: {json.dumps({'type': 'progress', 'stage': 'cache_hit', 'message': '⚡ Retrieved from cache (instant!)'})}\n\n"
@@ -961,7 +969,10 @@ async def execute_query_stream(request: Request, body: QueryRequest):
                 'metadata': query_metadata
             }
 
-            # Cache the complete result for future queries
+            # Cache the complete result for future queries (include result_ticker for cache-hit validation)
+            cache_metadata = dict(query_metadata) if query_metadata else {}
+            if query_plan.get('bind_vars', {}).get('ticker') is not None:
+                cache_metadata['result_ticker'] = query_plan['bind_vars']['ticker']
             cache_data = {
                 'results': results,
                 'count': len(results),
@@ -973,7 +984,7 @@ async def execute_query_stream(request: Request, body: QueryRequest):
                     'sources': web_context_data.get('sources', []),
                     'citations': web_context_data.get('citations', [])
                 },
-                'metadata': query_metadata
+                'metadata': cache_metadata
             }
             query_cache.set(body.question, cache_data)
 
@@ -1030,8 +1041,8 @@ async def execute_query_stream(request: Request, body: QueryRequest):
 @router.get("/companies/by-sector")
 def get_companies_by_sector(sector: str):
     """
-    Return companies in a given sector for sector comparison.
-    Does not depend on NL interpretation; stable for Compare sector button.
+    Return companies in a given sector for sector comparison, with MarketData
+    (last 126 trading days per company) so the table and chart have price, P/E, ROE, etc.
     """
     if not sector or not sector.strip():
         return {"companies": []}
@@ -1041,7 +1052,8 @@ def get_companies_by_sector(sector: str):
       FILTER c.sector == @sector
       SORT c.ticker ASC
       LIMIT 100
-      RETURN c
+      LET marketList = (FOR m IN MarketData FILTER m.ticker == c.ticker SORT m.date DESC LIMIT 126 RETURN m)
+      RETURN MERGE(c, { MarketData: marketList })
     """
     try:
         data, _ = execute_aql(query, {"sector": sector})
@@ -1049,6 +1061,49 @@ def get_companies_by_sector(sector: str):
     except Exception as e:
         print(f"[BY-SECTOR] Error: {e}")
         return {"companies": []}
+
+
+@router.get("/sec-sentences")
+def search_sec_sentences(ticker: str, q: Optional[str] = None, limit: int = 50):
+    """
+    Search sec_sentences for a ticker, optionally by keyword.
+    Makes the 4.5M sentence corpus discoverable (ticker + optional keyword filter).
+    """
+    if not ticker or not ticker.strip():
+        return {"sentences": []}
+    ticker = ticker.strip().upper()
+    limit = min(max(1, limit), 200)
+    if q and q.strip():
+        term = q.strip().lower()
+        query = """
+        FOR s IN sec_sentences
+          FILTER s.ticker == @ticker
+          FILTER CONTAINS(LOWER(s.text), @term)
+          FILTER s.finbert_score != null
+          SORT ABS(s.finbert_score) DESC
+          LIMIT @limit
+          RETURN { text: s.text, finbert_score: s.finbert_score, section_type: s.section_type, filing_key: s.filing_key }
+        """
+        try:
+            data, _ = execute_aql(query, {"ticker": ticker, "term": term, "limit": limit})
+            return {"sentences": data if data else []}
+        except Exception as e:
+            print(f"[SEC-SENTENCES] Error: {e}")
+            return {"sentences": []}
+    query = """
+    FOR s IN sec_sentences
+      FILTER s.ticker == @ticker
+      FILTER s.finbert_score != null
+      SORT ABS(s.finbert_score) DESC
+      LIMIT @limit
+      RETURN { text: s.text, finbert_score: s.finbert_score, section_type: s.section_type, filing_key: s.filing_key }
+    """
+    try:
+        data, _ = execute_aql(query, {"ticker": ticker, "limit": limit})
+        return {"sentences": data if data else []}
+    except Exception as e:
+        print(f"[SEC-SENTENCES] Error: {e}")
+        return {"sentences": []}
 
 
 @router.get("/cache/stats")

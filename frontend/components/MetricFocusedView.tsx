@@ -28,7 +28,7 @@ export default function MetricFocusedView({ metric, data }: MetricFocusedViewPro
         unit: 'x',
         sectorAvg: 25, // Would come from backend in production
         status: (latest.trailingPE || 0) < 20 ? 'Fair' : (latest.trailingPE || 0) < 30 ? 'Moderate' : 'High',
-        icon: '📊',
+        icon: null,
         breakdown: [
           { label: 'Trailing P/E', value: latest.trailingPE?.toFixed(2) || 'N/A' },
           { label: 'Forward P/E', value: latest.forwardPE?.toFixed(2) || 'N/A' },
@@ -46,7 +46,7 @@ export default function MetricFocusedView({ metric, data }: MetricFocusedViewPro
         unit: 'x',
         sectorAvg: 0.65,
         status: (latest.debtToEquity || 0) < 0.5 ? 'Low Leverage' : (latest.debtToEquity || 0) < 1 ? 'Moderate' : 'High Leverage',
-        icon: '⚖️',
+        icon: null,
         breakdown: [
           { label: 'Total Debt', value: latest.totalDebt ? `$${(latest.totalDebt / 1e9).toFixed(2)}B` : 'N/A' },
           { label: 'Long-term Debt', value: 'N/A' },
@@ -64,7 +64,7 @@ export default function MetricFocusedView({ metric, data }: MetricFocusedViewPro
         unit: 'x',
         sectorAvg: 1.5,
         status: (latest.currentRatio || 0) > 1.5 ? 'Healthy' : (latest.currentRatio || 0) > 1 ? 'Adequate' : 'Weak',
-        icon: '💧',
+        icon: null,
         breakdown: [
           { label: 'Current Assets', value: 'N/A' },
           { label: 'Current Liabilities', value: 'N/A' },
@@ -81,7 +81,7 @@ export default function MetricFocusedView({ metric, data }: MetricFocusedViewPro
         unit: '$',
         sectorAvg: null,
         status: (latest.freeCashflow || 0) > 0 ? 'Positive' : 'Negative',
-        icon: '💰',
+        icon: null,
         breakdown: [
           { label: 'Operating Cash Flow', value: latest.operatingCashflow ? `$${(latest.operatingCashflow / 1e9).toFixed(2)}B` : 'N/A' },
           { label: 'Free Cash Flow', value: latest.freeCashflow ? `$${(latest.freeCashflow / 1e9).toFixed(2)}B` : 'N/A' }
@@ -97,7 +97,7 @@ export default function MetricFocusedView({ metric, data }: MetricFocusedViewPro
         unit: '%',
         sectorAvg: 0.15,
         status: (latest.returnOnEquity || 0) > 0.20 ? 'Excellent' : (latest.returnOnEquity || 0) > 0.15 ? 'Good' : 'Fair',
-        icon: '📈',
+        icon: null,
         breakdown: [
           { label: 'Net Income', value: 'N/A' },
           { label: 'Shareholder Equity', value: 'N/A' },
@@ -114,7 +114,7 @@ export default function MetricFocusedView({ metric, data }: MetricFocusedViewPro
       unit: '',
       sectorAvg: null,
       status: 'N/A',
-      icon: '📋',
+      icon: null,
       breakdown: [],
       historicalKey: null
     }
@@ -169,7 +169,7 @@ export default function MetricFocusedView({ metric, data }: MetricFocusedViewPro
       {/* Header */}
       <div className="border-b border-gold/20 pb-4">
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-3xl">{metricDetails.icon}</span>
+          {metricDetails.icon ? <span className="text-3xl">{metricDetails.icon}</span> : <span className="w-3 h-3 rounded-full bg-gold/70" />}
           <h2 className="text-2xl md:text-3xl font-bold text-white">{metricDetails.name}</h2>
         </div>
         <p className="text-sm text-gray-400">

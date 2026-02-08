@@ -29,6 +29,8 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
     const [selectedXbrlIndex, setSelectedXbrlIndex] = useState(0)
     const [selectedStatementTab, setSelectedStatementTab] = useState<'income' | 'balance' | 'cashflow'>('income')
     const [showMoreSecSentences, setShowMoreSecSentences] = useState(false)
+    const [secSentenceSearch, setSecSentenceSearch] = useState('')
+    const [secSentenceSentiment, setSecSentenceSentiment] = useState<'all' | 'bullish' | 'bearish' | 'neutral'>('all')
     const [showMoreSecModalExcerpts, setShowMoreSecModalExcerpts] = useState(false)
     const [expandedExcerptIndex, setExpandedExcerptIndex] = useState<number | null>(null)
     const [showFullAmounts, setShowFullAmounts] = useState(true)
@@ -111,6 +113,21 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
 
         return sorted
     }, [allSecFilings, selectedFormType, secSortBy])
+
+    // Filter SEC sentences by keyword and sentiment (discoverable 4.5M-backed list)
+    const filteredSecSentences = useMemo(() => {
+        let list = secSentences as any[]
+        const q = (secSentenceSearch || '').trim().toLowerCase()
+        if (q) list = list.filter((s: any) => (s.text || '').toLowerCase().includes(q))
+        if (secSentenceSentiment !== 'all') {
+            list = list.filter((s: any) => {
+                const score = s.finbert_score ?? 0
+                const bucket = score > 0.2 ? 'bullish' : score < -0.2 ? 'bearish' : 'neutral'
+                return bucket === secSentenceSentiment
+            })
+        }
+        return list
+    }, [secSentences, secSentenceSearch, secSentenceSentiment])
 
     // Get unique form types
     const formTypes = useMemo(() => {
@@ -237,32 +254,22 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                 ? ((latestMarket.close * latestMarket.sharesOutstanding) / 1e9).toFixed(2)
                 : 'N/A'
 
-        return [
-            `${company.company} (${ticker}) is demonstrating a ${priceChange}% trajectory over the selected ${timeframe} window, currently trading at $${latestMarket?.close?.toFixed(2)} with market capitalization of ${marketCapB !== 'N/A' ? '$' + marketCapB + 'B' : 'market cap unavailable'} in the ${company.sector} sector.`,
-
-            `Recent SEC regulatory signals lean ${sentiment.toLowerCase()} (FinBERT Score: ${secFilings[0]?.avg_finbert?.toFixed(3) || 'N/A'}), with ${secFilings.length} filings analyzed including ${secFilings[0]?.form_type || 'quarterly/annual'} reports showing ${sentiment === 'Bullish' ? 'optimistic' : sentiment === 'Bearish' ? 'cautious' : 'neutral'} management tone regarding operational performance and forward guidance.`,
-
+        // Best 4 points only; one short sentence per bullet
+        const points = [
+            `Price: ${priceChange}% over ${timeframe}; $${latestMarket?.close?.toFixed(2)}; market cap ${marketCapB !== 'N/A' ? '$' + marketCapB + 'B' : 'N/A'}. ${company.sector}.`,
+            `SEC: ${sentiment} (FinBERT ${secFilings[0]?.avg_finbert?.toFixed(2) ?? 'N/A'}); ${secFilings.length} filings.`,
             awards.length > 0
-                ? `Government contract portfolio totals $${(totalAwardValue / 1e6).toFixed(1)}M across ${awards.length} federal awards, with recent ${awards[0]?.awarding_agency || 'Department of Defense'} contract for $${(awards[0]?.award_amount_float / 1e6).toFixed(1)}M awarded in FY-${awards[0]?.contract_year || '2026'}, establishing strong public sector revenue diversification.`
-                : `${company.company} maintains focused commercial market exposure with ${company.sector} industry leadership, supported by institutional ownership patterns and steady revenue generation from core business operations.`,
-
+                ? `Contracts: $${(totalAwardValue / 1e6).toFixed(1)}M across ${awards.length} awards; recent ${awards[0]?.awarding_agency || 'DoD'} $${(awards[0]?.award_amount_float / 1e6).toFixed(1)}M.`
+                : `${company.company}: ${company.sector} exposure; commercial focus.`,
             optionsFlow.length > 0
-                ? `Options market activity reflects ${optionsSignal} with put/call ratio of ${putCallRatio.toFixed(2)}, total options volume of ${latestOptions?.total_volume?.toLocaleString()} contracts, and implied volatility at ${((latestOptions?.implied_volatility ?? latestOptions?.iv_avg) != null ? (Number(latestOptions.implied_volatility ?? latestOptions.iv_avg) * 100).toFixed(1) : 'N/A')}%, indicating ${putCallRatio > 1.5 ? 'defensive hedging' : putCallRatio < 0.5 ? 'aggressive upside speculation' : 'standard market expectations'}.`
-                : `Options flow data not yet available for this ticker, with trading activity primarily focused on equity markets and institutional block transactions.`,
-
-            `Technical indicators place ${ticker} in ${technicalSignal}, with ${latestMarket?.sma_50 && latestMarket?.sma_200 ? (latestMarket.sma_50 > latestMarket.sma_200 ? 'bullish golden cross formation' : 'bearish death cross warning') : 'developing trend structure'} as moving averages ${latestMarket?.sma_50 && latestMarket?.sma_200 ? (latestMarket.sma_50 > latestMarket.sma_200 ? 'confirm' : 'challenge') : 'establish'} current price action.`,
-
+                ? `Options: P/C ${putCallRatio.toFixed(2)}, IV ${((latestOptions?.implied_volatility ?? latestOptions?.iv_avg) != null ? (Number(latestOptions.implied_volatility ?? latestOptions.iv_avg) * 100).toFixed(1) : 'N/A')}%; ${putCallRatio > 1.5 ? 'bearish' : putCallRatio < 0.5 ? 'bullish' : 'neutral'}.`
+                : `Options: no flow data yet for ${ticker}.`,
+            `Technical: ${technicalSignal}. ${latestMarket?.sma_50 && latestMarket?.sma_200 ? (latestMarket.sma_50 > latestMarket.sma_200 ? 'Golden cross.' : 'Death cross.') : ''}`,
             polyMarkets.length > 0
-                ? `Prediction markets assign ${(polyMarkets[0].yes_probability * 100).toFixed(0)}% probability to ${polyMarkets[0].question}, with $${(polyMarkets[0].volume_24h / 1000).toFixed(0)}K daily volume reflecting market sentiment divergence from traditional equity pricing models.`
-                : news ? `Wall Street projections for 2026 highlight potential revenue ceiling of ${news.rev}, catalyzed significantly by ${news.driver}, with upcoming ${news.event} serving as critical inflection point for institutional portfolio rebalancing.`
-                : `Fundamental metrics show ${latestMarket?.revenue_growth ? ((latestMarket.revenue_growth * 100).toFixed(1) + '% revenue growth') : 'steady revenue generation'} with ${latestMarket?.profit_margins ? ((latestMarket.profit_margins * 100).toFixed(1) + '% profit margins') : 'industry-standard profitability'}, positioning ${ticker} for ${priceChangeNum > 5 ? 'continued momentum expansion' : priceChangeNum < -5 ? 'potential mean reversion opportunity' : 'range-bound consolidation'}.`,
-
-            `Critical intelligence suggests monitoring ${news?.event || secFilings.length > 0 ? 'upcoming ' + (secFilings[0]?.form_type === '10-Q' ? 'quarterly earnings release' : secFilings[0]?.form_type === '10-K' ? 'annual report filing' : 'regulatory filings') : 'next quarterly earnings'} as primary volatility catalyst, with institutional positioning ${awards.length > 0 ? 'supported by government contract visibility' : 'driven by sector rotation dynamics'} and ${optionsFlow.length > 0 && putCallRatio > 1.5 ? 'hedged downside protection' : optionsFlow.length > 0 && putCallRatio < 0.5 ? 'leveraged upside exposure' : 'balanced risk/reward profiles'}.`,
-
-            secXbrlData.length > 0 || secExhibits.length > 0
-                ? `Enhanced financial transparency available through ${secXbrlData.length > 0 ? `detailed XBRL breakdowns covering ${secXbrlData[0]?.has_segment_data ? 'revenue segments, ' : ''}${secXbrlData[0]?.debt ? 'debt obligations, ' : ''}and cost structures` : ''}${secXbrlData.length > 0 && secExhibits.length > 0 ? ', alongside ' : ''}${secExhibits.length > 0 ? `${secExhibits.length} material contract${secExhibits.length > 1 ? 's' : ''} including ${secExhibits.filter((e: any) => e.exhibit_type?.includes('10.') || e.contract_type?.toLowerCase().includes('credit')).length > 0 ? 'credit agreements, ' : ''}${secExhibits.filter((e: any) => e.contract_type?.toLowerCase().includes('employment')).length > 0 ? 'executive compensation packages, ' : ''}and strategic partnership filings` : ''} providing institutional-grade due diligence capabilities.`
-                : null
+                ? `Prediction: ${(polyMarkets[0].yes_probability * 100).toFixed(0)}% — ${polyMarkets[0].question?.slice(0, 50)}…`
+                : news ? `Catalyst: ${news.event}. ${news.driver}.` : null
         ].filter(Boolean)
+        return points.slice(0, 4)
     }, [company, timeframe, chartData, awards, secFilings, polyMarkets, secXbrlData, secExhibits])
 
     // Moneycontain "13 Essential Financial Metrics"
@@ -784,12 +791,21 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
             {/* Options Activity - tracker-style summary + last 50 with scroll */}
             {optionsFlow.length > 0 && (() => {
                 const latest = optionsFlow[0]
-                const pc = latest.put_call_ratio ?? latest.put_call_volume_ratio
+                // Window averages for summary bar (not just latest day)
+                const n = optionsFlow.length
+                const sumPut = optionsFlow.reduce((s: number, r: any) => s + (r.put_volume ?? 0), 0)
+                const sumCall = optionsFlow.reduce((s: number, r: any) => s + (r.call_volume ?? 0), 0)
+                const avgPc = sumCall > 0 ? sumPut / sumCall : (latest.put_call_ratio ?? latest.put_call_volume_ratio)
+                const pc = avgPc != null ? avgPc : (latest.put_call_ratio ?? latest.put_call_volume_ratio)
                 const stance = pc != null ? (pc > 1 ? 'Bearish' : pc < 0.7 ? 'Bullish' : 'Neutral') : null
-                const putVol = latest.put_volume != null ? latest.put_volume : 0
-                const callVol = latest.call_volume != null ? latest.call_volume : 0
-                const putPrem = latest.put_premium != null ? Number(latest.put_premium) : 0
-                const callPrem = latest.call_premium != null ? Number(latest.call_premium) : 0
+                const putVol = Math.round(sumPut / n)
+                const callVol = Math.round(sumCall / n)
+                const sumPutPrem = optionsFlow.reduce((s: number, r: any) => s + (Number(r.put_premium) || 0), 0)
+                const sumCallPrem = optionsFlow.reduce((s: number, r: any) => s + (Number(r.call_premium) || 0), 0)
+                const putPrem = sumPutPrem
+                const callPrem = sumCallPrem
+                const ivVals = optionsFlow.map((r: any) => r.implied_volatility ?? r.iv_avg).filter((v: any) => v != null)
+                const avgIv = ivVals.length ? ivVals.reduce((a: number, b: any) => a + Number(b), 0) / ivVals.length : (latest.implied_volatility ?? latest.iv_avg)
                 const fmtNum = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 0 })
                 const fmtDollars = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : `$${fmtNum(n)}`
                 return (
@@ -804,26 +820,29 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                 {stance ? `${stance} · P/C ${Number(pc).toFixed(2)}` : `Last ${optionsFlow.length} days`}
                             </span>
                         </div>
-                        {/* Summary bar - tracker style */}
+                        {optionsFlow.length < 7 && (
+                            <p className="text-[10px] text-amber-400/90 mb-3 italic">Limited history ({optionsFlow.length} days). Averages will stabilize with more data.</p>
+                        )}
+                        {/* Summary bar - window averages */}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 p-3 rounded-lg bg-dark-800/50 border border-green-500/10">
                             <div>
-                                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Put/Call</div>
+                                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Put/Call (avg)</div>
                                 <div className="font-mono text-white font-semibold">{pc != null ? Number(pc).toFixed(2) : '—'}</div>
                                 {stance && <div className={`text-[10px] ${stance === 'Bullish' ? 'text-green-400' : stance === 'Bearish' ? 'text-red-400' : 'text-gray-400'}`}>{stance}</div>}
                             </div>
                             <div>
-                                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Puts</div>
+                                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Puts (avg)</div>
                                 <div className="font-mono text-red-300">{fmtNum(putVol)} contracts</div>
                                 {putPrem > 0 && <div className="font-mono text-[10px] text-gray-400">{fmtDollars(putPrem)}</div>}
                             </div>
                             <div>
-                                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Calls</div>
+                                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Calls (avg)</div>
                                 <div className="font-mono text-green-300">{fmtNum(callVol)} contracts</div>
                                 {callPrem > 0 && <div className="font-mono text-[10px] text-gray-400">{fmtDollars(callPrem)}</div>}
                             </div>
                             <div>
-                                <div className="text-[10px] text-gray-500 uppercase tracking-wider">IV</div>
-                                <div className="font-mono text-white">{(latest.implied_volatility ?? latest.iv_avg) != null ? (Number(latest.implied_volatility ?? latest.iv_avg) * 100).toFixed(1) + '%' : '—'}</div>
+                                <div className="text-[10px] text-gray-500 uppercase tracking-wider">IV (avg)</div>
+                                <div className="font-mono text-white">{avgIv != null ? (Number(avgIv) * 100).toFixed(1) + '%' : '—'}</div>
                             </div>
                         </div>
                         <div className="max-h-[400px] overflow-y-auto overflow-x-auto border border-green-500/20 rounded-lg">
@@ -911,20 +930,20 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                         {/* Statement Tabs */}
                         <div className="flex border-b border-emerald-500/10 bg-dark-800/30">
                             {[
-                                { key: 'income', label: 'Income Statement', icon: '📊' },
-                                { key: 'balance', label: 'Balance Sheet', icon: '⚖️' },
-                                { key: 'cashflow', label: 'Cash Flow', icon: '💰' }
+                                { key: 'income', label: 'Income Statement' },
+                                { key: 'balance', label: 'Balance Sheet' },
+                                { key: 'cashflow', label: 'Cash Flow' }
                             ].map((tab) => (
                                 <button
                                     key={tab.key}
                                     onClick={() => setSelectedStatementTab(tab.key as any)}
-                                    className={`flex-1 px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all ${
+                                    className={`flex-1 px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
                                         selectedStatementTab === tab.key
                                             ? 'text-emerald-300 bg-emerald-500/10 border-b-2 border-emerald-500'
                                             : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
                                     }`}
                                 >
-                                    <span className="mr-2">{tab.icon}</span>
+                                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${selectedStatementTab === tab.key ? 'bg-emerald-400' : 'bg-gray-500'}`} />
                                     {tab.label}
                                 </button>
                             ))}
@@ -1001,7 +1020,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                             <div>
                                                 <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Operating</h4>
                                                 <div className="space-y-0">
-                                                    {row('R&D Expense', getConcept('ResearchAndDevelopmentExpense') ?? undefined)}
+                                                    {row('R&D Expense', getConceptAny(['ResearchAndDevelopmentExpense']) ?? undefined)}
                                                     {row('SG&A Expense', getConceptAny(['SellingGeneralAndAdministrativeExpense', 'SellingAndMarketingExpense']) ?? undefined)}
                                                     {row('Operating Expense', getConceptAny(['OperatingExpense', 'OperatingExpenses']) ?? undefined)}
                                                     {row('Operating Income', getConceptAny(['OperatingIncomeLoss', 'OperatingIncome']) ?? undefined, { highlight: true })}
@@ -1025,7 +1044,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                 if (selectedStatementTab === 'balance') {
                                     const totalAssets = getConceptAny(['Assets', 'TotalAssets']) ?? undefined
                                     const currentDebt = getConceptAny(['DebtCurrent', 'CurrentDebt', 'LongTermDebtMaturitiesRepaymentsOfPrincipalInNextTwelveMonths']) ?? undefined
-                                    const ltDebt = getConcept('LongTermDebt')
+                                    const ltDebt = getConceptAny(['LongTermDebt', 'LongTermDebtAndCapitalLeaseObligations'])
                                     const totalDebt = (currentDebt != null || ltDebt != null) ? (currentDebt || 0) + (ltDebt || 0) : null
                                     const equity = getConceptAny(['StockholdersEquity', 'Equity', 'StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest'])
                                     const totalLiabEquity = (totalDebt != null && equity != null) ? totalDebt + equity : (equity != null ? equity : null)
@@ -1046,7 +1065,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                                     {row('Total Debt', totalDebt, { highlight: true })}
                                                     {row('Stockholders Equity', equity ?? undefined, { highlight: true })}
                                                     {row('Retained Earnings', getConceptAny(['RetainedEarningsAccumulatedDeficit', 'RetainedEarnings']) ?? undefined)}
-                                                    {row('Treasury Stock', getConceptAny(['TreasuryStockValue', 'TreasuryStockCommonValue']) ?? undefined)}
+                                                    {row('Treasury Stock', getConceptAny(['TreasuryStockValue', 'TreasuryStockCommonValue', 'TreasuryStock']) ?? undefined)}
                                                     {row('Shares Outstanding', getConceptAny(['CommonStockSharesOutstanding', 'CommonStockSharesIssued']) ?? undefined, { currency: false, unit: 'M' })}
                                                     {totalLiabEquity != null && totalAssets != null && (
                                                         <div className="flex justify-between items-center py-1.5 px-2 mt-2 pt-2 border-t border-emerald-500/20">
@@ -1085,7 +1104,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                                 <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Financing Activities</h4>
                                                 <div className="space-y-0">
                                                     {row('Financing Cash Flow', finCf ?? undefined, { highlight: true, signed: true })}
-                                                    {row('Dividends Paid', getConceptAny(['PaymentsOfDividends', 'DividendsPaid']) ?? undefined, { signed: true })}
+                                                    {row('Dividends Paid', getConceptAny(['PaymentsOfDividends', 'DividendsPaid', 'PaymentOfDividends']) ?? undefined, { signed: true })}
                                                     {row('Stock Repurchases', getConceptAny(['PaymentsForRepurchaseOfCommonStock', 'PaymentsForRepurchaseOfEquity']) ?? undefined, { signed: true })}
                                                 </div>
                                             </div>
@@ -1104,21 +1123,40 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                 </div>
             )}
 
-            {/* SEC Sentences - Sentiment Analysis (5 default, Show more) */}
+            {/* SEC Sentences - Discoverable list with search and sentiment filter */}
             {secSentences.length > 0 && (
                 <div className="mt-4">
                     <div className="bg-dark-900/40 border border-indigo-500/10 rounded-xl p-4 shadow-xl backdrop-blur-sm">
-                        <div className="flex items-center justify-between mb-3">
+                        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                             <h3 className="text-sm font-bold text-indigo-400 uppercase tracking-[0.2em] flex items-center gap-3">
                                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
-                                SEC Filing Sentiment Analysis
+                                SEC Sentences
                             </h3>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <input
+                                    type="text"
+                                    placeholder="Search sentences..."
+                                    value={secSentenceSearch}
+                                    onChange={(e) => setSecSentenceSearch(e.target.value)}
+                                    className="px-2 py-1.5 text-xs bg-dark-800 border border-white/10 rounded text-gray-200 placeholder-gray-500 w-40 focus:border-indigo-500/50 focus:outline-none"
+                                />
+                                {(['all', 'bullish', 'bearish', 'neutral'] as const).map((sent) => (
+                                    <button
+                                        key={sent}
+                                        type="button"
+                                        onClick={() => setSecSentenceSentiment(sent)}
+                                        className={`px-2 py-1 text-[10px] font-semibold rounded capitalize ${secSentenceSentiment === sent ? 'bg-indigo-500/30 text-indigo-300 border border-indigo-500/50' : 'bg-dark-800 text-gray-400 border border-white/10 hover:text-gray-200'}`}
+                                    >
+                                        {sent}
+                                    </button>
+                                ))}
+                            </div>
                             <div className="text-xs text-gray-500">
-                                {secSentences.length} sentence{secSentences.length !== 1 ? 's' : ''} analyzed
+                                {filteredSecSentences.length} of {secSentences.length} sentence{secSentences.length !== 1 ? 's' : ''}
                             </div>
                         </div>
                         <div className="space-y-2">
-                            {(showMoreSecSentences ? secSentences : secSentences.slice(0, 5)).map((sentence: any, i: number) => {
+                            {(showMoreSecSentences ? filteredSecSentences : filteredSecSentences.slice(0, 10)).map((sentence: any, i: number) => {
                                 const score = sentence.finbert_score || 0
                                 const sentiment = score > 0.2 ? 'Bullish' : score < -0.2 ? 'Bearish' : 'Neutral'
                                 const color = score > 0.2 ? 'text-green-400' : score < -0.2 ? 'text-red-400' : 'text-gray-400'
@@ -1145,14 +1183,17 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                     </div>
                                 )
                             })}
-                            {secSentences.length > 5 && (
+                            {filteredSecSentences.length > 10 && (
                                 <button
                                     type="button"
                                     onClick={() => setShowMoreSecSentences(!showMoreSecSentences)}
                                     className="w-full py-2 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 rounded-lg hover:bg-indigo-500/10 transition-colors"
                                 >
-                                    {showMoreSecSentences ? 'Show less' : `Show more (${secSentences.length - 5} more)`}
+                                    {showMoreSecSentences ? 'Show less' : `Show more (${filteredSecSentences.length - 10} more)`}
                                 </button>
+                            )}
+                            {filteredSecSentences.length === 0 && (
+                                <p className="text-xs text-gray-500 py-4 text-center">No sentences match your search or filter.</p>
                             )}
                         </div>
                     </div>
@@ -1242,7 +1283,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                         {company.ticker && <span className="text-gray-400 font-normal ml-2">· {company.ticker}</span>}
                                     </div>
                                 </div>
-                                <button onClick={closeDetail} className="p-2 bg-dark-700 rounded-full text-gray-400 hover:text-white border border-white/10 transition-all">✕</button>
+                                <button onClick={closeDetail} className="px-3 py-1.5 text-xs font-medium bg-dark-700 rounded-lg text-gray-400 hover:text-white border border-white/10 transition-all">Close</button>
                             </div>
                             <div className="flex-1 overflow-y-auto p-6 space-y-5">
                                 {(() => {
@@ -1266,9 +1307,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                                 {formType} filed on {filedDate}{company.ticker ? ` for ${company.ticker}` : ''}.
                                             </p>
                                             {secFilingUrl && (
-                                                <a href={secFilingUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/20 border border-blue-500/40 text-blue-300 text-xs font-semibold hover:bg-blue-500/30 transition-colors">
-                                                    Open on SEC EDGAR →
-                                                </a>
+                                                <a href={secFilingUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-500 hover:text-blue-400 transition-colors">Open on SEC EDGAR</a>
                                             )}
                                             <div>
                                                 <h5 className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-3">Key Excerpts (by sentiment)</h5>
@@ -1320,9 +1359,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                                     <div className="text-xs text-gray-500 text-center py-6 border border-dashed border-gray-700 rounded-lg space-y-2">
                                                         <p className="italic">No excerpt content available for this filing.</p>
                                                         {secFilingUrl && (
-                                                            <a href={secFilingUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/20 border border-blue-500/40 text-blue-300 font-semibold hover:bg-blue-500/30 transition-colors">
-                                                                View full document on SEC EDGAR →
-                                                            </a>
+                                                            <a href={secFilingUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-500 hover:text-blue-400 transition-colors">Open on SEC EDGAR</a>
                                                         )}
                                                     </div>
                                                 )}
@@ -1359,7 +1396,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                         {selectedDetail.data.awarding_agency}
                                     </div>
                                 </div>
-                                <button onClick={closeDetail} className="p-2 bg-dark-700 rounded-full text-gray-400 hover:text-white border border-white/10 transition-all">✕</button>
+                                <button onClick={closeDetail} className="px-3 py-1.5 text-xs font-medium bg-dark-700 rounded-lg text-gray-400 hover:text-white border border-white/10 transition-all">Close</button>
                             </div>
                             <div className="flex-1 overflow-y-auto p-8 space-y-6">
                                 <div className="flex justify-between items-start">

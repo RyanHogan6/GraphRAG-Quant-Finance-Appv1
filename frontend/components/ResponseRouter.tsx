@@ -61,7 +61,7 @@ export default function ResponseRouter({
       return (
         <div className="space-y-4">
           <div className="text-xs text-gray-500 italic mb-2">
-            📊 {getQueryTypeDescription(queryType)}
+            {getQueryTypeDescription(queryType)}
           </div>
           <CompanyWorkup
             data={message.results![0]}

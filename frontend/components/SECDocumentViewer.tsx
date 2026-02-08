@@ -353,13 +353,8 @@ export default function SECDocumentViewer({
                 </div>
                 <div className="w-1/2 overflow-y-auto p-4 bg-dark-900/50">
                     <h4 className="text-[10px] text-gold uppercase tracking-wider font-bold mb-2">Content</h4>
-                    {selectedDoc ? (
+                            {selectedDoc ? (
                         <>
-                            {secCompanyUrl && (
-                                <a href={secCompanyUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gold/20 border border-gold/40 text-gold text-xs font-semibold hover:bg-gold/30 mb-3">
-                                    View full document on SEC EDGAR →
-                                </a>
-                            )}
                             {selectedDoc.kind === 'xbrl' && (
                                 <div className="space-y-2 text-xs">
                                     {selectedDoc.item.revenue_segments && Object.keys(selectedDoc.item.revenue_segments).length > 0 && (
@@ -403,6 +398,11 @@ export default function SECDocumentViewer({
                             )}
                             {selectedDoc.kind === 'exhibit' && !selectedDoc.item.text && (
                                 <p className="text-gray-500 text-xs">No exhibit text available. Use the link above to open on SEC EDGAR.</p>
+                            )}
+                            {secCompanyUrl && (
+                                <p className="mt-4 pt-3 border-t border-white/10">
+                                    <a href={secCompanyUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-500 hover:text-gold transition-colors">Open on SEC EDGAR</a>
+                                </p>
                             )}
                         </>
                     ) : (
