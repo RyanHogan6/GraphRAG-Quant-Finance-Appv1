@@ -524,7 +524,8 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
             acc[ag].count += 1
             return acc
         }, {})
-        const topAgencyEntry = Object.entries(byAgency).sort((a, b) => b[1].total - a[1].total)[0]
+        type AgencyStat = { total: number; count: number }
+        const topAgencyEntry = (Object.entries(byAgency) as [string, AgencyStat][]).sort((a, b) => b[1].total - a[1].total)[0]
         const topAgency = topAgencyEntry ? `${topAgencyEntry[0]} (${topAgencyEntry[1].count})` : '—'
         return {
             totalValue,
