@@ -5,8 +5,11 @@ import TimeSeriesChart from './TimeSeriesChart'
 import { motion, AnimatePresence } from 'framer-motion'
 import SECFilingsExplorer from './SECFilingsExplorer'
 import SECDocumentViewer from './SECDocumentViewer'
+import SectorComparison from './SectorComparison'
 import SentimentIndicators from './company/SentimentIndicators'
 import type { Key } from 'react'
+
+const API_BASE = typeof process !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') : 'http://localhost:8000'
 
 interface CompanyWorkupProps {
     data: any
@@ -28,7 +31,9 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
     const [showMoreSecSentences, setShowMoreSecSentences] = useState(false)
     const [showMoreSecModalExcerpts, setShowMoreSecModalExcerpts] = useState(false)
     const [expandedExcerptIndex, setExpandedExcerptIndex] = useState<number | null>(null)
-    const [showFullAmounts, setShowFullAmounts] = useState(false)
+    const [showFullAmounts, setShowFullAmounts] = useState(true)
+    const [sectorPeers, setSectorPeers] = useState<any[] | null>(null)
+    const [sectorPeersLoading, setSectorPeersLoading] = useState(false)
     const closeDetail = () => {
         setSelectedDetail(null)
         setShowMoreSecModalExcerpts(false)
@@ -38,6 +43,32 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
         setShowMoreSecModalExcerpts(false)
         setExpandedExcerptIndex(null)
         setSelectedDetail({ type: 'SEC', data: filing })
+    }
+
+    const loadSectorPeers = async () => {
+        const sector = company.sector || data.sector
+        if (!sector) return
+        setSectorPeersLoading(true)
+        setSectorPeers(null)
+        try {
+            const res = await fetch(`${API_BASE}/api/query/execute`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    question: `Show me all companies in the ${sector} sector with their market data and market cap`,
+                    conversation_history: []
+                })
+            })
+            if (!res.ok) throw new Error(res.statusText)
+            const json = await res.json()
+            const list = json?.results ?? []
+            setSectorPeers(Array.isArray(list) ? list : [])
+        } catch (e) {
+            console.error('[CompanyWorkup] Sector peers fetch failed:', e)
+            setSectorPeers([])
+        } finally {
+            setSectorPeersLoading(false)
+        }
     }
 
     // Extract nested data - handle both Company-centric and Filing-centric queries - handle both Company-centric and Filing-centric queries
@@ -542,16 +573,36 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                 </div>
             </div>
 
-            {/* Stack up in sector - placeholder for sector peer comparison */}
+            {/* Stack up in sector - compare to sector peers */}
             {(company.sector || data.sector) && (
                 <div className="rounded-lg border border-gold/20 bg-gold/5 px-4 py-3">
                     <div className="flex items-center justify-between">
                         <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Sector</span>
                         <span className="text-xs text-gold">{company.sector || data.sector}</span>
                     </div>
-                    <p className="mt-2 text-[11px] text-gray-500">
-                        Compare to sector peers — coming soon. Use &quot;Compare Peer&quot; above for now.
-                    </p>
+                    <div className="mt-2 flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={loadSectorPeers}
+                            disabled={sectorPeersLoading}
+                            className="text-xs font-semibold text-gold hover:text-gold/80 border border-gold/30 rounded-lg px-3 py-1.5 bg-gold/10 hover:bg-gold/20 transition-all disabled:opacity-50"
+                        >
+                            {sectorPeersLoading ? 'Loading…' : 'Compare to sector peers'}
+                        </button>
+                        {onCompare && (company.ticker || data.ticker) && (
+                            <button type="button" onClick={() => onCompare?.(company.ticker || data.ticker)} className="text-[11px] text-amber-400 hover:text-amber-300">
+                                Compare to another company →
+                            </button>
+                        )}
+                    </div>
+                    {sectorPeers && sectorPeers.length > 0 && (
+                        <div className="mt-4">
+                            <SectorComparison companies={sectorPeers} title={`${company.sector || data.sector} peers`} />
+                        </div>
+                    )}
+                    {sectorPeers && sectorPeers.length === 0 && !sectorPeersLoading && (
+                        <p className="mt-2 text-[11px] text-gray-500">No sector peers returned. Try again or use Compare Peer above.</p>
+                    )}
                 </div>
             )}
 
@@ -733,8 +784,18 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
 
             </div>
 
-            {/* Options Activity */}
-            {optionsFlow.length > 0 && (
+            {/* Options Activity - tracker-style summary + last 50 with scroll */}
+            {optionsFlow.length > 0 && (() => {
+                const latest = optionsFlow[0]
+                const pc = latest.put_call_ratio ?? latest.put_call_volume_ratio
+                const stance = pc != null ? (pc > 1 ? 'Bearish' : pc < 0.7 ? 'Bullish' : 'Neutral') : null
+                const putVol = latest.put_volume != null ? latest.put_volume : 0
+                const callVol = latest.call_volume != null ? latest.call_volume : 0
+                const putPrem = latest.put_premium != null ? Number(latest.put_premium) : 0
+                const callPrem = latest.call_premium != null ? Number(latest.call_premium) : 0
+                const fmtNum = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 0 })
+                const fmtDollars = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : `$${fmtNum(n)}`
+                return (
                 <div className="mt-4">
                     <div className="bg-dark-900/40 border border-green-500/10 rounded-xl p-4 shadow-xl backdrop-blur-sm">
                         <div className="flex items-center justify-between mb-3">
@@ -743,42 +804,60 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                 Options Activity
                             </h3>
                             <span className="text-[10px] text-gray-500 font-mono">
-                                {(() => {
-                                    const pc = optionsFlow[0].put_call_ratio ?? optionsFlow[0].put_call_volume_ratio;
-                                    if (pc != null) {
-                                        const stance = pc > 1 ? 'Bearish' : pc < 0.7 ? 'Bullish' : 'Neutral';
-                                        return `${stance} positioning, P/C ${Number(pc).toFixed(2)}`;
-                                    }
-                                    const first = optionsFlow[optionsFlow.length - 1]?.date;
-                                    const last = optionsFlow[0]?.date;
-                                    if (first && last) return `${first} – ${last}`;
-                                    return `Last ${optionsFlow.length} days`;
-                                })()}
+                                {stance ? `${stance} · P/C ${Number(pc).toFixed(2)}` : `Last ${optionsFlow.length} days`}
                             </span>
                         </div>
-                        <div className="overflow-x-auto">
+                        {/* Summary bar - tracker style */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 p-3 rounded-lg bg-dark-800/50 border border-green-500/10">
+                            <div>
+                                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Put/Call</div>
+                                <div className="font-mono text-white font-semibold">{pc != null ? Number(pc).toFixed(2) : '—'}</div>
+                                {stance && <div className={`text-[10px] ${stance === 'Bullish' ? 'text-green-400' : stance === 'Bearish' ? 'text-red-400' : 'text-gray-400'}`}>{stance}</div>}
+                            </div>
+                            <div>
+                                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Puts</div>
+                                <div className="font-mono text-red-300">{fmtNum(putVol)} contracts</div>
+                                {putPrem > 0 && <div className="font-mono text-[10px] text-gray-400">{fmtDollars(putPrem)}</div>}
+                            </div>
+                            <div>
+                                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Calls</div>
+                                <div className="font-mono text-green-300">{fmtNum(callVol)} contracts</div>
+                                {callPrem > 0 && <div className="font-mono text-[10px] text-gray-400">{fmtDollars(callPrem)}</div>}
+                            </div>
+                            <div>
+                                <div className="text-[10px] text-gray-500 uppercase tracking-wider">IV</div>
+                                <div className="font-mono text-white">{(latest.implied_volatility ?? latest.iv_avg) != null ? (Number(latest.implied_volatility ?? latest.iv_avg) * 100).toFixed(1) + '%' : '—'}</div>
+                            </div>
+                        </div>
+                        <div className="max-h-[400px] overflow-y-auto overflow-x-auto border border-white/5 rounded-lg">
                             <table className="w-full text-xs">
-                                <thead>
+                                <thead className="sticky top-0 bg-dark-900 z-10">
                                     <tr className="border-b border-green-500/10">
                                         <th className="text-left text-gray-300 font-semibold pb-2 px-2">Date</th>
                                         <th className="text-right text-gray-300 font-semibold pb-2 px-2">P/C Ratio</th>
                                         <th className="text-right text-gray-300 font-semibold pb-2 px-2">Call Vol</th>
                                         <th className="text-right text-gray-300 font-semibold pb-2 px-2">Put Vol</th>
                                         <th className="text-right text-gray-300 font-semibold pb-2 px-2">Total Vol</th>
+                                        <th className="text-right text-gray-300 font-semibold pb-2 px-2">Call $</th>
+                                        <th className="text-right text-gray-300 font-semibold pb-2 px-2">Put $</th>
                                         <th className="text-right text-gray-300 font-semibold pb-2 px-2">IV</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {optionsFlow.slice(0, 20).map((row: any, i: number) => {
-                                        const pc = row.put_call_ratio ?? row.put_call_volume_ratio;
-                                        const iv = row.implied_volatility ?? row.iv_avg;
+                                    {optionsFlow.slice(0, 50).map((row: any, i: number) => {
+                                        const rowPc = row.put_call_ratio ?? row.put_call_volume_ratio
+                                        const iv = row.implied_volatility ?? row.iv_avg
+                                        const rowCallPrem = row.call_premium != null ? Number(row.call_premium) : null
+                                        const rowPutPrem = row.put_premium != null ? Number(row.put_premium) : null
                                         return (
                                         <tr key={i} className="border-b border-white/5 hover:bg-green-500/5 transition-colors">
                                             <td className="py-2 px-2 text-gray-300 font-mono">{row.date || '—'}</td>
-                                            <td className="py-2 px-2 text-right font-mono text-gray-200">{pc != null ? Number(pc).toFixed(2) : '—'}</td>
+                                            <td className="py-2 px-2 text-right font-mono text-gray-200">{rowPc != null ? Number(rowPc).toFixed(2) : '—'}</td>
                                             <td className="py-2 px-2 text-right font-mono text-gray-200">{row.call_volume != null ? row.call_volume.toLocaleString() : '—'}</td>
                                             <td className="py-2 px-2 text-right font-mono text-gray-200">{row.put_volume != null ? row.put_volume.toLocaleString() : '—'}</td>
                                             <td className="py-2 px-2 text-right font-mono text-gray-200">{row.total_volume != null ? row.total_volume.toLocaleString() : '—'}</td>
+                                            <td className="py-2 px-2 text-right font-mono text-gray-200">{rowCallPrem != null ? rowCallPrem.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '—'}</td>
+                                            <td className="py-2 px-2 text-right font-mono text-gray-200">{rowPutPrem != null ? rowPutPrem.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '—'}</td>
                                             <td className="py-2 px-2 text-right font-mono text-gray-200">{iv != null ? (Number(iv) * 100).toFixed(1) + '%' : '—'}</td>
                                         </tr>
                                         );
@@ -788,7 +867,8 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                         </div>
                     </div>
                 </div>
-            )}
+                )
+            })()}
 
             {/* Full Financial Statements Viewer (first in deep section) */}
             {secXbrlData.length > 0 && (
@@ -806,20 +886,20 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                 </div>
                             </div>
 
-                            {/* Period Selector */}
+                            {/* Period Selector - show year/quarter and filed date clearly */}
                             <div className="flex items-center gap-2 overflow-x-auto">
                                 {secXbrlData.map((xbrl: any, i: number) => (
                                     <button
                                         key={i}
                                         onClick={() => setSelectedXbrlIndex(i)}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                                        className={`px-3 py-2 rounded-lg text-xs font-semibold text-left transition-all flex flex-col items-start min-w-0 ${
                                             selectedXbrlIndex === i
                                                 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
                                                 : 'bg-dark-800/50 text-gray-400 border border-white/5 hover:border-emerald-500/20'
                                         }`}
                                     >
-                                        {xbrl.filing_type} FY{xbrl.fiscal_year}
-                                        {xbrl.filing_date && <span className="ml-1.5 text-[10px] text-gray-400">· Filed {xbrl.filing_date}</span>}
+                                        <span className="whitespace-nowrap">{xbrl.filing_type} FY{xbrl.fiscal_year}</span>
+                                        <span className="text-[10px] text-gray-500 font-normal mt-0.5">{xbrl.filing_date ? `Filed ${xbrl.filing_date}` : '—'}</span>
                                     </button>
                                 ))}
                             </div>

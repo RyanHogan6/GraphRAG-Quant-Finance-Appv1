@@ -40,7 +40,7 @@ export default function SECDocumentViewer({
     xbrlData,
     ticker,
     onSelectFiling,
-    showFullAmounts = false
+    showFullAmounts = true
 }: SECDocumentViewerProps) {
     const [activeTab, setActiveTab] = useState<SECDocumentTab>('filings')
     const [filterYear, setFilterYear] = useState<string>('all')

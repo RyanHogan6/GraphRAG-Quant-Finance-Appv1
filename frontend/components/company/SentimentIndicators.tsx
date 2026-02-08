@@ -102,7 +102,7 @@ export default function SentimentIndicators({
       score += fcfScore
       factors.push({
         name: 'FCF',
-        value: `$${(latest.freeCashflow / 1e9).toFixed(1)}B`,
+        value: latest.freeCashflow >= 1e9 ? `$${(latest.freeCashflow / 1e9).toFixed(2)}B` : `$${Number(latest.freeCashflow).toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
         impact: latest.freeCashflow > 1e9 ? 'bullish' : latest.freeCashflow < 0 ? 'bearish' : 'neutral'
       })
     }

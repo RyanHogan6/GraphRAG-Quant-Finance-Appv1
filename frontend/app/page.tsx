@@ -710,13 +710,12 @@ export default function HomePage() {
     const results = message.results || []
     const queryPlan = message.queryPlan
 
-    // Check if it's a company overview
+    // Check if it's a company overview (two follow-ups; sector comparison available in-workup)
     if (results.length === 1 && results[0].ticker) {
       const ticker = results[0].ticker
       return [
         `What prediction markets mention ${ticker}?`,
         `Show me ${ticker} options flow activity`,
-        `Compare ${ticker} to its sector peers`,
       ]
     }
 

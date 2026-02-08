@@ -116,9 +116,9 @@ export default function EnrichedResultsDisplay({ data, question }: EnrichedResul
                 const latestOptions = options.data[0]
 
                 if (latestOptions.unusual_total_activity) {
-                    analysis.push(`<strong class="text-orange-400">Insider Trading Watch:</strong> Unusual options activity detected following ${recentAwards.length} recent government contracts worth $${(totalValue / 1e6).toFixed(1)}M. Monitor for Form 4 insider disclosures in next 2 business days per SEC Rule 10b5-1 requirements.`)
+                    analysis.push(`<strong class="text-orange-400">Insider Trading Watch:</strong> Unusual options activity detected following ${recentAwards.length} recent government contracts worth $${Number(totalValue).toLocaleString('en-US', { maximumFractionDigits: 0 })}. Monitor for Form 4 insider disclosures in next 2 business days per SEC Rule 10b5-1 requirements.`)
                 } else if (recentAwards.length >= 2) {
-                    analysis.push(`<strong class="text-blue-400">Contract Momentum:</strong> ${ticker} secured ${recentAwards.length} government contracts totaling $${(totalValue / 1e6).toFixed(1)}M in the last 90 days. Options flow remains within normal ranges, suggesting awards are priced in or contract values are immaterial to market cap.`)
+                    analysis.push(`<strong class="text-blue-400">Contract Momentum:</strong> ${ticker} secured ${recentAwards.length} government contracts totaling $${Number(totalValue).toLocaleString('en-US', { maximumFractionDigits: 0 })} in the last 90 days. Options flow remains within normal ranges, suggesting awards are priced in or contract values are immaterial to market cap.`)
                 }
             }
         }
@@ -134,7 +134,7 @@ export default function EnrichedResultsDisplay({ data, question }: EnrichedResul
 
             if (recentSec.length > 0 && awards.data.length > 0) {
                 const totalAwardValue = awards.data.reduce((sum: number, a: any) => sum + (a.award_amount_float || 0), 0)
-                analysis.push(`<strong class="text-purple-400">Cross-Domain Validation:</strong> ${ticker} discloses ${recentSec.length} SEC filings in the last 6 months while holding $${(totalAwardValue / 1e6).toFixed(1)}M in government contracts. This enables verification of revenue recognition claims in 10-K/10-Q against actual awarded contract values.`)
+                analysis.push(`<strong class="text-purple-400">Cross-Domain Validation:</strong> ${ticker} discloses ${recentSec.length} SEC filings in the last 6 months while holding $${Number(totalAwardValue).toLocaleString('en-US', { maximumFractionDigits: 0 })} in government contracts. This enables verification of revenue recognition claims in 10-K/10-Q against actual awarded contract values.`)
             }
         }
 

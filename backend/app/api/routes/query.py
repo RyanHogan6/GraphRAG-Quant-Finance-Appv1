@@ -464,7 +464,7 @@ def enrich_single_company_results(results: List[Dict], query_plan: Dict) -> List
             FOR xbrl IN sec_xbrl_data
               FILTER xbrl.ticker == @ticker
               SORT xbrl.filing_date DESC
-              LIMIT 10
+              LIMIT 50
               RETURN xbrl
             """
             data, _ = execute_aql(query, {"ticker": ticker})
