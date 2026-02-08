@@ -309,7 +309,9 @@ export default function SECDocumentViewer({
             <div className="flex flex-1 min-h-[200px] max-h-[280px] shrink-0">
                 <div className="w-1/2 border-r border-white/10 overflow-y-auto p-4 bg-dark-800/30">
                     <h4 className="text-[10px] text-gold uppercase tracking-wider font-bold mb-2">Document details</h4>
-                    {selectedDoc ? (
+                    {selectedDoc ? (() => {
+                        const desc = selectedDoc.item.description != null ? selectedDoc.item.description : (selectedDoc.snippet || '—')
+                        return (
                         <div className="space-y-1.5 text-xs">
                             <div><span className="text-gray-500">Form Type:</span> <span className="text-white">{selectedDoc.formType || '—'}</span></div>
                             <div><span className="text-gray-500">File Date:</span> <span className="text-white">{selectedDoc.date || '—'}</span></div>
@@ -318,7 +320,7 @@ export default function SECDocumentViewer({
                             )}
                             <div><span className="text-gray-500">Doc Type:</span> <span className="text-white">{selectedDoc.docType || '—'}</span></div>
                             <div><span className="text-gray-500">Name:</span> <span className="text-white truncate block">{selectedDoc.item.filename ?? selectedDoc.name || '—'}</span></div>
-                            <div><span className="text-gray-500">Description:</span> <span className="text-gray-300 text-[10px] block line-clamp-2">{selectedDoc.item.description ?? selectedDoc.snippet || '—'}</span></div>
+                            <div><span className="text-gray-500">Description:</span> <span className="text-gray-300 text-[10px] block line-clamp-2">{desc}</span></div>
                             {selectedDoc.item.accession && (
                                 <div><span className="text-gray-500">Accession:</span> <span className="text-gray-400 font-mono text-[10px]">{selectedDoc.item.accession}</span></div>
                             )}
@@ -328,7 +330,8 @@ export default function SECDocumentViewer({
                                 </a>
                             )}
                         </div>
-                    ) : (
+                        )
+                    })() : (
                         <p className="text-gray-500 text-xs">Select a row above to view details</p>
                     )}
                 </div>
