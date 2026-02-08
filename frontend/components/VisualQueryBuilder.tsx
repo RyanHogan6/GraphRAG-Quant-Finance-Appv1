@@ -568,7 +568,7 @@ export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps)
                         </div>
 
                         {/* Semantic Search: hidden until AQL generation supports embedding search (COSINE_SIMILARITY + bind param) */}
-                        {false && sourceNode.supportsSemanticSearch && (
+                        {false && sourceNode?.supportsSemanticSearch && (
                             <div className="space-y-3 pt-2 border-t border-blue-500/20 bg-blue-500/5 -mx-4 px-4 py-3 rounded-lg">
                                 <div className="flex items-center gap-2 mb-2">
                                     <span className="text-xs font-semibold text-blue-300 uppercase tracking-wider">Semantic Search</span>
