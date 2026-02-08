@@ -119,10 +119,14 @@ export default function HomePage() {
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null)
   const [collectionData, setCollectionData] = useState<any[]>([])
 
-  // Auto-scroll logic
+  // Auto-scroll: when overview is ready, show top of output; when loading, follow bottom
   useEffect(() => {
-    if (chatScrollRef.current) {
-      const scrollContainer = chatScrollRef.current
+    if (!chatScrollRef.current) return
+    const scrollContainer = chatScrollRef.current
+    const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null
+    if (!isLoading && lastMsg?.role === 'assistant') {
+      scrollContainer.scrollTop = 0
+    } else {
       scrollContainer.scrollTop = scrollContainer.scrollHeight
     }
   }, [messages, isLoading])
