@@ -566,11 +566,33 @@ def detect_time_series_query(results: list, query_plan: dict):
     return has_date and has_price_fields and is_market_data
 
 
+def extract_year_from_question(question: str) -> Optional[int]:
+    """Extract a calendar year when the question implies financials/results for that year (e.g. '2025 financials')."""
+    if not question or not question.strip():
+        return None
+    q = question.strip().lower()
+    # When user asks about financials/results/performance for a year, use that full year
+    if 'financial' in q or 'fy ' in q or 'fy' in q or 'result' in q or 'performance' in q:
+        years = re.findall(r'\b(20[0-3]\d|19[9]\d)\b', q)
+        if years:
+            return int(years[0])
+    return None
+
+
 def format_time_series_analysis(user_question: str, results: list, query_plan: dict):
     """Format time series data with statistics and chart-ready format"""
 
     if not results:
         return "No data found for the specified time period."
+
+    # If user asked for a specific year (e.g. "2025 financials"), filter to that full year
+    requested_year = extract_year_from_question(user_question)
+    if requested_year:
+        year_start = f"{requested_year}-01-01"
+        year_end = f"{requested_year}-12-31"
+        results = [r for r in results if year_start <= (r.get('date') or '') <= year_end]
+        if not results:
+            return f"No market data found for {requested_year}. Try a different year or check the date range."
 
     # Sort by date
     sorted_results = sorted(results, key=lambda x: x.get('date', ''))

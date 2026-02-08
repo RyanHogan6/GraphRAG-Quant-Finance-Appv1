@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import SECFilingsExplorer from './SECFilingsExplorer'
 
 export type SECDocumentTab = 'filings' | 'exhibits' | 'xbrl'
 
@@ -34,6 +33,8 @@ function getFiscalYearQuarter(xbrl: any): { year: number; quarter: number } | nu
     return { year, quarter: q ?? 4 }
 }
 
+type UnifiedDoc = { kind: 'filing' | 'exhibit' | 'xbrl'; date: string; formType: string; docType: string; name: string; snippet: string; item: any }
+
 export default function SECDocumentViewer({
     filings,
     exhibits,
@@ -42,9 +43,11 @@ export default function SECDocumentViewer({
     onSelectFiling,
     showFullAmounts = true
 }: SECDocumentViewerProps) {
-    const [activeTab, setActiveTab] = useState<SECDocumentTab>('filings')
     const [filterYear, setFilterYear] = useState<string>('all')
     const [filterQuarter, setFilterQuarter] = useState<string>('all')
+    const [filterFormType, setFilterFormType] = useState<string>('all')
+    const [searchQuery, setSearchQuery] = useState('')
+    const [selectedDoc, setSelectedDoc] = useState<UnifiedDoc | null>(null)
     const [expandedXbrlIndex, setExpandedXbrlIndex] = useState<number | null>(null)
 
     const years = useMemo(() => {
@@ -116,6 +119,75 @@ export default function SECDocumentViewer({
     }
     const exhibitDate = (ex: any) => ex.filing_date || ex.filed_date || ex.parent_filing_date || '—'
 
+    const unifiedList = useMemo((): UnifiedDoc[] => {
+        const list: UnifiedDoc[] = []
+        filteredFilings.forEach((f: any) => {
+            const sent = (f.top_sentences || f.sec_sentences)?.[0]
+            const snippet = (sent?.text || '').toString().slice(0, 60)
+            list.push({
+                kind: 'filing',
+                date: f.filing_date || '',
+                formType: f.type || f.form_type || 'Filing',
+                docType: '',
+                name: `${f.type || f.form_type || 'Filing'} ${f.filing_date || ''}`,
+                snippet: snippet ? snippet + (snippet.length >= 60 ? '…' : '') : '—',
+                item: f
+            })
+        })
+        filteredExhibits.forEach((ex: any) => {
+            const desc = (ex.description || ex.text || 'Exhibit').toString().slice(0, 60)
+            list.push({
+                kind: 'exhibit',
+                date: ex.filing_date || ex.filed_date || '',
+                formType: ex.filing_type || '',
+                docType: ex.exhibit_type || 'Exhibit',
+                name: ex.filename || ex.exhibit_type || 'Exhibit',
+                snippet: desc + (desc.length >= 60 ? '…' : ''),
+                item: ex
+            })
+        })
+        filteredXbrl.forEach((x: any) => {
+            const conceptCount = [x.debt, x.costs, x.revenue_segments].filter(Boolean).length
+            list.push({
+                kind: 'xbrl',
+                date: x.filing_date || '',
+                formType: x.filing_type || 'XBRL',
+                docType: 'XBRL',
+                name: `${x.filing_type} FY${x.fiscal_year ?? '—'}`,
+                snippet: `${conceptCount} concepts`,
+                item: x
+            })
+        })
+        list.sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+        return list
+    }, [filteredFilings, filteredExhibits, filteredXbrl])
+
+    const formTypesForFilter = useMemo(() => {
+        const set = new Set<string>()
+        unifiedList.forEach(d => {
+            if (d.formType) set.add(d.formType)
+            if (d.docType) set.add(d.docType)
+        })
+        return ['all', ...Array.from(set).sort()]
+    }, [unifiedList])
+
+    const filteredUnifiedList = useMemo(() => {
+        let out = unifiedList
+        if (filterFormType !== 'all') {
+            out = out.filter(d => d.formType === filterFormType || d.docType === filterFormType)
+        }
+        if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase()
+            out = out.filter(d =>
+                (d.name || '').toLowerCase().includes(q) ||
+                (d.snippet || '').toLowerCase().includes(q) ||
+                (d.formType || '').toLowerCase().includes(q) ||
+                (d.docType || '').toLowerCase().includes(q)
+            )
+        }
+        return out
+    }, [unifiedList, filterFormType, searchQuery])
+
     type ExhibitGroup = { type: string; exhibits: any[] }
     const groupedExhibits = useMemo(() => {
         const initialGroups: ExhibitGroup[] = []
@@ -140,212 +212,170 @@ export default function SECDocumentViewer({
         )
     }
 
-    const tabs: { id: SECDocumentTab; label: string }[] = [
-        { id: 'filings', label: 'Filings' },
-        { id: 'exhibits', label: 'Exhibits & contracts' },
-        { id: 'xbrl', label: 'Financial breakdowns (XBRL)' }
-    ]
+    const handleSelectRow = (doc: UnifiedDoc) => {
+        setSelectedDoc(d)
+        if (doc.kind === 'filing' && onSelectFiling) onSelectFiling(doc.item)
+    }
 
     return (
-        <div className="bg-dark-900/40 border border-gold/10 rounded-xl overflow-hidden shadow-xl backdrop-blur-sm">
-            {/* Toolbar: period filter + doc type tabs */}
-            <div className="p-3 border-b border-white/10 bg-dark-800/50 space-y-3">
+        <div className="bg-dark-900/40 border border-gold/10 rounded-xl overflow-hidden shadow-xl backdrop-blur-sm flex flex-col max-h-[700px]">
+            {/* Top: Filters */}
+            <div className="p-3 border-b border-white/10 bg-dark-800/50 space-y-2 shrink-0">
                 <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">Find by period</span>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">Year</span>
                     <select
                         value={filterYear}
                         onChange={(e) => setFilterYear(e.target.value)}
                         className="px-2 py-1.5 bg-dark-800 border border-white/10 rounded text-xs text-white focus:border-gold/30 outline-none"
                     >
-                        <option value="all">All years</option>
+                        <option value="all">Any</option>
                         {years.map(y => (
                             <option key={y} value={String(y)}>{y}</option>
                         ))}
                     </select>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider ml-1">Quarter</span>
                     <select
                         value={filterQuarter}
                         onChange={(e) => setFilterQuarter(e.target.value)}
                         className="px-2 py-1.5 bg-dark-800 border border-white/10 rounded text-xs text-white focus:border-gold/30 outline-none"
                     >
-                        <option value="all">All quarters</option>
+                        <option value="all">Any</option>
                         <option value="1">Q1</option>
                         <option value="2">Q2</option>
                         <option value="3">Q3</option>
                         <option value="4">Q4</option>
                     </select>
-                </div>
-                <div className="flex gap-1 border-b border-white/5 pb-0">
-                    {tabs.map(({ id, label }) => (
-                        <button
-                            key={id}
-                            type="button"
-                            onClick={() => setActiveTab(id)}
-                            className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-all border-b-2 -mb-px ${
-                                activeTab === id
-                                    ? 'text-gold border-gold'
-                                    : 'text-gray-500 border-transparent hover:text-gray-300'
-                            }`}
-                        >
-                            {label}
-                        </button>
-                    ))}
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider ml-1">Form / Doc type</span>
+                    <select
+                        value={filterFormType}
+                        onChange={(e) => setFilterFormType(e.target.value)}
+                        className="px-2 py-1.5 bg-dark-800 border border-white/10 rounded text-xs text-white focus:border-gold/30 outline-none"
+                    >
+                        <option value="all">Any</option>
+                        {formTypesForFilter.filter(f => f !== 'all').map(ft => (
+                            <option key={ft} value={ft}>{ft}</option>
+                        ))}
+                    </select>
+                    <input
+                        type="text"
+                        placeholder="Search..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="ml-2 px-2 py-1.5 bg-dark-800 border border-white/10 rounded text-xs text-white placeholder-gray-500 focus:border-gold/30 outline-none w-32"
+                    />
                 </div>
             </div>
 
-            <div className="p-4 min-h-[200px]">
-                {activeTab === 'filings' && (
-                    <>
-                        {filteredFilings.length === 0 ? (
-                            <div className="text-center py-8 text-gray-500 text-xs">No filings for selected period</div>
-                        ) : (
-                            <SECFilingsExplorer filings={filteredFilings} ticker={ticker} onSelectFiling={onSelectFiling} />
-                        )}
-                    </>
+            {/* Middle: Unified document list */}
+            <div className="flex-1 min-h-0 overflow-auto border-b border-white/10">
+                <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-dark-800 z-10 border-b border-gold/20">
+                        <tr>
+                            <th className="text-left text-gray-300 font-semibold py-2 px-2 w-16">Type</th>
+                            <th className="text-left text-gray-300 font-semibold py-2 px-2 w-20">Date</th>
+                            <th className="text-left text-gray-300 font-semibold py-2 px-2 w-20">Form Type</th>
+                            <th className="text-left text-gray-300 font-semibold py-2 px-2 w-24">Doc Type</th>
+                            <th className="text-left text-gray-300 font-semibold py-2 px-2">Name / Description</th>
+                            <th className="text-left text-gray-300 font-semibold py-2 px-2 max-w-[200px]">Text</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filteredUnifiedList.map((doc, i) => {
+                            const isSelected = selectedDoc === doc
+                            const typeLabel = doc.kind === 'filing' ? 'Filing' : doc.kind === 'exhibit' ? 'Exhibit' : 'XBRL'
+                            return (
+                                <tr
+                                    key={`${doc.kind}-${i}-${doc.date}-${doc.name}`}
+                                    onClick={() => handleSelectRow(doc)}
+                                    className={`border-b border-white/5 cursor-pointer transition-colors ${isSelected ? 'bg-gold/20 border-l-2 border-l-gold' : 'hover:bg-white/5'}`}
+                                >
+                                    <td className="py-2 px-2 font-mono text-[10px] text-gray-400">{typeLabel}</td>
+                                    <td className="py-2 px-2 text-gray-300">{doc.date || '—'}</td>
+                                    <td className="py-2 px-2 text-gold/90 font-medium">{doc.formType || '—'}</td>
+                                    <td className="py-2 px-2 text-gray-400">{doc.docType || '—'}</td>
+                                    <td className="py-2 px-2 text-white truncate max-w-[180px]" title={doc.name}>{doc.name || '—'}</td>
+                                    <td className="py-2 px-2 text-gray-500 truncate max-w-[200px]" title={doc.snippet}>{doc.snippet || '—'}</td>
+                                </tr>
+                            )
+                        })}
+                    </tbody>
+                </table>
+                {filteredUnifiedList.length === 0 && (
+                    <div className="text-center py-6 text-gray-500 text-xs">No documents match filters</div>
                 )}
+            </div>
 
-                {activeTab === 'exhibits' && (
-                    <>
-                        {filteredExhibits.length === 0 ? (
-                            <div className="text-center py-8 text-gray-500 text-xs">No exhibits for selected period</div>
-                        ) : (
-                            <div>
-                                <p className="text-[10px] text-gray-500 mb-3">
-                                    EX-10 = material contracts, EX-4 = debt instruments, EX-21 = subsidiaries, EX-99 = additional exhibits.
-                                </p>
-                                {secCompanyUrl && (
-                                    <a href={secCompanyUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-purple-400 hover:text-purple-300 mb-3 inline-block">
-                                        View {ticker} on SEC EDGAR →
-                                    </a>
-                                )}
-                                <div className="overflow-x-auto space-y-4">
-                                    {groupedExhibits.map(({ type, exhibits: exList }) => (
-                                        <div key={type}>
-                                            <div className="text-[10px] text-purple-400/80 font-semibold uppercase tracking-wider mb-1.5">
-                                                {type}
-                                                {exhibitTypeHint[type] && <span className="text-gray-500 font-normal normal-case ml-1.5">— {exhibitTypeHint[type]}</span>}
+            {/* Bottom: Detail (left) + Content (right) */}
+            <div className="flex flex-1 min-h-[200px] max-h-[280px] shrink-0">
+                <div className="w-1/2 border-r border-white/10 overflow-y-auto p-4 bg-dark-800/30">
+                    <h4 className="text-[10px] text-gold uppercase tracking-wider font-bold mb-2">Document details</h4>
+                    {selectedDoc ? (
+                        <div className="space-y-1.5 text-xs">
+                            <div><span className="text-gray-500">Form Type:</span> <span className="text-white">{selectedDoc.formType || '—'}</span></div>
+                            <div><span className="text-gray-500">File Date:</span> <span className="text-white">{selectedDoc.date || '—'}</span></div>
+                            {(selectedDoc.formType === '10-K' || selectedDoc.formType === '10-Q') && (
+                                <div><span className="text-gray-500">Period:</span> <span className="text-white">{selectedDoc.kind === 'xbrl' ? `FY${selectedDoc.item.fiscal_year ?? '—'}` : selectedDoc.date || '—'}</span></div>
+                            )}
+                            <div><span className="text-gray-500">Doc Type:</span> <span className="text-white">{selectedDoc.docType || '—'}</span></div>
+                            <div><span className="text-gray-500">Name:</span> <span className="text-white truncate block">{selectedDoc.item.filename ?? selectedDoc.name || '—'}</span></div>
+                            <div><span className="text-gray-500">Description:</span> <span className="text-gray-300 text-[10px] block line-clamp-2">{selectedDoc.item.description ?? selectedDoc.snippet || '—'}</span></div>
+                            {selectedDoc.item.accession && (
+                                <div><span className="text-gray-500">Accession:</span> <span className="text-gray-400 font-mono text-[10px]">{selectedDoc.item.accession}</span></div>
+                            )}
+                            {secCompanyUrl && (
+                                <a href={secCompanyUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-gold hover:text-gold/80 text-[10px] font-semibold">
+                                    Open on SEC EDGAR →
+                                </a>
+                            )}
+                        </div>
+                    ) : (
+                        <p className="text-gray-500 text-xs">Select a row above to view details</p>
+                    )}
+                </div>
+                <div className="w-1/2 overflow-y-auto p-4 bg-dark-900/50">
+                    <h4 className="text-[10px] text-gold uppercase tracking-wider font-bold mb-2">Content</h4>
+                    {selectedDoc ? (
+                        <>
+                            {secCompanyUrl && (
+                                <a href={secCompanyUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gold/20 border border-gold/40 text-gold text-xs font-semibold hover:bg-gold/30 mb-3">
+                                    View full document on SEC EDGAR →
+                                </a>
+                            )}
+                            {selectedDoc.kind === 'xbrl' && (
+                                <div className="space-y-2 text-xs">
+                                    {selectedDoc.item.revenue_segments && Object.keys(selectedDoc.item.revenue_segments).length > 0 && (
+                                        <div>
+                                            <div className="text-[10px] text-cyan-400 font-bold uppercase mb-1">Revenue</div>
+                                            <div className="grid grid-cols-2 gap-1">
+                                                {Object.entries(selectedDoc.item.revenue_segments).slice(0, 3).map(([k, v]: [string, any]) => (
+                                                    <div key={k} className="flex justify-between"><span className="text-gray-400 truncate">{k}</span><span className="text-white font-mono">{showFullAmounts ? `$${Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : `$${(v / 1e6).toFixed(1)}M`}</span></div>
+                                                ))}
                                             </div>
-                                            <table className="w-full text-xs">
-                                                <thead>
-                                                    <tr className="border-b border-purple-500/10">
-                                                        <th className="text-left text-gray-300 font-semibold pb-2 px-2">Type</th>
-                                                        <th className="text-left text-gray-300 font-semibold pb-2 px-2">Category</th>
-                                                        <th className="text-left text-gray-300 font-semibold pb-2 px-2">Description</th>
-                                                        <th className="text-center text-gray-300 font-semibold pb-2 px-2">Date</th>
-                                                        <th className="text-center text-gray-300 font-semibold pb-2 px-2">Sentiment</th>
-                                                        {secCompanyUrl && <th className="text-center text-gray-300 font-semibold pb-2 px-2 w-20" />}
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {exList.slice(0, 15).map((ex: any, i: number) => {
-                                                        const sentiment = ex.finbert_score || 0
-                                                        const sentimentColor = sentiment > 0.2 ? 'text-green-400' : sentiment < -0.2 ? 'text-red-400' : 'text-gray-400'
-                                                        return (
-                                                            <tr key={i} className="border-b border-white/5 hover:bg-purple-500/10 transition-colors">
-                                                                <td className="py-2 px-2 text-purple-300 font-mono font-semibold">{ex.exhibit_type || '—'}</td>
-                                                                <td className="py-2 px-2 text-gray-300 truncate max-w-[100px]" title={getCategoryHint(ex)}>{ex.contract_type || ex.exhibit_category || '—'}</td>
-                                                                <td className="py-2 px-2 text-gray-300 truncate max-w-[300px]" title={ex.description || ''}>{ex.description || 'Exhibit'}</td>
-                                                                <td className="py-2 px-2 text-center text-gray-400">{exhibitDate(ex)}</td>
-                                                                <td className={`py-2 px-2 text-center font-mono ${sentimentColor}`}>
-                                                                    {sentiment !== 0 ? (sentiment > 0 ? '+' : '') + sentiment.toFixed(3) : '—'}
-                                                                </td>
-                                                                {secCompanyUrl && (
-                                                                    <td className="py-2 px-2 text-center">
-                                                                        <a href={secCompanyUrl} target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 text-[10px]">
-                                                                            View on SEC
-                                                                        </a>
-                                                                    </td>
-                                                                )}
-                                                            </tr>
-                                                        )
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                            {exList.length > 15 && (
-                                                <div className="text-[10px] text-gray-500 mt-1 px-2">+ {exList.length - 15} more in this group</div>
-                                            )}
                                         </div>
-                                    ))}
+                                    )}
+                                    {selectedDoc.item.debt && Object.keys(selectedDoc.item.debt).length > 0 && (
+                                        <div>
+                                            <div className="text-[10px] text-cyan-400 font-bold uppercase mb-1">Debt</div>
+                                            <div className="grid grid-cols-2 gap-1">
+                                                {Object.entries(selectedDoc.item.debt).slice(0, 3).map(([k, v]: [string, any]) => (
+                                                    <div key={k} className="flex justify-between"><span className="text-gray-400 truncate">{k.replace(/([A-Z])/g, ' $1').trim()}</span><span className="text-white font-mono">{showFullAmounts ? `$${Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : `$${(v / 1e6).toFixed(1)}M`}</span></div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {selectedDoc.kind === 'xbrl' && !(selectedDoc.item.revenue_segments && Object.keys(selectedDoc.item.revenue_segments).length > 0) && !(selectedDoc.item.debt && Object.keys(selectedDoc.item.debt).length > 0) && (
+                                        <p className="text-gray-500">XBRL concepts available in database</p>
+                                    )}
                                 </div>
-                            </div>
-                        )}
-                    </>
-                )}
-
-                {activeTab === 'xbrl' && (
-                    <>
-                        {filteredXbrl.length === 0 ? (
-                            <div className="text-center py-8 text-gray-500 text-xs">No XBRL breakdowns for selected period</div>
-                        ) : (
-                            <div className="space-y-1">
-                                {filteredXbrl.map((xbrl: any, i: number) => {
-                                    const conceptCount = xbrl.concepts_found ?? [xbrl.debt, xbrl.costs, xbrl.revenue_segments].filter(Boolean).length
-                                    const isExpanded = expandedXbrlIndex === i
-                                    return (
-                                        <div key={i} className="bg-dark-800/50 border border-cyan-500/10 rounded-lg overflow-hidden">
-                                            <button
-                                                type="button"
-                                                onClick={() => setExpandedXbrlIndex(isExpanded ? null : i)}
-                                                className="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-left hover:bg-cyan-500/5 transition-colors"
-                                            >
-                                                <span className="text-xs font-semibold text-cyan-300">
-                                                    {xbrl.filing_type} FY{xbrl.fiscal_year}
-                                                    {xbrl.filing_date && <span className="text-gray-500 font-normal ml-1">(filed {xbrl.filing_date})</span>}
-                                                </span>
-                                                <span className="text-[10px] text-gray-500 font-mono flex-shrink-0">
-                                                    {conceptCount} concepts
-                                                </span>
-                                                <span className={`text-cyan-400 text-[10px] transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
-                                            </button>
-                                            {isExpanded && (
-                                                <div className="px-4 pb-4 pt-0 border-t border-cyan-500/10 space-y-3">
-                                                    {xbrl.has_segment_data && xbrl.revenue_segments && (
-                                                        <div>
-                                                            <div className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider mb-1">Revenue Segments</div>
-                                                            <div className="grid grid-cols-2 gap-1">
-                                                                {Object.entries(xbrl.revenue_segments).slice(0, 4).map(([key, value]: [string, any], j: number) => (
-                                                                    <div key={j} className="flex justify-between px-2 py-1 bg-dark-900/50 rounded text-[10px]">
-                                                                        <span className="text-gray-400 truncate">{key}</span>
-                                                                        <span className="text-white font-mono">{showFullAmounts ? `$${Number(value).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : `$${(value / 1e6).toFixed(1)}M`}</span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    {xbrl.debt && Object.keys(xbrl.debt).length > 0 && (
-                                                        <div>
-                                                            <div className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider mb-1">Debt & Obligations</div>
-                                                            <div className="grid grid-cols-2 gap-1">
-                                                                {Object.entries(xbrl.debt).slice(0, 4).map(([key, value]: [string, any], j: number) => (
-                                                                    <div key={j} className="flex justify-between px-2 py-1 bg-dark-900/50 rounded text-[10px]">
-                                                                        <span className="text-gray-400">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                                                                        <span className="text-white font-mono">{showFullAmounts ? `$${Number(value).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : `$${(value / 1e6).toFixed(1)}M`}</span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    {xbrl.costs && Object.keys(xbrl.costs).length > 0 && (
-                                                        <div>
-                                                            <div className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider mb-1">Operating Costs</div>
-                                                            <div className="grid grid-cols-2 gap-1">
-                                                                {Object.entries(xbrl.costs).slice(0, 4).map(([key, value]: [string, any], j: number) => (
-                                                                    <div key={j} className="flex justify-between px-2 py-1 bg-dark-900/50 rounded text-[10px]">
-                                                                        <span className="text-gray-400">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                                                                        <span className="text-white font-mono">{showFullAmounts ? `$${Number(value).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : `$${(value / 1e6).toFixed(1)}M`}</span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                        )}
-                    </>
-                )}
+                            )}
+                            {(selectedDoc.kind === 'filing' || selectedDoc.kind === 'exhibit') && (
+                                <p className="text-gray-500 text-xs">Full text is on SEC EDGAR. Use the link above to open the document.</p>
+                            )}
+                        </>
+                    ) : (
+                        <p className="text-gray-500 text-xs">Select a row to see content or open on SEC</p>
+                    )}
+                </div>
             </div>
         </div>
     )

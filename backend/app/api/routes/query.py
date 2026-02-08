@@ -463,9 +463,13 @@ def enrich_single_company_results(results: List[Dict], query_plan: Dict) -> List
             query = """
             FOR xbrl IN sec_xbrl_data
               FILTER xbrl.ticker == @ticker
-              SORT xbrl.filing_date DESC
+              LET filing = DOCUMENT('sec_filings', xbrl.filing_key)
+              SORT filing.filing_date DESC
               LIMIT 50
-              RETURN xbrl
+              RETURN MERGE(xbrl, {
+                filing_date: filing.filing_date,
+                fiscal_year: filing.filing_date ? SUBSTRING(filing.filing_date, 0, 4) : null
+              })
             """
             data, _ = execute_aql(query, {"ticker": ticker})
             return data or []
@@ -474,9 +478,13 @@ def enrich_single_company_results(results: List[Dict], query_plan: Dict) -> List
             query = """
             FOR ex IN sec_exhibits
               FILTER ex.ticker == @ticker
-              SORT ex.filing_date DESC
-              LIMIT 20
-              RETURN ex
+              LET filing = DOCUMENT('sec_filings', ex.filing_key)
+              SORT filing.filing_date DESC
+              LIMIT 50
+              RETURN MERGE(ex, {
+                filing_date: filing.filing_date,
+                accession: filing.accession
+              })
             """
             data, _ = execute_aql(query, {"ticker": ticker})
             return data or []
@@ -486,7 +494,7 @@ def enrich_single_company_results(results: List[Dict], query_plan: Dict) -> List
             FOR opt IN options_flow
               FILTER opt.ticker == @ticker
               SORT opt.date DESC
-              LIMIT 60
+              LIMIT 90
               RETURN opt
             """
             data, _ = execute_aql(query, {"ticker": ticker})

@@ -829,35 +829,38 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                 <div className="font-mono text-white">{(latest.implied_volatility ?? latest.iv_avg) != null ? (Number(latest.implied_volatility ?? latest.iv_avg) * 100).toFixed(1) + '%' : '—'}</div>
                             </div>
                         </div>
-                        <div className="max-h-[400px] overflow-y-auto overflow-x-auto border border-white/5 rounded-lg">
-                            <table className="w-full text-xs">
-                                <thead className="sticky top-0 bg-dark-900 z-10">
-                                    <tr className="border-b border-green-500/10">
-                                        <th className="text-left text-gray-300 font-semibold pb-2 px-2">Date</th>
-                                        <th className="text-right text-gray-300 font-semibold pb-2 px-2">P/C Ratio</th>
-                                        <th className="text-right text-gray-300 font-semibold pb-2 px-2">Call Vol</th>
-                                        <th className="text-right text-gray-300 font-semibold pb-2 px-2">Put Vol</th>
-                                        <th className="text-right text-gray-300 font-semibold pb-2 px-2">Total Vol</th>
-                                        <th className="text-right text-gray-300 font-semibold pb-2 px-2">Call $</th>
-                                        <th className="text-right text-gray-300 font-semibold pb-2 px-2">Put $</th>
-                                        <th className="text-right text-gray-300 font-semibold pb-2 px-2">IV</th>
+                        <div className="max-h-[400px] overflow-y-auto overflow-x-auto border border-green-500/20 rounded-lg">
+                            <table className="w-full text-xs border-collapse">
+                                <thead className="sticky top-0 bg-dark-900 z-10 border-b-2 border-green-500/30">
+                                    <tr>
+                                        <th className="text-left text-gray-300 font-semibold pb-2 pt-2 px-2">Date</th>
+                                        <th className="text-right text-gray-300 font-semibold pb-2 pt-2 px-2">P/C Ratio</th>
+                                        <th className="text-right text-gray-300 font-semibold pb-2 pt-2 px-2">Call Vol</th>
+                                        <th className="text-right text-gray-300 font-semibold pb-2 pt-2 px-2">Put Vol</th>
+                                        <th className="text-right text-gray-300 font-semibold pb-2 pt-2 px-2">Total Vol</th>
+                                        <th className="text-right text-gray-300 font-semibold pb-2 pt-2 px-2">Call $</th>
+                                        <th className="text-right text-gray-300 font-semibold pb-2 pt-2 px-2">Put $</th>
+                                        <th className="text-right text-gray-300 font-semibold pb-2 pt-2 px-2">IV</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {optionsFlow.slice(0, 50).map((row: any, i: number) => {
+                                    {optionsFlow.map((row: any, i: number) => {
                                         const rowPc = row.put_call_ratio ?? row.put_call_volume_ratio
+                                        const pcNum = rowPc != null ? Number(rowPc) : null
+                                        const pcClass = pcNum != null ? (pcNum > 1 ? 'text-red-400 font-semibold' : pcNum < 0.7 ? 'text-green-400 font-semibold' : 'text-gray-300') : 'text-gray-200'
                                         const iv = row.implied_volatility ?? row.iv_avg
                                         const rowCallPrem = row.call_premium != null ? Number(row.call_premium) : null
                                         const rowPutPrem = row.put_premium != null ? Number(row.put_premium) : null
+                                        const stripe = i % 2 === 1 ? 'bg-dark-800/40' : ''
                                         return (
-                                        <tr key={i} className="border-b border-white/5 hover:bg-green-500/5 transition-colors">
+                                        <tr key={i} className={`border-b border-white/10 hover:bg-green-500/10 transition-colors ${stripe}`}>
                                             <td className="py-2 px-2 text-gray-300 font-mono">{row.date || '—'}</td>
-                                            <td className="py-2 px-2 text-right font-mono text-gray-200">{rowPc != null ? Number(rowPc).toFixed(2) : '—'}</td>
-                                            <td className="py-2 px-2 text-right font-mono text-gray-200">{row.call_volume != null ? row.call_volume.toLocaleString() : '—'}</td>
-                                            <td className="py-2 px-2 text-right font-mono text-gray-200">{row.put_volume != null ? row.put_volume.toLocaleString() : '—'}</td>
+                                            <td className={`py-2 px-2 text-right font-mono ${pcClass}`}>{rowPc != null ? Number(rowPc).toFixed(2) : '—'}</td>
+                                            <td className="py-2 px-2 text-right font-mono text-green-300/90">{row.call_volume != null ? row.call_volume.toLocaleString() : '—'}</td>
+                                            <td className="py-2 px-2 text-right font-mono text-red-300/90">{row.put_volume != null ? row.put_volume.toLocaleString() : '—'}</td>
                                             <td className="py-2 px-2 text-right font-mono text-gray-200">{row.total_volume != null ? row.total_volume.toLocaleString() : '—'}</td>
-                                            <td className="py-2 px-2 text-right font-mono text-gray-200">{rowCallPrem != null ? rowCallPrem.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '—'}</td>
-                                            <td className="py-2 px-2 text-right font-mono text-gray-200">{rowPutPrem != null ? rowPutPrem.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '—'}</td>
+                                            <td className="py-2 px-2 text-right font-mono text-green-300/90">{rowCallPrem != null ? rowCallPrem.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '—'}</td>
+                                            <td className="py-2 px-2 text-right font-mono text-red-300/90">{rowPutPrem != null ? rowPutPrem.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '—'}</td>
                                             <td className="py-2 px-2 text-right font-mono text-gray-200">{iv != null ? (Number(iv) * 100).toFixed(1) + '%' : '—'}</td>
                                         </tr>
                                         );
@@ -898,7 +901,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                                 : 'bg-dark-800/50 text-gray-400 border border-white/5 hover:border-emerald-500/20'
                                         }`}
                                     >
-                                        <span className="whitespace-nowrap">{xbrl.filing_type} FY{xbrl.fiscal_year}</span>
+                                        <span className="whitespace-nowrap">{xbrl.filing_type} FY{xbrl.fiscal_year ?? '—'}</span>
                                         <span className="text-[10px] text-gray-500 font-normal mt-0.5">{xbrl.filing_date ? `Filed ${xbrl.filing_date}` : '—'}</span>
                                     </button>
                                 ))}
@@ -1239,7 +1242,10 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                     const sentimentLabel = avg > 0.05 ? 'Positive' : avg < -0.05 ? 'Negative' : 'Neutral';
                                     const sentimentClass = avg > 0.05 ? 'bg-green-500/20 text-green-400 border-green-500/40' : avg < -0.05 ? 'bg-red-500/20 text-red-400 border-red-500/40' : 'bg-gray-500/20 text-gray-400 border-gray-500/40';
                                     const formType = selectedDetail.data.type || selectedDetail.data.form_type || 'Filing';
-                                    const filedDate = selectedDetail.data.filing_date || 'Unknown date';
+                                    const filedDate = selectedDetail.data.filing_date ?? '—';
+                                    const secFilingUrl = company.ticker
+                                        ? `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${encodeURIComponent(company.ticker)}&type=${encodeURIComponent(formType)}&dateb=&owner=include&count=40`
+                                        : null;
                                     return (
                                         <>
                                             <div className="flex flex-wrap items-center gap-2">
@@ -1251,6 +1257,11 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                             <p className="text-xs text-gray-400">
                                                 {formType} filed on {filedDate}{company.ticker ? ` for ${company.ticker}` : ''}.
                                             </p>
+                                            {secFilingUrl && (
+                                                <a href={secFilingUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/20 border border-blue-500/40 text-blue-300 text-xs font-semibold hover:bg-blue-500/30 transition-colors">
+                                                    Open on SEC EDGAR →
+                                                </a>
+                                            )}
                                             <div>
                                                 <h5 className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-3">Key Excerpts (by sentiment)</h5>
                                                 {(selectedDetail.data.top_sentences || selectedDetail.data.sec_sentences)?.length > 0 ? (
@@ -1298,8 +1309,13 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                                         )}
                                                     </div>
                                                 ) : (
-                                                    <div className="text-xs text-gray-500 italic text-center py-6 border border-dashed border-gray-700 rounded-lg">
-                                                        No sentence-level analysis available for this filing.
+                                                    <div className="text-xs text-gray-500 text-center py-6 border border-dashed border-gray-700 rounded-lg space-y-2">
+                                                        <p className="italic">No excerpt content available for this filing.</p>
+                                                        {secFilingUrl && (
+                                                            <a href={secFilingUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/20 border border-blue-500/40 text-blue-300 font-semibold hover:bg-blue-500/30 transition-colors">
+                                                                View full document on SEC EDGAR →
+                                                            </a>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
