@@ -254,8 +254,9 @@ export default function SECDocumentViewer({
                         value={filterYear}
                         onChange={(e) => setFilterYear(e.target.value)}
                         className="px-2 py-1.5 bg-dark-800 border border-white/10 rounded text-xs text-white focus:border-gold/30 outline-none"
+                        title={years.length ? `${years.length} filing years: ${years.join(', ')}` : 'No years'}
                     >
-                        <option value="all">Any</option>
+                        <option value="all">{years.length ? `Any (${years.length} years)` : 'Any'}</option>
                         {years.map(y => (
                             <option key={y} value={String(y)}>{y}</option>
                         ))}

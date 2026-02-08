@@ -233,7 +233,7 @@ FOR company IN Company
   LET sec_filings = (
     FOR filing IN OUTBOUND company HAS_FILING
       SORT filing.filing_date DESC
-      LIMIT 20
+      LIMIT 50
       LET top_sentences = (
         FOR section IN OUTBOUND filing has_section
           FOR sentence IN OUTBOUND section has_sentence
@@ -252,7 +252,7 @@ FOR company IN Company
     FOR filing IN OUTBOUND company HAS_FILING
       FOR exhibit IN OUTBOUND filing has_exhibit
         SORT exhibit.filing_date DESC
-        LIMIT 20
+        LIMIT 50
         RETURN exhibit
   )
 
@@ -260,7 +260,7 @@ FOR company IN Company
     FOR filing IN OUTBOUND company HAS_FILING
       FOR xbrl IN OUTBOUND filing has_xbrl_data
         SORT xbrl.filing_date DESC
-        LIMIT 20
+        LIMIT 50
         RETURN xbrl
   )
 

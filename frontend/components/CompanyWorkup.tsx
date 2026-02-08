@@ -881,8 +881,9 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                 </div>
                             </div>
 
-                            {/* Period Selector - show year/quarter and filed date clearly */}
-                            <div className="flex items-center gap-2 overflow-x-auto">
+                            {/* Filing years - period selector */}
+                            <div className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold mb-2">Filing years</div>
+                            <div className="flex items-center gap-2 overflow-x-auto pb-1">
                                 {secXbrlData.map((xbrl: any, i: number) => (
                                     <button
                                         key={i}
