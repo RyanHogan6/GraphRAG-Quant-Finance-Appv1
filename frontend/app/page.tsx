@@ -1396,32 +1396,6 @@ export default function HomePage() {
                       </div>
                     )}
 
-                    {/* Follow-up Questions - Only for assistant messages */}
-                    {message.role === 'assistant' && !isLoading && idx === messages.length - 1 && (
-                      <div className="mt-4 pt-3 border-t border-gold/20">
-                        <div className="text-xs font-semibold text-gold mb-2">Continue exploring:</div>
-                        <div className="grid grid-cols-1 gap-2">
-                          {generateFollowUpQuestions(message).map((question, qIdx) => (
-                            <button
-                              key={qIdx}
-                              onClick={() => {
-                                setInput(question)
-                                setIsBuilderMode(false)
-                                setTimeout(() => {
-                                  const fakeEvent = { preventDefault: () => {} } as React.FormEvent
-                                  handleSubmit(fakeEvent)
-                                }, 100)
-                              }}
-                              className="bg-dark-800/50 border border-gold/20 rounded-lg p-2 text-left text-xs text-gray-300 hover:border-gold/50 hover:bg-dark-700 transition-all flex items-center gap-2 group"
-                            >
-                              <span className="text-gold opacity-50 group-hover:opacity-100 transition-opacity">→</span>
-                              {question}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
                     {message.webContext && (!!message.webContext.citations?.length || !!message.webContext.sources?.length) && (
                       <div className="mt-4 pt-3 border-t border-gold/20">
                         <div className="text-xs font-semibold text-gold mb-2">Sources:</div>
