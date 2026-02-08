@@ -1,7 +1,7 @@
 """
 Schema Grounding Module - Industry Standard Pattern
-Retrieves only relevant schema portions per query (not all 18 collections)
-Based on Microsoft GraphRAG + LangChain ArangoGraphQAChain patterns
+Schema-aware intent and collection selection for NL-to-AQL query planning.
+Retrieves relevant schema portions per query (not all 18 collections).
 """
 from typing import List, Dict, Any
 import sys

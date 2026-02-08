@@ -368,9 +368,17 @@ DOCUMENT COLLECTIONS:
 
 1. Company
    - ticker (string): Stock ticker symbol (e.g., "AAPL", "DG")
-   
-   ⚠️ WARNING: This collection ONLY contains ticker. No name, sector, or other fields.
+   - company (string): Full company name (when present)
+   - sector, industry (string): GICS sector/sub-industry (when present)
+   - cik (string): SEC CIK (when present)
+   - sp500_member (bool): True if current S&P 500 constituent
+   - russell2000_member (bool): True if Russell 2000 constituent
+   - nasdaq100_member (bool): True if NASDAQ-100 constituent
+   - indices (array): e.g. ["SP500","NASDAQ100"] for quick filter
    Collection name: "Company" (capital C, singular)
+   When the user asks for "Russell 2000 companies", "small caps", or "Russell 2000" → FILTER c.russell2000_member == true
+   When the user asks for "NASDAQ-100 companies", "NASDAQ 100", or "NDX" → FILTER c.nasdaq100_member == true
+   "S&P 500 companies" or "SP500" → FILTER c.sp500_member == true
 
 2. MarketData (daily OHLCV + 40+ technical/fundamental indicators)
    - ticker (string): Stock ticker

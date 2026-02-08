@@ -1898,7 +1898,7 @@ export default function HomePage() {
             {/* Overview */}
             <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 md:p-6">
               <p className="text-base md:text-lg text-gray-300 leading-relaxed mb-4">
-                KARGA combines <span className="text-gold font-semibold">Knowledge Graphs</span>, <span className="text-gold font-semibold">Retrieval Augmented Generation</span>, and <span className="text-gold font-semibold">Semantic Search</span> to provide real-time financial intelligence.
+                KARGA combines <span className="text-gold font-semibold">graph database technology</span>, <span className="text-gold font-semibold">natural language to graph query (NL-to-AQL)</span>, and <span className="text-gold font-semibold">semantic search</span> where supported to deliver financial intelligence.
               </p>
               <p className="text-sm md:text-base text-gray-400 leading-relaxed">
                 Ask questions in natural language. GPT-4 generates precise AQL graph queries across 19 interconnected collections (2M+ documents, 22 edge types). Detect insider trading with daily options flow monitoring, correlate commodity prices with company exposure, analyze sentiment from 7.5K SEC filings, and track whale positioning across 18K prediction markets.

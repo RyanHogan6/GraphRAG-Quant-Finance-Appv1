@@ -4,7 +4,7 @@ export default function About() {
       <div className="max-w-6xl mx-auto">
         <h1 className="text-3xl md:text-5xl font-bold text-gold mb-4 md:mb-6 font-mono tracking-tight">About KARGA Markets</h1>
         <p className="text-lg md:text-xl text-gray-400 mb-8 md:mb-12 font-light">
-          A technical deep-dive into AI-powered financial knowledge graphs
+          A technical deep-dive into our AI-powered natural language interface to a multi-source financial graph
         </p>
 
         <div className="space-y-16">
@@ -44,10 +44,9 @@ export default function About() {
               </div>
 
               <div className="bg-dark-800 border border-gold/30 rounded-lg p-4 md:p-6 hover:border-gold/60 transition-all">
-                <h3 className="text-lg md:text-xl font-semibold text-gold mb-3">2. Retrieval Augmented Generation</h3>
+                <h3 className="text-lg md:text-xl font-semibold text-gold mb-3">2. Natural Language to Graph Query</h3>
                 <p className="text-gray-400 text-sm leading-relaxed">
-                  AI (GPT-4) generates precise database queries from natural language, then analyzes
-                  results with full context - no hallucination, only real data.
+                  GPT-4 turns your question into precise AQL and runs it against ArangoDB. You get structured data from the graph—not retrieved passages. The model then synthesizes insights and follow-ups from those query results (and optional web search).
                 </p>
               </div>
 
@@ -78,7 +77,7 @@ export default function About() {
                 KARGA Markets is an AI-powered financial intelligence platform that transforms how analysts interact with multi-source data.
                 Built on a foundation of graph database technology and large language models, KARGA enables natural language queries across
                 traditionally siloed datasets including stock prices, government contracts, SEC filings, prediction markets, commodity futures,
-                and energy data.
+                and energy data. Questions are translated into graph queries (AQL), executed, then summarized—no document retrieval step.
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

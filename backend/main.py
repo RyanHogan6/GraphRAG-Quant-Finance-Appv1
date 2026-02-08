@@ -1,6 +1,6 @@
 """
 FastAPI main application
-GraphRAG API for financial data querying
+KARGA Query API for financial data
 """
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,8 +40,8 @@ limiter = Limiter(key_func=get_remote_address)
 
 # Create FastAPI app
 app = FastAPI(
-    title="GraphRAG API",
-    description="AI-powered graph query API for financial data",
+    title="KARGA API",
+    description="Natural language to graph query API for financial data",
     version="2.0.0"
 )
 
@@ -82,7 +82,7 @@ app.include_router(database.router, prefix="/api/database", tags=["Database"])
 def root():
     """Root endpoint"""
     return {
-        "message": "GraphRAG API",
+        "message": "KARGA API",
         "version": "1.0.0",
         "docs": "/docs"
     }

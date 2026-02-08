@@ -97,13 +97,19 @@ def get_sp500_tickers(current_only=True):
 
     return tickers
 
-def get_tickers_from_arango(current_only=True):
+def get_tickers_from_arango(current_only=True, index=None):
     """
-    Get tickers directly from ArangoDB Company collection
+    Get tickers directly from ArangoDB Company collection.
 
     Args:
-        current_only: If True (default), only return current S&P 500 members (sp500_member=true)
-                     If False, return all companies including historical
+        current_only: If True (default), return only current index members. When index is None,
+                      "current" = member of at least one index (sp500_member OR russell2000_member OR nasdaq100_member).
+                      If False, return all companies including historical.
+        index: Optional. If set to "SP500", "RUSSELL2000", or "NASDAQ100", filter to that index only.
+               Ignored when current_only is False.
+
+    Returns:
+        List of ticker strings.
     """
     from arango import ArangoClient
     from dotenv import load_dotenv
@@ -119,22 +125,43 @@ def get_tickers_from_arango(current_only=True):
     client = ArangoClient(hosts=arango_url)
     db = client.db(db_name, username=username, password=password)
 
-    # Get tickers from Company collection
-    if current_only:
-        # Only current S&P 500 members
+    if not current_only:
+        query = """
+        FOR company IN Company
+            RETURN company.ticker
+        """
+        print("Fetching ALL companies (including historical)")
+    elif index == "SP500":
         query = """
         FOR company IN Company
             FILTER company.sp500_member == true
             RETURN company.ticker
         """
         print("Fetching CURRENT S&P 500 members only (sp500_member=true)")
-    else:
-        # All companies (including historical)
+    elif index == "RUSSELL2000":
         query = """
         FOR company IN Company
+            FILTER company.russell2000_member == true
             RETURN company.ticker
         """
-        print("Fetching ALL companies (including historical S&P 500 members)")
+        print("Fetching Russell 2000 members only")
+    elif index == "NASDAQ100":
+        query = """
+        FOR company IN Company
+            FILTER company.nasdaq100_member == true
+            RETURN company.ticker
+        """
+        print("Fetching NASDAQ-100 members only")
+    else:
+        # current_only=True, index=None: any current index member
+        query = """
+        FOR company IN Company
+            FILTER company.sp500_member == true
+                OR company.russell2000_member == true
+                OR company.nasdaq100_member == true
+            RETURN company.ticker
+        """
+        print("Fetching current members of any index (SP500, Russell 2000, NASDAQ-100)")
 
     tickers = list(db.aql.execute(query))
 
