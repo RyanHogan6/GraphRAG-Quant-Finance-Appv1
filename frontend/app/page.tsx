@@ -25,7 +25,14 @@ import InsiderTradingSignal from '@/components/InsiderTradingSignal'
 import SentimentDivergence from '@/components/SentimentDivergence'
 import AnomalyHighlight from '@/components/AnomalyHighlight'
 import ResponseRouter from '@/components/ResponseRouter'
+import SectorComparison from '@/components/SectorComparison'
+import AwardResultsView from '@/components/AwardResultsView'
+import SECFilingsListView from '@/components/SECFilingsListView'
+import SECSentencesView from '@/components/SECSentencesView'
+import PredictionMarketsListView from '@/components/PredictionMarketsListView'
+import TradersListView from '@/components/TradersListView'
 import { Market } from '@/lib/types'
+import { getResultDisplayFamily, isGenericResultChartable } from '@/lib/displayFamily'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -717,8 +724,9 @@ export default function HomePage() {
                     lastMsg.queryPlan = parsed.query_plan
                   }
 
-                  // Extract and store metadata from results
+                  // Extract and store metadata from results; preserve backend metadata (collections_used, data_types, display_family)
                   lastMsg.results = parsed.results
+                  const backendMeta = parsed.metadata || {}
                   if (parsed.results && parsed.results.length > 0) {
                     const tickers = new Set<string>()
                     const companies = new Set<string>()
@@ -731,12 +739,15 @@ export default function HomePage() {
                     })
 
                     lastMsg.metadata = {
+                      ...backendMeta,
                       tickers: Array.from(tickers),
                       companies: Array.from(companies),
-                      collections: parsed.query_plan?.collections || [],
+                      collections: backendMeta.collections_used ?? parsed.query_plan?.collections ?? [],
                       queryIntent: parsed.query_intent,
                       resultCount: parsed.count || parsed.results.length
                     }
+                  } else if (Object.keys(backendMeta).length > 0) {
+                    lastMsg.metadata = { ...backendMeta }
                   }
 
                   // Store presentation type for specialized rendering
@@ -1388,19 +1399,10 @@ export default function HomePage() {
                     {message.results && message.results.length > 0 && (
                       <div className="mt-4 overflow-hidden">
                         {(() => {
+                          const family = getResultDisplayFamily(message);
                           const result = message.results[0];
-                          const isWorkup = (r: any) => r.ticker && (r.MarketData || r.sec_filings || r.prediction_markets_polymarket || r.Award);
 
-                          // Check if this is a VQB enriched result (has ticker + at least one enrichment)
-                          const isEnriched = (r: any) => r.ticker && (
-                            r.options_flow || r.Award || r.sec_filings || r.prediction_markets_polymarket || r.futures_prices
-                          );
-                          const singleEnriched = message.results.length === 1 && isEnriched(result);
-
-                          const singleWorkup = message.results.length === 1 && isWorkup(result);
-                          const doubleCompare = message.results.length === 2 && isWorkup(message.results[0]) && isWorkup(message.results[1]);
-
-                          if (doubleCompare) {
+                          if (family === 'company_compare') {
                             return (
                               <div className="mt-2">
                                 <div className="text-[10px] text-gold uppercase font-bold tracking-widest opacity-70 mb-4 text-center">
@@ -1411,8 +1413,7 @@ export default function HomePage() {
                             );
                           }
 
-                          // Use EnrichedResultsDisplay for VQB enriched results
-                          if (singleEnriched && message.queryPlan?.intent === 'builder_execution') {
+                          if (family === 'company_enriched') {
                             return (
                               <div className="mt-2">
                                 <div className="text-[10px] text-gold uppercase font-bold tracking-widest opacity-70 mb-4">
@@ -1423,9 +1424,8 @@ export default function HomePage() {
                             );
                           }
 
-                          if (singleWorkup) {
+                          if (family === 'company_workup') {
                             const isInComparisonMode = peerComparisonData.primaryTicker === result.ticker && peerComparisonData.peerData;
-
                             return (
                               <div className="mt-2">
                                 <div className="text-[10px] text-gold uppercase font-bold tracking-widest opacity-70 mb-4">
@@ -1449,18 +1449,64 @@ export default function HomePage() {
                             );
                           }
 
-                          return message.queryPlan?.intent === 'builder_execution' || !message.content.includes('|') ? (
-                            <DatabaseResultsWithCharts results={message.results} />
-                          ) : (
-                            <details className="mt-3 overflow-hidden">
-                              <summary className="cursor-pointer text-xs text-gold hover:text-gold/80 font-semibold">
-                                View raw data table ({message.results.length} rows)
-                              </summary>
-                              <div className="mt-2 overflow-hidden">
-                                <ResultsTable data={message.results} maxRows={20} />
+                          if (family === 'company_screener') {
+                            return (
+                              <div className="mt-2">
+                                <SectorComparison companies={message.results} title="Screener Results" />
                               </div>
-                            </details>
-                          );
+                            );
+                          }
+
+                          if (family === 'time_series') {
+                            if (message.queryPlan?.chart_data) {
+                              return (
+                                <details className="mt-3 overflow-hidden">
+                                  <summary className="cursor-pointer text-xs text-gold hover:text-gold/80 font-semibold">
+                                    View data table ({message.results.length} rows)
+                                  </summary>
+                                  <div className="mt-2 overflow-hidden">
+                                    <ResultsTable data={message.results} maxRows={20} />
+                                  </div>
+                                </details>
+                              );
+                            }
+                            return <DatabaseResultsWithCharts results={message.results} />;
+                          }
+
+                          if (family === 'awards_list') return <AwardResultsView results={message.results} />;
+                          if (family === 'sec_filings_list') return <SECFilingsListView results={message.results} />;
+                          if (family === 'sec_sentences') return <SECSentencesView results={message.results} />;
+                          if (family === 'prediction_markets_list') return <PredictionMarketsListView results={message.results} />;
+                          if (family === 'polymarket_traders') return <TradersListView results={message.results} />;
+
+                          if (family === 'futures_commodities' || family === 'eia_energy' || family === 'economic_data') {
+                            return <DatabaseResultsWithCharts results={message.results} />;
+                          }
+
+                          if (family === 'options_flow_list') {
+                            return (
+                              <div className="mt-2 overflow-hidden">
+                                <ResultsTable data={message.results} maxRows={50} />
+                              </div>
+                            );
+                          }
+
+                          if (family === 'generic') {
+                            const showCharts = isGenericResultChartable(message.results ?? []);
+                            if (showCharts) return <DatabaseResultsWithCharts results={message.results} />;
+                            return (
+                              <details className="mt-3 overflow-hidden" open={message.queryPlan?.intent === 'builder_execution'}>
+                                <summary className="cursor-pointer text-xs text-gold hover:text-gold/80 font-semibold">
+                                  View data table ({message.results.length} rows)
+                                </summary>
+                                <div className="mt-2 overflow-hidden">
+                                  <ResultsTable data={message.results} maxRows={20} />
+                                </div>
+                              </details>
+                            );
+                          }
+
+                          return <DatabaseResultsWithCharts results={message.results} />;
                         })()}
                       </div>
                     )}
