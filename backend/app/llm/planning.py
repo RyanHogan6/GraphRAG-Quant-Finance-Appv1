@@ -216,6 +216,79 @@ def add_to_query_cache(question: str, plan: dict):
         _query_cache = _query_cache[-MAX_CACHE_SIZE:]
 
 
+# Company workup AQL: single-company with MarketData, sec_filings, sec_xbrl_data, etc.
+# Use when user asks for "X financials" / "X's financials" to avoid JSON plan producing date+average aggregation.
+COMPANY_WORKUP_AQL = """
+FOR company IN Company
+  FILTER company.ticker == @ticker
+  LIMIT 1
+
+  LET market_data = (
+    FOR m IN OUTBOUND company HAS_MARKETDATA
+      SORT m.date DESC
+      LIMIT 365
+      RETURN m
+  )
+
+  LET sec_filings = (
+    FOR filing IN OUTBOUND company HAS_FILING
+      SORT filing.filing_date DESC
+      LIMIT 20
+      LET top_sentences = (
+        FOR section IN OUTBOUND filing has_section
+          FOR sentence IN OUTBOUND section has_sentence
+            FILTER sentence.finbert_score != null
+            SORT ABS(sentence.finbert_score) DESC
+            LIMIT 10
+            RETURN {
+              text: sentence.text,
+              score: sentence.finbert_score
+            }
+      )
+      RETURN MERGE(filing, { top_sentences: top_sentences })
+  )
+
+  LET sec_exhibits = (
+    FOR filing IN OUTBOUND company HAS_FILING
+      FOR exhibit IN OUTBOUND filing has_exhibit
+        SORT exhibit.filing_date DESC
+        LIMIT 20
+        RETURN exhibit
+  )
+
+  LET sec_xbrl_data = (
+    FOR filing IN OUTBOUND company HAS_FILING
+      FOR xbrl IN OUTBOUND filing has_xbrl_data
+        SORT xbrl.filing_date DESC
+        LIMIT 20
+        RETURN xbrl
+  )
+
+  LET awards = (
+    FOR award IN OUTBOUND company HAS_AWARD
+      SORT award.start_date DESC
+      LIMIT 20
+      RETURN award
+  )
+
+  LET options_flow = (
+    FOR opt IN OUTBOUND company COMPANY_HAS_OPTIONS
+      SORT opt.date DESC
+      LIMIT 20
+      RETURN opt
+  )
+
+  RETURN MERGE(company, {
+    MarketData: market_data,
+    sec_filings: sec_filings,
+    sec_exhibits: sec_exhibits,
+    sec_xbrl_data: sec_xbrl_data,
+    Award: awards,
+    options_flow: options_flow
+  })
+"""
+
+
 def preprocess_query(question: str) -> Optional[dict]:
     """
     Handle simple queries without LLM - rule-based preprocessing.
@@ -223,7 +296,36 @@ def preprocess_query(question: str) -> Optional[dict]:
 
     Returns query plan if handled by rules, otherwise None
     """
-    question_lower = question.lower()
+    question_lower = question.lower().strip()
+
+    # Pattern 0: Company financials (balance sheet, income statement, 10-K, "X's financials")
+    # Bypass JSON->AQL so we never get wrong aggregation (date + average). Use full workup AQL.
+    financial_triggers = [
+        "financial", "financials", "balance sheet", "income statement",
+        "financial statements", "10-k", "10k", "10-k financials", "cash flow"
+    ]
+    if any(trigger in question_lower for trigger in financial_triggers):
+        ticker = None
+        # "PPGs financials" or "PPG's financials" -> capture word before financial, strip 's
+        m = re.search(r"(\w{2,5})'?s?\s+financial", question_lower, re.IGNORECASE)
+        if m:
+            raw = re.sub(r"'?s?$", "", m.group(1)).upper()
+            if len(raw) >= 2 and raw.isalpha():
+                ticker = raw
+        if not ticker:
+            # "Show me PPG financials" -> first 2-5 letter all-caps token
+            m = re.search(r"\b([A-Z]{2,5})\b", question)
+            if m:
+                ticker = m.group(1)
+        if ticker:
+            return {
+                "intent": "company_comprehensive_workup",
+                "collections": ["Company", "MarketData", "sec_filings", "sec_exhibits", "sec_xbrl_data", "Award", "options_flow"],
+                "requires_embedding": False,
+                "aql_query": COMPANY_WORKUP_AQL.strip(),
+                "bind_vars": {"ticker": ticker},
+                "explanation": f"Company financials/workup for {ticker} (rule-based bypass)"
+            }
 
     # Pattern 1: Simple ticker lookup
     ticker_match = re.search(r'\b([A-Z]{2,5})\b', question)
