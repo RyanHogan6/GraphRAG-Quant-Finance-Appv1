@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import { motion, useScroll, useTransform, useInView } from 'framer-motion'
 import MarkdownRenderer from '@/components/MarkdownRenderer'
 import ResultsTable from '@/components/ResultsTable'
+import ResultsCharts from '@/components/ResultsCharts'
 import GraphVisualization from '@/components/GraphVisualization'
 import MarketCard from '@/components/MarketCard'
 import MarketDetailModal from '@/components/MarketDetailModal'
@@ -59,6 +60,47 @@ interface Message {
       ticker: string
     }
   }
+}
+
+/** Tabbed Database Results: Charts (auto-generated from data shape) + Table */
+function DatabaseResultsWithCharts({ results }: { results: any[] }) {
+  const [activeTab, setActiveTab] = useState<'charts' | 'table'>('charts')
+  return (
+    <div className="space-y-3 overflow-hidden">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex rounded-lg border border-gold/20 bg-dark-900/50 p-0.5">
+          <button
+            type="button"
+            onClick={() => setActiveTab('charts')}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${activeTab === 'charts' ? 'bg-gold/20 text-gold' : 'text-gray-400 hover:text-white'}`}
+          >
+            Charts
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('table')}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${activeTab === 'table' ? 'bg-gold/20 text-gold' : 'text-gray-400 hover:text-white'}`}
+          >
+            Table
+          </button>
+        </div>
+        <span className="text-[10px] text-gold/70 uppercase tracking-wider">
+          {results.length} rows
+        </span>
+      </div>
+      <div className="text-[10px] text-gold uppercase font-bold tracking-widest opacity-70">
+        Database Results
+      </div>
+      {activeTab === 'charts' && (
+        <div className="min-h-[200px] rounded-lg border border-gold/20 bg-dark-900/30 p-4">
+          <ResultsCharts data={results} maxRows={20} />
+        </div>
+      )}
+      {activeTab === 'table' && (
+        <ResultsTable data={results} maxRows={20} />
+      )}
+    </div>
+  )
 }
 
 export default function HomePage() {
@@ -1408,12 +1450,7 @@ export default function HomePage() {
                           }
 
                           return message.queryPlan?.intent === 'builder_execution' || !message.content.includes('|') ? (
-                            <div className="space-y-2 overflow-hidden">
-                              <div className="text-[10px] text-gold uppercase font-bold tracking-widest opacity-70">
-                                Database Results ({message.results.length})
-                              </div>
-                              <ResultsTable data={message.results} maxRows={20} />
-                            </div>
+                            <DatabaseResultsWithCharts results={message.results} />
                           ) : (
                             <details className="mt-3 overflow-hidden">
                               <summary className="cursor-pointer text-xs text-gold hover:text-gold/80 font-semibold">
