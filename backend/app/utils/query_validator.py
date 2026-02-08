@@ -63,9 +63,10 @@ def validate_aql_query(aql: str) -> Tuple[bool, Optional[str]]:
         return False, f"Too many COLLECT operations ({collect_count}). Maximum allowed: 2"
 
     # 6. Warn about Cartesian products (multiple FOR without proper FILTER)
-    # This is a heuristic - if you have 3+ FOR loops and no FILTER, likely a problem
+    # Allow VQB-style queries: one root FOR + LET x = (FOR ...) traversals are constrained, not Cartesian.
     filter_count = len(re.findall(r'\bFILTER\b', aql_upper))
-    if for_count >= 3 and filter_count == 0:
+    has_let_subquery = bool(re.search(r'LET\s+\w+\s*=\s*\(', aql_clean, re.IGNORECASE))
+    if for_count >= 3 and filter_count == 0 and not has_let_subquery:
         return False, "Potential Cartesian product detected. Add FILTER clauses to constrain joins."
 
     # 7. Check query length (simple DoS prevention)

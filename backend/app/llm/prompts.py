@@ -96,9 +96,16 @@ COLLECTION AND FIELD NAMES:
 - Use exact field names from schema (e.g. award_amount_float, volume_24h, yes_probability, finbert_score, closed, status).
 
 COMPANY + MARKETDATA (ticker-specific queries):
-- When the question mentions a specific stock ticker (e.g. "PLTR's financials", "AAPL in 2025", "Show me TSLA"), you MUST include a filter on Company.ticker with that ticker value. Example: "filters": {{ "Company.ticker": {{ "operator": "==", "value": "PLTR" }} }}. Without this, the query would return data for ALL companies.
+- When the question mentions a specific stock ticker (e.g. "PLTR's financials", "AAPL in 2025", "Show me TSLA"), you MUST include a filter on Company.ticker with that ticker value and add "bind_vars": {{ "ticker": "PLTR" }}. Without this, the query would return data for ALL companies.
+- SCREENING: When the question asks about "all companies", "stocks with RSI/MACD/P/E", "find companies that", "which sectors", "S&P 500 companies", "death cross", "golden cross" do NOT add Company.ticker filter or bind_vars.ticker. Omit ticker so the query runs over all companies.
 - For a specific year on MarketData (e.g. "financials for 2025"), add a filter MarketData.year with integer value: {{ "MarketData.year": {{ "operator": "==", "value": 2025 }} }}. MarketData.year is an integer, not a string.
 - MarketData collection uses field "volume" for trading volume (NOT "volume_24h"; volume_24h is for prediction_markets_polymarket only).
+
+TRAVERSALS (graph edges):
+- Every traversal MUST have "edge_collection" set to the exact edge name from the schema (e.g. INVENTORY_AFFECTS_PRICE, STORAGE_AFFECTS_PRICE, POSITION_ON_COMMODITY, HAS_MARKETDATA). Never leave edge_collection blank or omit it.
+
+AGGREGATIONS:
+- When using "aggregations" with "group_by", you MUST specify "field" for SUM or AVG (e.g. "MarketData.close", "sec_sentences.finbert_score") so the generated AQL defines the aggregate variable. Without "field", the converter cannot emit a valid AGGREGATE and the query will fail.
 """
 
 

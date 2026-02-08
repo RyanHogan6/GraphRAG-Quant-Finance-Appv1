@@ -327,32 +327,42 @@ def preprocess_query(question: str) -> Optional[dict]:
                 "explanation": f"Company financials/workup for {ticker} (rule-based bypass)"
             }
 
-    # Pattern 1: Simple ticker lookup
+    # Screening phrases: question asks about "all stocks/companies" not a single ticker - do not use ticker lookup
+    screening_phrases = [
+        "stocks with", "companies with", "find companies", "find stocks", "s&p 500", "which sector",
+        "death cross", "golden cross", "rsi above", "rsi below", "macd", "p/e ratio", "undervalued",
+        "dividend yield", "outperforming", "sectors are", "companies that entered", "companies that have"
+    ]
+    is_screening = any(p in question_lower for p in screening_phrases)
+    # Known non-tickers that appear in screening questions (don't treat as ticker symbol)
+    non_ticker_tokens = {"RSI", "MACD", "PE", "P/E", "SEC", "ETF", "IPO", "EPS", "GDP", "CPI"}
     ticker_match = re.search(r'\b([A-Z]{2,5})\b', question)
-    if ticker_match and len(question.split()) <= 6:
+    if ticker_match and len(question.split()) <= 6 and not is_screening:
         ticker = ticker_match.group(1)
+        if ticker in non_ticker_tokens:
+            ticker = None
+        if ticker:
+            # Awards for ticker
+            if any(word in question_lower for word in ['award', 'contract', 'government']):
+                return {
+                    "intent": "ticker_awards",
+                    "collections": ["Award"],
+                    "requires_embedding": False,
+                    "aql_query": "FOR doc IN Award FILTER doc.ticker == @ticker SORT doc.award_amount_float DESC LIMIT 20 RETURN doc",
+                    "bind_vars": {"ticker": ticker},
+                    "explanation": f"Simple ticker awards lookup for {ticker}"
+                }
 
-        # Awards for ticker
-        if any(word in question_lower for word in ['award', 'contract', 'government']):
-            return {
-                "intent": "ticker_awards",
-                "collections": ["Award"],
-                "requires_embedding": False,
-                "aql_query": "FOR doc IN Award FILTER doc.ticker == @ticker SORT doc.award_amount_float DESC LIMIT 20 RETURN doc",
-                "bind_vars": {"ticker": ticker},
-                "explanation": f"Simple ticker awards lookup for {ticker}"
-            }
-
-        # Market data for ticker
-        if any(word in question_lower for word in ['price', 'stock', 'market']):
-            return {
-                "intent": "ticker_market_data",
-                "collections": ["MarketData"],
-                "requires_embedding": False,
-                "aql_query": "FOR doc IN MarketData FILTER doc.ticker == @ticker SORT doc.date DESC LIMIT 100 RETURN doc",
-                "bind_vars": {"ticker": ticker},
-                "explanation": f"Simple market data lookup for {ticker}"
-            }
+            # Market data for ticker
+            if any(word in question_lower for word in ['price', 'stock', 'market']):
+                return {
+                    "intent": "ticker_market_data",
+                    "collections": ["MarketData"],
+                    "requires_embedding": False,
+                    "aql_query": "FOR doc IN MarketData FILTER doc.ticker == @ticker SORT doc.date DESC LIMIT 100 RETURN doc",
+                    "bind_vars": {"ticker": ticker},
+                    "explanation": f"Simple market data lookup for {ticker}"
+                }
 
     # Pattern 2: Count queries
     if question_lower.startswith("how many"):
@@ -376,9 +386,11 @@ def preprocess_query(question: str) -> Optional[dict]:
                 "explanation": "Count active polymarket markets"
             }
 
-    # Pattern 3: Latest/recent data
+    # Pattern 3: Latest/recent data (only when clearly asking for "recent awards list" not "companies that won contracts")
     if any(word in question_lower for word in ['latest', 'recent', 'newest', 'last']):
-        if "award" in question_lower or "contract" in question_lower:
+        if ("award" in question_lower or "contract" in question_lower) and not any(
+            p in question_lower for p in ["companies with", "companies that", "golden cross", "death cross"]
+        ):
             return {
                 "intent": "recent_awards",
                 "collections": ["Award"],
@@ -596,6 +608,10 @@ def plan_query_with_llm(question: str, intent_hint=None, conversation_history: l
         bind_vars = dict(json_plan.get("bind_vars") or {})
         if intent_hint and intent_hint.get("type") == "ticker" and intent_hint.get("value"):
             bind_vars["ticker"] = intent_hint["value"]
+        # If AQL uses @ticker but no bind value, remove ticker filter so query runs over all companies (screening)
+        if "@ticker" in aql_query and not bind_vars.get("ticker"):
+            aql_query = re.sub(r"\s*FILTER\s+\w+\.ticker\s*==\s*@ticker\s*\n", "\n", aql_query)
+            aql_query = re.sub(r"\s*FILTER\s+[^\n]*\bticker\s*==\s*@ticker\b[^\n]*\n", "\n", aql_query)
         plan = {
             "intent": json_plan.get("intent", "json_intent"),
             "collections": collections,

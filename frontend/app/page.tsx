@@ -1531,28 +1531,7 @@ export default function HomePage() {
                     LLM
                   </button>
 
-                  {/* Journey Builder Tab (NEW!) */}
-                  <button
-                    onClick={() => {
-                      setIsBuilderMode(false)
-                      setIsJourneyMode(true)
-                      setShowAdvancedMode(true)
-                    }}
-                    className={`px-1.5 py-0.5 md:px-3 md:py-1 rounded text-[8px] md:text-[10px] font-medium transition-all flex items-center gap-1 ${
-                      isJourneyMode
-                        ? 'bg-green-500 text-dark-900'
-                        : 'text-gray-400 hover:text-gray-200'
-                    }`}
-                  >
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                            d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                    </svg>
-                    Journey
-                    <span className="px-1 py-0.5 text-[6px] bg-green-400 text-dark-900 rounded font-bold">NEW</span>
-                  </button>
-
-                  {/* Visual Query Builder Tab (Classic) */}
+                  {/* Visual Query Builder - default builder (first so users land here when choosing builder) */}
                   <button
                     onClick={() => {
                       setIsBuilderMode(true)
@@ -1565,8 +1544,30 @@ export default function HomePage() {
                         : 'text-gray-400 hover:text-gray-200'
                     }`}
                   >
-                    VQB Classic
+                    Query Builder
                   </button>
+
+                  {/* Journey Builder - hidden until graph traversal AQL is implemented */}
+                  {false && (
+                    <button
+                      onClick={() => {
+                        setIsBuilderMode(false)
+                        setIsJourneyMode(true)
+                        setShowAdvancedMode(true)
+                      }}
+                      className={`px-1.5 py-0.5 md:px-3 md:py-1 rounded text-[8px] md:text-[10px] font-medium transition-all flex items-center gap-1 ${
+                        isJourneyMode
+                          ? 'bg-green-500 text-dark-900'
+                          : 'text-gray-400 hover:text-gray-200'
+                      }`}
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                              d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                      Journey
+                    </button>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-1.5 md:gap-3">

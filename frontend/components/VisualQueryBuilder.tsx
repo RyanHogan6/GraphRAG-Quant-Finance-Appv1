@@ -68,6 +68,20 @@ const COLLECTION_GROUPS: Record<string, CollectionGroup> = {
     }
 }
 
+// Quick-start presets: one click sets source + enrichments
+type QuickStartBundle = {
+    id: string
+    label: string
+    icon: string
+    source: string
+    enrichments: string[]
+}
+const QUICK_START_BUNDLES: QuickStartBundle[] = [
+    { id: 'commodities', label: 'Futures + EIA + CFTC', icon: '🌾', source: 'futures', enrichments: ['eia_natgas_storage', 'eia_crude', 'cftc', 'economicdata'] },
+    { id: 'company-awards-sec', label: 'Company + Awards + SEC', icon: '🏢', source: 'company', enrichments: ['awards', 'sec'] },
+    { id: 'company-market-options', label: 'Company + Market Data + Options', icon: '📈', source: 'company', enrichments: ['marketdata', 'options'] }
+]
+
 export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps) {
     // Steps: 0 = Source, 1 = Filter, 2 = Enrich
     const [step, setStep] = useState(0)
@@ -176,6 +190,7 @@ export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps)
             desc += ` + ${targetNode.name}`
         })
 
+        desc += ` (limit ${limit})`
         aql += `  LIMIT ${limit}\n`
 
         // Merge enrichments into return
@@ -241,13 +256,44 @@ export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps)
         }
     }
 
+    const applyBundle = (bundle: QuickStartBundle) => {
+        const node = GRAPH_SCHEMA[bundle.source]
+        if (!node) return
+        const validEnrichments = bundle.enrichments.filter(t => node.connections.some(c => c.target === t))
+        setSource(bundle.source)
+        setFilters([])
+        setEnrichments(validEnrichments.map(targetKey => ({ targetKey })))
+        setStep(1)
+        setDropdownOpen(false)
+    }
+
     // UI Components
     return (
         <div className="bg-dark-900/50 p-4 rounded-lg border border-gold/10 space-y-4">
 
+            {/* Quick start presets */}
+            <div className="space-y-2">
+                <label className="text-xs text-gold font-semibold uppercase tracking-wider">Quick start</label>
+                <div className="flex flex-wrap gap-2">
+                    {QUICK_START_BUNDLES.map(bundle => (
+                        <button
+                            key={bundle.id}
+                            onClick={() => applyBundle(bundle)}
+                            className="px-3 py-2 rounded-lg text-xs border border-gold/30 bg-dark-800/80 hover:border-gold/50 hover:bg-gold/10 transition-all flex items-center gap-2 text-gray-200"
+                        >
+                            <span>{bundle.icon}</span>
+                            <span>{bundle.label}</span>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
             {/* Step 1: Source Selection - Smart Dropdown */}
             <div className="space-y-2 relative" ref={dropdownRef}>
                 <label className="text-xs text-gold font-semibold uppercase tracking-wider">1. Start With</label>
+                {!source && (
+                    <p className="text-xs text-gray-500 italic">Pick a collection, then add related data with Enrich.</p>
+                )}
 
                 {/* Dropdown Button */}
                 <button
@@ -521,77 +567,17 @@ export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps)
                             })}
                         </div>
 
-                        {/* Semantic Search Controls (if supported) */}
-                        {sourceNode.supportsSemanticSearch && (
+                        {/* Semantic Search: hidden until AQL generation supports embedding search (COSINE_SIMILARITY + bind param) */}
+                        {false && sourceNode.supportsSemanticSearch && (
                             <div className="space-y-3 pt-2 border-t border-blue-500/20 bg-blue-500/5 -mx-4 px-4 py-3 rounded-lg">
                                 <div className="flex items-center gap-2 mb-2">
-                                    <span className="text-xs font-semibold text-blue-300 uppercase tracking-wider">🔍 Semantic Search</span>
+                                    <span className="text-xs font-semibold text-blue-300 uppercase tracking-wider">Semantic Search</span>
                                     <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30">
                                         {sourceNode.embeddingModel || 'enabled'}
                                     </span>
                                 </div>
-
-                                {/* Search Type Toggle */}
-                                <div className="space-y-1.5">
-                                    <label className="text-xs text-gray-400">Search Type</label>
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => setSearchType('keyword')}
-                                            className={`flex-1 px-3 py-2 rounded text-xs font-medium transition-all ${
-                                                searchType === 'keyword'
-                                                    ? 'bg-gold/20 border border-gold text-gold'
-                                                    : 'bg-dark-800 border border-gray-700 text-gray-400 hover:border-gray-600'
-                                            }`}
-                                        >
-                                            Keyword Match
-                                        </button>
-                                        <button
-                                            onClick={() => setSearchType('semantic')}
-                                            className={`flex-1 px-3 py-2 rounded text-xs font-medium transition-all ${
-                                                searchType === 'semantic'
-                                                    ? 'bg-blue-500/20 border border-blue-500 text-blue-300'
-                                                    : 'bg-dark-800 border border-gray-700 text-gray-400 hover:border-gray-600'
-                                            }`}
-                                        >
-                                            Semantic Similar
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Similarity Threshold Slider (only for semantic) */}
-                                {searchType === 'semantic' && (
-                                    <div className="space-y-1.5">
-                                        <div className="flex justify-between items-center">
-                                            <label className="text-xs text-gray-400">Similarity Threshold</label>
-                                            <span className="text-xs font-mono text-blue-300">{similarityThreshold.toFixed(2)}</span>
-                                        </div>
-                                        <input
-                                            type="range"
-                                            min="0.5"
-                                            max="0.95"
-                                            step="0.05"
-                                            value={similarityThreshold}
-                                            onChange={(e) => setSimilarityThreshold(Number(e.target.value))}
-                                            className="w-full h-2 bg-dark-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                                        />
-                                        <div className="flex justify-between text-[10px] text-gray-500">
-                                            <span>0.5 (broad)</span>
-                                            <span>0.75 (balanced)</span>
-                                            <span>0.95 (exact)</span>
-                                        </div>
-                                        <div className="text-[10px] text-gray-500 italic mt-1">
-                                            Higher values return more similar results
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Info Box */}
                                 <div className="bg-dark-900/50 border border-blue-500/20 rounded p-2 text-[10px] text-gray-400">
-                                    <div className="font-semibold text-blue-400 mb-1">How it works:</div>
-                                    <div className="space-y-0.5">
-                                        <div><strong>Keyword:</strong> Uses CONTAINS() for exact text matching</div>
-                                        <div><strong>Semantic:</strong> Uses COSINE_SIMILARITY on embeddings to find conceptually similar content</div>
-                                    </div>
+                                    Coming soon: semantic search will use COSINE_SIMILARITY on embeddings.
                                 </div>
                             </div>
                         )}
@@ -600,6 +586,12 @@ export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps)
                         {sourceNode.connections.length > 0 && (
                             <div className="space-y-2 pt-2 border-t border-gold/10">
                                 <label className="text-xs text-gold font-semibold uppercase tracking-wider">3. Enrich With (Connect)</label>
+                                {source === 'futures' && (
+                                    <p className="text-xs text-gray-500">Futures → EIA inventory/storage, CFTC positions, Economic data</p>
+                                )}
+                                {source === 'company' && (
+                                    <p className="text-xs text-gray-500">Company → Market data, Awards, SEC, Options, Prediction markets</p>
+                                )}
                                 <div className="flex flex-wrap gap-2">
                                     {sourceNode.connections.map(conn => {
                                         const targetKey = conn.target

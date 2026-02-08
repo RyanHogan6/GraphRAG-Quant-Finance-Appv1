@@ -37,11 +37,13 @@ def json_to_aql(
     variables[primary] = primary_var
     aql_parts.append(f"FOR {primary_var} IN {primary}")
 
-    # When query is Company -> MarketData, require ticker filter so we don't return all companies
+    # When query is Company -> MarketData and a specific ticker is provided, require ticker filter
     filters = json_plan.get("filters", {})
+    plan_bind_vars = json_plan.get("bind_vars") or {}
+    has_ticker_bind = bool(plan_bind_vars.get("ticker"))
     if primary == "Company" and traversals and any(t.get("to_collection") == "MarketData" for t in traversals):
-        if not any(k.strip() == "Company.ticker" for k in filters.keys()):
-            out("  [AUTO-FIX] No Company.ticker filter; adding FILTER c.ticker == @ticker (set bind_vars.ticker)")
+        if has_ticker_bind and not any(k.strip() == "Company.ticker" for k in filters.keys()):
+            out("  [AUTO-FIX] No Company.ticker filter; adding FILTER c.ticker == @ticker (bind_vars.ticker set)")
             aql_parts.append(f"  FILTER {primary_var}.ticker == @ticker")
 
     for trav in traversals:
@@ -141,6 +143,7 @@ def json_to_aql(
                     group_fields.append(f"{field} = {var}.{field}")
             if group_fields:
                 aql_parts.append(f"{indent}COLLECT {', '.join(group_fields)}")
+            agg_added = False
             if agg_field and "." in agg_field:
                 collection, field = agg_field.split(".", 1)
                 var = variables.get(collection)
@@ -149,13 +152,17 @@ def json_to_aql(
                 else:
                     if agg_type == "COUNT":
                         aql_parts.append(f"{indent}AGGREGATE count = LENGTH(1)")
+                        agg_added = True
                     elif agg_type == "SUM":
                         aql_parts.append(f"{indent}AGGREGATE total = SUM({var}.{field})")
+                        agg_added = True
                     elif agg_type == "AVG":
                         aql_parts.append(f"{indent}AGGREGATE average = AVG({var}.{field})")
-            else:
-                if agg_type == "COUNT":
-                    aql_parts.append(f"{indent}COLLECT WITH COUNT INTO total")
+                        agg_added = True
+            if not agg_added and group_by:
+                # COLLECT with group_by but no valid AGGREGATE: add count so RETURN has defined variable
+                aql_parts.append(f"{indent}AGGREGATE count = LENGTH(1)")
+                agg_type = "COUNT"
         else:
             if agg_type == "COUNT":
                 aql_parts.append(f"{indent}COLLECT WITH COUNT INTO total")
@@ -177,12 +184,15 @@ def json_to_aql(
                     _, field = field_path.split(".", 1)
                     return_obj.append(f"{field}: {field}")
             agg_type = aggregation.get("type", "COUNT")
-            if agg_type == "COUNT":
+            aql_so_far = "\n".join(aql_parts)
+            if agg_type == "COUNT" or "AGGREGATE count =" in aql_so_far:
                 return_obj.append("count: count")
-            elif agg_type == "SUM":
+            elif agg_type == "SUM" and "AGGREGATE total =" in aql_so_far:
                 return_obj.append("total: total")
-            elif agg_type == "AVG":
+            elif agg_type == "AVG" and "AGGREGATE average =" in aql_so_far:
                 return_obj.append("average: average")
+            else:
+                return_obj.append("count: count")
             aql_parts.append(f"{indent}RETURN {{")
             for i, field_def in enumerate(return_obj):
                 comma = "," if i < len(return_obj) - 1 else ""

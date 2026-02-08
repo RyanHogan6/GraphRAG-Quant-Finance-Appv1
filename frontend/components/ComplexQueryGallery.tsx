@@ -127,41 +127,6 @@ const COMPLEX_QUERIES: ComplexQuery[] = [
     icon: '🐋'
   },
   {
-    title: 'Cross-Platform Sentiment Check',
-    description: 'Compare Polymarket and Kalshi probabilities for tech companies',
-    insight: 'Same event priced differently on two platforms reveals arbitrage opportunities or information asymmetry',
-    naturalLanguage: 'Compare sentiment for AAPL, MSFT, GOOGL across Polymarket and Kalshi markets',
-    aql: `LET tickers = ["AAPL", "MSFT", "GOOGL"]
-FOR ticker IN tickers
-  FOR company IN Company
-    FILTER company.ticker == ticker
-    LET poly_markets = (
-      FOR market IN INBOUND company market_mentions_company_polymarket
-        FILTER market.closed == false
-        RETURN {platform: "Polymarket", question: market.question, probability: market.yes_probability, volume: market.volume_24h}
-    )
-    LET kalshi_markets = (
-      FOR market IN INBOUND company market_mentions_company_kalshi
-        FILTER market.closed == false
-        RETURN {platform: "Kalshi", question: market.title, probability: market.yes_probability, volume: market.volume}
-    )
-    RETURN {
-      ticker: ticker,
-      company: company.company,
-      polymarket_count: LENGTH(poly_markets),
-      polymarket_avg_prob: AVG(poly_markets[*].probability),
-      kalshi_count: LENGTH(kalshi_markets),
-      kalshi_avg_prob: AVG(kalshi_markets[*].probability),
-      top_poly_market: FIRST(poly_markets),
-      top_kalshi_market: FIRST(kalshi_markets)
-    }`,
-    category: 'Prediction Markets',
-    collections: ['prediction_markets_polymarket', 'prediction_markets_kalshi', 'Company'],
-    edges: ['market_mentions_company_polymarket', 'market_mentions_company_kalshi'],
-    difficulty: 'advanced',
-    icon: '⚖️'
-  },
-  {
     title: 'High Volume Prediction Markets',
     description: 'Most liquid prediction markets with >$50k daily volume',
     insight: 'High volume = informed money - these markets have institutional participation and better price discovery',
@@ -188,35 +153,6 @@ FOR ticker IN tickers
   },
 
   // GOVERNMENT CONTRACT ANALYSIS
-  {
-    title: 'Defense Contract Winners',
-    description: 'Top 10 defense contractors by total award value this fiscal year',
-    insight: 'Concentration analysis - top 5 contractors capture 60% of DoD spending',
-    naturalLanguage: 'Show me companies with the highest total government contract awards from defense agencies',
-    aql: `FOR company IN Company
-  LET awards = (
-    FOR award IN OUTBOUND company HAS_AWARD
-      FILTER award.awarding_agency LIKE "%Defense%" OR award.awarding_agency LIKE "%Navy%" OR award.awarding_agency LIKE "%Army%" OR award.awarding_agency LIKE "%Air Force%"
-      RETURN award
-  )
-  FILTER LENGTH(awards) > 0
-  LET total_value = SUM(awards[*].award_amount_float)
-  SORT total_value DESC
-  LIMIT 10
-  RETURN {
-    ticker: company.ticker,
-    company: company.company,
-    total_award_value: total_value,
-    award_count: LENGTH(awards),
-    avg_award: total_value / LENGTH(awards),
-    sector: company.sector
-  }`,
-    category: 'Government Contracts',
-    collections: ['Award', 'Company'],
-    edges: ['HAS_AWARD'],
-    difficulty: 'intermediate',
-    icon: '🏛️'
-  },
   {
     title: 'Mega-Contract Winners',
     description: 'Contracts over $100M and the companies that won them',
@@ -248,193 +184,8 @@ FOR ticker IN tickers
   },
 
   // SEC FILING SENTIMENT
-  {
-    title: 'Most Bearish 10-K Filings',
-    description: 'Companies with most negative sentiment in annual reports',
-    insight: 'Extreme negative FinBERT scores (<-0.2) precede stock declines 65% of the time within 90 days',
-    naturalLanguage: 'Show me the 15 most bearish 10-K filings from the last 2 years with sentiment scores',
-    aql: `FOR filing IN sec_filings
-  FILTER filing.type == "10-K"
-  FILTER filing.avg_finbert != null
-  FILTER filing.avg_finbert < -0.1
-  FILTER filing.filing_date >= DATE_SUBTRACT(DATE_NOW(), 730, "day")
-  SORT filing.avg_finbert ASC
-  LIMIT 15
-  LET company = FIRST(
-    FOR c IN Company
-      FILTER c.ticker == filing.ticker
-      RETURN c
-  )
-  RETURN {
-    ticker: filing.ticker,
-    company: company ? company.company : filing.ticker,
-    filing_date: filing.filing_date,
-    sentiment_score: filing.avg_finbert,
-    negative_score: filing.avg_negative,
-    fiscal_year: filing.fiscal_year,
-    sector: company ? company.sector : null
-  }`,
-    category: 'SEC Sentiment',
-    collections: ['sec_filings', 'Company'],
-    edges: ['HAS_FILING'],
-    difficulty: 'intermediate',
-    icon: '📉'
-  },
-  {
-    title: 'Sentiment Flip Detection',
-    description: 'Companies whose SEC sentiment changed significantly between consecutive 10-Ks',
-    insight: 'Sentiment reversals >0.3 absolute change correlate with major business inflection points',
-    naturalLanguage: 'Find companies where 10-K sentiment changed significantly between consecutive filings',
-    aql: `FOR company IN Company
-  LET filings = (
-    FOR filing IN OUTBOUND company HAS_FILING
-      FILTER filing.type == "10-K"
-      FILTER filing.avg_finbert != null
-      SORT filing.filing_date DESC
-      LIMIT 2
-      RETURN filing
-  )
-  FILTER LENGTH(filings) == 2
-  LET sentiment_change = filings[0].avg_finbert - filings[1].avg_finbert
-  FILTER ABS(sentiment_change) > 0.2
-  SORT ABS(sentiment_change) DESC
-  LIMIT 15
-  RETURN {
-    ticker: company.ticker,
-    company: company.company,
-    latest_sentiment: filings[0].avg_finbert,
-    previous_sentiment: filings[1].avg_finbert,
-    sentiment_change: sentiment_change,
-    latest_date: filings[0].filing_date,
-    previous_date: filings[1].filing_date,
-    direction: sentiment_change > 0 ? "Improved" : "Deteriorated"
-  }`,
-    category: 'SEC Sentiment',
-    collections: ['sec_filings', 'Company'],
-    edges: ['HAS_FILING'],
-    difficulty: 'advanced',
-    icon: '🔄'
-  },
-
   // MULTI-SOURCE SYNTHESIS
-  {
-    title: 'Defense + Prediction Market Confluence',
-    description: 'Defense contractors with both large contracts AND bullish prediction market sentiment',
-    insight: 'When govt contracts align with market sentiment, conviction is 3x stronger than single source',
-    naturalLanguage: 'Show me defense contractors with large contracts AND bullish prediction market sentiment',
-    aql: `FOR company IN Company
-  LET awards = (
-    FOR award IN OUTBOUND company HAS_AWARD
-      FILTER award.awarding_agency LIKE "%Defense%"
-      FILTER award.award_amount_float > 50000000
-      RETURN award
-  )
-  FILTER LENGTH(awards) > 0
-  LET markets = (
-    FOR market IN INBOUND company market_mentions_company_polymarket
-      FILTER market.closed == false
-      FILTER market.yes_probability > 0.55
-      RETURN market
-  )
-  FILTER LENGTH(markets) > 0
-  LIMIT 10
-  RETURN {
-    ticker: company.ticker,
-    company: company.company,
-    total_awards: SUM(awards[*].award_amount_float),
-    award_count: LENGTH(awards),
-    market_count: LENGTH(markets),
-    avg_market_prob: AVG(markets[*].yes_probability),
-    top_market: FIRST(markets).question
-  }`,
-    category: 'Multi-Source',
-    collections: ['Award', 'Company', 'prediction_markets_polymarket'],
-    edges: ['HAS_AWARD', 'market_mentions_company_polymarket'],
-    difficulty: 'advanced',
-    icon: '🎯'
-  },
-  {
-    title: 'SEC Sentiment + Stock Performance',
-    description: 'Companies with negative SEC filings but strong recent stock performance (sentiment divergence)',
-    insight: 'When price ignores negative filings, either: (1) market knows something or (2) correction imminent',
-    naturalLanguage: 'Find companies with bearish SEC sentiment but stock up >5% in last 30 days',
-    aql: `FOR company IN Company
-  LET recent_filing = FIRST(
-    FOR filing IN OUTBOUND company HAS_FILING
-      FILTER filing.type IN ["10-K", "10-Q"]
-      FILTER filing.avg_finbert != null
-      FILTER filing.avg_finbert < -0.1
-      SORT filing.filing_date DESC
-      LIMIT 1
-      RETURN filing
-  )
-  FILTER recent_filing != null
-  LET market_data = (
-    FOR m IN OUTBOUND company HAS_MARKETDATA
-      FILTER m.date >= DATE_SUBTRACT(DATE_NOW(), 30, "day")
-      SORT m.date ASC
-      RETURN m
-  )
-  FILTER LENGTH(market_data) > 0
-  LET first_price = FIRST(market_data).close
-  LET last_price = LAST(market_data).close
-  LET price_change = ((last_price - first_price) / first_price) * 100
-  FILTER price_change > 5
-  SORT price_change DESC
-  LIMIT 15
-  RETURN {
-    ticker: company.ticker,
-    company: company.company,
-    filing_sentiment: recent_filing.avg_finbert,
-    filing_date: recent_filing.filing_date,
-    price_change_30d: ROUND(price_change * 100) / 100,
-    current_price: last_price,
-    divergence_signal: "Bearish filing + bullish price"
-  }`,
-    category: 'Multi-Source',
-    collections: ['sec_filings', 'MarketData', 'Company'],
-    edges: ['HAS_FILING', 'HAS_MARKETDATA'],
-    difficulty: 'advanced',
-    icon: '⚡'
-  },
-
   // TECHNICAL + FUNDAMENTAL
-  {
-    title: 'Golden Cross with Awards',
-    description: 'Stocks in golden cross pattern that also won recent government contracts',
-    insight: 'Technical breakout + fundamental catalyst = 74% win rate over 90 days',
-    naturalLanguage: 'Show me companies with golden cross that won contracts in last 60 days',
-    aql: `FOR company IN Company
-  LET latest_market = FIRST(
-    FOR m IN OUTBOUND company HAS_MARKETDATA
-      FILTER m.golden_cross == 1
-      SORT m.date DESC
-      LIMIT 1
-      RETURN m
-  )
-  FILTER latest_market != null
-  LET recent_awards = (
-    FOR award IN OUTBOUND company HAS_AWARD
-      FILTER award.start_date >= DATE_SUBTRACT(DATE_NOW(), 60, "day")
-      RETURN award
-  )
-  FILTER LENGTH(recent_awards) > 0
-  LIMIT 15
-  RETURN {
-    ticker: company.ticker,
-    company: company.company,
-    golden_cross_date: latest_market.date,
-    close_price: latest_market.close,
-    award_count: LENGTH(recent_awards),
-    total_award_value: SUM(recent_awards[*].award_amount_float),
-    latest_award: FIRST(recent_awards).awarding_agency
-  }`,
-    category: 'Multi-Source',
-    collections: ['MarketData', 'Award', 'Company'],
-    edges: ['HAS_MARKETDATA', 'HAS_AWARD'],
-    difficulty: 'advanced',
-    icon: '✨'
-  },
   {
     title: 'Death Cross Screening',
     description: 'Stocks that recently entered death cross (bearish technical signal)',
@@ -461,37 +212,6 @@ FOR ticker IN tickers
     edges: ['HAS_MARKETDATA'],
     difficulty: 'intermediate',
     icon: '☠️'
-  },
-
-  // MACRO CORRELATIONS
-  {
-    title: 'Fed Rate Changes Impact',
-    description: 'S&P 500 performance during Fed rate decisions',
-    insight: 'Tech stocks average -3% when Fed raises rates >25 bps, financials +5%',
-    naturalLanguage: 'Show me how different sectors performed during recent Fed rate changes',
-    aql: `FOR econ IN EconomicData
-  FILTER econ.federal_funds_rate != null
-  FILTER econ.date >= "2020-01-01"
-  SORT econ.date DESC
-  LIMIT 20
-  LET sp500 = FIRST(
-    FOR e IN EconomicData
-      FILTER e.date == econ.date
-      FILTER e.sandp_500_index != null
-      RETURN e.sandp_500_index
-  )
-  RETURN {
-    date: econ.date,
-    fed_funds_rate: econ.federal_funds_rate,
-    sp500_level: sp500,
-    unemployment: econ.unemployment_rate,
-    inflation: econ.cpi
-  }`,
-    category: 'Macro Correlation',
-    collections: ['EconomicData', 'MarketData', 'Company'],
-    edges: ['HAS_MARKETDATA'],
-    difficulty: 'advanced',
-    icon: '🏦'
   },
 
   // SEC DEEP DIVE (4-HOP TRAVERSAL)
@@ -528,36 +248,6 @@ FOR ticker IN tickers
     difficulty: 'expert',
     icon: '🔬'
   },
-  {
-    title: 'Risk Factor Analysis',
-    description: 'Extract sentences from "Risk Factors" sections across all 10-Ks',
-    insight: 'Risk factor changes year-over-year signal strategic shifts before they show up in financials',
-    naturalLanguage: 'Show me risk factor sentences from recent 10-K filings',
-    aql: `FOR filing IN sec_filings
-  FILTER filing.type == "10-K"
-  FILTER filing.filing_date >= DATE_SUBTRACT(DATE_NOW(), 180, "day")
-  SORT filing.filing_date DESC
-  LIMIT 5
-  FOR section IN OUTBOUND filing has_section
-    FILTER section.section == "Risk Factors" OR CONTAINS(LOWER(section.section), "risk")
-    FOR sentence IN OUTBOUND section has_sentence
-      FILTER LENGTH(sentence.text) > 100
-      SORT ABS(sentence.finbertscore) DESC
-      LIMIT 3
-      RETURN {
-        ticker: filing.ticker,
-        filing_date: filing.filing_date,
-        section: section.section,
-        sentence: SUBSTRING(sentence.text, 0, 300),
-        sentiment: sentence.finbertscore
-      }`,
-    category: 'SEC Deep Dive',
-    collections: ['sec_filings', 'sec_sections', 'sec_sentences'],
-    edges: ['has_section', 'has_sentence'],
-    difficulty: 'expert',
-    icon: '⚠️'
-  },
-
   // FUTURES & COMMODITIES
   {
     title: 'Crude Oil Futures Technicals',
@@ -647,35 +337,6 @@ FOR ticker IN tickers
   },
 
   // EIA ENERGY DATA
-  {
-    title: 'Crude Inventory Impact',
-    description: 'Weekly crude oil inventory levels vs futures prices',
-    insight: 'Inventory builds >5M barrels predict -3% crude price decline within 2 weeks (82% accuracy)',
-    naturalLanguage: 'Show me crude oil inventory levels and their impact on futures prices',
-    aql: `FOR inventory IN eia_crude_inventory
-  SORT inventory.week_ending DESC
-  LIMIT 10
-  FOR futures IN OUTBOUND inventory INVENTORY_AFFECTS_PRICE
-    FILTER CONTAINS(futures.contract_code, "CL")
-    FILTER futures.date >= DATE_SUBTRACT(inventory.week_ending, 7, "day")
-    FILTER futures.date <= DATE_ADD(inventory.week_ending, 7, "day")
-    SORT futures.date DESC
-    LIMIT 1
-    RETURN {
-      week_ending: inventory.week_ending,
-      crude_stocks: inventory.crude_oil_stocks,
-      weekly_change: inventory.weekly_net_change,
-      cushing_stocks: inventory.cushing_ok_stocks,
-      refinery_utilization: inventory.refinery_utilization,
-      futures_price: futures.close,
-      futures_change: futures.change_percent
-    }`,
-    category: 'Energy Data',
-    collections: ['eia_crude_inventory', 'futures_prices'],
-    edges: ['INVENTORY_AFFECTS_PRICE'],
-    difficulty: 'advanced',
-    icon: '🛢️'
-  },
   {
     title: 'Natural Gas Storage Levels',
     description: 'Weekly natgas storage vs 5-year average and futures prices',
@@ -862,40 +523,6 @@ FOR ticker IN tickers
     icon: '💎'
   },
 
-  // SECTOR ANALYSIS
-  {
-    title: 'Sector Performance Comparison',
-    description: 'Compare average returns across all S&P 500 sectors',
-    insight: 'Sector rotation signals: Energy leads early cycle, Tech leads late cycle',
-    naturalLanguage: 'Show me which sectors are outperforming',
-    aql: `FOR company IN Company
-  FILTER company.sp500_member == true
-  FILTER company.sector != null
-  LET latest_price = FIRST(
-    FOR m IN OUTBOUND company HAS_MARKETDATA
-      FILTER m.date >= DATE_SUBTRACT(DATE_NOW(), 7, "day")
-      SORT m.date DESC
-      LIMIT 1
-      RETURN m
-  )
-  FILTER latest_price != null
-  COLLECT sector = company.sector INTO companies
-  LET avg_change = AVG(companies[*].latest_price.change_percent)
-  LET avg_rsi = AVG(companies[*].latest_price.rsi)
-  SORT avg_change DESC
-  RETURN {
-    sector: sector,
-    avg_daily_change: ROUND(avg_change * 100) / 100,
-    avg_rsi: ROUND(avg_rsi * 10) / 10,
-    company_count: LENGTH(companies)
-  }`,
-    category: 'Sector Analysis',
-    collections: ['Company', 'MarketData'],
-    edges: ['HAS_MARKETDATA'],
-    difficulty: 'advanced',
-    icon: '📊'
-  },
-
   // POLYMARKET REVERSE LOOKUP
   {
     title: 'Markets Mentioning Companies',
@@ -924,33 +551,6 @@ FOR ticker IN target_tickers
     edges: ['market_mentions_company_polymarket'],
     difficulty: 'intermediate',
     icon: '🔍'
-  },
-
-  // KALSHI MARKETS
-  {
-    title: 'Kalshi Market Analysis',
-    description: 'Active Kalshi prediction markets with high volume',
-    insight: 'Kalshi = regulated exchange, institutional quality - less noise than Polymarket',
-    naturalLanguage: 'Show me the most active Kalshi markets',
-    aql: `FOR market IN prediction_markets_kalshi
-  FILTER market.closed == false
-  FILTER market.volume != null
-  FILTER market.volume > 1000
-  SORT market.volume DESC
-  LIMIT 15
-  RETURN {
-    title: market.title,
-    yes_probability: market.yes_probability,
-    volume: market.volume,
-    category: market.category,
-    expiration_date: market.expiration_date,
-    strike_price: market.strike_price
-  }`,
-    category: 'Prediction Markets',
-    collections: ['prediction_markets_kalshi'],
-    edges: [],
-    difficulty: 'intermediate',
-    icon: '🎲'
   },
 
   // RECENT SEC FILINGS
