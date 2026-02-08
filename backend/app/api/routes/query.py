@@ -253,7 +253,73 @@ def analyze_query_metadata(aql_query: str, results: List[Dict]) -> Dict[str, Any
             if 'futures_prices' in sample:
                 metadata["data_types"]["has_futures"] = True
 
+    # Suggest display_family for frontend routing (optional; frontend can infer when missing)
+    metadata["display_family"] = _suggest_display_family(metadata, results)
     return metadata
+
+
+def _suggest_display_family(metadata: Dict[str, Any], results: List[Dict]) -> str:
+    """Suggest a display family from collections_used, data_types, and result shape."""
+    if not results:
+        return "generic"
+    collections = [c.lower() for c in metadata.get("collections_used", [])]
+    dt = metadata.get("data_types", {})
+    sample = results[0] if isinstance(results, list) else results
+    if not isinstance(sample, dict):
+        return "generic"
+
+    def has_coll(*names):
+        return any(n.lower() in collections for n in names)
+
+    # Two workup-shaped rows -> company_compare
+    if len(results) == 2:
+        def workup_like(r):
+            if not r.get("ticker"):
+                return False
+            for key in ("MarketData", "sec_filings", "Award", "prediction_markets_polymarket"):
+                val = r.get(key)
+                if isinstance(val, list) and len(val) > 0:
+                    return True
+            return False
+        if workup_like(results[0]) and workup_like(results[1]):
+            return "company_compare"
+
+    # Single nested workup
+    if len(results) == 1 and sample.get("ticker"):
+        if isinstance(sample.get("MarketData"), list) or isinstance(sample.get("sec_filings"), list) or isinstance(sample.get("Award"), list) or isinstance(sample.get("prediction_markets_polymarket"), list):
+            return "company_workup"
+        if isinstance(sample.get("options_flow"), list) or isinstance(sample.get("futures_prices"), list):
+            return "company_enriched"
+
+    # Flat list types
+    if dt.get("has_awards") or has_coll("Award"):
+        if any("award_amount" in str(k) or "recipient" in str(k) for k in sample.keys()):
+            return "awards_list"
+    if dt.get("has_sec_filings") or has_coll("sec_filings"):
+        if "filing_date" in sample or "type" in sample or "avg_finbert" in sample:
+            return "sec_filings_list"
+    if "text" in sample and "finbert_score" in sample and "filing_date" not in sample:
+        return "sec_sentences"
+    if dt.get("has_prediction_markets") or has_coll("prediction_markets_polymarket", "prediction_markets_kalshi"):
+        if "address" in sample and ("total_profit" in sample or "total_volume" in sample):
+            return "polymarket_traders"
+        if "question" in sample or "yes_probability" in sample or "title" in sample:
+            return "prediction_markets_list"
+    if has_coll("polymarket_traders"):
+        return "polymarket_traders"
+    if dt.get("has_futures") or dt.get("has_commodities") or has_coll("futures_prices", "commodity_positions"):
+        return "futures_commodities"
+    if dt.get("has_eia_data") or has_coll("eia_crude_inventory", "eia_natgas_storage"):
+        return "eia_energy"
+    if has_coll("EconomicData", "economicdata"):
+        return "economic_data"
+    if dt.get("has_options") or has_coll("options_flow"):
+        return "options_flow_list"
+    if dt.get("has_market_data") and "date" in sample and ("close" in sample or "open" in sample):
+        return "time_series"
+    if len(results) >= 2 and sample.get("ticker") and not any(isinstance(sample.get(k), list) for k in sample):
+        return "company_screener"
+    return "generic"
 
 
 def execute_db_query(question: str, conversation_history: list = None):
