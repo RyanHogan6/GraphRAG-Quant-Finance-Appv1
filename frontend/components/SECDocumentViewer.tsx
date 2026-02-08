@@ -311,15 +311,17 @@ export default function SECDocumentViewer({
                     <h4 className="text-[10px] text-gold uppercase tracking-wider font-bold mb-2">Document details</h4>
                     {selectedDoc ? (() => {
                         const desc = selectedDoc.item.description != null ? selectedDoc.item.description : (selectedDoc.snippet || '—')
+                        const name = selectedDoc.item.filename != null ? selectedDoc.item.filename : (selectedDoc.name || '—')
+                        const periodLabel = selectedDoc.kind === 'xbrl' ? `FY${selectedDoc.item.fiscal_year != null ? selectedDoc.item.fiscal_year : '—'}` : (selectedDoc.date || '—')
                         return (
                         <div className="space-y-1.5 text-xs">
                             <div><span className="text-gray-500">Form Type:</span> <span className="text-white">{selectedDoc.formType || '—'}</span></div>
                             <div><span className="text-gray-500">File Date:</span> <span className="text-white">{selectedDoc.date || '—'}</span></div>
                             {(selectedDoc.formType === '10-K' || selectedDoc.formType === '10-Q') && (
-                                <div><span className="text-gray-500">Period:</span> <span className="text-white">{selectedDoc.kind === 'xbrl' ? `FY${selectedDoc.item.fiscal_year ?? '—'}` : selectedDoc.date || '—'}</span></div>
+                                <div><span className="text-gray-500">Period:</span> <span className="text-white">{periodLabel}</span></div>
                             )}
                             <div><span className="text-gray-500">Doc Type:</span> <span className="text-white">{selectedDoc.docType || '—'}</span></div>
-                            <div><span className="text-gray-500">Name:</span> <span className="text-white truncate block">{selectedDoc.item.filename ?? selectedDoc.name || '—'}</span></div>
+                            <div><span className="text-gray-500">Name:</span> <span className="text-white truncate block">{name}</span></div>
                             <div><span className="text-gray-500">Description:</span> <span className="text-gray-300 text-[10px] block line-clamp-2">{desc}</span></div>
                             {selectedDoc.item.accession && (
                                 <div><span className="text-gray-500">Accession:</span> <span className="text-gray-400 font-mono text-[10px]">{selectedDoc.item.accession}</span></div>
