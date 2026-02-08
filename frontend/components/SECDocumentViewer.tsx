@@ -213,7 +213,7 @@ export default function SECDocumentViewer({
     }
 
     const handleSelectRow = (doc: UnifiedDoc) => {
-        setSelectedDoc(d)
+        setSelectedDoc(doc)
         if (doc.kind === 'filing' && onSelectFiling) onSelectFiling(doc.item)
     }
 
