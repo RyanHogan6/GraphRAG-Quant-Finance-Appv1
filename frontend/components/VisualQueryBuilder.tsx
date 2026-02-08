@@ -567,21 +567,6 @@ export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps)
                             })}
                         </div>
 
-                        {/* Semantic Search: hidden until AQL generation supports embedding search (COSINE_SIMILARITY + bind param) */}
-                        {false && sourceNode?.supportsSemanticSearch && (
-                            <div className="space-y-3 pt-2 border-t border-blue-500/20 bg-blue-500/5 -mx-4 px-4 py-3 rounded-lg">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span className="text-xs font-semibold text-blue-300 uppercase tracking-wider">Semantic Search</span>
-                                    <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30">
-                                        {sourceNode.embeddingModel || 'enabled'}
-                                    </span>
-                                </div>
-                                <div className="bg-dark-900/50 border border-blue-500/20 rounded p-2 text-[10px] text-gray-400">
-                                    Coming soon: semantic search will use COSINE_SIMILARITY on embeddings.
-                                </div>
-                            </div>
-                        )}
-
                         {/* Step 3: Enrich */}
                         {sourceNode.connections.length > 0 && (
                             <div className="space-y-2 pt-2 border-t border-gold/10">
