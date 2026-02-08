@@ -623,15 +623,16 @@ def execute_query(request: Request, body: QueryRequest):
             if detect_time_series_query(results, query_plan):
                 # Sort results by date for chart
                 sorted_results = sorted(results, key=lambda x: x.get('date', ''))
-                # Add chart metadata to query_plan
+                bind_vars = (query_plan or {}).get('bind_vars', {})
+                ticker = sorted_results[0].get('ticker') or bind_vars.get('ticker') or 'Unknown'
                 query_plan['is_time_series'] = True
                 raw_values = [float(r.get('close') or 0) for r in sorted_results]
                 query_plan['chart_data'] = {
                     'type': 'line',
                     'dates': [r.get('date', '') for r in sorted_results],
                     'values': _sanitize_chart_values(raw_values),
-                    'label': f"{sorted_results[0].get('ticker', 'Stock')} Close Price",
-                    'ticker': sorted_results[0].get('ticker', 'Unknown')
+                    'label': f"{ticker} Close Price",
+                    'ticker': ticker
                 }
                 print(f"[EXECUTE] Added chart metadata for time series query")
 
@@ -917,15 +918,16 @@ async def execute_query_stream(request: Request, body: QueryRequest):
                 if detect_time_series_query(results, query_plan):
                     # Sort results by date for chart
                     sorted_results = sorted(results, key=lambda x: x.get('date', ''))
-                    # Add chart metadata to query_plan
+                    bind_vars = (query_plan or {}).get('bind_vars', {})
+                    ticker = sorted_results[0].get('ticker') or bind_vars.get('ticker') or 'Unknown'
                     query_plan['is_time_series'] = True
                     raw_values = [float(r.get('close') or 0) for r in sorted_results]
                     query_plan['chart_data'] = {
                         'type': 'line',
                         'dates': [r.get('date', '') for r in sorted_results],
                         'values': _sanitize_chart_values(raw_values),
-                        'label': f"{sorted_results[0].get('ticker', 'Stock')} Close Price",
-                        'ticker': sorted_results[0].get('ticker', 'Unknown')
+                        'label': f"{ticker} Close Price",
+                        'ticker': ticker
                     }
                     print(f"[STREAM] Added chart metadata for time series query")
 
@@ -1023,6 +1025,30 @@ async def execute_query_stream(request: Request, body: QueryRequest):
             "X-Accel-Buffering": "no"  # Disable nginx buffering
         }
     )
+
+
+@router.get("/companies/by-sector")
+def get_companies_by_sector(sector: str):
+    """
+    Return companies in a given sector for sector comparison.
+    Does not depend on NL interpretation; stable for Compare sector button.
+    """
+    if not sector or not sector.strip():
+        return {"companies": []}
+    sector = sector.strip()
+    query = """
+    FOR c IN Company
+      FILTER c.sector == @sector
+      SORT c.ticker ASC
+      LIMIT 100
+      RETURN c
+    """
+    try:
+        data, _ = execute_aql(query, {"sector": sector})
+        return {"companies": data if data else []}
+    except Exception as e:
+        print(f"[BY-SECTOR] Error: {e}")
+        return {"companies": []}
 
 
 @router.get("/cache/stats")

@@ -313,6 +313,11 @@ export default function SECDocumentViewer({
                         const desc = selectedDoc.item.description != null ? selectedDoc.item.description : (selectedDoc.snippet || '—')
                         const name = selectedDoc.item.filename != null ? selectedDoc.item.filename : (selectedDoc.name || '—')
                         const periodLabel = selectedDoc.kind === 'xbrl' ? `FY${selectedDoc.item.fiscal_year != null ? selectedDoc.item.fiscal_year : '—'}` : (selectedDoc.date || '—')
+                        const isExhibit = selectedDoc.kind === 'exhibit'
+                        const exhibitSentiment = isExhibit && selectedDoc.item.finbert_score != null ? selectedDoc.item.finbert_score : null
+                        const exhibitContractType = isExhibit ? (selectedDoc.item.contract_type || selectedDoc.item.exhibit_category || '—') : null
+                        const exhibitSummaryRaw = isExhibit && selectedDoc.item.text ? selectedDoc.item.text : (isExhibit ? selectedDoc.item.description : null)
+                        const exhibitSummary = exhibitSummaryRaw != null ? String(exhibitSummaryRaw).slice(0, 120) + (String(exhibitSummaryRaw).length > 120 ? '…' : '') : '—'
                         return (
                         <div className="space-y-1.5 text-xs">
                             <div><span className="text-gray-500">Form Type:</span> <span className="text-white">{selectedDoc.formType || '—'}</span></div>
@@ -323,6 +328,15 @@ export default function SECDocumentViewer({
                             <div><span className="text-gray-500">Doc Type:</span> <span className="text-white">{selectedDoc.docType || '—'}</span></div>
                             <div><span className="text-gray-500">Name:</span> <span className="text-white truncate block">{name}</span></div>
                             <div><span className="text-gray-500">Description:</span> <span className="text-gray-300 text-[10px] block line-clamp-2">{desc}</span></div>
+                            {isExhibit && exhibitContractType !== null && (
+                                <div><span className="text-gray-500">Contract type:</span> <span className="text-white">{exhibitContractType}</span></div>
+                            )}
+                            {isExhibit && exhibitSentiment !== null && (
+                                <div><span className="text-gray-500">Sentiment:</span> <span className="text-white font-mono">{(exhibitSentiment as number).toFixed(3)}</span></div>
+                            )}
+                            {isExhibit && (
+                                <div><span className="text-gray-500">Summary:</span> <span className="text-gray-300 text-[10px] block line-clamp-2">{exhibitSummary}</span></div>
+                            )}
                             {selectedDoc.item.accession && (
                                 <div><span className="text-gray-500">Accession:</span> <span className="text-gray-400 font-mono text-[10px]">{selectedDoc.item.accession}</span></div>
                             )}
@@ -373,8 +387,22 @@ export default function SECDocumentViewer({
                                     )}
                                 </div>
                             )}
-                            {(selectedDoc.kind === 'filing' || selectedDoc.kind === 'exhibit') && (
+                            {selectedDoc.kind === 'filing' && (
                                 <p className="text-gray-500 text-xs">Full text is on SEC EDGAR. Use the link above to open the document.</p>
+                            )}
+                            {selectedDoc.kind === 'exhibit' && selectedDoc.item.text && (
+                                <div className="space-y-2">
+                                    <p className="text-[10px] text-gray-500 uppercase tracking-wider">In-house exhibit text</p>
+                                    <pre className="whitespace-pre-wrap break-words text-xs text-gray-300 bg-dark-800/50 border border-white/10 rounded p-3 max-h-[220px] overflow-y-auto font-sans">
+                                        {selectedDoc.item.text}
+                                    </pre>
+                                    {selectedDoc.item.truncated && (
+                                        <p className="text-[10px] text-amber-400">Text truncated at 50,000 characters. View on SEC for full document.</p>
+                                    )}
+                                </div>
+                            )}
+                            {selectedDoc.kind === 'exhibit' && !selectedDoc.item.text && (
+                                <p className="text-gray-500 text-xs">No exhibit text available. Use the link above to open on SEC EDGAR.</p>
                             )}
                         </>
                     ) : (

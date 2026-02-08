@@ -34,6 +34,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
     const [showFullAmounts, setShowFullAmounts] = useState(true)
     const [sectorPeers, setSectorPeers] = useState<any[] | null>(null)
     const [sectorPeersLoading, setSectorPeersLoading] = useState(false)
+    const [sectorPeersError, setSectorPeersError] = useState<string | null>(null)
     const closeDetail = () => {
         setSelectedDetail(null)
         setShowMoreSecModalExcerpts(false)
@@ -46,26 +47,21 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
     }
 
     const loadSectorPeers = async () => {
-        const sector = company.sector || data.sector
+        const sector = data.sector
         if (!sector) return
         setSectorPeersLoading(true)
         setSectorPeers(null)
+        setSectorPeersError(null)
         try {
-            const res = await fetch(`${API_BASE}/api/query/execute`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    question: `Show me all companies in the ${sector} sector with their market data and market cap`,
-                    conversation_history: []
-                })
-            })
+            const res = await fetch(`${API_BASE}/api/query/companies/by-sector?${new URLSearchParams({ sector })}`)
             if (!res.ok) throw new Error(res.statusText)
             const json = await res.json()
-            const list = json?.results ?? []
+            const list = json?.companies ?? []
             setSectorPeers(Array.isArray(list) ? list : [])
         } catch (e) {
             console.error('[CompanyWorkup] Sector peers fetch failed:', e)
             setSectorPeers([])
+            setSectorPeersError('Failed to load sector peers.')
         } finally {
             setSectorPeersLoading(false)
         }
@@ -600,7 +596,8 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                             <SectorComparison companies={sectorPeers} title={`${company.sector || data.sector} peers`} />
                         </div>
                     )}
-                    {sectorPeers && sectorPeers.length === 0 && !sectorPeersLoading && (
+                    {sectorPeersError && <p className="mt-2 text-[11px] text-red-400">{sectorPeersError}</p>}
+                    {sectorPeers && sectorPeers.length === 0 && !sectorPeersLoading && !sectorPeersError && (
                         <p className="mt-2 text-[11px] text-gray-500">No sector peers returned. Try again or use Compare Peer above.</p>
                     )}
                 </div>
@@ -868,6 +865,9 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                 </tbody>
                             </table>
                         </div>
+                        {optionsFlow.length <= 3 && optionsFlow.length > 0 && (
+                            <p className="mt-2 text-[10px] text-gray-500">Showing available history ({optionsFlow.length} days). More data will appear as the pipeline runs daily.</p>
+                        )}
                     </div>
                 </div>
                 )
@@ -950,6 +950,14 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                     }
                                     return undefined
                                 }
+                                /** Try multiple concept names (fallbacks for alternate GAAP names) */
+                                const getConceptAny = (names: string[]): number | null | undefined => {
+                                    for (const name of names) {
+                                        const v = getConcept(name)
+                                        if (v != null) return v
+                                    }
+                                    return undefined
+                                }
 
                                 const fmt = (val: number | null | undefined, currency = true, unit?: string, signed = false): string => {
                                     if (val == null) return '—'
@@ -994,19 +1002,19 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                                 <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Operating</h4>
                                                 <div className="space-y-0">
                                                     {row('R&D Expense', getConcept('ResearchAndDevelopmentExpense') ?? undefined)}
-                                                    {row('SG&A Expense', getConcept('SellingGeneralAndAdministrativeExpense') ?? undefined)}
-                                                    {row('Operating Expense', getConcept('OperatingExpense') ?? undefined)}
-                                                    {row('Operating Income', getConcept('OperatingIncomeLoss') ?? undefined, { highlight: true })}
+                                                    {row('SG&A Expense', getConceptAny(['SellingGeneralAndAdministrativeExpense', 'SellingAndMarketingExpense']) ?? undefined)}
+                                                    {row('Operating Expense', getConceptAny(['OperatingExpense', 'OperatingExpenses']) ?? undefined)}
+                                                    {row('Operating Income', getConceptAny(['OperatingIncomeLoss', 'OperatingIncome']) ?? undefined, { highlight: true })}
                                                 </div>
                                             </div>
                                             <div>
                                                 <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Net Income</h4>
                                                 <div className="space-y-0">
-                                                    {row('Interest Expense', getConcept('InterestExpense') ?? undefined)}
+                                                    {row('Interest Expense', getConceptAny(['InterestExpense', 'InterestExpenseDebt']) ?? undefined)}
                                                     {row('Income Tax', getConcept('IncomeTaxExpenseBenefit') ?? undefined)}
-                                                    {row('Net Income', getConcept('NetIncomeLoss') ?? undefined, { highlight: true, large: true })}
-                                                    {row('EPS (Basic)', getConcept('EarningsPerShareBasic') ?? undefined, { currency: false })}
-                                                    {row('EPS (Diluted)', getConcept('EarningsPerShareDiluted') ?? undefined, { currency: false })}
+                                                    {row('Net Income', getConceptAny(['NetIncomeLoss', 'ProfitLoss']) ?? undefined, { highlight: true, large: true })}
+                                                    {row('EPS (Basic)', getConceptAny(['EarningsPerShareBasic', 'NetIncomeLossPerShare']) ?? undefined, { currency: false })}
+                                                    {row('EPS (Diluted)', getConceptAny(['EarningsPerShareDiluted', 'NetIncomeLossPerShare']) ?? undefined, { currency: false })}
                                                 </div>
                                             </div>
                                         </div>
@@ -1015,18 +1023,18 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
 
                                 // Balance Sheet - Assets / Liabilities and Equity with total tie-in
                                 if (selectedStatementTab === 'balance') {
-                                    const totalAssets = getConcept('Assets') ?? undefined
-                                    const currentDebt = getConcept('DebtCurrent') ?? getConcept('CurrentDebt') ?? getConcept('LongTermDebtMaturitiesRepaymentsOfPrincipalInNextTwelveMonths')
+                                    const totalAssets = getConceptAny(['Assets', 'TotalAssets']) ?? undefined
+                                    const currentDebt = getConceptAny(['DebtCurrent', 'CurrentDebt', 'LongTermDebtMaturitiesRepaymentsOfPrincipalInNextTwelveMonths']) ?? undefined
                                     const ltDebt = getConcept('LongTermDebt')
                                     const totalDebt = (currentDebt != null || ltDebt != null) ? (currentDebt || 0) + (ltDebt || 0) : null
-                                    const equity = getConcept('StockholdersEquity') ?? getConcept('Equity')
+                                    const equity = getConceptAny(['StockholdersEquity', 'Equity', 'StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest'])
                                     const totalLiabEquity = (totalDebt != null && equity != null) ? totalDebt + equity : (equity != null ? equity : null)
                                     return (
                                         <div className="space-y-4">
                                             <div>
                                                 <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Assets</h4>
                                                 <div className="space-y-0">
-                                                    {row('Cash & Equivalents', getConcept('CashAndCashEquivalentsAtCarryingValue') ?? getConcept('Cash') ?? undefined)}
+                                                    {row('Cash & Equivalents', getConceptAny(['CashAndCashEquivalentsAtCarryingValue', 'Cash', 'CashAndCashEquivalents']) ?? undefined)}
                                                     {row('Total Assets', totalAssets, { highlight: true })}
                                                 </div>
                                             </div>
@@ -1037,9 +1045,9 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                                     {row('Long-Term Debt', ltDebt ?? undefined)}
                                                     {row('Total Debt', totalDebt, { highlight: true })}
                                                     {row('Stockholders Equity', equity ?? undefined, { highlight: true })}
-                                                    {row('Retained Earnings', getConcept('RetainedEarningsAccumulatedDeficit') ?? undefined)}
-                                                    {row('Treasury Stock', getConcept('TreasuryStockValue') ?? undefined)}
-                                                    {row('Shares Outstanding', getConcept('CommonStockSharesOutstanding') ?? undefined, { currency: false, unit: 'M' })}
+                                                    {row('Retained Earnings', getConceptAny(['RetainedEarningsAccumulatedDeficit', 'RetainedEarnings']) ?? undefined)}
+                                                    {row('Treasury Stock', getConceptAny(['TreasuryStockValue', 'TreasuryStockCommonValue']) ?? undefined)}
+                                                    {row('Shares Outstanding', getConceptAny(['CommonStockSharesOutstanding', 'CommonStockSharesIssued']) ?? undefined, { currency: false, unit: 'M' })}
                                                     {totalLiabEquity != null && totalAssets != null && (
                                                         <div className="flex justify-between items-center py-1.5 px-2 mt-2 pt-2 border-t border-emerald-500/20">
                                                             <span className="text-xs font-bold text-emerald-400">Total liabilities and equity</span>
@@ -1077,8 +1085,8 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                                 <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-emerald-500/20 mb-2">Financing Activities</h4>
                                                 <div className="space-y-0">
                                                     {row('Financing Cash Flow', finCf ?? undefined, { highlight: true, signed: true })}
-                                                    {row('Dividends Paid', getConcept('PaymentsOfDividends') ?? undefined, { signed: true })}
-                                                    {row('Stock Repurchases', getConcept('PaymentsForRepurchaseOfCommonStock') ?? undefined, { signed: true })}
+                                                    {row('Dividends Paid', getConceptAny(['PaymentsOfDividends', 'DividendsPaid']) ?? undefined, { signed: true })}
+                                                    {row('Stock Repurchases', getConceptAny(['PaymentsForRepurchaseOfCommonStock', 'PaymentsForRepurchaseOfEquity']) ?? undefined, { signed: true })}
                                                 </div>
                                             </div>
                                             <div>
