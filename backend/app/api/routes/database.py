@@ -124,15 +124,18 @@ def get_stock_overview(ticker: str):
         """
         exhibits_results, _ = execute_aql(exhibits_query, {"ticker": ticker})
 
-        # Get XBRL data
+        # Get XBRL data with filing_date and fiscal_year from linked sec_filings (xBRL docs don't store these)
         xbrl_query = """
         FOR company IN Company
             FILTER company.ticker == @ticker
             FOR filing IN OUTBOUND company HAS_FILING
                 FOR xbrl IN OUTBOUND filing has_xbrl_data
-                    SORT xbrl.filing_date DESC
+                    SORT filing.filing_date DESC
                     LIMIT 20
-                    RETURN xbrl
+                    RETURN MERGE(xbrl, {
+                        filing_date: filing.filing_date,
+                        fiscal_year: filing.filing_date ? SUBSTRING(filing.filing_date, 0, 4) : null
+                    })
         """
         xbrl_results, _ = execute_aql(xbrl_query, {"ticker": ticker})
 

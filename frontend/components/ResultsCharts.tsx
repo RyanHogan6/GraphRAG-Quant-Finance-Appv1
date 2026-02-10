@@ -154,7 +154,7 @@ export default function ResultsCharts({ data, maxRows = 20 }: ResultsChartsProps
   const hasDate = dateKey && displayData.every(r => r[dateKey] != null)
   const hasCategories = labelKey && displayData.length > 0 && displayData.length <= 30
 
-  // Time series: one series per row (e.g. symbol) if we have date + numeric
+  // Time series: one or more series when we have date + numeric (commodities: price + inventory = two charts)
   const timeSeries = useMemo(() => {
     if (!hasDate || !dateKey || !numericKeys.length) return null
     const sorted = [...displayData].sort((a, b) => String(a[dateKey]).localeCompare(String(b[dateKey])))
@@ -168,6 +168,21 @@ export default function ResultsCharts({ data, maxRows = 20 }: ResultsChartsProps
     })
     return { dates: uniqDates, values, label: numKey }
   }, [displayData, dateKey, numericKeys, hasDate])
+
+  // Second time series for commodities demo: inventory / stocks (different scale than price)
+  const timeSeries2 = useMemo(() => {
+    if (!timeSeries || !dateKey || !numericKeys.length) return null
+    const inventoryKeys = ['inventory_million_barrels', 'crude_stocks', 'total_stocks', 'stocks_change', 'value']
+    const secondKey = numericKeys.find(k => inventoryKeys.includes(k) || k.toLowerCase().includes('inventory') || k.toLowerCase().includes('stock'))
+    if (!secondKey || secondKey === timeSeries.label) return null
+    const sorted = [...displayData].sort((a, b) => String(a[dateKey]).localeCompare(String(b[dateKey])))
+    const uniqDates = timeSeries.dates
+    const values = uniqDates.map(d => {
+      const row = sorted.find(r => String(r[dateKey]).slice(0, 10) === d)
+      return row != null && row[secondKey] != null ? Number(row[secondKey]) : 0
+    })
+    return { dates: uniqDates, values, label: secondKey.replace(/_/g, ' ') }
+  }, [displayData, dateKey, numericKeys, timeSeries])
 
   if (displayData.length === 0) return null
 
@@ -198,13 +213,24 @@ export default function ResultsCharts({ data, maxRows = 20 }: ResultsChartsProps
         </div>
       )}
 
-      {/* Time series when we have dates */}
+      {/* Time series when we have dates (price) */}
       {timeSeries && (
         <div className="rounded-lg border border-gold/20 bg-black/20 p-3">
           <TimeSeriesChart
             dates={timeSeries.dates}
             values={timeSeries.values}
             label={timeSeries.label}
+          />
+        </div>
+      )}
+      {/* Second time series for commodities: inventory / stocks (e.g. crude price + EIA inventory) */}
+      {timeSeries2 && (
+        <div className="rounded-lg border border-gold/20 bg-black/20 p-3">
+          <h4 className="text-xs text-gold/80 font-semibold uppercase tracking-wider mb-2">{timeSeries2.label}</h4>
+          <TimeSeriesChart
+            dates={timeSeries2.dates}
+            values={timeSeries2.values}
+            label={timeSeries2.label}
           />
         </div>
       )}

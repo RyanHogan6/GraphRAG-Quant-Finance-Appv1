@@ -24,6 +24,13 @@ function getYearQuarter(dateStr: string | undefined): { year: number; quarter: n
     return { year, quarter }
 }
 
+/** Display fiscal year: use fiscal_year if set, else first 4 chars of filing_date */
+function xbrlFyDisplay(xbrl: any): string {
+    if (xbrl.fiscal_year != null && xbrl.fiscal_year !== '') return String(xbrl.fiscal_year)
+    if (xbrl.filing_date) return String(xbrl.filing_date).slice(0, 4)
+    return '—'
+}
+
 function getFiscalYearQuarter(xbrl: any): { year: number; quarter: number } | null {
     const fy = xbrl.fiscal_year
     if (fy == null) return xbrl.filing_date ? getYearQuarter(xbrl.filing_date) : null
@@ -181,7 +188,7 @@ export default function SECDocumentViewer({
                 date: x.filing_date || '',
                 formType: x.filing_type || 'XBRL',
                 docType: 'XBRL',
-                name: `${x.filing_type} FY${x.fiscal_year ?? '—'}`,
+                name: `${x.filing_type} FY${xbrlFyDisplay(x)}`,
                 snippet: `${conceptCount} concepts`,
                 item: x
             })
@@ -341,7 +348,7 @@ export default function SECDocumentViewer({
                     {selectedDoc ? (() => {
                         const desc = selectedDoc.item.description != null ? selectedDoc.item.description : (selectedDoc.snippet || '—')
                         const name = selectedDoc.item.filename != null ? selectedDoc.item.filename : (selectedDoc.name || '—')
-                        const periodLabel = selectedDoc.kind === 'xbrl' ? `FY${selectedDoc.item.fiscal_year != null ? selectedDoc.item.fiscal_year : '—'}` : (selectedDoc.date || '—')
+                        const periodLabel = selectedDoc.kind === 'xbrl' ? `FY${xbrlFyDisplay(selectedDoc.item)}` : (selectedDoc.date || '—')
                         const isExhibit = selectedDoc.kind === 'exhibit'
                         const exhibitSentiment = isExhibit && selectedDoc.item.finbert_score != null ? selectedDoc.item.finbert_score : null
                         const exhibitContractType = isExhibit ? (selectedDoc.item.contract_type || selectedDoc.item.exhibit_category || '—') : null

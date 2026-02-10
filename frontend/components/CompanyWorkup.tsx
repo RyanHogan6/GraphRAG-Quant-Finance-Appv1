@@ -926,7 +926,7 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                                 : 'bg-dark-800/50 text-gray-400 border border-white/5 hover:border-emerald-500/20'
                                         }`}
                                     >
-                                        <span className="whitespace-nowrap">{xbrl.filing_type} FY{xbrl.fiscal_year ?? '—'}</span>
+                                        <span className="whitespace-nowrap">{xbrl.filing_type} FY{(xbrl.fiscal_year ?? (xbrl.filing_date ? String(xbrl.filing_date).slice(0, 4) : null)) ?? '—'}</span>
                                         <span className="text-[10px] text-gray-500 font-normal mt-0.5">{xbrl.filing_date ? `Filed ${xbrl.filing_date}` : '—'}</span>
                                     </button>
                                 ))}

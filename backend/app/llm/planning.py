@@ -492,7 +492,39 @@ FOR e IN eia_crude_inventory
             "explanation": f"Crude oil futures when EIA inventory below {threshold} million barrels (rule-based)"
         }
 
-    # Pattern 4b: Materials/mining companies with commodity (gold, silver, copper) positions
+    # Pattern 4b: Energy sector companies with commodity positions in crude oil or natural gas
+    # Same path as 4c but sector=Energy and commodity match crude/natgas. Avoids LLM returning hyphenated return fields and wrong filters.
+    commodity_position_keywords = ["positions in", "position in", "commodity positions"]
+    commodity_energy = ["crude oil", "crude", "natural gas", "nat gas", "natgas"]
+    if any(kw in question_lower for kw in commodity_position_keywords) and any(c in question_lower for c in commodity_energy):
+        if "energy" in question_lower or "sector" in question_lower:
+            aql_energy_commodity = """
+FOR company IN Company
+  FILTER company.sector == "Energy"
+  LET positions = (
+    FOR pos IN OUTBOUND company HAS_COMMODITY_POSITION
+      FILTER CONTAINS(LOWER(TO_STRING(pos.Market_and_Exchange_Names || pos.commodity_code || "")), "crude") OR CONTAINS(LOWER(TO_STRING(pos.Market_and_Exchange_Names || pos.commodity_code || "")), "natural gas") OR CONTAINS(LOWER(TO_STRING(pos.Market_and_Exchange_Names || pos.commodity_code || "")), "oil")
+      RETURN DISTINCT (pos.Market_and_Exchange_Names || pos.commodity_code)
+  )
+  FILTER LENGTH(positions) > 0
+  RETURN {
+    ticker: company.ticker,
+    company: company.company,
+    sector: company.sector,
+    industry: company.industry,
+    commodities: positions
+  }
+"""
+            return {
+                "intent": "energy_commodity_positions",
+                "collections": ["Company", "commodity_positions"],
+                "requires_embedding": False,
+                "aql_query": aql_energy_commodity.strip(),
+                "bind_vars": {},
+                "explanation": "Energy sector companies with commodity positions in crude oil or natural gas (rule-based)"
+            }
+
+    # Pattern 4c: Materials/mining companies with commodity (gold, silver, copper) positions
     # Uses Company -> HAS_COMMODITY_POSITION -> commodity_positions. Support both Market_and_Exchange_Names and commodity_code (DB may use either).
     commodity_position_keywords = ["positions in", "position in", "documented positions", "exposure to", "futures"]
     commodity_metals = ["gold", "silver", "copper"]

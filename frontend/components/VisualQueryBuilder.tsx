@@ -82,6 +82,24 @@ const QUICK_START_BUNDLES: QuickStartBundle[] = [
     { id: 'company-market-options', label: 'Company + Market Data + Options', icon: '📈', source: 'company', enrichments: ['marketdata', 'options'] }
 ]
 
+// Commodities demo: one row per date (last 90 days) with close + inventory for dual-chart visualization
+const COMMODITIES_DEMO_AQL = `FOR f IN futures_prices
+  FILTER f.commodity == "CRUDE_OIL"
+  SORT f.date DESC
+  LIMIT 90
+  LET inv = (FOR e IN INBOUND f INVENTORY_AFFECTS_PRICE LIMIT 1 RETURN e)
+  LET inv_val = inv[0] ? (inv[0].crude_stocks != null ? inv[0].crude_stocks : inv[0].value) : null
+  RETURN {
+    date: f.date,
+    close: f.close,
+    open: f.open,
+    commodity: f.commodity,
+    inventory_million_barrels: inv_val,
+    report_date: inv[0] ? (inv[0].report_date || inv[0].date) : null
+  }
+`
+const COMMODITIES_DEMO_DESC = 'Crude oil price vs EIA inventory (demo)'
+
 export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps) {
     // Steps: 0 = Source, 1 = Filter, 2 = Enrich
     const [step, setStep] = useState(0)
@@ -285,6 +303,14 @@ export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps)
                             <span>{bundle.label}</span>
                         </button>
                     ))}
+                    <button
+                        onClick={() => onQueryChange(COMMODITIES_DEMO_AQL, COMMODITIES_DEMO_DESC)}
+                        className="px-3 py-2 rounded-lg text-xs border border-emerald-500/40 bg-emerald-500/10 hover:border-emerald-400/60 hover:bg-emerald-500/20 transition-all flex items-center gap-2 text-emerald-200"
+                        title="Load query: EIA Crude Inventory → Futures Prices. Returns date, close, inventory for two charts."
+                    >
+                        <span>📊</span>
+                        <span>Crude price vs inventory (demo)</span>
+                    </button>
                 </div>
             </div>
 
