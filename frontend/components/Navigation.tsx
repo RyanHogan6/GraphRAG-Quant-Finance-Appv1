@@ -50,7 +50,7 @@ export default function Navigation() {
     <nav className="border-b border-gold/20 bg-dark-800 sticky top-0 z-50">
       <div className="container mx-auto px-4 md:px-6 py-4">
         <div className="flex items-center justify-between">
-          {/* Logo */}
+          {/* Logo + Beta */}
           <div className="flex items-center space-x-2">
             <button
               onClick={() => scrollToSection('query')}
@@ -58,6 +58,13 @@ export default function Navigation() {
             >
               KARGA
             </button>
+            <span className="text-[10px] uppercase tracking-wider text-gold/70 border border-gold/30 px-2 py-0.5 rounded font-medium">Beta</span>
+            <a
+              href="mailto:karga.analytics@gmail.com?subject=KARGA%20Feedback"
+              className="text-xs text-gray-400 hover:text-gold transition-colors"
+            >
+              Feedback
+            </a>
           </div>
 
           {/* Desktop Navigation */}

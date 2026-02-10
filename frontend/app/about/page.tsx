@@ -128,12 +128,13 @@ export default function About() {
                 </div>
               </div>
 
-              <div className="flex justify-center pt-4">
+              <div className="flex flex-col items-center pt-4 gap-2">
+                <p className="text-xs text-gold/80">We&apos;re in beta and improving with your feedback.</p>
                 <a
-                  href="mailto:karga.analytics@gmail.com"
+                  href="mailto:karga.analytics@gmail.com?subject=KARGA%20Feedback"
                   className="text-gold hover:text-gold/80 underline text-sm"
                 >
-                  Contact: karga.analytics@gmail.com
+                  Send feedback: karga.analytics@gmail.com
                 </a>
               </div>
             </div>
@@ -280,6 +281,80 @@ export default function About() {
                     Multi-hop traversal <code className="bg-dark-900 px-2 py-1 rounded">HAS_FILING → has_section → has_sentence</code>
                     with Doc2Vec embeddings: "Find sentences discussing supply chain risks in energy sector 10-Ks"
                   </p>
+                </div>
+
+                <div className="bg-dark-700 border border-gold/10 rounded-lg p-6">
+                  <h4 className="font-semibold text-rose-400 mb-2">Company → Commodities (Direct)</h4>
+                  <p className="text-sm text-gray-400">
+                    <code className="bg-dark-900 px-2 py-1 rounded">COMPANY_TRADES_COMMODITY</code> links companies to futures_prices
+                    for commodity exposure (e.g. XOM → crude oil). Enables "energy stocks vs crude prices" without CFTC hop.
+                  </p>
+                </div>
+
+                <div className="bg-dark-700 border border-gold/10 rounded-lg p-6">
+                  <h4 className="font-semibold text-sky-400 mb-2">SEC Exhibits & XBRL</h4>
+                  <p className="text-sm text-gray-400">
+                    <code className="bg-dark-900 px-2 py-1 rounded">has_exhibit</code> (sec_filings → sec_exhibits),
+                    <code className="bg-dark-900 px-2 py-1 rounded">has_xbrl_data</code> (sec_filings → sec_xbrl_data)
+                    for structured financials and exhibit-level search.
+                  </p>
+                </div>
+              </div>
+
+              {/* Full collections and edges reference (from introspect_schema) */}
+              <div className="mt-8 p-4 md:p-6 bg-dark-700/50 border border-gold/20 rounded-lg">
+                <h4 className="font-semibold text-gold mb-3">Document Collections (21)</h4>
+                <p className="text-xs text-gray-500 mb-3">Vertex collections in the graph. Run introspect_schema.py for live counts.</p>
+                <div className="flex flex-wrap gap-2 text-xs font-mono">
+                  <span className="bg-dark-800 px-2 py-1 rounded text-gray-300">Company</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-gray-300">MarketData</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-gray-300">Award</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-gray-300">EconomicData</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-gray-300">commodity_positions</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-gray-300">futures_prices</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-gray-300">options_flow</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-gray-300">eia_crude_inventory</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-gray-300">eia_natgas_storage</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-gray-300">eia_natgas_production</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-gray-300">eia_lng_exports</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-gray-300">sec_filings</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-gray-300">sec_sections</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-gray-300">sec_sentences</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-gray-300">sec_exhibits</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-gray-300">sec_xbrl_data</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-gray-300">prediction_markets_polymarket</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-gray-300">prediction_markets_kalshi</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-gray-300">polymarket_traders</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-gray-300">polymarket_positions</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-gray-300">polymarket_price_history</span>
+                </div>
+                <h4 className="font-semibold text-gold mt-6 mb-3">Edge Collections (22)</h4>
+                <p className="text-xs text-gray-500 mb-3">Relationship edges for graph traversal.</p>
+                <div className="flex flex-wrap gap-2 text-xs font-mono">
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">HAS_MARKETDATA</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">HAS_AWARD</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">HAS_COMMODITY_POSITION</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">HAS_FILING</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">COMPANY_TRADES_COMMODITY</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">COMPANY_HAS_OPTIONS</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">HAS_OPTIONS_ACTIVITY</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">OPTIONS_BEFORE_AWARD</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">OPTIONS_BEFORE_FILING</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">POSITION_ON_COMMODITY</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">INVENTORY_AFFECTS_PRICE</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">STORAGE_AFFECTS_PRICE</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">MACRO_IMPACTS_COMMODITY</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">has_section</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">has_sentence</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">has_exhibit</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">has_xbrl_data</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">market_mentions_company_polymarket</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">market_related_to_sector_polymarket</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">market_affects_company_polymarket</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">market_mentions_company_kalshi</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">market_related_to_sector_kalshi</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">trader_has_position</span>
+                  <span className="bg-dark-800 px-2 py-1 rounded text-green-400/90">position_in_market</span>
                 </div>
               </div>
 
@@ -516,7 +591,7 @@ export default function About() {
 
             <div className="space-y-6">
               <p className="text-gray-300 text-base md:text-lg leading-relaxed">
-                When you ask a question, here's what happens behind the scenes:
+                When you ask a question, we use a two-step flow: natural language → structured JSON plan → deterministic AQL. No second LLM call for query generation.
               </p>
 
               <div className="space-y-3 md:space-y-4">
@@ -533,22 +608,37 @@ export default function About() {
                   </div>
                 </div>
 
-                {/* Step 2 */}
+                {/* Step 2a: JSON Query Plan */}
                 <div className="bg-dark-800 border-l-4 border-blue-500 p-4 md:p-6 rounded-r-lg">
-                  <h4 className="font-semibold text-blue-400 mb-2 text-base md:text-lg">Step 2: Query Planning</h4>
+                  <h4 className="font-semibold text-blue-400 mb-2 text-base md:text-lg">Step 2a: JSON Query Plan (LLM)</h4>
                   <p className="text-gray-400 mb-3 text-sm md:text-base">
-                    GPT-4 receives the full database schema (collections, fields, relationships) and
-                    generates optimized AQL (ArangoDB Query Language) with proper joins and filters.
+                    GPT-4 receives the full database schema (collections, fields, edges) and outputs a structured JSON plan: primary collection, traversals (from/to/edge), filters, sort, limit, and bind_vars. No raw AQL yet—just a machine-readable plan.
+                  </p>
+                  <div className="bg-dark-900 p-2 md:p-3 rounded font-mono text-[10px] md:text-xs overflow-x-auto">
+                    <pre className="text-gray-300">{`{
+  "intent": "companies with semantic match on awards",
+  "primary_collection": "Award",
+  "traversals": [{"from_collection": "Award", "to_collection": "Company", "edge_collection": "HAS_AWARD"}],
+  "filters": {"Award.description_embedding": "cosine_similarity @query_vector >= 0.75"},
+  "bind_vars": {"query_vector": "[...]"}
+}`}</pre>
+                  </div>
+                </div>
+
+                {/* Step 2b: JSON to AQL */}
+                <div className="bg-dark-800 border-l-4 border-cyan-500 p-4 md:p-6 rounded-r-lg">
+                  <h4 className="font-semibold text-cyan-400 mb-2 text-base md:text-lg">Step 2b: JSON → AQL (Deterministic)</h4>
+                  <p className="text-gray-400 mb-3 text-sm md:text-base">
+                    A deterministic converter (json_to_aql) turns the JSON plan into executable AQL: FOR loops, edge traversals, FILTERs, SORT, LIMIT, and RETURN. No second LLM—consistent, auditable query generation.
                   </p>
                   <div className="bg-dark-900 p-2 md:p-3 rounded font-mono text-[10px] md:text-xs overflow-x-auto">
                     <pre className="text-gray-300">{`FOR award IN Award
-  FILTER COSINE_SIMILARITY(
-    award.description_embedding,
-    @query_vector
-  ) >= 0.75
-  FOR company IN Company
-    FILTER company.ticker == award.ticker
-    RETURN {company, award}`}</pre>
+  FILTER COSINE_SIMILARITY(award.description_embedding, @query_vector) >= 0.75
+  FOR edge_company IN HAS_AWARD
+    FILTER edge_company._from == award._id
+    FOR company IN Company
+      FILTER company._id == edge_company._to
+      RETURN {company, award}`}</pre>
                   </div>
                 </div>
 
@@ -556,7 +646,7 @@ export default function About() {
                 <div className="bg-dark-800 border-l-4 border-purple-500 p-4 md:p-6 rounded-r-lg">
                   <h4 className="font-semibold text-purple-400 mb-2 text-base md:text-lg">Step 3: Parallel Execution</h4>
                   <p className="text-gray-400 mb-3 text-sm md:text-base">
-                    Two queries run simultaneously:
+                    Two paths run in parallel when needed:
                   </p>
                   <ul className="text-gray-400 text-xs md:text-sm space-y-2">
                     <li>• <strong className="text-purple-300">Database Query:</strong> AQL executes against ArangoDB (historical data)</li>
@@ -568,7 +658,7 @@ export default function About() {
                 <div className="bg-dark-800 border-l-4 border-orange-500 p-4 md:p-6 rounded-r-lg">
                   <h4 className="font-semibold text-orange-400 mb-2 text-base md:text-lg">Step 4: Synthesis & Analysis</h4>
                   <p className="text-gray-400 mb-3 text-sm md:text-base">
-                    GPT-4 combines database results with web context, analyzes patterns, and generates:
+                    GPT-4 combines database results with optional web context, analyzes patterns, and generates:
                   </p>
                   <ul className="text-gray-400 text-xs md:text-sm space-y-2">
                     <li>• <strong className="text-orange-300">Structured Analysis:</strong> Formatted results with key metrics</li>

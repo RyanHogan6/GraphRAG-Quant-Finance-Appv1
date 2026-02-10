@@ -304,7 +304,8 @@ AQL ORDER OF OPERATIONS: FOR → FILTER → SORT → LIMIT → RETURN ⚠️
 ⚠️ CRITICAL FIELD NAMING RULES (EXACT NAMES FROM DATABASE):
 
 Award:
-- award_amount_float (for math), start_date, recipient_name, awarding_agency
+- award_amount_float (for math), start_date, end_date, recipient_name, awarding_agency
+- total_potential_value, total_obligations_to_date, receivable_proxy (government receivables proxy)
 - description_embedding (for semantic search), contract_year
 
 Company:
@@ -421,8 +422,12 @@ DOCUMENT COLLECTIONS:
    - recipient_name (string): Company name (e.g., "3M COMPANY")
    - matched_sp500_name (string): Standardized company name
    - start_date (string): Contract start YYYY-MM-DD
+   - end_date (string): Contract end YYYY-MM-DD (period of performance)
    - award_amount (string): Contract value as string (for display)
    - award_amount_float (float): Contract value as number (USE THIS for filtering/sorting)
+   - total_potential_value (float): Contract ceiling (base + all options value)
+   - total_obligations_to_date (float): Sum of obligated amount to date
+   - receivable_proxy (float): total_potential_value - total_obligations_to_date (outstanding receivables proxy)
    - awarding_agency (string): Government agency (e.g., "Department of Defense")
    - description (string): Award description (full text)
    - description_embedding (array): Semantic vector (1536 dimensions) for similarity search

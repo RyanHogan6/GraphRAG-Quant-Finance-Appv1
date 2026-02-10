@@ -9,13 +9,15 @@ def fetch_sp500_tickers():
     df = pd.read_html(url)[0]
     return df['Symbol'].str.replace('.', '-', regex=False).tolist()
 
-def download_stock_data(tickers, period='1mo', batch_size=1, sleep_between_tickers=0.5):
+def download_stock_data(tickers, period='1mo', days=None, batch_size=1, sleep_between_tickers=0.5):
     """
-    Download stock data ONE TICKER AT A TIME with delays to avoid rate limiting
+    Download stock data ONE TICKER AT A TIME with delays to avoid rate limiting.
+    Uses yfinance with auto_adjust=True (split- and dividend-adjusted prices only).
 
     Args:
         tickers: List of ticker symbols
-        period: Time period ('1mo', '1y', '6mo')
+        period: Time period ('1mo', '1y', '6mo') - ignored if days is set
+        days: If set, look back this many days (e.g. 3650 for 10 years). Overrides period.
         batch_size: DEPRECATED - always downloads one at a time now
         sleep_between_tickers: Seconds to wait between each ticker (default 0.5)
     """
@@ -26,16 +28,17 @@ def download_stock_data(tickers, period='1mo', batch_size=1, sleep_between_ticke
     # Let yfinance handle session management internally
     # See: https://github.com/ranaroussi/yfinance/issues/1729
 
-    if period == '1mo':
-        start_date = datetime.today().date() - timedelta(days=30)
-    elif period == '6mo':
-        start_date = datetime.today().date() - timedelta(days=180)
-    elif period == '1y':
-        start_date = datetime.today().date() - timedelta(days=365)
-    else:
-        start_date = datetime.today().date() - timedelta(days=365)
-
     end_date = datetime.today().date()
+    if days is not None:
+        start_date = end_date - timedelta(days=int(days))
+    elif period == '1mo':
+        start_date = end_date - timedelta(days=30)
+    elif period == '6mo':
+        start_date = end_date - timedelta(days=180)
+    elif period == '1y':
+        start_date = end_date - timedelta(days=365)
+    else:
+        start_date = end_date - timedelta(days=365)
 
     all_records = []
     failed_tickers = []
@@ -193,11 +196,14 @@ def download_yahoo_data(start_date=None, end_date=None, tickers=None):
         batch = tickers[i:i + BATCH_SIZE]
         data = yf.download(batch, start=start_date, end=end_date, interval=INTERVAL,
                            auto_adjust=True, group_by='ticker', threads=True, progress=False)
+        # With group_by='ticker', single-ticker batch returns flat columns; multi-ticker returns MultiIndex
+        is_multi = isinstance(data.columns, pd.MultiIndex)
         for ticker in batch:
             try:
-                df = data[ticker].copy() if isinstance(data.columns, pd.MultiIndex) else data.copy()
+                df = (data[ticker].copy() if is_multi else data.copy())
                 df.reset_index(inplace=True)
-                df.columns = [col.lower() for col in df.columns]
+                df.columns = [str(col).lower() for col in df.columns]
+                df['ticker'] = ticker  # Always set ticker (batch path doesn't get it from yfinance)
                 df['date'] = pd.to_datetime(df['date'], errors='coerce')
                 df = df.dropna(subset=['date'])
                 df_valid = df.dropna(subset=['open','high','low','close','volume'])

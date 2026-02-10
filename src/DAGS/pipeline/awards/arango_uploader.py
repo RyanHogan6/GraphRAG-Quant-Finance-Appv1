@@ -12,6 +12,15 @@ def get_arango_connection():
     username = os.getenv('ARANGO_USERNAME', 'root')
     password = os.getenv('ARANGO_PASSWORD')
 
+    if not url or not url.strip():
+        raise ValueError(
+            "ArangoDB host not set. Set ARANGO_HOST (or ARANGO_URL) in your environment or .env (e.g. ARANGO_HOST=http://localhost:8529)."
+        )
+    if not db_name or not db_name.strip():
+        raise ValueError(
+            "ArangoDB database not set. Set ARANGO_DATABASE or ARANGO_DB in your environment or .env."
+        )
+
     client = ArangoClient(hosts=url)
     return client.db(db_name, username=username, password=password)
 
@@ -59,16 +68,50 @@ def upsert_awards(db, df):
         amount_str = str(row.get('Award Amount', '')).replace(',', '').replace('$', '').strip()
         try:
             amount_float = float(amount_str) if amount_str else None
-        except:
+        except Exception:
             amount_float = None
+
+        # Total potential value: Base and All Options Value (contract ceiling); fallback to award amount
+        base_all_str = str(row.get('Base and All Options Value', '') or '').replace(',', '').replace('$', '').strip()
+        try:
+            total_potential_value = float(base_all_str) if base_all_str else None
+        except Exception:
+            total_potential_value = None
+        if total_potential_value is None and amount_float is not None:
+            total_potential_value = amount_float
+
+        # Total obligations to date (from API or enriched); try multiple possible key names
+        obligation_raw = (
+            row.get('Total Obligation')
+            or row.get('Action Obligation')
+            or row.get('total_obligations_to_date')
+            or row.get('total_obligation')
+            or row.get('action_obligation')
+        )
+        if obligation_raw is not None and str(obligation_raw).strip() != '':
+            try:
+                total_obligations_to_date = float(str(obligation_raw).replace(',', '').replace('$', '').strip())
+            except Exception:
+                total_obligations_to_date = None
+        else:
+            total_obligations_to_date = None
+
+        # Receivable proxy = total_potential_value - total_obligations_to_date (approximates outstanding contract receivables)
+        receivable_proxy = None
+        if total_potential_value is not None and total_obligations_to_date is not None:
+            receivable_proxy = total_potential_value - total_obligations_to_date
 
         doc = {
             "_key": award_id,
             "recipient_name": row.get('Recipient Name', ''),
             "ticker": row.get('Ticker', ''),
             "start_date": row.get('Start Date', ''),
+            "end_date": row.get('End Date', ''),
             "award_amount": row.get('Award Amount', ''),
             "award_amount_float": amount_float,
+            "total_potential_value": total_potential_value,
+            "total_obligations_to_date": total_obligations_to_date,
+            "receivable_proxy": receivable_proxy,
             "awarding_agency": row.get('Awarding Agency', ''),
             "description": row.get('Description', ''),
             "description_embedding": row.get('description_embedding'),

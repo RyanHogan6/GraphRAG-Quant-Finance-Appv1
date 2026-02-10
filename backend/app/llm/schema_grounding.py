@@ -45,7 +45,8 @@ COLLECTION_KEYWORDS = {
     },
     'Award': {
         'keywords': ['government contracts', 'awards', 'defense contracts', 'contractor',
-                     'usaspending', 'government spending', 'contract value'],
+                     'usaspending', 'government spending', 'contract value',
+                     'government receivables', 'outstanding contract value', 'contract receivables'],
         'priority': 2
     },
     'commodity_positions': {
