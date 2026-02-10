@@ -47,9 +47,12 @@ def json_to_aql(
             aql_parts.append(f"  FILTER {primary_var}.ticker == @ticker")
 
     for trav in traversals:
-        from_coll = trav["from_collection"]
-        to_coll = trav["to_collection"]
-        edge_coll = trav["edge_collection"]
+        from_coll = trav.get("from_collection") or ""
+        to_coll = trav.get("to_collection") or ""
+        edge_coll = (trav.get("edge_collection") or "").strip()
+        if not edge_coll or not to_coll:
+            out(f"  [SKIP] Traversal missing edge_collection or to_collection - skipping")
+            continue
 
         from_var = variables.get(from_coll)
         if not from_var:
@@ -89,6 +92,13 @@ def json_to_aql(
                 continue
             operator = condition.get("operator", "==")
             value = condition.get("value")
+            indent = "      " if len(traversals) > 0 else "  "
+            field_access = f"{var}['{field}']" if ("-" in field or " " in field) else f"{var}.{field}"
+            # List value: emit FILTER field IN ["A", "B"] (e.g. multi-ticker compare)
+            if isinstance(value, list) and len(value) > 0:
+                aql_list = ", ".join(f'"{v}"' if isinstance(v, str) else str(v) for v in value)
+                aql_parts.append(f"{indent}FILTER {field_access} IN [{aql_list}]")
+                continue
             # Bind variable: value starting with @ is emitted as-is (e.g. @ticker)
             if isinstance(value, str) and value.startswith("@"):
                 value = value
@@ -98,9 +108,7 @@ def json_to_aql(
                 value = str(value).lower()
             elif isinstance(value, (int, float)):
                 value = str(value)
-            indent = "      " if len(traversals) > 0 else "  "
             if operator == "CONTAINS":
-                field_access = f"{var}['{field}']" if ("-" in field or " " in field) else f"{var}.{field}"
                 aql_parts.append(f"{indent}FILTER CONTAINS({field_access}, {value})")
             else:
                 if "-" in field or " " in field:
@@ -151,17 +159,17 @@ def json_to_aql(
                     out(f"  [SKIP] Aggregate on {collection}.{field} but {collection} not in query path")
                 else:
                     if agg_type == "COUNT":
-                        aql_parts.append(f"{indent}AGGREGATE count = LENGTH(1)")
+                        aql_parts.append(f"{indent}AGGREGATE agg_count = LENGTH(1)")
                         agg_added = True
                     elif agg_type == "SUM":
-                        aql_parts.append(f"{indent}AGGREGATE total = SUM({var}.{field})")
+                        aql_parts.append(f"{indent}AGGREGATE agg_sum = SUM({var}.{field})")
                         agg_added = True
                     elif agg_type == "AVG":
-                        aql_parts.append(f"{indent}AGGREGATE average = AVG({var}.{field})")
+                        aql_parts.append(f"{indent}AGGREGATE agg_avg = AVG({var}.{field})")
                         agg_added = True
             if not agg_added and group_by:
                 # COLLECT with group_by but no valid AGGREGATE: add count so RETURN has defined variable
-                aql_parts.append(f"{indent}AGGREGATE count = LENGTH(1)")
+                aql_parts.append(f"{indent}AGGREGATE agg_count = LENGTH(1)")
                 agg_type = "COUNT"
         else:
             if agg_type == "COUNT":
@@ -169,6 +177,13 @@ def json_to_aql(
 
     if not aggregation:
         limit = json_plan.get("limit", 10)
+        try:
+            limit = int(limit) if limit is not None else 100
+        except (TypeError, ValueError):
+            limit = 100
+        if limit <= 0 or limit > 1000:
+            limit = min(max(1, limit), 1000)
+            out(f"  [AUTO-FIX] Limit capped to {limit}")
         indent = "      " if len(traversals) > 0 else "  "
         aql_parts.append(f"{indent}LIMIT {limit}")
 
@@ -185,14 +200,14 @@ def json_to_aql(
                     return_obj.append(f"{field}: {field}")
             agg_type = aggregation.get("type", "COUNT")
             aql_so_far = "\n".join(aql_parts)
-            if agg_type == "COUNT" or "AGGREGATE count =" in aql_so_far:
-                return_obj.append("count: count")
-            elif agg_type == "SUM" and "AGGREGATE total =" in aql_so_far:
-                return_obj.append("total: total")
-            elif agg_type == "AVG" and "AGGREGATE average =" in aql_so_far:
-                return_obj.append("average: average")
+            if agg_type == "COUNT" or "agg_count =" in aql_so_far:
+                return_obj.append("count: agg_count")
+            elif agg_type == "SUM" and "agg_sum =" in aql_so_far:
+                return_obj.append("total: agg_sum")
+            elif agg_type == "AVG" and "agg_avg =" in aql_so_far:
+                return_obj.append("average: agg_avg")
             else:
-                return_obj.append("count: count")
+                return_obj.append("count: agg_count")
             aql_parts.append(f"{indent}RETURN {{")
             for i, field_def in enumerate(return_obj):
                 comma = "," if i < len(return_obj) - 1 else ""

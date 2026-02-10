@@ -27,6 +27,37 @@ router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
 
 
+def _fallback_analysis_with_web_sources(web_context_data: dict) -> str:
+    """
+    When DB returned nothing and there's no web summary, build a short fallback
+    using web sources/citations so the user still gets something (e.g. 3 bullet links).
+    """
+    if not web_context_data:
+        return "I couldn't retrieve information from either the database or web sources. Please try rephrasing your question."
+    citations = web_context_data.get("citations") or []
+    sources = web_context_data.get("sources") or []
+    # Prefer citations (list of {number, url}); else raw URL list
+    if citations and isinstance(citations[0], dict):
+        items = citations[:3]
+        bullets = "\n".join(
+            f"• **Source {item.get('number', i)}:** [Link]({item.get('url', '')})"
+            for i, item in enumerate(items, 1)
+        )
+    elif sources:
+        items = sources[:3] if isinstance(sources[0], str) else sources[:3]
+        bullets = "\n".join(
+            f"• **Source {i}:** [Link]({u})" if isinstance(u, str) else f"• **Source {i}:** [Link]({u.get('url', '')})"
+            for i, u in enumerate(items, 1)
+        )
+    else:
+        return "I couldn't retrieve information from either the database or web sources. Please try rephrasing your question."
+    return (
+        "The database didn't return results for this question. Here's what we found from the web:\n\n"
+        + bullets
+        + "\n\n_You can open these sources for more context._"
+    )
+
+
 class QueryRequest(BaseModel):
     question: constr(min_length=1, max_length=1000)  # Limit query length
     conversation_history: Optional[List[Dict[str, Any]]] = []  # Conversation context
@@ -676,8 +707,8 @@ def execute_query(request: Request, body: QueryRequest):
             # DB-only (web failed)
             analysis = analyze_results_with_llm(body.question, results, query_plan)
         else:
-            # Both failed
-            analysis = "I couldn't retrieve information from either the database or web sources. Please try rephrasing your question."
+            # No DB results and no web summary: use web sources for a short fallback if available
+            analysis = _fallback_analysis_with_web_sources(web_context_data)
 
         # Generate follow-up questions
         print(f"[EXECUTE] Generating follow-ups for {len(results)} results")
@@ -952,8 +983,8 @@ async def execute_query_stream(request: Request, body: QueryRequest):
                 print(f"[ANALYSIS] Using DB-only LLM analysis")
                 analysis = analyze_results_with_llm(body.question, results, query_plan)
             else:
-                print(f"[ANALYSIS] No results - using fallback message")
-                analysis = "I couldn't retrieve information from either the database or web sources. Please try rephrasing your question."
+                print(f"[ANALYSIS] No results - using fallback (with web sources if available)")
+                analysis = _fallback_analysis_with_web_sources(web_context_data)
 
             print(f"[ANALYSIS] Generated {len(analysis)} characters")
 

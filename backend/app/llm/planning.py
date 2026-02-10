@@ -335,7 +335,7 @@ def preprocess_query(question: str) -> Optional[dict]:
     ]
     is_screening = any(p in question_lower for p in screening_phrases)
     # Known non-tickers that appear in screening questions (don't treat as ticker symbol)
-    non_ticker_tokens = {"RSI", "MACD", "PE", "P/E", "SEC", "ETF", "IPO", "EPS", "GDP", "CPI"}
+    non_ticker_tokens = {"RSI", "MACD", "PE", "P/E", "SEC", "ETF", "IPO", "EPS", "GDP", "CPI", "S&P"}
     ticker_match = re.search(r'\b([A-Z]{2,5})\b', question)
     if ticker_match and len(question.split()) <= 6 and not is_screening:
         ticker = ticker_match.group(1)
@@ -386,11 +386,23 @@ def preprocess_query(question: str) -> Optional[dict]:
                 "explanation": "Count active polymarket markets"
             }
 
-    # Pattern 3: Latest/recent data (only when clearly asking for "recent awards list" not "companies that won contracts")
+    # Pattern 3: Latest/recent data (only when clearly asking for "recent awards list" not a specific company)
+    # Do NOT use recent_awards when user asks for one company (e.g. "Show me Raytheon with contracts" or "RTX awards")
+    company_name_substrings = [
+        "raytheon", "lockheed", "boeing", "northrop", "general dynamics", "l3harris", "rtx",
+        "exxon", "chevron", "apple", "tesla", "microsoft", "amazon", "nvidia", "google",
+        "freeport", "newmont", "barrick", "adm", "caterpillar", "dupont", "dow"
+    ]
+    question_mentions_company = any(name in question_lower for name in company_name_substrings)
+    ticker_in_question = re.search(r'\b([A-Z]{2,5})\b', question)
+    if ticker_in_question:
+        tok = ticker_in_question.group(1)
+        if tok not in non_ticker_tokens and len(tok) >= 2:
+            question_mentions_company = True  # e.g. "RTX" or "Show me AAPL with recent contracts"
     if any(word in question_lower for word in ['latest', 'recent', 'newest', 'last']):
         if ("award" in question_lower or "contract" in question_lower) and not any(
-            p in question_lower for p in ["companies with", "companies that", "golden cross", "death cross"]
-        ):
+            p in question_lower for p in ["companies with", "companies that", "golden cross", "death cross", "that won", "that entered", "that have"]
+        ) and not question_mentions_company:
             return {
                 "intent": "recent_awards",
                 "collections": ["Award"],
@@ -423,6 +435,40 @@ def preprocess_query(question: str) -> Optional[dict]:
                     "explanation": f"Fetch active {category} prediction markets"
                 }
 
+    # Pattern 4b: Materials/mining companies with commodity (gold, silver, copper) positions
+    # Uses Company -> HAS_COMMODITY_POSITION -> commodity_positions. Support both Market_and_Exchange_Names and commodity_code (DB may use either).
+    commodity_position_keywords = ["positions in", "position in", "documented positions", "exposure to", "futures"]
+    commodity_metals = ["gold", "silver", "copper"]
+    sector_keywords = ["materials", "mining", "metals", "companies with"]
+    if any(kw in question_lower for kw in commodity_position_keywords) and any(m in question_lower for m in commodity_metals):
+        if any(s in question_lower for s in sector_keywords) or "companies" in question_lower:
+            # Match commodity by either field (schema has both; some DBs use commodity_code)
+            aql_mining_commodity = """
+FOR company IN Company
+  FILTER company.sector == "Materials" OR CONTAINS(LOWER(TO_STRING(company.industry)), "mining") OR CONTAINS(LOWER(TO_STRING(company.industry)), "metals") OR CONTAINS(LOWER(TO_STRING(company.industry)), "gold")
+  LET positions = (
+    FOR pos IN OUTBOUND company HAS_COMMODITY_POSITION
+      FILTER CONTAINS(LOWER(TO_STRING(pos.Market_and_Exchange_Names || pos.commodity_code || "")), "gold") OR CONTAINS(LOWER(TO_STRING(pos.Market_and_Exchange_Names || pos.commodity_code || "")), "silver") OR CONTAINS(LOWER(TO_STRING(pos.Market_and_Exchange_Names || pos.commodity_code || "")), "copper")
+      RETURN DISTINCT (pos.Market_and_Exchange_Names || pos.commodity_code)
+  )
+  FILTER LENGTH(positions) > 0
+  RETURN {
+    ticker: company.ticker,
+    company: company.company,
+    sector: company.sector,
+    industry: company.industry,
+    commodities: positions
+  }
+"""
+            return {
+                "intent": "multi_commodity_exposure",
+                "collections": ["Company", "commodity_positions"],
+                "requires_embedding": False,
+                "aql_query": aql_mining_commodity.strip(),
+                "bind_vars": {},
+                "explanation": "Materials/mining companies with CFTC positions in gold, silver, or copper"
+            }
+
     # Pattern 5: Top traders / whales
     if any(phrase in question_lower for phrase in ['top trader', 'whale', 'biggest trader', 'most profitable trader']):
         return {
@@ -443,16 +489,17 @@ def quick_intent_check(question: str):
 
 Is this asking about a TICKER SYMBOL or a CONCEPT?
 
-TICKER: Question mentions a specific stock ticker (2-5 uppercase letters like AAPL, CMI, TSLA, FCX)
-CONCEPT: Question asks about a topic/theme (AI, cybersecurity, renewable energy, copper, gold, etc.)
+TICKER: Question mentions a specific stock (by ticker like AAPL, RTX, or by company name). If company name is used, return the ticker: Raytheon→RTX, Lockheed Martin→LMT, Boeing→BA, Northrop Grumman→NOC, Exxon→XOM, Chevron→CVX, Apple→AAPL, Tesla→TSLA, Microsoft→MSFT, Amazon→AMZN, Nvidia→NVDA, Freeport-McMoRan→FCX, Newmont→NEM.
+CONCEPT: Question asks about a topic/theme (AI, cybersecurity, renewable energy, copper, gold, etc.) with no specific company.
 
 Examples:
-- "CMI awards" → TICKER (CMI is Cummins stock ticker)
-- "awards related to AI" → CONCEPT (AI = artificial intelligence topic)
-- "TSLA in 2024" → TICKER
-- "renewable energy contracts" → CONCEPT
+- "CMI awards" → {{"type": "ticker", "value": "CMI"}}
+- "Show me Raytheon with government contracts" → {{"type": "ticker", "value": "RTX"}}
+- "awards related to AI" → {{"type": "concept", "value": "artificial intelligence"}}
+- "TSLA in 2024" → {{"type": "ticker", "value": "TSLA"}}
+- "renewable energy contracts" → {{"type": "concept", "value": "renewable energy"}}
 
-Return JSON: {{"type": "ticker", "value": "CMI"}} or {{"type": "concept", "value": "artificial intelligence"}}
+Return only JSON: {{"type": "ticker", "value": "XXX"}} or {{"type": "concept", "value": "topic"}}
 """
 
     try:
@@ -608,10 +655,18 @@ def plan_query_with_llm(question: str, intent_hint=None, conversation_history: l
         bind_vars = dict(json_plan.get("bind_vars") or {})
         if intent_hint and intent_hint.get("type") == "ticker" and intent_hint.get("value"):
             bind_vars["ticker"] = intent_hint["value"]
-        # If AQL uses @ticker but no bind value, remove ticker filter so query runs over all companies (screening)
-        if "@ticker" in aql_query and not bind_vars.get("ticker"):
+        # Screening questions: if AQL has @ticker but no bind value, strip ticker filter so query runs over all companies
+        screening_phrases = [
+            "stocks with", "companies with", "find companies", "find stocks", "s&p 500", "which sector",
+            "death cross", "golden cross", "rsi above", "rsi below", "macd", "p/e ratio", "undervalued",
+            "dividend yield", "outperforming", "sectors are", "companies that entered", "companies that have"
+        ]
+        question_lower = question.lower().strip()
+        is_screening_question = any(p in question_lower for p in screening_phrases)
+        if is_screening_question and "@ticker" in aql_query and not bind_vars.get("ticker"):
             aql_query = re.sub(r"\s*FILTER\s+\w+\.ticker\s*==\s*@ticker\s*\n", "\n", aql_query)
             aql_query = re.sub(r"\s*FILTER\s+[^\n]*\bticker\s*==\s*@ticker\b[^\n]*\n", "\n", aql_query)
+            print("  [AUTO-FIX] Screening question with @ticker but no bind_vars.ticker - removed ticker filter")
         plan = {
             "intent": json_plan.get("intent", "json_intent"),
             "collections": collections,
