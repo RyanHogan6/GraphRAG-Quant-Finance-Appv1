@@ -131,7 +131,8 @@ def json_to_aql(
             else:
                 direction = sort_config.get("direction", "DESC")
                 indent = "      " if len(traversals) > 0 else "  "
-                aql_parts.append(f"{indent}SORT {var}.{field} {direction}")
+                sort_access = f'{var}["{field}"]' if ("-" in field or " " in field) else f"{var}.{field}"
+                aql_parts.append(f"{indent}SORT {sort_access} {direction}")
 
     if aggregation:
         agg_type = aggregation.get("type", "COUNT")
@@ -141,6 +142,7 @@ def json_to_aql(
 
         if group_by:
             group_fields = []
+            group_field_safe = {}  # field_path -> safe AQL variable name for COLLECT
             for field_path in group_by:
                 if "." in field_path:
                     collection, field = field_path.split(".", 1)
@@ -148,7 +150,12 @@ def json_to_aql(
                     if not var:
                         out(f"  [SKIP] Group by {collection}.{field} but {collection} not in query path")
                         continue
-                    group_fields.append(f"{field} = {var}.{field}")
+                    if "-" in field or " " in field:
+                        safe = field.replace("-", "_").replace(" ", "_")
+                        group_field_safe[field_path] = (field, safe)
+                        group_fields.append(f'{safe} = {var}["{field}"]')
+                    else:
+                        group_fields.append(f"{field} = {var}.{field}")
             if group_fields:
                 aql_parts.append(f"{indent}COLLECT {', '.join(group_fields)}")
             agg_added = False
@@ -158,14 +165,15 @@ def json_to_aql(
                 if not var:
                     out(f"  [SKIP] Aggregate on {collection}.{field} but {collection} not in query path")
                 else:
+                    agg_access = f'{var}["{field}"]' if ("-" in field or " " in field) else f"{var}.{field}"
                     if agg_type == "COUNT":
                         aql_parts.append(f"{indent}AGGREGATE agg_count = LENGTH(1)")
                         agg_added = True
                     elif agg_type == "SUM":
-                        aql_parts.append(f"{indent}AGGREGATE agg_sum = SUM({var}.{field})")
+                        aql_parts.append(f"{indent}AGGREGATE agg_sum = SUM({agg_access})")
                         agg_added = True
                     elif agg_type == "AVG":
-                        aql_parts.append(f"{indent}AGGREGATE agg_avg = AVG({var}.{field})")
+                        aql_parts.append(f"{indent}AGGREGATE agg_avg = AVG({agg_access})")
                         agg_added = True
             if not agg_added and group_by:
                 # COLLECT with group_by but no valid AGGREGATE: add count so RETURN has defined variable
@@ -197,7 +205,11 @@ def json_to_aql(
             for field_path in aggregation.get("group_by", []):
                 if "." in field_path:
                     _, field = field_path.split(".", 1)
-                    return_obj.append(f"{field}: {field}")
+                    if field_path in group_field_safe:
+                        _, safe_var = group_field_safe[field_path]
+                        return_obj.append(f'"{field}": {safe_var}')
+                    else:
+                        return_obj.append(f"{field}: {field}")
             agg_type = aggregation.get("type", "COUNT")
             aql_so_far = "\n".join(aql_parts)
             if agg_type == "COUNT" or "agg_count =" in aql_so_far:
@@ -230,7 +242,11 @@ def json_to_aql(
             if not var:
                 out(f"  [SKIP] Return field {collection}.{field} but {collection} not in query path")
                 continue
-            return_obj.append(f"{field}: {var}.{field}")
+            # AQL: keys/values with hyphen (e.g. product-name) must be quoted/bracket to avoid "product - name" parse
+            needs_quote = "-" in field or " " in field
+            key_part = f'"{field}"' if needs_quote else field
+            value_part = f'{var}["{field}"]' if needs_quote else f"{var}.{field}"
+            return_obj.append(f"{key_part}: {value_part}")
         if return_obj:
             indent = "      " if len(traversals) > 0 else "  "
             aql_parts.append(f"{indent}RETURN {{")

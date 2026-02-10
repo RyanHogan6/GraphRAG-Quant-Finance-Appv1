@@ -506,7 +506,23 @@ export default function HomePage() {
     if (value == null || value === undefined) return <span className="text-gray-500 italic">—</span>
     if (typeof value === 'object') {
       if (Array.isArray(value)) return <span className="text-xs text-gray-500 italic">Array[{value.length}]</span>
-      return <span className="text-xs text-gray-500 italic">Object</span>
+      const obj = value as Record<string, unknown>
+      const keys = Object.keys(obj).filter(k => !k.startsWith('_'))
+      const preview = (() => {
+        try {
+          const str = JSON.stringify(obj)
+          if (str.length <= 120) return str
+          return str.slice(0, 117) + '…'
+        } catch {
+          return `{ ${keys.length} key${keys.length === 1 ? '' : 's'} }`
+        }
+      })()
+      const fullJson = (() => { try { return JSON.stringify(obj, null, 2) } catch { return '' } })()
+      return (
+        <span className="text-xs text-gray-300 font-mono break-all" title={fullJson ? fullJson.slice(0, 2000) + (fullJson.length > 2000 ? '…' : '') : undefined}>
+          {preview}
+        </span>
+      )
     }
     if (typeof value === 'number') {
       if (Number.isNaN(value)) return <span className="text-gray-500 italic">—</span>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { secFilingDocumentUrl, secCompanyUrl as getSecCompanyUrl } from '@/lib/secUrls'
 
 export type SECDocumentTab = 'filings' | 'exhibits' | 'xbrl'
 
@@ -133,7 +134,7 @@ export default function SECDocumentViewer({
         })
     }, [xbrlData, filterByPeriod])
 
-    const secCompanyUrl = ticker ? `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${encodeURIComponent(ticker)}` : null
+    const secCompanyUrl = getSecCompanyUrl(ticker)
     const exhibitTypeHint: Record<string, string> = {
         'EX-10': 'Material contracts (credit, employment, M&A, etc.)',
         'EX-4': 'Debt instruments, indentures',
@@ -368,11 +369,21 @@ export default function SECDocumentViewer({
                             {selectedDoc.item.accession && (
                                 <div><span className="text-gray-500">Accession:</span> <span className="text-gray-400 font-mono text-[10px]">{selectedDoc.item.accession}</span></div>
                             )}
-                            {secCompanyUrl && (
-                                <a href={secCompanyUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-gold hover:text-gold/80 text-[10px] font-semibold">
-                                    Open on SEC EDGAR →
-                                </a>
-                            )}
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+                                {(() => {
+                                    const directUrl = secFilingDocumentUrl(selectedDoc.item.accession)
+                                    return directUrl ? (
+                                        <a href={directUrl} target="_blank" rel="noopener noreferrer" className="text-gold hover:text-gold/80 text-[10px] font-semibold">
+                                            View this filing on SEC →
+                                        </a>
+                                    ) : null
+                                })()}
+                                {secCompanyUrl && (
+                                    <a href={secCompanyUrl} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-gray-300 text-[10px]">
+                                        All filings (EDGAR)
+                                    </a>
+                                )}
+                            </div>
                         </div>
                         )
                     })() : (

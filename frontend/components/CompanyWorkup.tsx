@@ -8,6 +8,7 @@ import SECDocumentViewer from './SECDocumentViewer'
 import SectorComparison from './SectorComparison'
 import SentimentIndicators from './company/SentimentIndicators'
 import PerformanceSummaryCard from './PerformanceSummaryCard'
+import { secFilingDocumentUrl, secCompanyUrl } from '@/lib/secUrls'
 import type { Key } from 'react'
 
 const API_BASE = typeof process !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') : 'http://localhost:8000'
@@ -1366,9 +1367,8 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                     const sentimentClass = avg > 0.05 ? 'bg-green-500/20 text-green-400 border-green-500/40' : avg < -0.05 ? 'bg-red-500/20 text-red-400 border-red-500/40' : 'bg-gray-500/20 text-gray-400 border-gray-500/40';
                                     const formType = selectedDetail.data.type || selectedDetail.data.form_type || 'Filing';
                                     const filedDate = selectedDetail.data.filing_date ?? '—';
-                                    const secFilingUrl = company.ticker
-                                        ? `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${encodeURIComponent(company.ticker)}&type=${encodeURIComponent(formType)}&dateb=&owner=include&count=40`
-                                        : null;
+                                    const directFilingUrl = secFilingDocumentUrl(selectedDetail.data.accession);
+                                    const secCompanyLink = secCompanyUrl(company.ticker);
                                     return (
                                         <>
                                             <div className="flex flex-wrap items-center gap-2">
@@ -1380,9 +1380,14 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                             <p className="text-xs text-gray-400">
                                                 {formType} filed on {filedDate}{company.ticker ? ` for ${company.ticker}` : ''}.
                                             </p>
-                                            {secFilingUrl && (
-                                                <a href={secFilingUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-500 hover:text-blue-400 transition-colors">Open on SEC EDGAR</a>
-                                            )}
+                                            <div className="flex flex-wrap gap-x-4 gap-y-1">
+                                                {directFilingUrl && (
+                                                    <a href={directFilingUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-gold hover:text-gold/80 font-semibold">View this filing on SEC →</a>
+                                                )}
+                                                {secCompanyLink && (
+                                                    <a href={secCompanyLink} target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-500 hover:text-blue-400 transition-colors">All filings (EDGAR)</a>
+                                                )}
+                                            </div>
                                             <div>
                                                 <h5 className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-3">Key Excerpts (by sentiment)</h5>
                                                 {(selectedDetail.data.top_sentences || selectedDetail.data.sec_sentences)?.length > 0 ? (

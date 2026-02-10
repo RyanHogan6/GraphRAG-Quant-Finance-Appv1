@@ -951,6 +951,7 @@ EDGE COLLECTIONS (Graph Relationships):
     Usage: FOR price IN OUTBOUND inventory INVENTORY_AFFECTS_PRICE
 
     ⚠️ Use Case: Analyze crude oil price response to inventory changes
+    ⚠️ "Crude oil futures when EIA inventory below X" = start from eia_crude_inventory (FILTER crude_stocks < X), then ONE traversal edge_collection INVENTORY_AFFECTS_PRICE to futures_prices. Do NOT use HAS_COMMODITY_POSITION or HAS_MARKETDATA (those are Company-centric).
 
 14. STORAGE_AFFECTS_PRICE: eia_natgas_storage -> futures_prices
     - storage_date (string): EIA report date

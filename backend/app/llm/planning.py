@@ -57,6 +57,28 @@ def get_openai_client():
 _query_cache = []
 MAX_CACHE_SIZE = 50  # Keep last 50 queries
 
+# Common ticker typos and company-name-to-ticker (user input -> correct ticker). APPL is extremely common for Apple.
+TICKER_TYPO_CORRECTIONS = {
+    "APPL": "AAPL",
+    "APL": "AAPL",
+    "APPLE": "AAPL",  # "Apple's financials" -> capture "apple", upper -> APPLE
+    "GOOG": "GOOGL",
+    "AMAZON": "AMZN",
+    "MICROSOFT": "MSFT",
+    "TESLA": "TSLA",
+    "NVIDIA": "NVDA",
+    "META": "META",
+    "ALPHABET": "GOOGL",
+}
+
+
+def normalize_ticker(raw: str) -> str:
+    """Correct common ticker typos so queries like 'APPL financials' return Apple data."""
+    if not raw or len(raw) < 2:
+        return raw
+    u = raw.upper().strip()
+    return TICKER_TYPO_CORRECTIONS.get(u, u)
+
 
 def get_relevant_schema(question, intent):
     """
@@ -311,12 +333,12 @@ def preprocess_query(question: str) -> Optional[dict]:
         if m:
             raw = re.sub(r"'?s?$", "", m.group(1)).upper()
             if len(raw) >= 2 and raw.isalpha():
-                ticker = raw
+                ticker = normalize_ticker(raw)
         if not ticker:
             # "Show me PPG financials" -> first 2-5 letter all-caps token
             m = re.search(r"\b([A-Z]{2,5})\b", question)
             if m:
-                ticker = m.group(1)
+                ticker = normalize_ticker(m.group(1))
         if ticker:
             return {
                 "intent": "company_comprehensive_workup",
@@ -338,7 +360,7 @@ def preprocess_query(question: str) -> Optional[dict]:
     non_ticker_tokens = {"RSI", "MACD", "PE", "P/E", "SEC", "ETF", "IPO", "EPS", "GDP", "CPI", "S&P"}
     ticker_match = re.search(r'\b([A-Z]{2,5})\b', question)
     if ticker_match and len(question.split()) <= 6 and not is_screening:
-        ticker = ticker_match.group(1)
+        ticker = normalize_ticker(ticker_match.group(1))
         if ticker in non_ticker_tokens:
             ticker = None
         if ticker:
@@ -434,6 +456,41 @@ def preprocess_query(question: str) -> Optional[dict]:
                     "bind_vars": {},
                     "explanation": f"Fetch active {category} prediction markets"
                 }
+
+    # Pattern 4a: Crude oil futures when EIA inventory below X million barrels
+    # Correct path: eia_crude_inventory -> INVENTORY_AFFECTS_PRICE -> futures_prices (NOT Company/commodity_positions/HAS_MARKETDATA)
+    inventory_below = re.search(r"inventory\s+(?:was\s+)?below\s+(\d+)\s*(million\s*)?barrels?", question_lower) or re.search(r"when\s+(?:eia\s+)?(?:crude\s+)?inventory\s*[<\s]+(\d+)", question_lower)
+    if ("crude oil" in question_lower or "crude" in question_lower) and ("futures" in question_lower or "prices" in question_lower) and ("eia" in question_lower or "inventory" in question_lower):
+        threshold = 400  # default 400 million barrels
+        if inventory_below:
+            threshold = int(inventory_below.group(1))
+        # crude_stocks is in million barrels per schema; support value if dataset uses that
+        aql_crude_inventory = f"""
+FOR e IN eia_crude_inventory
+  LET inv_val = e.crude_stocks != null ? e.crude_stocks : e.value
+  FILTER inv_val != null AND inv_val < {threshold}
+  FOR f IN OUTBOUND e INVENTORY_AFFECTS_PRICE
+    FILTER f.commodity == "CRUDE_OIL"
+    RETURN {{
+      date: f.date,
+      close: f.close,
+      open: f.open,
+      high: f.high,
+      low: f.low,
+      volume: f.volume,
+      commodity: f.commodity,
+      inventory_million_barrels: inv_val,
+      report_date: e.report_date || e.date
+    }}
+"""
+        return {
+            "intent": "commodity_inventory_analysis",
+            "collections": ["eia_crude_inventory", "futures_prices"],
+            "requires_embedding": False,
+            "aql_query": aql_crude_inventory.strip(),
+            "bind_vars": {},
+            "explanation": f"Crude oil futures when EIA inventory below {threshold} million barrels (rule-based)"
+        }
 
     # Pattern 4b: Materials/mining companies with commodity (gold, silver, copper) positions
     # Uses Company -> HAS_COMMODITY_POSITION -> commodity_positions. Support both Market_and_Exchange_Names and commodity_code (DB may use either).
@@ -667,6 +724,9 @@ def plan_query_with_llm(question: str, intent_hint=None, conversation_history: l
             aql_query = re.sub(r"\s*FILTER\s+\w+\.ticker\s*==\s*@ticker\s*\n", "\n", aql_query)
             aql_query = re.sub(r"\s*FILTER\s+[^\n]*\bticker\s*==\s*@ticker\b[^\n]*\n", "\n", aql_query)
             print("  [AUTO-FIX] Screening question with @ticker but no bind_vars.ticker - removed ticker filter")
+        # Normalize common ticker typos (e.g. APPL -> AAPL) so LLM output still works
+        if bind_vars.get("ticker"):
+            bind_vars["ticker"] = normalize_ticker(str(bind_vars["ticker"]))
         plan = {
             "intent": json_plan.get("intent", "json_intent"),
             "collections": collections,
