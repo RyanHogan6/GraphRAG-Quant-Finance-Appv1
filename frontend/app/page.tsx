@@ -501,6 +501,34 @@ export default function HomePage() {
     ),
   }
 
+  // Format a single cell value for the Database Browser table (nulls, currency, numbers, long text)
+  const formatCollectionCell = (key: string, value: unknown): React.ReactNode => {
+    if (value == null || value === undefined) return <span className="text-gray-500 italic">—</span>
+    if (typeof value === 'object') {
+      if (Array.isArray(value)) return <span className="text-xs text-gray-500 italic">Array[{value.length}]</span>
+      return <span className="text-xs text-gray-500 italic">Object</span>
+    }
+    if (typeof value === 'number') {
+      if (Number.isNaN(value)) return <span className="text-gray-500 italic">—</span>
+      const keyLower = key.toLowerCase()
+      const isCurrency = /amount|value|price|close|open|high|low|premium|revenue|income|award_|dollar|cap_|float|total_contract|contract_value/.test(keyLower) ||
+        (keyLower === 'close' || keyLower === 'open' || keyLower === 'high' || keyLower === 'low')
+      if (isCurrency) {
+        const abs = Math.abs(value)
+        if (abs >= 1e12) return <span className="text-gold">{`$${(value / 1e12).toFixed(2)}T`}</span>
+        if (abs >= 1e9) return <span className="text-gold">{`$${(value / 1e9).toFixed(2)}B`}</span>
+        if (abs >= 1e6) return <span className="text-gold">{`$${(value / 1e6).toFixed(2)}M`}</span>
+        if (abs >= 1e3 || abs < 1) return <span className="text-gold">{`$${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`}</span>
+        return <span className="text-gold">{`$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}</span>
+      }
+      return <span className="text-gold">{value.toLocaleString()}</span>
+    }
+    const str = String(value)
+    if (str === '') return <span className="text-gray-500 italic">—</span>
+    if (str.length > 50) return <span className="text-xs" title={str}>{str.substring(0, 50)}…</span>
+    return str
+  }
+
   // State for markets section
   const [selectedPlatform, setSelectedPlatform] = useState<'polymarket' | 'kalshi'>('polymarket')
   const [polymarketView, setPolymarketView] = useState<'markets' | 'whales'>('markets') // Toggle between markets and whale tracker
@@ -995,9 +1023,11 @@ export default function HomePage() {
     Object.entries(columnFilters).forEach(([column, filterValue]) => {
       if (filterValue) {
         const filterLower = filterValue.toLowerCase()
-        result = result.filter((item) =>
-          String(item[column]).toLowerCase().includes(filterLower)
-        )
+        result = result.filter((item) => {
+          const v = item[column]
+          if (v == null || v === undefined) return filterLower === '' || filterLower === '—'
+          return String(v).toLowerCase().includes(filterLower)
+        })
       }
     })
 
@@ -2286,19 +2316,7 @@ export default function HomePage() {
                                   .filter(([key]) => !key.startsWith('_'))
                                   .map(([key, value]) => (
                                     <td key={key} className="px-2 md:px-4 py-2 md:py-3 text-gray-300 whitespace-nowrap">
-                                      {typeof value === 'object' && value !== null ? (
-                                        <span className="text-xs text-gray-500 italic">
-                                          {Array.isArray(value) ? `Array[${value.length}]` : 'Object'}
-                                        </span>
-                                      ) : typeof value === 'number' ? (
-                                        <span className="text-gold">{value.toLocaleString()}</span>
-                                      ) : String(value).length > 50 ? (
-                                        <span className="text-xs" title={String(value)}>
-                                          {String(value).substring(0, 50)}...
-                                        </span>
-                                      ) : (
-                                        String(value)
-                                      )}
+                                      {formatCollectionCell(key, value)}
                                     </td>
                                   ))}
                               </tr>
