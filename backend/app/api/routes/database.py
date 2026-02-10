@@ -34,14 +34,9 @@ def browse(
 ):
     """Browse documents in a collection with optional search"""
     try:
-        # Validate collection name
-        allowed_collections = [
-            "Company", "MarketData", "Award", "EconomicData",
-            "commodity_positions", "prediction_markets_polymarket",
-            "prediction_markets_kalshi", "sec_filings", "sec_sections", "sec_sentences"
-        ]
-
-        if collection_name not in allowed_collections:
+        # Validate collection name (must be one of our document collections)
+        from app.database.connection import DOCUMENT_COLLECTIONS
+        if collection_name not in DOCUMENT_COLLECTIONS:
             raise HTTPException(status_code=400, detail="Invalid collection name")
 
         results = browse_collection(collection_name, limit=limit, search=search, offset=offset)

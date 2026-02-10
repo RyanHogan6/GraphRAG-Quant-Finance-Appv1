@@ -342,27 +342,54 @@ export default function HomePage() {
   );
   };
 
-  // Collection name translations
+  // Collection name translations (all 21 document collections)
   const collectionDisplayNames: Record<string, string> = {
     'Company': 'S&P 500 Companies',
     'MarketData': 'Stock Prices & Indicators',
     'Award': 'Government Contract Awards',
     'EconomicData': 'FRED Economic Indicators',
-    'sec_filings': 'SEC Filings (12 Form Types)',
-    'sec_sentences': 'SEC Sentiment Analysis',
-    'sec_sections': 'SEC Filing Sections',
-    'options_flow': 'Options Flow Activity',
-    'futures_prices': 'Commodity Futures Prices',
-    'commodity_positions': 'CFTC Trader Positions',
-    'eia_crude_inventory': 'EIA Crude Oil Inventory',
-    'eia_natgas_storage': 'EIA Natural Gas Storage',
-    'eia_natgas_production': 'EIA Natural Gas Production',
+    'sec_filings': 'SEC Filings',
+    'sec_sentences': 'SEC Sentiment',
+    'sec_sections': 'SEC Sections',
+    'sec_exhibits': 'SEC Exhibits',
+    'sec_xbrl_data': 'SEC XBRL Data',
+    'options_flow': 'Options Flow',
+    'futures_prices': 'Futures Prices',
+    'commodity_positions': 'CFTC Positions',
+    'eia_crude_inventory': 'EIA Crude',
+    'eia_natgas_storage': 'EIA Nat Gas Storage',
+    'eia_natgas_production': 'EIA Nat Gas Prod',
     'eia_lng_exports': 'EIA LNG Exports',
-    'prediction_markets_polymarket': 'Polymarket Prediction Markets',
-    'prediction_markets_kalshi': 'Kalshi Event Contracts',
-    'polymarket_traders': 'Polymarket Whale Traders',
-    'polymarket_positions': 'Polymarket Trader Positions',
-    'polymarket_price_history': 'Polymarket Price History',
+    'prediction_markets_polymarket': 'Polymarket',
+    'prediction_markets_kalshi': 'Kalshi',
+    'polymarket_traders': 'Polymarket Traders',
+    'polymarket_positions': 'Polymarket Positions',
+    'polymarket_price_history': 'Polymarket History',
+  }
+
+  // Short descriptions for detail panel (used when API doesn't return description)
+  const collectionDescriptions: Record<string, string> = {
+    'Company': 'S&P 500 companies with fundamentals',
+    'MarketData': 'Daily OHLCV + 40+ technical/fundamental indicators',
+    'Award': 'Federal contracts with embeddings',
+    'EconomicData': 'FRED macro indicators & rates',
+    'sec_filings': '12 SEC form types with sentiment scores',
+    'sec_sentences': 'Filing sentences with FinBERT scores',
+    'sec_sections': 'SEC filing section structure',
+    'sec_exhibits': 'SEC exhibit documents',
+    'sec_xbrl_data': 'SEC XBRL structured data',
+    'options_flow': 'Daily options activity (insider detection)',
+    'futures_prices': 'CME commodity futures (18 commodities)',
+    'commodity_positions': 'CFTC Commitments of Traders (weekly)',
+    'eia_crude_inventory': 'EIA crude oil inventory (weekly)',
+    'eia_natgas_storage': 'EIA natural gas storage (weekly)',
+    'eia_natgas_production': 'EIA natural gas production (monthly)',
+    'eia_lng_exports': 'EIA LNG export volumes (monthly)',
+    'prediction_markets_polymarket': 'Polymarket prediction markets with embeddings',
+    'prediction_markets_kalshi': 'Kalshi event contracts',
+    'polymarket_traders': 'Whale traders and profit makers',
+    'polymarket_positions': 'Current Polymarket trader positions',
+    'polymarket_price_history': 'Polymarket market price history',
   }
 
   // Collection icons mapping
@@ -415,6 +442,16 @@ export default function HomePage() {
     'sec_sections': (
       <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+      </svg>
+    ),
+    'sec_exhibits': (
+      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+    'sec_xbrl_data': (
+      <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
       </svg>
     ),
     'options_flow': (
@@ -486,29 +523,33 @@ export default function HomePage() {
         setLoadingCollections(true)
         const { api } = await import('@/lib/api')
         const collectionsData = await api.getCollections()
-        // Filter out sec_sections and only show collections we want
-        const filteredCollections = collectionsData.filter((c: any) =>
-          c.name !== 'sec_sections' && collectionDisplayNames[c.name]
-        )
-        setCollections(filteredCollections)
+        // Show all document collections returned by API (no filter)
+        setCollections(Array.isArray(collectionsData) ? collectionsData : [])
       } catch (error) {
         console.error('Failed to fetch collections:', error)
-        // Fallback to static data if API fails
+        // Fallback: all 21 document collections with approximate counts
         setCollections([
-          { name: 'Company', count: 612, description: 'S&P 500 companies with fundamentals' },
-          { name: 'MarketData', count: 2100000, description: 'Daily OHLCV + 40+ technical/fundamental indicators' },
-          { name: 'Award', count: 500000, description: 'Federal contracts with 1536-dim embeddings' },
-          { name: 'options_flow', count: 612, description: 'Daily options activity (insider trading detection)' },
-          { name: 'futures_prices', count: 64000, description: 'CME commodity futures (18 commodities)' },
-          { name: 'sec_filings', count: 7495, description: '12 SEC form types with sentiment scores' },
-          { name: 'sec_sentences', count: 890000, description: 'Filing sentences with FinBERT scores' },
-          { name: 'prediction_markets_polymarket', count: 12968, description: 'Polymarket prediction markets with embeddings' },
-          { name: 'prediction_markets_kalshi', count: 5432, description: 'Kalshi event contracts' },
-          { name: 'polymarket_traders', count: 500, description: 'Whale traders and profit makers' },
-          { name: 'commodity_positions', count: 5000, description: 'CFTC Commitments of Traders (weekly)' },
-          { name: 'eia_crude_inventory', count: 200, description: 'EIA crude oil inventory (weekly)' },
-          { name: 'eia_natgas_storage', count: 200, description: 'EIA natural gas storage (weekly)' },
-          { name: 'EconomicData', count: 8900, description: 'FRED macro indicators & rates' },
+          { name: 'Company', count: 612, description: collectionDescriptions['Company'] },
+          { name: 'MarketData', count: 2100000, description: collectionDescriptions['MarketData'] },
+          { name: 'Award', count: 500000, description: collectionDescriptions['Award'] },
+          { name: 'EconomicData', count: 8900, description: collectionDescriptions['EconomicData'] },
+          { name: 'commodity_positions', count: 5000, description: collectionDescriptions['commodity_positions'] },
+          { name: 'futures_prices', count: 64000, description: collectionDescriptions['futures_prices'] },
+          { name: 'options_flow', count: 612, description: collectionDescriptions['options_flow'] },
+          { name: 'eia_crude_inventory', count: 200, description: collectionDescriptions['eia_crude_inventory'] },
+          { name: 'eia_natgas_storage', count: 200, description: collectionDescriptions['eia_natgas_storage'] },
+          { name: 'eia_natgas_production', count: 100, description: collectionDescriptions['eia_natgas_production'] },
+          { name: 'eia_lng_exports', count: 100, description: collectionDescriptions['eia_lng_exports'] },
+          { name: 'sec_filings', count: 7495, description: collectionDescriptions['sec_filings'] },
+          { name: 'sec_sections', count: 50000, description: collectionDescriptions['sec_sections'] },
+          { name: 'sec_sentences', count: 890000, description: collectionDescriptions['sec_sentences'] },
+          { name: 'sec_exhibits', count: 10000, description: collectionDescriptions['sec_exhibits'] },
+          { name: 'sec_xbrl_data', count: 5000, description: collectionDescriptions['sec_xbrl_data'] },
+          { name: 'prediction_markets_polymarket', count: 12968, description: collectionDescriptions['prediction_markets_polymarket'] },
+          { name: 'prediction_markets_kalshi', count: 5432, description: collectionDescriptions['prediction_markets_kalshi'] },
+          { name: 'polymarket_traders', count: 500, description: collectionDescriptions['polymarket_traders'] },
+          { name: 'polymarket_positions', count: 2000, description: collectionDescriptions['polymarket_positions'] },
+          { name: 'polymarket_price_history', count: 50000, description: collectionDescriptions['polymarket_price_history'] },
         ])
       } finally {
         setLoadingCollections(false)
@@ -2060,36 +2101,33 @@ export default function HomePage() {
             animate={isStatsInView ? { opacity: 1 } : {}}
             transition={{ duration: 0.8, delay: 0.2 }}
           >
-            <h3 className="text-lg md:text-xl font-semibold text-gold mb-4 text-center">Document Collections</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 mb-6">
+            <h3 className="text-lg md:text-xl font-semibold text-gold mb-3 text-center">Document Collections</h3>
+            <div className="flex flex-wrap justify-center gap-2 mb-6">
               {collections.map((collection, idx) => (
                 <motion.button
                   key={collection.name}
-                  initial={{ opacity: 0, scale: 0.8 }}
+                  initial={{ opacity: 0, scale: 0.95 }}
                   animate={isStatsInView ? { opacity: 1, scale: 1 } : {}}
-                  transition={{ duration: 0.6, delay: 0.3 + idx * 0.05 }}
+                  transition={{ duration: 0.4, delay: 0.2 + idx * 0.02 }}
                   onClick={() => setSelectedCollection(collection.name === selectedCollection ? null : collection.name)}
-                  className={`bg-dark-800 border rounded-lg p-3 md:p-4 text-left transition-all ${selectedCollection === collection.name
-                    ? 'border-gold/60 ring-2 ring-gold/20'
-                    : 'border-gold/20 hover:border-gold/40'
+                  className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-left transition-all ${selectedCollection === collection.name
+                    ? 'border-gold/60 bg-gold/10 ring-1 ring-gold/30'
+                    : 'border-gold/20 bg-dark-800 hover:border-gold/40 hover:bg-dark-700'
                     }`}
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="w-10 h-10 rounded-lg bg-gold/10 border border-gold/30 flex items-center justify-center">
-                      {collectionIcons[collection.name] || (
-                        <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-                        </svg>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-gold font-semibold mb-1 text-sm">
+                  <span className="flex-shrink-0 w-7 h-7 rounded bg-gold/10 border border-gold/30 flex items-center justify-center">
+                    {collectionIcons[collection.name] || (
+                      <svg className="w-3.5 h-3.5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                      </svg>
+                    )}
+                  </span>
+                  <span className="text-gold font-medium text-xs md:text-sm truncate max-w-[120px] md:max-w-[140px]">
                     {collectionDisplayNames[collection.name] || collection.name}
-                  </div>
-                  <div className="text-xs text-gray-500 mb-2">
-                    {collection.count.toLocaleString()} docs
-                  </div>
-                  <div className="text-xs text-gray-600">{collection.description}</div>
+                  </span>
+                  <span className="text-[10px] md:text-xs text-gray-500 tabular-nums flex-shrink-0">
+                    {collection.count.toLocaleString()}
+                  </span>
                 </motion.button>
               ))}
             </div>
@@ -2110,7 +2148,7 @@ export default function HomePage() {
                       {collectionDisplayNames[selectedCollection] || selectedCollection}
                     </h3>
                     <p className="text-gray-400 text-xs md:text-sm mt-1">
-                      {collections.find(c => c.name === selectedCollection)?.description}
+                      {collections.find(c => c.name === selectedCollection)?.description || collectionDescriptions[selectedCollection]}
                     </p>
                   </div>
                   <button

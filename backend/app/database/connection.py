@@ -56,22 +56,36 @@ def get_collection_stats(collection_name: str):
         return {"count": 0, "name": collection_name}
 
 
+# All 21 document collections (matches introspect_schema / About)
+DOCUMENT_COLLECTIONS = [
+    "Company",
+    "MarketData",
+    "Award",
+    "EconomicData",
+    "commodity_positions",
+    "futures_prices",
+    "options_flow",
+    "eia_crude_inventory",
+    "eia_natgas_storage",
+    "eia_natgas_production",
+    "eia_lng_exports",
+    "sec_filings",
+    "sec_sections",
+    "sec_sentences",
+    "sec_exhibits",
+    "sec_xbrl_data",
+    "prediction_markets_polymarket",
+    "prediction_markets_kalshi",
+    "polymarket_traders",
+    "polymarket_positions",
+    "polymarket_price_history",
+]
+
+
 def get_collections_info():
     """Get all collections with their document counts"""
-    collections = [
-        "Company",
-        "MarketData",
-        "Award",
-        "EconomicData",
-        "commodity_positions",
-        "prediction_markets_polymarket",
-        "prediction_markets_kalshi",
-        "sec_filings",
-        "sec_sections",
-        "sec_sentences"
-    ]
     stats = []
-    for col in collections:
+    for col in DOCUMENT_COLLECTIONS:
         stats.append(get_collection_stats(col))
     return stats
 
@@ -119,6 +133,19 @@ def browse_collection(collection_name: str, limit: int = 50, search: str = None,
             elif collection_name == "prediction_markets_polymarket" or collection_name == "prediction_markets_kalshi":
                 sort_clause = "SORT doc.end_date DESC"
                 break
+            elif collection_name in ("futures_prices", "options_flow", "eia_crude_inventory", "eia_natgas_storage",
+                                     "eia_natgas_production", "eia_lng_exports", "polymarket_price_history"):
+                sort_clause = "SORT doc.date DESC"
+                break
+            elif collection_name in ("sec_exhibits", "sec_xbrl_data"):
+                sort_clause = "SORT doc.filing_date DESC"
+                break
+            elif collection_name in ("polymarket_positions", "polymarket_traders"):
+                sort_clause = "SORT doc.date DESC"
+                break
+
+        if not sort_clause:
+            sort_clause = "SORT doc.date DESC"
 
         filter_clause = "\n".join(filter_lines)
 
