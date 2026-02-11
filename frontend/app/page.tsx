@@ -32,7 +32,7 @@ import SECSentencesView from '@/components/SECSentencesView'
 import PredictionMarketsListView from '@/components/PredictionMarketsListView'
 import TradersListView from '@/components/TradersListView'
 import { Market } from '@/lib/types'
-import { getResultDisplayFamily, isGenericResultChartable } from '@/lib/displayFamily'
+import { getResultDisplayFamily, isGenericResultChartable, type DisplayFamily } from '@/lib/displayFamily'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -70,7 +70,7 @@ interface Message {
 }
 
 /** Tabbed Database Results: Charts (auto-generated from data shape) + Table */
-function DatabaseResultsWithCharts({ results, displayFamily }: { results: any[]; displayFamily?: string }) {
+function DatabaseResultsWithCharts({ results, displayFamily }: { results: any[]; displayFamily?: DisplayFamily }) {
   const [activeTab, setActiveTab] = useState<'charts' | 'table'>('charts')
   return (
     <div className="space-y-3 overflow-hidden">

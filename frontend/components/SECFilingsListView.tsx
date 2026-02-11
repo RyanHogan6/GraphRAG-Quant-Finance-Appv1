@@ -1,21 +1,17 @@
 'use client'
 
+import { secFilingDocumentUrl, secCompanyUrl as getSecCompanyUrl } from '@/lib/secUrls'
+
 interface SECFilingsListViewProps {
   results: any[]
   maxRows?: number
 }
 
-const SEC_EDGAR_BASE = 'https://www.sec.gov/cgi-bin/browse-edgar'
-
 /** SEC filings list: type, filing_date, ticker, avg_finbert; card layout + link to SEC viewer */
 export default function SECFilingsListView({ results, maxRows = 50 }: SECFilingsListViewProps) {
   const displayResults = results.slice(0, maxRows)
 
-  const secUrl = (row: any) => {
-    const ticker = row.ticker ?? row.company
-    if (ticker) return `${SEC_EDGAR_BASE}?action=getcompany&company=${encodeURIComponent(ticker)}`
-    return null
-  }
+  const companyUrl = (row: any) => getSecCompanyUrl(row.ticker ?? row.company)
 
   const sentimentColor = (score: number | null | undefined) => {
     if (score == null || Number.isNaN(score)) return 'text-gray-400'
@@ -32,7 +28,8 @@ export default function SECFilingsListView({ results, maxRows = 50 }: SECFilings
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {displayResults.map((row, idx) => {
-          const url = secUrl(row)
+          const directFilingUrl = secFilingDocumentUrl(row.accession)
+          const companyLink = companyUrl(row)
           const score = row.avg_finbert ?? row.finbert_score
           return (
             <div
@@ -57,16 +54,28 @@ export default function SECFilingsListView({ results, maxRows = 50 }: SECFilings
               <div className="text-sm text-gray-400 mt-1">
                 {row.filing_date ?? row.date ?? '—'}
               </div>
-              {url && (
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-block mt-2 text-xs text-gold hover:text-gold/80 font-semibold"
-                >
-                  Open on SEC EDGAR →
-                </a>
-              )}
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                {directFilingUrl && (
+                  <a
+                    href={directFilingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-gold hover:text-gold/80 font-semibold"
+                  >
+                    View this filing on SEC →
+                  </a>
+                )}
+                {companyLink && (
+                  <a
+                    href={companyLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-gray-400 hover:text-gray-300"
+                  >
+                    All filings (EDGAR)
+                  </a>
+                )}
+              </div>
             </div>
           )
         })}
