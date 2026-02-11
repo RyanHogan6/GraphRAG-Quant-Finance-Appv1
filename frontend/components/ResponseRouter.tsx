@@ -10,6 +10,7 @@ import SectorComparison from './SectorComparison'
 import PeerAnalysis from './PeerAnalysis'
 import MetricFocusedView from './MetricFocusedView'
 import TimeSeriesView from './TimeSeriesView'
+import EvidenceChainView from './EvidenceChainView'
 import { extractMetric } from '@/lib/responseClassifier'
 
 interface Message {
@@ -27,6 +28,8 @@ interface Message {
     companies?: string[]
     collections?: string[]
     queryIntent?: string
+    decomposed?: boolean
+    evidence_paths?: { label: string; edge_path?: string[]; collections?: string[]; result_count?: number }[]
   }
 }
 
@@ -53,6 +56,21 @@ export default function ResponseRouter({
   console.log('[RESPONSE ROUTER] Query classified as:', queryType)
   console.log('[RESPONSE ROUTER] Message metadata:', message.metadata)
   console.log('[RESPONSE ROUTER] Results count:', message.results?.length)
+
+  // Decomposed narrative: show evidence chain (graph path) that supports the answer
+  if (message.metadata?.decomposed && message.metadata?.evidence_paths?.length) {
+    return (
+      <div className="space-y-4">
+        <div className="text-xs text-gray-500 italic mb-2">
+          📊 Narrative answer (multi-source evidence)
+        </div>
+        <EvidenceChainView evidencePaths={message.metadata.evidence_paths} />
+        <p className="text-sm text-gray-400">
+          The analysis above is based on these data sources and graph relationships.
+        </p>
+      </div>
+    )
+  }
 
   // Route to appropriate component based on classification
   switch (queryType) {

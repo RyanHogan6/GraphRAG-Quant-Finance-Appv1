@@ -298,10 +298,95 @@ def analyze_results_with_context(
     return prompt
 
 
+# Optional narrative sentence templates (path pattern -> phrasing hint)
+NARRATIVE_TEMPLATES = {
+    "contracts": "E.g. \"{company} secured $X in [agency] contracts (USAspending), which aligns with...\"",
+    "sec_filings": "E.g. \"SEC filings (HAS_FILING → has_section) show [revenue/risk] guidance...\"",
+    "options_flow": "E.g. \"Options flow (COMPANY_HAS_OPTIONS) showed unusual [call/put] activity...\"",
+    "market_data": "E.g. \"Price action (HAS_MARKETDATA) over the period...\"",
+    "macro": "E.g. \"Macro/economic data suggests [trend]...\"",
+}
+
+
+def rank_evidence_paths(evidence_paths: List[Dict[str, Any]], sub_results: Dict[str, List[Dict]]) -> List[Dict[str, Any]]:
+    """
+    Rank paths by information density: more distinct collections and more results = higher.
+    """
+    def score(p: Dict[str, Any]) -> float:
+        label = p.get("label", "")
+        n_collections = len(p.get("collections") or [])
+        count = p.get("result_count", 0) or len(sub_results.get(label, []))
+        return n_collections * 2 + min(count / 5, 10)  # cap count contribution
+    return sorted(evidence_paths, key=score, reverse=True)
+
+
+def get_narrative_analysis_prompt(
+    user_question: str,
+    sub_results: Dict[str, List[Dict]],
+    evidence_paths: List[Dict[str, Any]],
+    max_chars_per_source: int = 4000,
+) -> str:
+    """
+    Build prompt for graph-to-narrative synthesis from decomposed sub-results.
+    Instructs LLM to cite specific relationships (edges) and data sources.
+    """
+    ranked = rank_evidence_paths(evidence_paths, sub_results)
+    path_descriptions = []
+    for p in ranked:
+        label = p.get("label", "unknown")
+        edge_path = p.get("edge_path", [])
+        count = p.get("result_count", 0)
+        path_descriptions.append(
+            f"- **{label}** (graph path: {' → '.join(edge_path) or 'direct'}, {count} records)"
+        )
+    paths_text = "\n".join(path_descriptions)
+
+    # Truncate each sub_result list for token safety
+    data_parts = []
+    for label, rows in sub_results.items():
+        raw = json.dumps(rows[:30], indent=0, default=str)
+        if len(raw) > max_chars_per_source:
+            raw = raw[:max_chars_per_source] + "\n... (truncated)"
+        data_parts.append(f"### {label}\n{raw}")
+    data_blob = "\n\n".join(data_parts)
+
+    return f"""You are an expert financial analyst. The user asked a narrative/explanation question. We ran multiple graph-based sub-queries and merged the results below.
+
+**User question:** "{user_question}"
+
+**Evidence paths (data sources and graph edges):**
+{paths_text}
+
+**Data from each path (cite which path/source each claim comes from):**
+{data_blob}
+
+**Optional phrasing templates (use when they fit):**
+""" + "\n".join(f"- {k}: {v}" for k, v in NARRATIVE_TEMPLATES.items()) + """
+
+**Instructions:**
+1. Synthesize an investment narrative that answers the user's question.
+2. Each claim MUST cite the specific data source or relationship (e.g. "According to government contract data (HAS_AWARD)...", "SEC filings (HAS_FILING → has_section) show...").
+3. Emphasize contrast, causality, and temporal sequencing where the data supports it.
+4. Do not give a generic company overview; focus on what drove the move or what the story is, using the evidence above.
+5. Keep the response concise (4–8 sentences) and evidence-based.
+6. No markdown tables."""
+
+
 # Backward compatibility wrapper
 def get_enhanced_analysis_prompt(user_question: str, results: List[Dict], query_plan: dict) -> str:
     """
     Drop-in replacement for the current analysis_prompt generation.
     Can be called from existing analyze_results_with_llm function.
     """
+    # Decomposed narrative: use path-citation prompt
+    if (
+        results
+        and len(results) == 1
+        and isinstance(results[0], dict)
+        and results[0].get("decomposed") is True
+    ):
+        sub_results = results[0].get("sub_results") or {}
+        evidence_paths = results[0].get("evidence_paths") or query_plan.get("evidence_paths") or []
+        if sub_results and evidence_paths:
+            return get_narrative_analysis_prompt(user_question, sub_results, evidence_paths)
     return analyze_results_with_context(user_question, results, query_plan)

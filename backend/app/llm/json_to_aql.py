@@ -6,8 +6,59 @@ Fixes applied from validation results: primary_collection alignment, duplicate
 traversal skip, path-valid filters/sorts/aggregations/returns, COLLECT-with-total
 safety, aggregation/sort as list or dict, and unique from_var for orphaned
 traversals (avoids "variable assigned multiple times" e.g. eia_crude vs eia_natgas).
+
+Security: collection allowlist and field-name sanitization to limit impact of
+prompt injection or malformed LLM output.
 """
+import re
 from typing import Dict, Any, Optional, Callable
+
+try:
+    from app.database.connection import DOCUMENT_COLLECTIONS
+except Exception:
+    DOCUMENT_COLLECTIONS = []
+
+_FALLBACK_DOCUMENT_COLLECTIONS = (
+    "Company", "MarketData", "Award", "EconomicData", "commodity_positions",
+    "futures_prices", "options_flow", "eia_crude_inventory", "eia_natgas_storage",
+    "eia_natgas_production", "eia_lng_exports", "sec_filings", "sec_sections",
+    "sec_sentences", "sec_exhibits", "sec_xbrl_data", "prediction_markets_polymarket",
+    "prediction_markets_kalshi", "polymarket_traders", "polymarket_positions",
+    "polymarket_price_history",
+)
+ALLOWED_DOCUMENT_COLLECTIONS = frozenset(DOCUMENT_COLLECTIONS) if DOCUMENT_COLLECTIONS else frozenset(_FALLBACK_DOCUMENT_COLLECTIONS)
+ALLOWED_EDGE_COLLECTIONS = frozenset({
+    "HAS_MARKETDATA", "HAS_AWARD", "HAS_FILING", "has_section", "has_sentence",
+    "has_exhibit", "has_xbrl_data", "COMPANY_HAS_OPTIONS", "HAS_OPTIONS_ACTIVITY",
+    "market_mentions_company_polymarket", "market_related_to_sector_polymarket",
+    "market_affects_company_polymarket", "market_mentions_company_kalshi",
+    "market_related_to_sector_kalshi", "trader_has_position", "position_in_market",
+    "market_has_price_history", "HAS_COMMODITY_POSITION", "POSITION_ON_COMMODITY",
+    "INVENTORY_AFFECTS_PRICE", "STORAGE_AFFECTS_PRICE", "MACRO_IMPACTS_COMMODITY",
+    "OPTIONS_BEFORE_AWARD", "OPTIONS_BEFORE_FILING",
+})
+
+
+def _allowed_collection(name: str, allow_edges: bool = False) -> bool:
+    if not name or not isinstance(name, str):
+        return False
+    n = name.strip()
+    if n in ALLOWED_DOCUMENT_COLLECTIONS:
+        return True
+    if allow_edges and n in ALLOWED_EDGE_COLLECTIONS:
+        return True
+    return False
+
+
+def _safe_field_name(field: str) -> Optional[str]:
+    """Allow only alphanumeric, underscore, hyphen (for known schema fields); reject anything that could break AQL."""
+    if not field or not isinstance(field, str) or len(field) > 128:
+        return None
+    if re.search(r'[\'"\\;\[\]{}]', field):
+        return None
+    if re.match(r'^[a-zA-Z0-9_-]+$', field):
+        return field
+    return None
 
 
 def json_to_aql(
@@ -25,13 +76,18 @@ def json_to_aql(
     aql_parts = []
     variables = {}
 
-    primary = json_plan.get("primary_collection", "Company")
+    primary = (json_plan.get("primary_collection") or "Company").strip()
+    if not _allowed_collection(primary, allow_edges=False):
+        out("  [SKIP] primary_collection not in allowlist - rejecting plan")
+        return "// Invalid JSON plan: primary_collection not allowed"
+
     traversals = json_plan.get("traversals", [])
 
     if traversals and traversals[0].get("from_collection") != primary:
-        actual_start = traversals[0]["from_collection"]
-        out(f"  [AUTO-FIX] primary_collection={primary} but first traversal from={actual_start}, using {actual_start}")
-        primary = actual_start
+        actual_start = (traversals[0].get("from_collection") or "").strip()
+        if _allowed_collection(actual_start, allow_edges=False):
+            out(f"  [AUTO-FIX] primary_collection={primary} but first traversal from={actual_start}, using {actual_start}")
+            primary = actual_start
 
     primary_var = primary[0].lower()
     variables[primary] = primary_var
@@ -47,11 +103,20 @@ def json_to_aql(
             aql_parts.append(f"  FILTER {primary_var}.ticker == @ticker")
 
     for trav in traversals:
-        from_coll = trav.get("from_collection") or ""
-        to_coll = trav.get("to_collection") or ""
+        from_coll = (trav.get("from_collection") or "").strip()
+        to_coll = (trav.get("to_collection") or "").strip()
         edge_coll = (trav.get("edge_collection") or "").strip()
         if not edge_coll or not to_coll:
-            out(f"  [SKIP] Traversal missing edge_collection or to_collection - skipping")
+            out("  [SKIP] Traversal missing edge_collection or to_collection - skipping")
+            continue
+        if not _allowed_collection(from_coll, allow_edges=False):
+            out(f"  [SKIP] from_collection not in allowlist: {from_coll}")
+            continue
+        if not _allowed_collection(to_coll, allow_edges=False):
+            out(f"  [SKIP] to_collection not in allowlist: {to_coll}")
+            continue
+        if not _allowed_collection(edge_coll, allow_edges=True):
+            out(f"  [SKIP] edge_collection not in allowlist: {edge_coll}")
             continue
 
         from_var = variables.get(from_coll)
@@ -86,6 +151,10 @@ def json_to_aql(
             if "." not in field_path:
                 continue
             collection, field = field_path.split(".", 1)
+            field = _safe_field_name(field)
+            if not field:
+                out("  [SKIP] Filter field name rejected (sanitization)")
+                continue
             var = variables.get(collection)
             if not var:
                 out(f"  [SKIP] Filter on {collection}.{field} but {collection} not in query path")
@@ -125,14 +194,18 @@ def json_to_aql(
         field_path = sort_config.get("field", "")
         if "." in field_path:
             collection, field = field_path.split(".", 1)
-            var = variables.get(collection)
-            if not var:
-                out(f"  [SKIP] Sort on {collection}.{field} but {collection} not in query path")
+            field = _safe_field_name(field)
+            if not field:
+                out("  [SKIP] Sort field name rejected (sanitization)")
             else:
-                direction = sort_config.get("direction", "DESC")
-                indent = "      " if len(traversals) > 0 else "  "
-                sort_access = f'{var}["{field}"]' if ("-" in field or " " in field) else f"{var}.{field}"
-                aql_parts.append(f"{indent}SORT {sort_access} {direction}")
+                var = variables.get(collection)
+                if not var:
+                    out(f"  [SKIP] Sort on {collection}.{field} but {collection} not in query path")
+                else:
+                    direction = sort_config.get("direction", "DESC")
+                    indent = "      " if len(traversals) > 0 else "  "
+                    sort_access = f'{var}["{field}"]' if ("-" in field or " " in field) else f"{var}.{field}"
+                    aql_parts.append(f"{indent}SORT {sort_access} {direction}")
 
     if aggregation:
         agg_type = aggregation.get("type", "COUNT")
@@ -146,6 +219,10 @@ def json_to_aql(
             for field_path in group_by:
                 if "." in field_path:
                     collection, field = field_path.split(".", 1)
+                    field = _safe_field_name(field)
+                    if not field:
+                        out("  [SKIP] Group by field name rejected (sanitization)")
+                        continue
                     var = variables.get(collection)
                     if not var:
                         out(f"  [SKIP] Group by {collection}.{field} but {collection} not in query path")
@@ -161,20 +238,24 @@ def json_to_aql(
             agg_added = False
             if agg_field and "." in agg_field:
                 collection, field = agg_field.split(".", 1)
-                var = variables.get(collection)
-                if not var:
-                    out(f"  [SKIP] Aggregate on {collection}.{field} but {collection} not in query path")
+                field = _safe_field_name(field)
+                if not field:
+                    out("  [SKIP] Aggregate field name rejected (sanitization)")
                 else:
-                    agg_access = f'{var}["{field}"]' if ("-" in field or " " in field) else f"{var}.{field}"
-                    if agg_type == "COUNT":
-                        aql_parts.append(f"{indent}AGGREGATE agg_count = LENGTH(1)")
-                        agg_added = True
-                    elif agg_type == "SUM":
-                        aql_parts.append(f"{indent}AGGREGATE agg_sum = SUM({agg_access})")
-                        agg_added = True
-                    elif agg_type == "AVG":
-                        aql_parts.append(f"{indent}AGGREGATE agg_avg = AVG({agg_access})")
-                        agg_added = True
+                    var = variables.get(collection)
+                    if not var:
+                        out(f"  [SKIP] Aggregate on {collection}.{field} but {collection} not in query path")
+                    else:
+                        agg_access = f'{var}["{field}"]' if ("-" in field or " " in field) else f"{var}.{field}"
+                        if agg_type == "COUNT":
+                            aql_parts.append(f"{indent}AGGREGATE agg_count = LENGTH(1)")
+                            agg_added = True
+                        elif agg_type == "SUM":
+                            aql_parts.append(f"{indent}AGGREGATE agg_sum = SUM({agg_access})")
+                            agg_added = True
+                        elif agg_type == "AVG":
+                            aql_parts.append(f"{indent}AGGREGATE agg_avg = AVG({agg_access})")
+                            agg_added = True
             if not agg_added and group_by:
                 # COLLECT with group_by but no valid AGGREGATE: add count so RETURN has defined variable
                 aql_parts.append(f"{indent}AGGREGATE agg_count = LENGTH(1)")
@@ -238,6 +319,10 @@ def json_to_aql(
             if not isinstance(field_path, str) or "." not in field_path:
                 continue
             collection, field = field_path.split(".", 1)
+            field = _safe_field_name(field)
+            if not field:
+                out("  [SKIP] Return field name rejected (sanitization)")
+                continue
             var = variables.get(collection)
             if not var:
                 out(f"  [SKIP] Return field {collection}.{field} but {collection} not in query path")

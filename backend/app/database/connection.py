@@ -22,17 +22,16 @@ def get_db():
         # For ArangoDB Cloud, we typically don't need custom cert verification
         # The python-arango library handles SSL automatically for HTTPS URLs
 
-        # Check if using ArangoDB Cloud
+        # Use a generous request_timeout for all connections to avoid "Read timed out (60s)" on slow queries or remote hosts
+        request_timeout = config.ARANGO_REQUEST_TIMEOUT
+        client = ArangoClient(
+            hosts=config.ARANGO_URL,
+            request_timeout=request_timeout
+        )
         if 'arangodb.cloud' in config.ARANGO_URL or 'oasis' in config.ARANGO_URL:
-            # ArangoClient with increased timeout for slow cloud connections
-            client = ArangoClient(
-                hosts=config.ARANGO_URL,
-                request_timeout=120  # Increase HTTP timeout to 120 seconds
-            )
-            print(f"✓ Connecting to ArangoDB Cloud with SSL (120s timeout)")
+            print(f"✓ Connecting to ArangoDB Cloud with SSL ({request_timeout}s timeout)")
         else:
-            # Local or non-cloud instance
-            client = ArangoClient(hosts=config.ARANGO_URL)
+            print(f"✓ Connecting to ArangoDB ({request_timeout}s timeout)")
 
         _db_instance = client.db(
             config.DB_NAME,

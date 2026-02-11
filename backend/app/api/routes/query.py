@@ -14,7 +14,8 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from app.database.connection import get_db, execute_aql, fix_aql_query
-from app.llm.planning import plan_query_with_llm, quick_intent_check, get_query_embedding, generate_follow_up_questions, analyze_results_with_llm
+from app.llm.planning import plan_query_with_llm, quick_intent_check, get_query_embedding, generate_follow_up_questions, analyze_results_with_llm, execute_decomposed_query
+from app.llm.query_decomposition import is_narrative_question
 from app.llm.web_search import classify_query_intent, search_web_context, synthesize_hybrid_response
 from app.llm.query_validation import execute_with_validation
 from app.cache import query_cache
@@ -369,8 +370,15 @@ def _suggest_display_family(metadata: Dict[str, Any], results: List[Dict]) -> st
 
 
 def execute_db_query(question: str, conversation_history: list = None):
-    """Execute database query in parallel thread"""
+    """Execute database query in parallel thread. Uses decomposed flow for narrative/why/explain questions."""
     try:
+        if is_narrative_question(question):
+            results, query_plan, err = execute_decomposed_query(question, conversation_history=conversation_history)
+            if err and not results:
+                return None, None, err
+            if results is not None and query_plan is not None:
+                return results, query_plan, None
+            # Fall through to single-query flow if decomposition returned nothing useful
         db = get_db()
         intent = quick_intent_check(question)
         query_plan = plan_query_with_llm(question, intent_hint=intent, conversation_history=conversation_history)
@@ -677,19 +685,28 @@ def execute_query(request: Request, body: QueryRequest):
     start_time = time.time()
 
     try:
-        # Run DB query, web search, and intent classification IN PARALLEL
-        with ThreadPoolExecutor(max_workers=3) as executor:
-            # Submit all tasks with conversation history
-            db_future = executor.submit(execute_db_query, body.question, body.conversation_history)
-            web_future = executor.submit(execute_web_search, body.question)
-            intent_future = executor.submit(classify_query_intent, body.question)
+        # Run intent first so we can skip web search for DB-only (avoids slow Perplexity on simple queries)
+        intent_classification = classify_query_intent(body.question)
+        query_intent = (intent_classification.get('intent') or 'hybrid').lower().replace('-', '_')
+        if query_intent not in ('db_only', 'web_only', 'hybrid'):
+            query_intent = 'hybrid'
 
-            # Wait for all to complete
-            results, query_plan, db_error = db_future.result()
-            web_context_data, web_error = web_future.result()
-            intent_classification = intent_future.result()
-
-        query_intent = intent_classification.get('intent', 'hybrid')
+        if query_intent == 'db_only':
+            # DB-only: run only the database query (no web search = faster, no Perplexity cost)
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                db_future = executor.submit(execute_db_query, body.question, body.conversation_history)
+                results, query_plan, db_error = db_future.result()
+            web_context_data = {'summary': '', 'sources': [], 'citations': []}
+            print("[EXECUTE] DB-only: skipped web search")
+        else:
+            # Hybrid or web_only: run DB and web search in parallel
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                db_future = executor.submit(execute_db_query, body.question, body.conversation_history)
+                web_future = executor.submit(execute_web_search, body.question)
+                results, query_plan, db_error = db_future.result()
+                web_context_data, web_error = web_future.result()
+            if web_context_data is None:
+                web_context_data = {'summary': '', 'sources': [], 'citations': []}
 
         # Handle DB errors
         if db_error:
@@ -753,13 +770,16 @@ def execute_query(request: Request, body: QueryRequest):
         has_sources = bool(web_context_data and (web_context_data.get('sources') or web_context_data.get('citations')))
         print(f"[EXECUTE] Web context has sources: {has_sources}")
 
-        # Enrich single-company results for CompanyWorkup display
-        if results:
+        # Enrich single-company results for CompanyWorkup display (skip for decomposed narrative)
+        if results and not query_plan.get('decomposed'):
             results = enrich_single_company_results(results, query_plan)
 
         # Generate query metadata for frontend conditional rendering
         aql_query = query_plan.get('aql_query', '') if query_plan else ''
         query_metadata = analyze_query_metadata(aql_query, results)
+        if query_plan.get('decomposed') and query_plan.get('evidence_paths'):
+            query_metadata['decomposed'] = True
+            query_metadata['evidence_paths'] = query_plan['evidence_paths']
         print(f"[EXECUTE] Query metadata: {query_metadata}")
 
         return QueryExecuteResponse(
@@ -788,12 +808,15 @@ class ExecuteAQLRequest(BaseModel):
 def execute_aql_direct(request: Request, body: ExecuteAQLRequest):
     """
     Execute raw AQL query directly (for GraphExplorer)
-    Simple endpoint that just runs the query and returns results
+    Validates query (read-only, LIMIT, complexity) before execution.
     """
     start_time = time.time()
 
+    is_valid, validation_error = validate_aql_query(body.aql_query)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=validation_error or "Query validation failed")
+
     try:
-        # Execute query
         results, error = execute_aql(body.aql_query, body.bind_vars or {})
 
         if error:
@@ -945,22 +968,31 @@ async def execute_query_stream(request: Request, body: QueryRequest):
                 yield f"data: {json.dumps({'type': 'progress', 'stage': 'analyzing', 'message': 'Understanding your question...'})}\n\n"
                 await asyncio.sleep(0.1)  # Small delay for UX
 
-                # Step 2: Execute parallel searches
-                yield f"data: {json.dumps({'type': 'progress', 'stage': 'searching', 'message': 'Searching database and web...', 'details': 'Running 3 parallel tasks'})}\n\n"
-
-                # Run in thread pool (FastAPI handles async/sync mixing)
+                # Run intent first so we can skip web search for DB-only (avoids slow Perplexity)
                 loop = asyncio.get_event_loop()
-                with ThreadPoolExecutor(max_workers=3) as executor:
-                    db_future = loop.run_in_executor(executor, execute_db_query, body.question, body.conversation_history)
-                    web_future = loop.run_in_executor(executor, execute_web_search, body.question)
-                    intent_future = loop.run_in_executor(executor, classify_query_intent, body.question)
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    intent_classification = await loop.run_in_executor(executor, classify_query_intent, body.question)
+                query_intent = (intent_classification.get('intent') or 'hybrid').lower().replace('-', '_')
+                if query_intent not in ('db_only', 'web_only', 'hybrid'):
+                    query_intent = 'hybrid'
 
-                    # Wait for all
-                    results, query_plan, db_error = await db_future
-                    web_context_data, web_error = await web_future
-                    intent_classification = await intent_future
-
-                query_intent = intent_classification.get('intent', 'hybrid')
+                if query_intent == 'db_only':
+                    yield f"data: {json.dumps({'type': 'progress', 'stage': 'searching', 'message': 'Searching database...', 'details': 'DB only (skipping web)'})}\n\n"
+                    with ThreadPoolExecutor(max_workers=1) as executor:
+                        results, query_plan, db_error = await loop.run_in_executor(
+                            executor, execute_db_query, body.question, body.conversation_history
+                        )
+                    web_context_data = {'summary': '', 'sources': [], 'citations': []}
+                    print("[STREAM] DB-only: skipped web search")
+                else:
+                    yield f"data: {json.dumps({'type': 'progress', 'stage': 'searching', 'message': 'Searching database and web...', 'details': 'Running 2 parallel tasks'})}\n\n"
+                    with ThreadPoolExecutor(max_workers=2) as executor:
+                        db_future = loop.run_in_executor(executor, execute_db_query, body.question, body.conversation_history)
+                        web_future = loop.run_in_executor(executor, execute_web_search, body.question)
+                        results, query_plan, db_error = await db_future
+                        web_context_data, web_error = await web_future
+                    if web_context_data is None:
+                        web_context_data = {'summary': '', 'sources': [], 'citations': []}
 
             # Handle errors
             if db_error:

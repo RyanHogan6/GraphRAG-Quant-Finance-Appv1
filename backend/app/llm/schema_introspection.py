@@ -14,11 +14,11 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 import config
 
-# In-memory cache with TTL
+# In-memory cache with TTL (longer TTL = fewer full introspects = faster queries)
 _schema_cache = {
     'data': None,
     'timestamp': None,
-    'ttl_minutes': 60  # Refresh every hour
+    'ttl_minutes': 240  # Refresh every 4 hours (was 60; reduces load and prompt size churn)
 }
 
 

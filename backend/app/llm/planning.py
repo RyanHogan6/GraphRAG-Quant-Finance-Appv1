@@ -19,6 +19,7 @@ from app.llm.json_to_aql import json_to_aql
 from app.llm.response_synthesis import get_enhanced_analysis_prompt
 # Schema grounding kept for potential future use; two-step flow uses get_cached_schema + build_json_intent_prompt
 from app.llm.query_validation import execute_with_validation
+from app.llm.query_decomposition import is_narrative_question, decompose_question
 from app.llm.schema_introspection import (
     get_cached_schema,
     get_collection_schema_dynamic,
@@ -464,14 +465,14 @@ def preprocess_query(question: str) -> Optional[dict]:
         threshold = 400  # default 400 million barrels
         if inventory_below:
             threshold = int(inventory_below.group(1))
-        # crude_stocks is in million barrels per schema; support value if dataset uses that
-        aql_crude_inventory = f"""
+        # Use bind var for threshold (no string interpolation of user-derived value)
+        aql_crude_inventory = """
 FOR e IN eia_crude_inventory
   LET inv_val = e.crude_stocks != null ? e.crude_stocks : e.value
-  FILTER inv_val != null AND inv_val < {threshold}
+  FILTER inv_val != null AND inv_val < @threshold
   FOR f IN OUTBOUND e INVENTORY_AFFECTS_PRICE
     FILTER f.commodity == "CRUDE_OIL"
-    RETURN {{
+    RETURN {
       date: f.date,
       close: f.close,
       open: f.open,
@@ -481,14 +482,14 @@ FOR e IN eia_crude_inventory
       commodity: f.commodity,
       inventory_million_barrels: inv_val,
       report_date: e.report_date || e.date
-    }}
+    }
 """
         return {
             "intent": "commodity_inventory_analysis",
             "collections": ["eia_crude_inventory", "futures_prices"],
             "requires_embedding": False,
             "aql_query": aql_crude_inventory.strip(),
-            "bind_vars": {},
+            "bind_vars": {"threshold": threshold},
             "explanation": f"Crude oil futures when EIA inventory below {threshold} million barrels (rule-based)"
         }
 
@@ -817,6 +818,89 @@ def get_query_embedding(text: str):
         return None
 
 
+def execute_decomposed_query(question: str, conversation_history: list = None):
+    """
+    For narrative/why/explain questions: decompose into sub-queries, run each AQL, merge results.
+    Returns (merged_results, merged_plan, error_string or None).
+    merged_results is a list with one element: { "decomposed": True, "sub_results": {...}, "evidence_paths": [...] }.
+    """
+    from app.database.connection import fix_aql_query
+
+    sub_specs = decompose_question(question)
+    if not sub_specs:
+        return None, None, "Decomposition produced no sub-queries"
+
+    all_collections = []
+    sub_results = {}
+    evidence_paths = []
+    bind_vars_merged = {}
+
+    for spec in sub_specs:
+        label = spec["label"]
+        sub_q = spec["sub_question"]
+        bind_ticker = spec.get("bind_ticker")
+        intent_hint = {"type": "ticker", "value": bind_ticker} if bind_ticker else None
+
+        plan = plan_query_with_llm(sub_q, intent_hint=intent_hint, conversation_history=conversation_history)
+        if not plan or plan.get("error"):
+            print(f"[DECOMP] Sub-query '{label}' failed to plan")
+            continue
+
+        aql = plan.get("aql_query")
+        bind_vars = plan.get("bind_vars") or {}
+        if not aql or aql.startswith("//"):
+            continue
+        fixed = fix_aql_query(aql)
+        if fixed is None:
+            continue
+
+        results, err, _ = execute_with_validation(
+            aql_query=fixed,
+            bind_vars=bind_vars,
+            question=sub_q,
+            query_plan=plan,
+            max_retries=1,
+        )
+        if err:
+            print(f"[DECOMP] Sub-query '{label}' execution error: {err}")
+            continue
+
+        sub_results[label] = results if results else []
+        for c in plan.get("collections", []):
+            if c not in all_collections:
+                all_collections.append(c)
+        if bind_vars:
+            bind_vars_merged.update(bind_vars)
+        evidence_paths.append({
+            "label": label,
+            "edge_path": spec.get("edge_path", []),
+            "collections": spec.get("collections", []),
+            "result_count": len(results) if results else 0,
+        })
+
+    if not sub_results:
+        return None, None, "All sub-queries failed or returned no data"
+
+    merged_plan = {
+        "intent": "decomposed_narrative",
+        "collections": all_collections,
+        "requires_embedding": False,
+        "aql_query": "(decomposed: " + ", ".join(sub_results.keys()) + ")",
+        "bind_vars": bind_vars_merged,
+        "explanation": "Decomposed narrative query",
+        "decomposed": True,
+        "evidence_paths": evidence_paths,
+    }
+
+    merged_results = [{
+        "decomposed": True,
+        "sub_results": sub_results,
+        "evidence_paths": evidence_paths,
+        "question": question,
+    }]
+    return merged_results, merged_plan, None
+
+
 def detect_time_series_query(results: list, query_plan: dict):
     """Detect if this is a time series query (stock prices, etc.)"""
     if not results:
@@ -971,6 +1055,22 @@ def trim_results_for_llm(results: list, max_results: int = 10, max_tokens: int =
     # Step 2: Aggressively trim each result
     cleaned_results = []
     for result in trimmed:
+        # Decomposed narrative result: preserve structure, only cap list lengths
+        if isinstance(result, dict) and result.get("decomposed") is True:
+            sub_results = result.get("sub_results") or {}
+            capped = {}
+            for k, v in sub_results.items():
+                if isinstance(v, list):
+                    capped[k] = v[:25]  # keep up to 25 per source
+                else:
+                    capped[k] = v
+            cleaned_results.append({
+                "decomposed": True,
+                "sub_results": capped,
+                "evidence_paths": result.get("evidence_paths") or [],
+                "question": result.get("question", ""),
+            })
+            continue
         cleaned = {}
 
         for key, value in result.items():

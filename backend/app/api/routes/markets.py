@@ -12,6 +12,13 @@ from app.database.connection import get_db, execute_aql
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
 
+# AQL injection prevention: cap limit and allowlist category
+MARKETS_MAX_LIMIT = 500
+POLYMARKET_ALLOWED_CATEGORIES = frozenset({
+    "sports", "politics", "crypto", "business", "science", "entertainment",
+    "other", "philosophy", "meta", "law", "world", "pop culture", "news"
+})
+
 
 class MarketResponse(BaseModel):
     question: str
@@ -208,16 +215,17 @@ def get_featured_markets(
     - Min quality thresholds
     - Fast indexes on volume_24h and liquidity
     """
+    limit = max(1, min(int(limit), MARKETS_MAX_LIMIT))
 
     print(f"🚀 INDEXED QUERY v6.0 - Using indexes on closed + liquidity")
 
-    query = f"""
+    query = """
     FOR market IN prediction_markets_polymarket
         // Uses idx_closed_liquidity compound index for fast filtering + sorting
         FILTER market.closed == false
         FILTER market.liquidity != null
         SORT market.liquidity DESC
-        LIMIT {limit}
+        LIMIT @limit
 
         LET yes_prob = market.yes_probability != null ? market.yes_probability * 100 : 50
         LET outcomes_array = IS_ARRAY(market.outcomes) ? market.outcomes : []
@@ -236,9 +244,8 @@ def get_featured_markets(
             traders: market.num_traders != null ? market.num_traders : 0
         }}
     """
-
     try:
-        results, error = execute_aql(query)
+        results, error = execute_aql(query, {"limit": limit})
         if error:
             raise HTTPException(status_code=500, detail=error)
         return results
@@ -255,11 +262,17 @@ def get_polymarket_markets(
 ):
     """Get Polymarket markets with filtering (legacy endpoint - use /featured for main page)"""
 
-    # Build filters
-    category_filter = f"FILTER market.category == '{category}'" if category else ""
-    volume_filter = f"FILTER market.volume_24h >= {min_volume}" if min_volume > 0 else ""
+    # Validate limit (AQL injection / DoS prevention)
+    limit = max(1, min(int(limit), MARKETS_MAX_LIMIT))
+    # Allowlist category (do not interpolate user input into AQL)
+    if category is not None:
+        category_normalized = (category or "").strip().lower()
+        if category_normalized and category_normalized not in POLYMARKET_ALLOWED_CATEGORIES:
+            raise HTTPException(status_code=400, detail=f"Invalid category. Allowed: {sorted(POLYMARKET_ALLOWED_CATEGORIES)}")
+        category = category_normalized if category_normalized else None
+    # min_volume passed as bind var
 
-    # Sort mapping
+    # Sort mapping (safe: only our keys used)
     sort_mapping = {
         "volume_desc": ("market.volume_24h", "DESC"),
         "volume_asc": ("market.volume_24h", "ASC"),
@@ -267,6 +280,10 @@ def get_polymarket_markets(
         "probability_asc": ("market.yes_probability", "ASC"),
     }
     sort_field, sort_dir = sort_mapping.get(sort_by, ("market.volume_24h", "DESC"))
+
+    # Build filter lines with bind vars (no string interpolation of user input)
+    category_filter = "FILTER LOWER(market.category) == @category" if category else ""
+    volume_filter = "FILTER market.volume_24h >= @min_volume" if min_volume > 0 else ""
 
     query = f"""
     FOR market IN prediction_markets_polymarket
@@ -298,7 +315,7 @@ def get_polymarket_markets(
         FILTER market.liquidity > 0
 
         SORT {sort_field} {sort_dir}
-        LIMIT {limit}
+        LIMIT @limit
 
         // Count unique traders via graph traversal: market <- position <- trader
         LET trader_count = LENGTH(
@@ -344,9 +361,14 @@ def get_polymarket_markets(
             outcome_prices: outcome_prices_array
         }}
     """
+    bind_vars: Dict[str, Any] = {"limit": limit}
+    if category:
+        bind_vars["category"] = category
+    if min_volume > 0:
+        bind_vars["min_volume"] = min_volume
 
     try:
-        results, error = execute_aql(query)
+        results, error = execute_aql(query, bind_vars)
         if error:
             raise HTTPException(status_code=500, detail=error)
         return results
@@ -359,14 +381,13 @@ def get_whale_traders(
     limit: int = QueryParam(20)
 ):
     """Get top whale traders by volume"""
-    db = get_db()
-
-    query = f"""
+    limit = max(1, min(int(limit), MARKETS_MAX_LIMIT))
+    query = """
     FOR trader IN polymarket_traders
         FILTER trader.is_whale == true
         SORT trader.total_volume DESC
-        LIMIT {limit}
-        RETURN {{
+        LIMIT @limit
+        RETURN {
             address: trader.address,
             volume: trader.total_volume,
             profit: trader.total_profit,
@@ -374,17 +395,14 @@ def get_whale_traders(
             activity: trader.activity_level != null ? trader.activity_level : "Unknown",
             profit_ratio: trader.profit_ratio,
             win_rate: trader.is_profitable * 100
-        }}
+        }
     """
-
     try:
-        results, error = execute_aql(query)
+        results, error = execute_aql(query, {"limit": limit})
         if error:
-            # If collection doesn't exist, return empty array
             return []
         return results
     except Exception as e:
-        # If collection doesn't exist, return empty array instead of error
         return []
 
 
@@ -399,11 +417,10 @@ def get_kalshi_featured(
 
     Returns exact same structure as Polymarket for consistent frontend rendering
     """
-    db = get_db()
-
+    limit = max(1, min(int(limit), MARKETS_MAX_LIMIT))
     print(f"🚀 KALSHI FEATURED v2.0 - Fetching {limit} active markets (indexed)")
 
-    query = f"""
+    query = """
     FOR market IN prediction_markets_kalshi
         // Uses indexes: idx_status, idx_yes_probability, idx_open_interest
         FILTER market.status == "active"
@@ -414,7 +431,7 @@ def get_kalshi_featured(
 
         // Sort by open interest (more stable than volume for Kalshi)
         SORT market.open_interest DESC
-        LIMIT {limit}
+        LIMIT @limit
 
         LET yes_prob = market.yes_probability * 100
 
@@ -435,9 +452,8 @@ def get_kalshi_featured(
             traders: 0
         }}
     """
-
     try:
-        results, error = execute_aql(query)
+        results, error = execute_aql(query, {"limit": limit})
         if error:
             raise HTTPException(status_code=500, detail=error)
         return results
@@ -482,15 +498,14 @@ def get_kalshi_markets(
     limit: int = 20
 ):
     """Get Kalshi markets (legacy endpoint)"""
-    db = get_db()
-
-    query = f"""
+    limit = max(1, min(int(limit), MARKETS_MAX_LIMIT))
+    query = """
     FOR market IN prediction_markets_kalshi
         FILTER market.status == "active"
         FILTER market.yes_probability > 0
         SORT market.open_interest DESC
-        LIMIT {limit}
-        RETURN {{
+        LIMIT @limit
+        RETURN {
             id: market._key,
             question: market.title,
             yes_prob: ROUND(market.yes_probability * 100),
@@ -498,11 +513,10 @@ def get_kalshi_markets(
             volume_24h: market.volume_24h != null ? market.volume_24h : 0,
             category: market.category,
             close_time: market.close_time
-        }}
+        }
     """
-
     try:
-        results, error = execute_aql(query)
+        results, error = execute_aql(query, {"limit": limit})
         if error:
             raise HTTPException(status_code=500, detail=error)
         return results

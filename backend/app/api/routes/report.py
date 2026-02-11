@@ -11,6 +11,7 @@ from datetime import datetime
 
 from app.database.connection import get_db
 from app.llm.report_generator import generate_investment_report
+from app.utils.query_validator import validate_aql_query
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
@@ -42,8 +43,11 @@ def generate_report(request: Request, body: ReportRequest):
     """
     start_time = time.time()
 
+    is_valid, validation_error = validate_aql_query(body.aql_query)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=validation_error or "Query validation failed")
+
     try:
-        # Execute AQL query
         db = get_db()
         print(f"[REPORT] Executing query: {body.aql_query[:100]}...")
 
