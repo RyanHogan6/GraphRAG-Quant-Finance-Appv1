@@ -387,12 +387,11 @@ def execute_db_query(question: str, conversation_history: list = None):
         if use_narrative:
             print(f"[DECOMP] Narrative question detected, running decomposed query: {question[:60]}...")
             results, query_plan, err = execute_decomposed_query(question, conversation_history=conversation_history)
-            if err and not results:
-                print(f"[DECOMP] Decomposed query failed or empty: {err}, falling back to single query")
-                return None, None, err
             if results is not None and query_plan is not None:
                 return results, query_plan, None
-            # Fall through to single-query flow if decomposition returned nothing useful
+            if err and not results:
+                print(f"[DECOMP] Decomposed query failed or empty: {err}, falling back to single query")
+            # Fall through to single-query flow (commodity/EIA or no sub-queries)
         db = get_db()
         intent = quick_intent_check(question)
         query_plan = plan_query_with_llm(question, intent_hint=intent, conversation_history=conversation_history)

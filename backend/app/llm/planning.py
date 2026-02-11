@@ -31,13 +31,15 @@ except ImportError as e:
     def decompose_question(question: str):
         """Fallback when module missing: return default sub-intents for narrative + ticker."""
         m = re.search(r"\b(why is|explain|what drove|what's driving)\s+([A-Za-z]{2,5})'?s?", question, re.IGNORECASE)
-        ticker = normalize_ticker(m.group(2)) if m else None
+        ticker = None
+        if m and m.group(2).upper() not in ("WHY", "WHAT", "HOW", "WHEN", "OIL", "GAS", "EIA", "THE"):
+            ticker = normalize_ticker(m.group(2))
         if not ticker:
             m = re.search(r"\b([A-Za-z]{2,5})'?s?\s+(?:stock\s+)?(?:up|down|success|performance)", question, re.IGNORECASE)
             ticker = normalize_ticker(m.group(1)) if m else None
         if not ticker:
             m = re.search(r"\b([A-Za-z]{2,5})\b", question)
-            ticker = normalize_ticker(m.group(1)) if m and m.group(1).upper() not in ("SEC", "ETF", "IPO", "EPS", "GDP", "CPI", "RSI", "MACD", "THE") else None
+            ticker = normalize_ticker(m.group(1)) if m and m.group(1).upper() not in ("SEC", "ETF", "IPO", "EPS", "GDP", "CPI", "RSI", "MACD", "THE", "WHY", "WHAT", "HOW", "WHEN", "OIL", "GAS", "EIA", "API") else None
         t = ticker if ticker else "the company in question"
         out = []
         if ticker:
