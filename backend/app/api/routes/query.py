@@ -284,13 +284,16 @@ def analyze_query_metadata(aql_query: str, results: List[Dict]) -> Dict[str, Any
             if 'futures_prices' in sample:
                 metadata["data_types"]["has_futures"] = True
 
-    # Suggest display_family for frontend routing (optional; frontend can infer when missing)
+    # Suggest display_family for frontend routing (VQB + NL use same logic; frontend can infer when missing)
     metadata["display_family"] = _suggest_display_family(metadata, results)
+    # Optional: precomputed_metrics could be added here for ResultSummaryStrip to avoid re-inferring on frontend
     return metadata
 
 
 def _suggest_display_family(metadata: Dict[str, Any], results: List[Dict]) -> str:
-    """Suggest a display family from collections_used, data_types, and result shape."""
+    """Suggest a display family from collections_used, data_types, and result shape.
+    Aligns with frontend resultShapeTaxonomy and displayFamily (ohlc_candlestick, positioning_cot, probability_timeline).
+    """
     if not results:
         return "generic"
     collections = [c.lower() for c in metadata.get("collections_used", [])]
@@ -298,6 +301,16 @@ def _suggest_display_family(metadata: Dict[str, Any], results: List[Dict]) -> st
     sample = results[0] if isinstance(results, list) else results
     if not isinstance(sample, dict):
         return "generic"
+
+    keys = set(sample.keys())
+
+    # Result-shape hints (same logic as frontend getViewFamilyFromResults)
+    if "open" in keys and "high" in keys and "low" in keys and "close" in keys and ("date" in keys or "report_date" in keys):
+        return "ohlc_candlestick"
+    if ("yes_price" in keys or "yes_probability" in keys) and ("datetime" in keys or "date" in keys or "timestamp" in keys):
+        return "probability_timeline"
+    if "Open_Interest_All" in keys or ("Commercial_Positions_Long_All" in keys and "Noncommercial_Positions_Long_All" in keys):
+        return "positioning_cot"
 
     def has_coll(*names):
         return any(n.lower() in collections for n in names)
@@ -339,6 +352,7 @@ def _suggest_display_family(metadata: Dict[str, Any], results: List[Dict]) -> st
     if has_coll("polymarket_traders"):
         return "polymarket_traders"
     if dt.get("has_futures") or dt.get("has_commodities") or has_coll("futures_prices", "commodity_positions"):
+        # positioning_cot already handled above by shape
         return "futures_commodities"
     if dt.get("has_eia_data") or has_coll("eia_crude_inventory", "eia_natgas_storage"):
         return "eia_energy"
@@ -347,6 +361,7 @@ def _suggest_display_family(metadata: Dict[str, Any], results: List[Dict]) -> st
     if dt.get("has_options") or has_coll("options_flow"):
         return "options_flow_list"
     if dt.get("has_market_data") and "date" in sample and ("close" in sample or "open" in sample):
+        # ohlc_candlestick already handled above by shape
         return "time_series"
     if len(results) >= 2 and sample.get("ticker") and not any(isinstance(sample.get(k), list) for k in sample):
         return "company_screener"

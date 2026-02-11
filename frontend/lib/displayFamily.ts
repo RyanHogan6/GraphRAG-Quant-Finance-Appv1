@@ -1,7 +1,10 @@
 /**
  * Collection-aware result display: map message (metadata + results) to a display family
  * so the UI can render the appropriate component (CompanyWorkup, AwardResultsView, etc.)
+ * Uses result-shape taxonomy (see resultShapeTaxonomy.ts) for OHLC, COT, probability timeline.
  */
+
+import { getViewFamilyFromResults } from './resultShapeTaxonomy'
 
 export type DisplayFamily =
   | 'company_workup'
@@ -9,6 +12,7 @@ export type DisplayFamily =
   | 'company_compare'
   | 'company_screener'
   | 'time_series'
+  | 'ohlc_candlestick'
   | 'awards_list'
   | 'sec_filings_list'
   | 'sec_sentences'
@@ -18,6 +22,8 @@ export type DisplayFamily =
   | 'eia_energy'
   | 'economic_data'
   | 'options_flow_list'
+  | 'positioning_cot'
+  | 'probability_timeline'
   | 'generic'
 
 export interface MessageForDisplay {
@@ -108,6 +114,12 @@ export function getResultDisplayFamily(message: MessageForDisplay): DisplayFamil
     return 'company_enriched'
   }
 
+  // Result-shape taxonomy: OHLC vs time_series vs positioning vs probability
+  const viewFamily = getViewFamilyFromResults(results)
+  if (viewFamily === 'ohlc_candlestick') return 'ohlc_candlestick'
+  if (viewFamily === 'positioning_cot') return 'positioning_cot'
+  if (viewFamily === 'probability_timeline') return 'probability_timeline'
+
   // Time series: query plan hint or chart_data
   if (message.queryPlan?.is_time_series || message.queryPlan?.chart_data) return 'time_series'
 
@@ -144,7 +156,7 @@ export function getResultDisplayFamily(message: MessageForDisplay): DisplayFamil
     return 'polymarket_traders'
   }
 
-  // Futures / commodities
+  // Futures / commodities (positioning_cot already handled above by shape)
   if (dt.has_futures || dt.has_commodities || hasCollection(message, 'futures_prices', 'commodity_positions')) {
     if (keys.some(k => ['SYMBOL', 'symbol', 'commodity', 'OPEN', 'CLOSE', 'VOLUME', 'close', 'volume'].includes(k))) return 'futures_commodities'
   }
@@ -174,7 +186,7 @@ export function getResultDisplayFamily(message: MessageForDisplay): DisplayFamil
 
 /** Whether this family should show ResultsCharts (bar/time series) by default */
 export function familyUsesCharts(family: DisplayFamily): boolean {
-  return ['futures_commodities', 'eia_energy', 'economic_data'].includes(family)
+  return ['futures_commodities', 'eia_energy', 'economic_data', 'time_series', 'ohlc_candlestick', 'positioning_cot', 'probability_timeline'].includes(family)
 }
 
 /** For generic family only: show charts tab when result has category/date + numeric columns */

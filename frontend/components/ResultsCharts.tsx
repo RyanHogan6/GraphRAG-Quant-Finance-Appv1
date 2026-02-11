@@ -2,14 +2,26 @@
 
 import { useMemo, useRef, useEffect, useState } from 'react'
 import TimeSeriesChart from './TimeSeriesChart'
+import OHLCChart from './OHLCChart'
+import PositioningCOTChart from './PositioningCOTChart'
+import ProbabilityTimelineChart from './ProbabilityTimelineChart'
+import ResultSummaryStrip from './ResultSummaryStrip'
+import { computeResultMetrics } from '@/lib/computeResultMetrics'
+import type { DisplayFamily } from '@/lib/displayFamily'
 
 const GOLD = '#D4AF37'
 const GOLD_LIGHT = 'rgba(212, 175, 55, 0.4)'
 const GOLD_DIM = 'rgba(212, 175, 55, 0.15)'
 
 /** Infer label column (for categories) and numeric columns from flat result rows */
-function inferColumns(data: Record<string, any>[]): { labelKey: string | null; numericKeys: string[]; dateKey: string | null } {
-  if (!data.length) return { labelKey: null, numericKeys: [], dateKey: null }
+function inferColumns(data: Record<string, any>[]): {
+  labelKey: string | null
+  numericKeys: string[]
+  dateKey: string | null
+  hasOHLC: boolean
+  ohlcDateKey: string | null
+} {
+  if (!data.length) return { labelKey: null, numericKeys: [], dateKey: null, hasOHLC: false, ohlcDateKey: null }
   const keys = Object.keys(data[0]).filter(k => !k.startsWith('_'))
   const labelCandidates = ['SYMBOL', 'symbol', 'ticker', 'Ticker', 'company', 'Company', 'commodity', 'name', 'title', 'market_ticker', 'contract_symbol', 'contract_code']
   const dateCandidates = ['date', 'Date', 'filing_date', 'start_date', 'as_of_date', 'report_date', 'week_ending']
@@ -29,7 +41,14 @@ function inferColumns(data: Record<string, any>[]): { labelKey: string | null; n
     const firstStr = keys.find(k => typeof data[0][k] === 'string' && !dateCandidates.includes(k))
     if (firstStr) labelKey = firstStr
   }
-  return { labelKey, numericKeys: numericKeys.slice(0, 8), dateKey }
+  // OHLC: open, high, low, close (case-insensitive for common DB fields)
+  const hasOpen = keys.some(k => k.toLowerCase() === 'open')
+  const hasHigh = keys.some(k => k.toLowerCase() === 'high')
+  const hasLow = keys.some(k => k.toLowerCase() === 'low')
+  const hasClose = keys.some(k => k.toLowerCase() === 'close')
+  const ohlcDateKey = dateCandidates.find(k => keys.includes(k)) ?? null
+  const hasOHLC = hasOpen && hasHigh && hasLow && hasClose && !!ohlcDateKey
+  return { labelKey, numericKeys: numericKeys.slice(0, 8), dateKey, hasOHLC, ohlcDateKey }
 }
 
 /** Bar chart via canvas: category (labelKey) vs one numeric series */
@@ -141,18 +160,38 @@ function BarChartCanvas({
 interface ResultsChartsProps {
   data: any[]
   maxRows?: number
+  /** When ohlc_candlestick, prefer OHLC chart when data has open/high/low/close; also drives computeResultMetrics. */
+  displayFamily?: DisplayFamily
 }
 
-export default function ResultsCharts({ data, maxRows = 20 }: ResultsChartsProps) {
+/** Normalize OHLC keys (OPEN/CLOSE vs open/close) */
+function getOHLC(row: Record<string, any>, dateKey: string) {
+  const d = row[dateKey] != null ? String(row[dateKey]).slice(0, 10) : ''
+  const o = row.open ?? row.OPEN
+  const h = row.high ?? row.HIGH
+  const l = row.low ?? row.LOW
+  const c = row.close ?? row.CLOSE
+  const v = row.volume ?? row.VOLUME
+  return { date: d, open: Number(o), high: Number(h), low: Number(l), close: Number(c), volume: typeof v === 'number' ? v : undefined }
+}
+
+export default function ResultsCharts({ data, maxRows = 20, displayFamily }: ResultsChartsProps) {
   const inferred = useMemo(() => inferColumns(data), [data])
   const displayData = useMemo(() => data.slice(0, maxRows).filter(row => {
     const v = inferred.labelKey ? row[inferred.labelKey] : null
     return v != null && v !== ''
   }), [data, maxRows, inferred.labelKey])
 
-  const { labelKey, numericKeys, dateKey } = inferred
+  const { labelKey, numericKeys, dateKey, hasOHLC, ohlcDateKey } = inferred
   const hasDate = dateKey && displayData.every(r => r[dateKey] != null)
   const hasCategories = labelKey && displayData.length > 0 && displayData.length <= 30
+
+  // OHLC data for candlestick (single series by date; multi-commodity could be filtered by first ticker/commodity)
+  const ohlcData = useMemo(() => {
+    if (!hasOHLC || !ohlcDateKey) return null
+    const sorted = [...displayData].sort((a, b) => String(a[ohlcDateKey]).localeCompare(String(b[ohlcDateKey])))
+    return sorted.map(r => getOHLC(r, ohlcDateKey)).filter(r => !Number.isNaN(r.open + r.high + r.low + r.close))
+  }, [displayData, hasOHLC, ohlcDateKey])
 
   // Time series: one or more series when we have date + numeric (commodities: price + inventory = two charts)
   const timeSeries = useMemo(() => {
@@ -186,15 +225,29 @@ export default function ResultsCharts({ data, maxRows = 20 }: ResultsChartsProps
 
   if (displayData.length === 0) return null
 
-  const hasAnyChart = numericKeys.length > 0 && (timeSeries || (hasCategories && labelKey))
+  const useOHLC = (displayFamily === 'ohlc_candlestick' || hasOHLC) && ohlcData && ohlcData.length >= 2
+  const firstKeys = Object.keys(displayData[0] || {})
+  const hasCOTShape = firstKeys.includes('Open_Interest_All') || firstKeys.includes('Commercial_Positions_Long_All')
+  const useCOT = (displayFamily === 'positioning_cot' || hasCOTShape) && displayData.length >= 2 && displayData.some((r: any) => r.Open_Interest_All != null || r.Commercial_Positions_Long_All != null)
+  const hasProbTimeline = firstKeys.some((k: string) => k === 'yes_price' || k === 'yes_probability') && firstKeys.some((k: string) => k === 'datetime' || k === 'date' || k === 'timestamp')
+  const useProbTimeline = (displayFamily === 'probability_timeline' || hasProbTimeline) && displayData.length >= 2
+  const hasAnyChart = numericKeys.length > 0 && (useOHLC || useCOT || useProbTimeline || timeSeries || (hasCategories && labelKey))
+
+  const summaryMetrics = useMemo(() => {
+    const family = (displayFamily ?? (useOHLC ? 'ohlc_candlestick' : hasCategories ? 'company_screener' : 'generic')) as DisplayFamily
+    return computeResultMetrics(displayData, family)
+  }, [displayData, displayFamily, useOHLC, hasCategories])
 
   return (
     <div className="space-y-6">
+      {summaryMetrics.length > 0 && (
+        <ResultSummaryStrip metrics={summaryMetrics} />
+      )}
       {!hasAnyChart && (
         <p className="text-sm text-gray-500 italic">Select the Table tab for raw data. Charts appear when results have a category column (e.g. SYMBOL, ticker) and numeric columns.</p>
       )}
-      {/* Metric strip: first numeric column summary */}
-      {numericKeys.length > 0 && (
+      {/* Metric strip: first numeric column summary (skip when OHLC, COT, or probability have their own) */}
+      {numericKeys.length > 0 && !useOHLC && !useCOT && !useProbTimeline && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {numericKeys.slice(0, 4).map(key => {
             const nums = displayData.map(r => r[key]).filter((v): v is number => typeof v === 'number' && !Number.isNaN(v))
@@ -213,8 +266,42 @@ export default function ResultsCharts({ data, maxRows = 20 }: ResultsChartsProps
         </div>
       )}
 
-      {/* Time series when we have dates (price) */}
-      {timeSeries && (
+      {/* OHLC / Candlestick when data has open, high, low, close */}
+      {useOHLC && (
+        <div className="rounded-lg border border-gold/20 bg-black/20 p-3">
+          <OHLCChart
+            data={ohlcData!}
+            title={displayData[0]?.commodity ?? displayData[0]?.ticker ?? displayData[0]?.symbol ? `OHLC` : undefined}
+            ticker={displayData[0]?.ticker ?? displayData[0]?.commodity ?? displayData[0]?.symbol}
+            showVolume={displayData.some(r => (r.volume ?? r.VOLUME) != null)}
+          />
+        </div>
+      )}
+
+      {/* COT / Positioning when data has Open_Interest_All, Commercial_*, Noncommercial_* */}
+      {useCOT && (
+        <div className="rounded-lg border border-gold/20 bg-black/20 p-3">
+          <PositioningCOTChart
+            data={displayData}
+            title={displayData[0]?.Market_and_Exchange_Names ? `COT: ${displayData[0].Market_and_Exchange_Names}` : 'COT Positioning'}
+            showOI={displayData.some((r: any) => r.Open_Interest_All != null)}
+          />
+        </div>
+      )}
+
+      {/* Probability timeline (yes_price / yes_probability over datetime) */}
+      {useProbTimeline && (
+        <div className="rounded-lg border border-gold/20 bg-black/20 p-3">
+          <ProbabilityTimelineChart
+            data={displayData}
+            title="Market probability"
+            showNoPrice={displayData.some((r: any) => r.no_price != null)}
+          />
+        </div>
+      )}
+
+      {/* Time series when we have dates (price) and not using OHLC or probability timeline */}
+      {timeSeries && !useOHLC && !useProbTimeline && (
         <div className="rounded-lg border border-gold/20 bg-black/20 p-3">
           <TimeSeriesChart
             dates={timeSeries.dates}
@@ -224,7 +311,7 @@ export default function ResultsCharts({ data, maxRows = 20 }: ResultsChartsProps
         </div>
       )}
       {/* Second time series for commodities: inventory / stocks (e.g. crude price + EIA inventory) */}
-      {timeSeries2 && (
+      {timeSeries2 && !useProbTimeline && (
         <div className="rounded-lg border border-gold/20 bg-black/20 p-3">
           <h4 className="text-xs text-gold/80 font-semibold uppercase tracking-wider mb-2">{timeSeries2.label}</h4>
           <TimeSeriesChart

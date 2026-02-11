@@ -70,7 +70,7 @@ interface Message {
 }
 
 /** Tabbed Database Results: Charts (auto-generated from data shape) + Table */
-function DatabaseResultsWithCharts({ results }: { results: any[] }) {
+function DatabaseResultsWithCharts({ results, displayFamily }: { results: any[]; displayFamily?: string }) {
   const [activeTab, setActiveTab] = useState<'charts' | 'table'>('charts')
   return (
     <div className="space-y-3 overflow-hidden">
@@ -100,7 +100,7 @@ function DatabaseResultsWithCharts({ results }: { results: any[] }) {
       </div>
       {activeTab === 'charts' && (
         <div className="min-h-[200px] rounded-lg border border-gold/20 bg-dark-900/30 p-4">
-          <ResultsCharts data={results} maxRows={20} />
+          <ResultsCharts data={results} maxRows={20} displayFamily={displayFamily} />
         </div>
       )}
       {activeTab === 'table' && (
@@ -1557,7 +1557,7 @@ export default function HomePage() {
                                 </details>
                               );
                             }
-                            return <DatabaseResultsWithCharts results={message.results} />;
+                            return <DatabaseResultsWithCharts results={message.results} displayFamily={family} />;
                           }
 
                           if (family === 'awards_list') return <AwardResultsView results={message.results} />;
@@ -1566,8 +1566,12 @@ export default function HomePage() {
                           if (family === 'prediction_markets_list') return <PredictionMarketsListView results={message.results} />;
                           if (family === 'polymarket_traders') return <TradersListView results={message.results} />;
 
+                          if (family === 'ohlc_candlestick' || family === 'positioning_cot' || family === 'probability_timeline') {
+                            return <DatabaseResultsWithCharts results={message.results} displayFamily={family} />;
+                          }
+
                           if (family === 'futures_commodities' || family === 'eia_energy' || family === 'economic_data') {
-                            return <DatabaseResultsWithCharts results={message.results} />;
+                            return <DatabaseResultsWithCharts results={message.results} displayFamily={family} />;
                           }
 
                           if (family === 'options_flow_list') {
@@ -1580,7 +1584,7 @@ export default function HomePage() {
 
                           if (family === 'generic') {
                             const showCharts = isGenericResultChartable(message.results ?? []);
-                            if (showCharts) return <DatabaseResultsWithCharts results={message.results} />;
+                            if (showCharts) return <DatabaseResultsWithCharts results={message.results} displayFamily={family} />;
                             return (
                               <details className="mt-3 overflow-hidden" open={message.queryPlan?.intent === 'builder_execution'}>
                                 <summary className="cursor-pointer text-xs text-gold hover:text-gold/80 font-semibold">
@@ -1593,7 +1597,7 @@ export default function HomePage() {
                             );
                           }
 
-                          return <DatabaseResultsWithCharts results={message.results} />;
+                          return <DatabaseResultsWithCharts results={message.results} displayFamily={family} />;
                         })()}
                       </div>
                     )}
