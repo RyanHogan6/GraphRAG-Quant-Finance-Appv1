@@ -166,14 +166,14 @@ def get_market_detail(market_id: str):
                 RETURN DISTINCT pos.trader_address
         )
 
-        RETURN MERGE(market, {{
+        RETURN MERGE(market, {
             trader_count: trader_count > 0 ? trader_count : (
                 market.num_traders != null ? market.num_traders : 0
             ),
             num_traders: trader_count > 0 ? trader_count : (
                 market.num_traders != null ? market.num_traders : 0
             )
-        }})
+        })
     """
 
     try:
@@ -230,7 +230,7 @@ def get_featured_markets(
         LET yes_prob = market.yes_probability != null ? market.yes_probability * 100 : 50
         LET outcomes_array = IS_ARRAY(market.outcomes) ? market.outcomes : []
 
-        RETURN {{
+        RETURN {
             id: market._key,
             question: market.question,
             yes_prob: ROUND(yes_prob),
@@ -242,7 +242,7 @@ def get_featured_markets(
             category: market.category != null ? market.category : "Other",
             end_date: market.end_date,
             traders: market.num_traders != null ? market.num_traders : 0
-        }}
+        }
     """
     try:
         results, error = execute_aql(query, {"limit": limit})
@@ -342,7 +342,7 @@ def get_polymarket_markets(
         LET outcome_yes = LENGTH(outcomes_array) >= 1 ? outcomes_array[0] : "Yes"
         LET outcome_no = LENGTH(outcomes_array) >= 2 ? outcomes_array[1] : "No"
 
-        RETURN {{
+        RETURN {
             id: market._key,
             market_id: market.market_id,
             condition_id: market.condition_id,
@@ -359,7 +359,7 @@ def get_polymarket_markets(
             traders: trader_count,
             outcomes: outcomes_array,
             outcome_prices: outcome_prices_array
-        }}
+        }
     """
     bind_vars: Dict[str, Any] = {"limit": limit}
     if category:
@@ -438,19 +438,19 @@ def get_kalshi_featured(
         // Kalshi has 3 title fields: event_title (main question), subtitle, title (outcome text)
         LET question_text = market.event_title != null ? market.event_title : market.title
 
-        RETURN {{
+        RETURN {
             id: market._key,
             question: question_text,
             yes_prob: ROUND(yes_prob),
             no_prob: ROUND(100 - yes_prob),
-            outcome_yes: market.title != null ? market.title : "Yes",  // Use title for outcome
+            outcome_yes: market.title != null ? market.title : "Yes",
             outcome_no: "No",
-            volume_24h: market.volume != null ? market.volume : 0,  // Use 'volume' not 'volume_24h'
+            volume_24h: market.volume != null ? market.volume : 0,
             liquidity: market.open_interest != null ? market.open_interest : 0,
             category: market.category != null ? market.category : "Other",
             end_date: market.close_time,
             traders: 0
-        }}
+        }
     """
     try:
         results, error = execute_aql(query, {"limit": limit})

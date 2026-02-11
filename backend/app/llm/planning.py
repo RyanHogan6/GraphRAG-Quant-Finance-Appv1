@@ -22,11 +22,33 @@ from app.llm.query_validation import execute_with_validation
 try:
     from app.llm.query_decomposition import is_narrative_question, decompose_question
 except ImportError as e:
-    print(f"[WARNING] query_decomposition not available: {e}. Narrative decomposition disabled.")
+    print(f"[WARNING] query_decomposition not available: {e}. Using inline fallback for decomposition.")
     def is_narrative_question(question: str) -> bool:
-        return False
+        if not question or len(question.strip()) < 10:
+            return False
+        q = question.lower().strip()
+        return any(p in q for p in ["what drove", "why is", "why are", "explain why", "what caused", "what's driving"])
     def decompose_question(question: str):
-        return []
+        """Fallback when module missing: return default sub-intents for narrative + ticker."""
+        m = re.search(r"\b(why is|explain|what drove|what's driving)\s+([A-Za-z]{2,5})'?s?", question, re.IGNORECASE)
+        ticker = normalize_ticker(m.group(2)) if m else None
+        if not ticker:
+            m = re.search(r"\b([A-Za-z]{2,5})'?s?\s+(?:stock\s+)?(?:up|down|success|performance)", question, re.IGNORECASE)
+            ticker = normalize_ticker(m.group(1)) if m else None
+        if not ticker:
+            m = re.search(r"\b([A-Za-z]{2,5})\b", question)
+            ticker = normalize_ticker(m.group(1)) if m and m.group(1).upper() not in ("SEC", "ETF", "IPO", "EPS", "GDP", "CPI", "RSI", "MACD", "THE") else None
+        t = ticker if ticker else "the company in question"
+        out = []
+        if ticker:
+            out = [
+                {"label": "market_data", "sub_question": f"Stock price and key technical indicators for {t} over the last 90 days", "collections": ["Company", "MarketData"], "edge_path": ["HAS_MARKETDATA"], "bind_ticker": ticker},
+                {"label": "contracts", "sub_question": f"Recent government contract awards for {t} in the last 90 days, sorted by amount", "collections": ["Company", "Award"], "edge_path": ["HAS_AWARD"], "bind_ticker": ticker},
+                {"label": "sec_filings", "sub_question": f"Recent SEC filings and revenue or risk guidance for {t}", "collections": ["Company", "sec_filings"], "edge_path": ["HAS_FILING"], "bind_ticker": ticker},
+                {"label": "options_flow", "sub_question": f"Unusual options activity and put/call ratio for {t} in the last 30 days", "collections": ["Company", "options_flow"], "edge_path": ["COMPANY_HAS_OPTIONS"], "bind_ticker": ticker},
+            ]
+        out.append({"label": "macro", "sub_question": "Relevant macro or defense spending trends from economic data", "collections": ["EconomicData"], "edge_path": [], "bind_ticker": None})
+        return out[:5]
 from app.llm.schema_introspection import (
     get_cached_schema,
     get_collection_schema_dynamic,
