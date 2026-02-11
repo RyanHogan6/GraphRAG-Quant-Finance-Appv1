@@ -35,7 +35,7 @@ export default function ProbabilityTimelineChart({
 
   if (!data?.length) return null
 
-  const dateKey = ['datetime', 'date', 'timestamp'].find(k => data[0][k] != null) ?? 'date'
+  const dateKey = (['datetime', 'date', 'timestamp'] as const).find(k => data[0][k] != null) ?? 'date'
   const sorted = [...data].sort((a, b) => String(a[dateKey]).localeCompare(String(b[dateKey])))
   const dates = sorted.map(r => String(r[dateKey] ?? '').slice(0, 19))
   const yesValues = sorted.map(r => {
