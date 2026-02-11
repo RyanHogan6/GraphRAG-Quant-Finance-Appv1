@@ -15,7 +15,11 @@ from slowapi.util import get_remote_address
 
 from app.database.connection import get_db, execute_aql, fix_aql_query
 from app.llm.planning import plan_query_with_llm, quick_intent_check, get_query_embedding, generate_follow_up_questions, analyze_results_with_llm, execute_decomposed_query
-from app.llm.query_decomposition import is_narrative_question
+try:
+    from app.llm.query_decomposition import is_narrative_question
+except ImportError:
+    def is_narrative_question(question: str) -> bool:
+        return False
 from app.llm.web_search import classify_query_intent, search_web_context, synthesize_hybrid_response
 from app.llm.query_validation import execute_with_validation
 from app.cache import query_cache

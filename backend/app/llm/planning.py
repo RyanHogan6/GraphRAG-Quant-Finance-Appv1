@@ -19,7 +19,14 @@ from app.llm.json_to_aql import json_to_aql
 from app.llm.response_synthesis import get_enhanced_analysis_prompt
 # Schema grounding kept for potential future use; two-step flow uses get_cached_schema + build_json_intent_prompt
 from app.llm.query_validation import execute_with_validation
-from app.llm.query_decomposition import is_narrative_question, decompose_question
+try:
+    from app.llm.query_decomposition import is_narrative_question, decompose_question
+except ImportError as e:
+    print(f"[WARNING] query_decomposition not available: {e}. Narrative decomposition disabled.")
+    def is_narrative_question(question: str) -> bool:
+        return False
+    def decompose_question(question: str):
+        return []
 from app.llm.schema_introspection import (
     get_cached_schema,
     get_collection_schema_dynamic,
