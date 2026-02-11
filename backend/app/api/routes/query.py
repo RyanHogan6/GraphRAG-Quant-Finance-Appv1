@@ -20,6 +20,13 @@ try:
 except ImportError:
     def is_narrative_question(question: str) -> bool:
         return False
+
+def _is_narrative_backup(question: str) -> bool:
+    """Backup check when query_decomposition module is missing: substring triggers."""
+    if not question or len(question.strip()) < 10:
+        return False
+    q = question.lower().strip()
+    return any(phrase in q for phrase in ["what drove", "why is", "why are", "explain why", "what caused", "what's driving"])
 from app.llm.web_search import classify_query_intent, search_web_context, synthesize_hybrid_response
 from app.llm.query_validation import execute_with_validation
 from app.cache import query_cache
@@ -376,9 +383,12 @@ def _suggest_display_family(metadata: Dict[str, Any], results: List[Dict]) -> st
 def execute_db_query(question: str, conversation_history: list = None):
     """Execute database query in parallel thread. Uses decomposed flow for narrative/why/explain questions."""
     try:
-        if is_narrative_question(question):
+        use_narrative = is_narrative_question(question) or _is_narrative_backup(question)
+        if use_narrative:
+            print(f"[DECOMP] Narrative question detected, running decomposed query: {question[:60]}...")
             results, query_plan, err = execute_decomposed_query(question, conversation_history=conversation_history)
             if err and not results:
+                print(f"[DECOMP] Decomposed query failed or empty: {err}, falling back to single query")
                 return None, None, err
             if results is not None and query_plan is not None:
                 return results, query_plan, None
