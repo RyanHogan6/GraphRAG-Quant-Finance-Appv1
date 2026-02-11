@@ -1445,9 +1445,9 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                                                         >
                                                             Go to SEC Sentences
                                                         </button>
-                                                        {secFilingUrl && (
+                                                        {directFilingUrl && (
                                                             <span className="block mt-2">
-                                                                <a href={secFilingUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-500 hover:text-blue-400 transition-colors">Open on SEC EDGAR</a>
+                                                                <a href={directFilingUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-500 hover:text-blue-400 transition-colors">Open on SEC EDGAR</a>
                                                             </span>
                                                         )}
                                                     </div>
