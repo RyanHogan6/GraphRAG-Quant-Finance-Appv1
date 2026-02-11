@@ -169,8 +169,12 @@ export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps)
 
             if (connection.type === 'direct') {
                 if (connection.direction === 'INBOUND') {
-                    // FOR t IN INBOUND doc edge_collection
+                    // FOR t IN INBOUND doc edge_collection (sort by date when target has one)
                     aql += `    FOR t IN INBOUND doc ${connection.edge}\n`
+                    const targetDateField = (targetKey === 'eia_crude' || targetKey === 'eia_natgas_storage') ? 'report_date' : (targetNode.keyFields.includes('date') ? 'date' : null)
+                    if (targetDateField) {
+                        aql += `      SORT t.${targetDateField} DESC\n`
+                    }
                     aql += `      LIMIT 5 RETURN t\n`
                 } else {
                     // FOR t IN OUTBOUND doc edge_collection
@@ -207,6 +211,22 @@ export default function VisualQueryBuilder({ onQueryChange }: QueryBuilderProps)
             aql += `  )\n`
             desc += ` + ${targetNode.name}`
         })
+
+        // Sort by most recent when source has a date field (so LIMIT returns newest first)
+        const dateSortCollections: Record<string, string> = {
+            'futures_prices': 'date',
+            'MarketData': 'date',
+            'eia_crude_inventory': 'date',
+            'eia_natgas_storage': 'date',
+            'eia_natgas_production': 'date',
+            'eia_lng_exports': 'date',
+            'options_flow': 'date',
+            'commodity_positions': 'as_of_date'
+        }
+        const sortField = dateSortCollections[sourceNode.collection] || (sourceNode.collection === 'sec_filings' ? 'filing_date' : null)
+        if (sortField) {
+            aql += `  SORT doc.${sortField} DESC\n`
+        }
 
         desc += ` (limit ${limit})`
         aql += `  LIMIT ${limit}\n`
