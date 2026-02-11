@@ -868,8 +868,10 @@ export default function HomePage() {
     }
   }
 
-  // Suggested questions - showcase multi-source capabilities with reliable data
+  // Suggested questions - showcase multi-source capabilities and new narrative/evidence chain
   const suggestedQuestions = [
+    'Why is RTX stock up this month?',
+    'What drove PLTR\'s 2025 success?',
     'Show me Raytheon with government contracts and recent SEC filings',
     'What are the most negative SEC filings this year?',
     'Find defense contractors with contracts over $500M',

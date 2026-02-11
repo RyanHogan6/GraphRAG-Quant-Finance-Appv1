@@ -1096,13 +1096,16 @@ async def execute_query_stream(request: Request, body: QueryRequest):
                     }
                     print(f"[STREAM] Added chart metadata for time series query")
 
-            # Enrich single-company results for CompanyWorkup display
-            if results:
+            # Enrich single-company results for CompanyWorkup display (skip for decomposed narrative)
+            if results and not query_plan.get('decomposed'):
                 results = enrich_single_company_results(results, query_plan)
 
             # Generate query metadata for frontend conditional rendering
             aql_query = query_plan.get('aql_query', '') if query_plan else ''
             query_metadata = analyze_query_metadata(aql_query, results)
+            if query_plan.get('decomposed') and query_plan.get('evidence_paths'):
+                query_metadata['decomposed'] = True
+                query_metadata['evidence_paths'] = query_plan['evidence_paths']
             print(f"[STREAM] Query metadata: {query_metadata}")
 
             # Detect specialized presentation type

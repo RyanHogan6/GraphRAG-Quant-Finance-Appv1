@@ -986,14 +986,16 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
 
                                 const fmt = (val: number | null | undefined, currency = true, unit?: string, signed = false): string => {
                                     if (val == null) return '—'
+                                    // XBRL often stores amounts in millions (e.g. 21,301 = $21.3B). Normalize to whole dollars for display.
+                                    let n = Number(val)
+                                    if (currency && Math.abs(n) >= 1 && Math.abs(n) < 1e8) n = n * 1e6
                                     if (currency) {
                                         if (showFullAmounts) {
-                                            const n = Number(val)
                                             const str = n.toLocaleString('en-US', { maximumFractionDigits: 0 })
-                                            return signed ? (val >= 0 ? `+$${str}` : `-$${Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 })}`) : `$${str}`
+                                            return signed ? (n >= 0 ? `+$${str}` : `-$${Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 })}`) : `$${str}`
                                         }
-                                        const s = (val / 1e6).toFixed(1)
-                                        return signed ? (val >= 0 ? `+$${s}M` : `-$${(Math.abs(val) / 1e6).toFixed(1)}M`) : `$${s}M`
+                                        const s = (n / 1e6).toFixed(1)
+                                        return signed ? (n >= 0 ? `+$${s}M` : `-$${(Math.abs(n) / 1e6).toFixed(1)}M`) : `$${s}M`
                                     }
                                     if (unit === 'M') return showFullAmounts ? val.toLocaleString('en-US', { maximumFractionDigits: 0 }) : `${(val / 1e6).toFixed(1)}M`
                                     if (typeof val === 'number' && !currency) return val.toFixed(2)
