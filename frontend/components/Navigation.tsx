@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
+import Link from 'next/link'
 
 export default function Navigation() {
   const pathname = usePathname()
@@ -85,7 +86,16 @@ export default function Navigation() {
             </div>
           </div>
 
-          <div className="hidden md:flex items-center">
+          <div className="hidden md:flex items-center space-x-1">
+            <Link
+              href="/signals"
+              className={`px-4 py-2 rounded-lg transition-all ${pathname === '/signals'
+                ? 'bg-gold/20 text-gold border border-gold/40'
+                : 'text-gray-400 hover:text-gold hover:bg-gold/10'
+                }`}
+            >
+              Signals
+            </Link>
             <button
               onClick={() => scrollToSection('about')}
               className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'about'
@@ -130,6 +140,16 @@ export default function Navigation() {
                 {link.label}
               </button>
             ))}
+            <Link
+              href="/signals"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`block w-full text-left px-4 py-3 rounded-lg transition-all ${pathname === '/signals'
+                ? 'bg-gold/20 text-gold border border-gold/40'
+                : 'text-gray-400 hover:text-gold hover:bg-gold/10'
+                }`}
+            >
+              Signals
+            </Link>
           </div>
         )}
       </div>
