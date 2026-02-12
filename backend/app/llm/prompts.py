@@ -150,8 +150,12 @@ CRITICAL_AQL_RULES = """
    Example: "What are the most negative SEC filings this year?"
    → FILTER filing.filing_date >= DATE_SUBTRACT(DATE_NOW(), 365, "day")
 
-   Example: "Show me crude oil prices"
-   → SORT futures.date DESC LIMIT 100 (NO date filter!)
+   Example: "Show me crude oil prices" or "crude oil futures with technical indicators"
+   → For futures_prices ALWAYS use BOTH: (1) recent date filter AND (2) return multiple rows (table)
+   → FILTER doc.date >= SUBSTRING(DATE_SUBTRACT(DATE_NOW(), 90, "day"), 0, 10)
+   → SORT doc.date DESC LIMIT 90
+   → RETURN one row per date (date, OHLC, sma_20, macd, rsi_14, etc.) so the user gets a time series table, NOT a single old snapshot
+   ❌ NEVER return a single row from futures_prices for "show me prices" — always return a recent window (e.g. last 90 days)
 
    ⚠️ CRITICAL PREDICTION MARKET FILTERING RULE:
    When querying prediction_markets_polymarket or prediction_markets_kalshi:
@@ -174,9 +178,11 @@ CRITICAL_AQL_RULES = """
 
    Examples:
    - "Most bearish 10-K filings" → Query sec_sentences, group by ticker, average finbert_score
+   - "Most bearish sentences from recent 10-K filings" → Query sec_sentences directly: FILTER finbert_score < 0, filing_date recent, CONTAINS(section_id, "10-K"), SORT finbert_score ASC, LIMIT 20. Do NOT use sec_filings + HAS_FILING for sentences (HAS_FILING is Company→sec_filings; sentences are filing→has_section→section→has_sentence→sec_sentences).
    - "Negative SEC sentiment for TSLA" → Query sec_sentences WHERE ticker = "TSLA", average finbert_score
    - "Insider buying" → Query sec_filings (Form 4 trades)
    ❌ NEVER query sec_filings for sentiment - it has none!
+   ❌ For "bearish sentences" do NOT traverse HAS_FILING from sec_filings to find sentences - HAS_FILING._to is sec_filings, not sec_sentences. Query sec_sentences directly and filter by section_id (contains "10-K") and filing_date.
 
 2. ORDER OF OPERATIONS:
    FOR → FILTER → SORT → LIMIT → RETURN
@@ -740,7 +746,9 @@ DOCUMENT COLLECTIONS:
    ⚠️ NO CONTENT FIELD: Text is NOT stored. Use sec_sentences for actual content.
 
 10. sec_sentences (individual sentences - most granular level)
-    - section_id (string): Parent section ID (format: "sec_sections/{ticker}_{type}_{accession}_{filename}_sec{N}")
+    - section_id (string): Parent section ID (format: "sec_sections/{ticker}_{type}_{accession}_{filename}_sec{N}") — use CONTAINS(section_id, "10-K") to filter by filing type
+    - filing_date (string): Date filed YYYY-MM-DD (denormalized for filtering)
+    - ticker (string): Company ticker
     - text (string): Sentence text (THIS is where content lives)
     - n_tokens (int): Token count
 
@@ -1185,6 +1193,44 @@ Strategy:
 
 ---
 
+EXAMPLE 3b2 - Futures Prices WITH Technical Indicators (CRITICAL: recent window + table, not single row!):
+Question: "Show me crude oil futures prices with technical indicators"
+Intent: commodity_price_lookup
+Collections: ["futures_prices"]
+AQL:
+LET cutoff = SUBSTRING(DATE_SUBTRACT(DATE_NOW(), 90, "day"), 0, 10)
+FOR doc IN futures_prices
+  FILTER doc.commodity == "CRUDE_OIL"
+  FILTER doc.date >= cutoff
+  SORT doc.date DESC
+  LIMIT 90
+  RETURN {
+    date: doc.date,
+    open: doc.open,
+    high: doc.high,
+    low: doc.low,
+    close: doc.close,
+    volume: doc.volume,
+    sma_20: doc.sma_20,
+    sma_50: doc.sma_50,
+    macd: doc.macd,
+    macd_signal: doc.macd_signal,
+    rsi_14: doc.rsi_14,
+    dist_from_sma20: doc.dist_from_sma20,
+    daily_range_pct: doc.daily_range_pct,
+    volatility_30d: doc.volatility_30d
+  }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ For "futures prices" or "with technical indicators" ALWAYS filter to last 90 days (FILTER doc.date >= cutoff) so the user gets RECENT data, not an old single date
+✅ Return MULTIPLE rows (one per trading day) so the answer is a time series TABLE, not a single snapshot
+✅ Include key technical fields: sma_20, sma_50, macd, rsi_14, dist_from_sma20, daily_range_pct
+❌ NEVER return only LIMIT 1 or a single row for "show me prices" — that produces stale/wrong-date narrative
+
+---
+
 EXAMPLE 3c - EIA Energy Data (CRITICAL: Use correct EIA collections!):
 Question: "Show me crude oil inventory levels"
 Intent: energy_fundamental_analysis
@@ -1491,12 +1537,39 @@ FOR s IN sec_sentences
     uncertainty: s.uncertainty_per_1k
   }
 Bind Variables: {}
-Requires Embedding: false
-Note: Combines keyword filtering with sentiment analysis for targeted SEC content search.
 
 ---
 
-EXAMPLE 6d - Cross-Domain: SEC Warnings + Unusual Options Activity:
+EXAMPLE 6d - Most bearish sentences from recent 10-K filings (CRITICAL: Query sec_sentences directly!):
+Question: "Show me the most bearish sentences from recent 10-K filings"
+Intent: sentiment_analysis
+Collections: ["sec_sentences"]
+AQL:
+FOR sentence IN sec_sentences
+  FILTER sentence.finbert_score != null AND sentence.finbert_score < 0
+  FILTER sentence.filing_date >= DATE_SUBTRACT(DATE_NOW(), 365, "day")
+  FILTER CONTAINS(sentence.section_id, "10-K")
+  SORT sentence.finbert_score ASC
+  LIMIT 20
+  RETURN {
+    text: SUBSTRING(sentence.text, 0, 500),
+    finbert_score: sentence.finbert_score,
+    filing_date: sentence.filing_date,
+    ticker: sentence.ticker
+  }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+✅ Query sec_sentences DIRECTLY - do NOT use sec_filings + HAS_FILING to find sentences (HAS_FILING links Company→sec_filings; sentences are reached via sec_filings→has_section→sec_sections→has_sentence→sec_sentences).
+✅ Filter 10-K by CONTAINS(section_id, "10-K") (section_id format: sec_sections/{ticker}_{type}_{accession}_...)
+✅ Filter recent by filing_date >= DATE_SUBTRACT(DATE_NOW(), 365, "day")
+✅ Most bearish = SORT finbert_score ASC LIMIT 20
+❌ NEVER do: FOR f IN sec_filings FOR edge IN HAS_FILING FILTER edge._from == f._id FOR s IN sec_sentences FILTER s._id == edge._to (wrong: edge._to is a filing, not a sentence!)
+
+---
+
+EXAMPLE 6e - Cross-Domain: SEC Warnings + Unusual Options Activity:
 Question: "Find companies with negative SEC disclosures who had unusual put buying in the 30 days before the filing"
 Intent: cross_domain_validation_sec_options
 Collections: ["sec_sentences", "sec_filings", "options_flow"]
