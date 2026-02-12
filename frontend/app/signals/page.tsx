@@ -618,8 +618,8 @@ export default function SignalsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-4">
                 <BarChart
-                  labels={allData.contract_momentum_90d.slice(0, 10).map((r) => r.ticker)}
-                  values={allData.contract_momentum_90d.slice(0, 10).map((r) => r.contract_momentum_90d)}
+                  labels={(allData?.contract_momentum_90d ?? []).slice(0, 10).map((r) => r.ticker)}
+                  values={(allData?.contract_momentum_90d ?? []).slice(0, 10).map((r) => r.contract_momentum_90d)}
                   valueLabel="90d contract total (top 10)"
                   height={220}
                 />
@@ -663,8 +663,8 @@ export default function SignalsPage() {
           {!loading && (allData?.options_filing_convergence?.length ?? 0) > 0 && (
             <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 max-w-2xl">
               <BarChart
-                labels={allData.options_filing_convergence.slice(0, 10).map((r) => r.ticker)}
-                values={allData.options_filing_convergence.slice(0, 10).map((r) => r.options_filing_events)}
+                labels={(allData?.options_filing_convergence ?? []).slice(0, 10).map((r) => r.ticker)}
+                values={(allData?.options_filing_convergence ?? []).slice(0, 10).map((r) => r.options_filing_events)}
                 valueLabel="Options–filing events (top 10)"
                 height={200}
               />
@@ -694,8 +694,8 @@ export default function SignalsPage() {
           {!loading && (allData?.contract_centrality?.length ?? 0) > 0 && (
             <div className="bg-dark-800 border border-gold/20 rounded-lg p-4">
               <BarChart
-                labels={allData.contract_centrality.slice(0, 10).map((r) => r.ticker)}
-                values={allData.contract_centrality.slice(0, 10).map((r) => r.contract_degree_centrality)}
+                labels={(allData?.contract_centrality ?? []).slice(0, 10).map((r) => r.ticker)}
+                values={(allData?.contract_centrality ?? []).slice(0, 10).map((r) => r.contract_degree_centrality)}
                 valueLabel="Contract degree centrality (top 10)"
                 height={220}
               />
