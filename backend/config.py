@@ -10,7 +10,7 @@ load_dotenv()
 # ArangoDB Configuration
 # Support both ARANGO_URL and ARANGO_HOST for compatibility
 ARANGO_URL = os.getenv("ARANGO_URL") or os.getenv("ARANGO_HOST", "http://localhost:8529")
-ARANGO_REQUEST_TIMEOUT = int(os.getenv("ARANGO_REQUEST_TIMEOUT", "120"))  # HTTP read timeout (avoids 60s default)
+ARANGO_REQUEST_TIMEOUT = int(os.getenv("ARANGO_REQUEST_TIMEOUT", "300"))  # HTTP read timeout (heavy Award traversal can exceed 120s)
 GRAPH_NAME = "QUANT_v3_FinanceGraph"
 DB_NAME = os.getenv("ARANGO_DB", "QUANT_v3")
 USERNAME = os.getenv("ARANGO_USERNAME", "root")

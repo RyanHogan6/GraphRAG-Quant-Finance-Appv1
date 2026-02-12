@@ -11,28 +11,28 @@ from app.database.connection import get_db, execute_aql
 def get_contract_momentum_90d(limit: int = 100) -> List[Dict[str, Any]]:
     """
     Companies with highest 90-day contract award sum (contract momentum).
-    Uses graph: Company -> HAS_AWARD -> Award, filter by start_date, sum award_amount_float.
+    Award-first: filter Award by start_date, join to HAS_AWARD edge by _to, aggregate by _from (Company).
     """
     aql = """
-    FOR company IN Company
-      LET awards_90d = (
-        FOR award IN OUTBOUND company HAS_AWARD
-          FILTER award.start_date >= DATE_SUBTRACT(DATE_NOW(), 90, 'day')
-          FILTER award.award_amount_float != null AND award.award_amount_float > 0
-          COLLECT AGGREGATE total = SUM(award.award_amount_float), count = LENGTH(1)
-          RETURN { total: total, count: count }
-      )
-      LET total_90d = awards_90d[0].total
-      FILTER total_90d != null AND total_90d > 0
-      SORT total_90d DESC
-      LIMIT @limit
-      RETURN {
-        ticker: company.ticker,
-        company: company.company,
-        sector: company.sector,
-        contract_momentum_90d: total_90d,
-        award_count_90d: awards_90d[0].count
-      }
+    LET cutoff = SUBSTRING(DATE_SUBTRACT(DATE_NOW(), 90, 'day'), 0, 10)
+    FOR award IN Award
+      FILTER award.start_date >= cutoff
+      FILTER award.award_amount_float != null AND award.award_amount_float > 0
+      FOR edge IN HAS_AWARD
+        FILTER edge._to == award._id
+        COLLECT companyId = edge._from
+        AGGREGATE total = SUM(award.award_amount_float), count = LENGTH(1)
+        LET comp = DOCUMENT(companyId)
+        FILTER comp != null
+        SORT total DESC
+        LIMIT @limit
+        RETURN {
+          ticker: comp.ticker,
+          company: comp.company,
+          sector: comp.sector,
+          contract_momentum_90d: total,
+          award_count_90d: count
+        }
     """
     results, err = execute_aql(aql, {"limit": limit})
     if err:
@@ -54,7 +54,7 @@ def get_options_filing_convergence(days_before: int = 14, limit: int = 50) -> Li
       LET filings_before = (
         FOR filing IN OUTBOUND opt OPTIONS_BEFORE_FILING
           FILTER filing.filing_date != null
-          LET days_before = DATEDIFF(opt.date, filing.filing_date, 'd')
+          LET days_before = DATE_DIFF(filing.filing_date, opt.date, "d")
           FILTER days_before >= 0 AND days_before <= @days_before
           RETURN { filing_date: filing.filing_date, days_before: days_before }
       )

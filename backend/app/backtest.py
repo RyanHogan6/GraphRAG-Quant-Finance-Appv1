@@ -11,23 +11,22 @@ from app.database.connection import get_db, execute_aql
 def get_contract_momentum_as_of_date(as_of_date: str, limit: int = 300) -> List[Dict[str, Any]]:
     """
     Contract momentum (90d award sum) computed with data available as of as_of_date.
-    Only awards with start_date <= as_of_date and start_date >= as_of_date - 90 days.
+    Award-first: filter Award by date range, join to HAS_AWARD by _to, aggregate by _from (Company).
     """
     aql = """
-    FOR company IN Company
-      LET awards_90d = (
-        FOR award IN OUTBOUND company HAS_AWARD
-          FILTER award.start_date <= @as_of_date
-          FILTER award.start_date >= DATE_STRING(DATE_SUBTRACT(DATE_ISO8601(@as_of_date), 90, 'day'))
-          FILTER award.award_amount_float != null AND award.award_amount_float > 0
-          COLLECT AGGREGATE total = SUM(award.award_amount_float)
-          RETURN total
-      )
-      LET total_90d = awards_90d[0]
-      FILTER total_90d != null AND total_90d > 0
-      SORT total_90d DESC
-      LIMIT @limit
-      RETURN { ticker: company.ticker, contract_momentum_90d: total_90d }
+    LET cutoff = SUBSTRING(DATE_SUBTRACT(DATE_ISO8601(@as_of_date), 90, 'day'), 0, 10)
+    FOR award IN Award
+      FILTER award.start_date >= cutoff AND award.start_date <= @as_of_date
+      FILTER award.award_amount_float != null AND award.award_amount_float > 0
+      FOR edge IN HAS_AWARD
+        FILTER edge._to == award._id
+        COLLECT companyId = edge._from
+        AGGREGATE total = SUM(award.award_amount_float)
+        LET comp = DOCUMENT(companyId)
+        FILTER comp != null
+        SORT total DESC
+        LIMIT @limit
+        RETURN { ticker: comp.ticker, contract_momentum_90d: total }
     """
     results, err = execute_aql(aql, {"as_of_date": as_of_date, "limit": limit})
     if err:

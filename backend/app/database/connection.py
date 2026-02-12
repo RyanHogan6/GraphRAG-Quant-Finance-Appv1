@@ -215,9 +215,10 @@ def fix_aql_query(query: str):
         print("❌ ERROR: Query uses .content field which doesn't exist!")
         return None
 
-    # INTO keyword doesn't exist
-    if ' INTO ' in query.upper():
-        print("❌ ERROR: INTO keyword not supported in AQL")
+    # Reject SQL-style INTO (INSERT INTO / SELECT INTO); allow AQL COLLECT ... INTO
+    q = query.upper()
+    if 'INSERT INTO ' in q or ('SELECT ' in q and ' INTO ' in q and 'COLLECT' not in q):
+        print("❌ ERROR: SQL-style INTO not supported in AQL")
         return None
 
     # Fix incorrect clause order: RETURN ... LIMIT -> LIMIT ... RETURN

@@ -342,7 +342,7 @@ def get_polymarket_markets(
         LET outcome_yes = LENGTH(outcomes_array) >= 1 ? outcomes_array[0] : "Yes"
         LET outcome_no = LENGTH(outcomes_array) >= 2 ? outcomes_array[1] : "No"
 
-        RETURN {
+        RETURN {{
             id: market._key,
             market_id: market.market_id,
             condition_id: market.condition_id,
@@ -359,7 +359,7 @@ def get_polymarket_markets(
             traders: trader_count,
             outcomes: outcomes_array,
             outcome_prices: outcome_prices_array
-        }
+        }}
     """
     bind_vars: Dict[str, Any] = {"limit": limit}
     if category:

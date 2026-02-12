@@ -594,18 +594,36 @@ def enrich_single_company_results(results: List[Dict], query_plan: Dict) -> List
             return data[0] if data else {}
 
         def fetch_sec_xbrl():
-            query = """
+            # Prefer traversal so filing_date always comes from the linked filing
+            query_traversal = """
+            FOR filing IN sec_filings
+              FILTER filing.ticker == @ticker
+              FOR xbrl IN OUTBOUND filing has_xbrl_data
+                SORT filing.filing_date DESC
+                LIMIT 50
+                RETURN MERGE(xbrl, {
+                  filing_type: filing.type,
+                  filing_date: filing.filing_date,
+                  fiscal_year: filing.filing_date ? SUBSTRING(filing.filing_date, 0, 4) : null
+                })
+            """
+            data, _ = execute_aql(query_traversal, {"ticker": ticker})
+            if data:
+                return data
+            # Fallback: by filing_key (in case edges are missing)
+            query_fallback = """
             FOR xbrl IN sec_xbrl_data
               FILTER xbrl.ticker == @ticker
-              LET filing = DOCUMENT('sec_filings', xbrl.filing_key)
-              SORT filing.filing_date DESC
+              LET filing = xbrl.filing_key != null ? DOCUMENT('sec_filings', xbrl.filing_key) : null
+              SORT filing != null ? filing.filing_date : null DESC
               LIMIT 50
               RETURN MERGE(xbrl, {
-                filing_date: filing.filing_date,
-                fiscal_year: filing.filing_date ? SUBSTRING(filing.filing_date, 0, 4) : null
+                filing_type: xbrl.filing_type != null ? xbrl.filing_type : (filing != null ? filing.type : null),
+                filing_date: filing != null ? filing.filing_date : null,
+                fiscal_year: filing != null && filing.filing_date != null ? SUBSTRING(filing.filing_date, 0, 4) : null
               })
             """
-            data, _ = execute_aql(query, {"ticker": ticker})
+            data, _ = execute_aql(query_fallback, {"ticker": ticker})
             return data or []
 
         def fetch_sec_exhibits():

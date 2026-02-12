@@ -878,6 +878,11 @@ export default function HomePage() {
     'Show me crude oil and natural gas futures prices',
     'Show me recent options activity for tech stocks',
     'Compare Apple and Microsoft stock performance',
+    'What are the most active Polymarket prediction markets?',
+    'Show me EIA crude inventory and crude oil futures prices',
+    'Show me the top 10 largest government contracts',
+    'Explain why oil prices moved when EIA inventory was low',
+    'Show me unusual options activity in the last 30 days',
   ]
 
   // Generate context-aware follow-up questions based on query and results
