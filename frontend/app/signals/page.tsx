@@ -49,7 +49,7 @@ interface BacktestResponse {
   error?: string
 }
 
-function SignalsTable<T extends Record<string, unknown>>({
+function SignalsTable<T extends object>({
   title,
   rows,
   columns,
