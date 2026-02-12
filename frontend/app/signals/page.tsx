@@ -540,7 +540,8 @@ export default function SignalsPage() {
   }, [])
 
   const momentumWithShare = useMemo(() => {
-    const rows = allData?.contract_momentum_90d ?? []
+    const raw = allData?.contract_momentum_90d
+    const rows = Array.isArray(raw) ? raw.filter((r): r is ContractMomentumRow => r != null && r.ticker != null) : []
     const total = rows.reduce((s, r) => s + (r.contract_momentum_90d || 0), 0)
     if (total <= 0) return rows
     return rows.map((r) => ({
@@ -550,7 +551,8 @@ export default function SignalsPage() {
   }, [allData?.contract_momentum_90d])
 
   const centralityWithShare = useMemo(() => {
-    const rows = allData?.contract_centrality ?? []
+    const raw = allData?.contract_centrality
+    const rows = Array.isArray(raw) ? raw.filter((r): r is CentralityRow => r != null && r.ticker != null) : []
     const total = rows.reduce((s, r) => s + (r.contract_degree_centrality || 0), 0)
     if (total <= 0) return rows
     return rows.map((r) => ({
@@ -572,8 +574,8 @@ export default function SignalsPage() {
   }, [momentumWithShare])
 
   const scatterPoints = useMemo(() => {
-    const momentum = allData?.contract_momentum_90d ?? []
-    const centrality = allData?.contract_centrality ?? []
+    const momentum = Array.isArray(allData?.contract_momentum_90d) ? allData.contract_momentum_90d.filter((r): r is ContractMomentumRow => r != null && r.ticker != null) : []
+    const centrality = Array.isArray(allData?.contract_centrality) ? allData.contract_centrality.filter((r): r is CentralityRow => r != null && r.ticker != null) : []
     const byTicker = new Map<string, { x: number; y: number }>()
     momentum.forEach((r) => byTicker.set(r.ticker, { x: r.contract_momentum_90d, y: 0 }))
     centrality.forEach((r) => {
@@ -595,6 +597,11 @@ export default function SignalsPage() {
     () => Math.max(...(centralityWithShare.map((r) => r.contract_degree_centrality) || [1]), 1),
     [centralityWithShare]
   )
+
+  const optionsFilingRows = useMemo(() => {
+    const raw = allData?.options_filing_convergence
+    return Array.isArray(raw) ? raw.filter((r): r is OptionsFilingRow => r != null && r.ticker != null) : []
+  }, [allData?.options_filing_convergence])
 
   return (
     <div className="container mx-auto px-4 md:px-6 py-8 max-w-7xl">
@@ -618,8 +625,8 @@ export default function SignalsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-dark-800 border border-gold/20 rounded-lg p-4">
                 <BarChart
-                  labels={(allData?.contract_momentum_90d ?? []).slice(0, 10).map((r) => r.ticker)}
-                  values={(allData?.contract_momentum_90d ?? []).slice(0, 10).map((r) => r.contract_momentum_90d)}
+                  labels={(allData?.contract_momentum_90d ?? []).filter((r): r is ContractMomentumRow => r != null && r.ticker != null).slice(0, 10).map((r) => r.ticker)}
+                  values={(allData?.contract_momentum_90d ?? []).filter((r): r is ContractMomentumRow => r != null && r.ticker != null).slice(0, 10).map((r) => r.contract_momentum_90d)}
                   valueLabel="90d contract total (top 10)"
                   height={220}
                 />
@@ -663,8 +670,8 @@ export default function SignalsPage() {
           {!loading && (allData?.options_filing_convergence?.length ?? 0) > 0 && (
             <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 max-w-2xl">
               <BarChart
-                labels={(allData?.options_filing_convergence ?? []).slice(0, 10).map((r) => r.ticker)}
-                values={(allData?.options_filing_convergence ?? []).slice(0, 10).map((r) => r.options_filing_events)}
+                labels={(allData?.options_filing_convergence ?? []).filter((r): r is OptionsFilingRow => r != null && r.ticker != null).slice(0, 10).map((r) => r.ticker)}
+                values={(allData?.options_filing_convergence ?? []).filter((r): r is OptionsFilingRow => r != null && r.ticker != null).slice(0, 10).map((r) => r.options_filing_events)}
                 valueLabel="Options–filing events (top 10)"
                 height={200}
               />
@@ -672,7 +679,7 @@ export default function SignalsPage() {
           )}
           <SignalsTable<OptionsFilingRow>
             title="Options–filing convergence"
-            rows={allData?.options_filing_convergence ?? []}
+            rows={optionsFilingRows}
             loading={loading}
             noDataExplanation="Requires OPTIONS_BEFORE_FILING edges between options activity and SEC filings."
             columns={[
@@ -694,8 +701,8 @@ export default function SignalsPage() {
           {!loading && (allData?.contract_centrality?.length ?? 0) > 0 && (
             <div className="bg-dark-800 border border-gold/20 rounded-lg p-4">
               <BarChart
-                labels={(allData?.contract_centrality ?? []).slice(0, 10).map((r) => r.ticker)}
-                values={(allData?.contract_centrality ?? []).slice(0, 10).map((r) => r.contract_degree_centrality)}
+                labels={(allData?.contract_centrality ?? []).filter((r): r is CentralityRow => r != null && r.ticker != null).slice(0, 10).map((r) => r.ticker)}
+                values={(allData?.contract_centrality ?? []).filter((r): r is CentralityRow => r != null && r.ticker != null).slice(0, 10).map((r) => r.contract_degree_centrality)}
                 valueLabel="Contract degree centrality (top 10)"
                 height={220}
               />
