@@ -681,8 +681,10 @@ export default function SignalsPage() {
           {scatterPoints.length > 0 ? (
             <ScatterChart points={scatterPoints} xLabel="90d momentum" yLabel="centrality" />
           ) : (
-            <div className="text-xs text-gold/80 uppercase tracking-wider font-semibold mb-1">Momentum vs centrality</div>
-            <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">{loading ? 'Loading…' : 'No data'}</div>
+            <>
+              <div className="text-xs text-gold/80 uppercase tracking-wider font-semibold mb-1">Momentum vs centrality</div>
+              <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">{loading ? 'Loading…' : 'No data'}</div>
+            </>
           )}
         </div>
         <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 min-h-[240px] flex flex-col">
