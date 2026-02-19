@@ -21,6 +21,8 @@ def main():
     parser.add_argument('--max-tickers', type=int, help='Number of tickers to fetch (default: all from Company collection)')
     parser.add_argument('--delay', type=float, default=1.0, help='Delay between tickers in seconds (default: 1.0)')
     parser.add_argument('--all', action='store_true', help='Fetch ALL tickers from Company collection (no limit)')
+    parser.add_argument('--index', type=str, default=None, choices=['SP500', 'RUSSELL2000', 'NASDAQ100'],
+                        help='Fetch only this index (default: all companies in Company collection)')
     args = parser.parse_args()
 
     print("="*80)
@@ -28,6 +30,8 @@ def main():
     print("="*80)
     print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"Delay: {args.delay}s between requests")
+    if args.index:
+        print(f"Index filter: {args.index} only")
     print("="*80 + "\n")
 
     # Load environment variables
@@ -47,11 +51,15 @@ def main():
     print(f"✓ ArangoDB: {arango_url}")
     print(f"✓ Database: {arango_db}\n")
 
-    # Get tickers from Company collection
-    from options.downloader import get_tickers_from_company_collection
-    all_tickers = get_tickers_from_company_collection()
-
-    print(f"✓ Found {len(all_tickers)} tickers in Company collection")
+    # Get tickers: by index if --index set, else from full Company collection
+    if args.index:
+        from yahoo.constituents import get_tickers_from_arango
+        all_tickers = get_tickers_from_arango(current_only=True, index=args.index)
+        print(f"✓ Found {len(all_tickers)} tickers (index: {args.index})")
+    else:
+        from options.downloader import get_tickers_from_company_collection
+        all_tickers = get_tickers_from_company_collection()
+        print(f"✓ Found {len(all_tickers)} tickers in Company collection")
 
     # Determine how many to fetch
     if args.all:

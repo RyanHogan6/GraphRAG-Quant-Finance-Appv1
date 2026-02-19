@@ -53,12 +53,21 @@ export default function Navigation() {
         <div className="flex items-center justify-between">
           {/* Logo + Beta */}
           <div className="flex items-center space-x-2">
-            <button
-              onClick={() => scrollToSection('query')}
-              className="text-lg md:text-xl font-bold text-gold font-mono hover:text-gold/80 transition-colors cursor-pointer"
-            >
-              KARGA
-            </button>
+            {pathname === '/' ? (
+              <button
+                onClick={() => scrollToSection('query')}
+                className="text-lg md:text-xl font-bold text-gold font-mono hover:text-gold/80 transition-colors cursor-pointer"
+              >
+                KARGA
+              </button>
+            ) : (
+              <Link
+                href="/"
+                className="text-lg md:text-xl font-bold text-gold font-mono hover:text-gold/80 transition-colors"
+              >
+                KARGA
+              </Link>
+            )}
             <span className="text-[10px] uppercase tracking-wider text-gold/70 border border-gold/30 px-2 py-0.5 rounded font-medium">Beta</span>
             <a
               href="mailto:karga.analytics@gmail.com?subject=KARGA%20Feedback"
@@ -71,18 +80,28 @@ export default function Navigation() {
           {/* Desktop Navigation */}
           <div className="hidden md:flex flex-1 items-center justify-center">
             <div className="flex space-x-1">
-              {links.slice(0, 2).map((link) => (
-                <button
-                  key={link.id}
-                  onClick={() => scrollToSection(link.id)}
-                  className={`px-4 py-2 rounded-lg transition-all ${activeSection === link.id
-                    ? 'bg-gold/20 text-gold border border-gold/40'
-                    : 'text-gray-400 hover:text-gold hover:bg-gold/10'
-                    }`}
-                >
-                  {link.label}
-                </button>
-              ))}
+              {links.slice(0, 2).map((link) =>
+                pathname === '/' ? (
+                  <button
+                    key={link.id}
+                    onClick={() => scrollToSection(link.id)}
+                    className={`px-4 py-2 rounded-lg transition-all ${activeSection === link.id
+                      ? 'bg-gold/20 text-gold border border-gold/40'
+                      : 'text-gray-400 hover:text-gold hover:bg-gold/10'
+                      }`}
+                  >
+                    {link.label}
+                  </button>
+                ) : (
+                  <Link
+                    key={link.id}
+                    href="/"
+                    className="px-4 py-2 rounded-lg transition-all text-gray-400 hover:text-gold hover:bg-gold/10"
+                  >
+                    {link.label}
+                  </Link>
+                )
+              )}
             </div>
           </div>
 
@@ -96,15 +115,24 @@ export default function Navigation() {
             >
               Signals
             </Link>
-            <button
-              onClick={() => scrollToSection('about')}
-              className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'about'
-                ? 'bg-gold/20 text-gold border border-gold/40'
-                : 'text-gray-400 hover:text-gold hover:bg-gold/10'
-                }`}
-            >
-              About
-            </button>
+            {pathname === '/' ? (
+              <button
+                onClick={() => scrollToSection('about')}
+                className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'about'
+                  ? 'bg-gold/20 text-gold border border-gold/40'
+                  : 'text-gray-400 hover:text-gold hover:bg-gold/10'
+                  }`}
+              >
+                About
+              </button>
+            ) : (
+              <Link
+                href="/"
+                className="px-4 py-2 rounded-lg transition-all text-gray-400 hover:text-gold hover:bg-gold/10"
+              >
+                About
+              </Link>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -128,18 +156,29 @@ export default function Navigation() {
         {/* Mobile Menu Dropdown */}
         {mobileMenuOpen && (
           <div className="md:hidden mt-4 pb-4 space-y-2">
-            {links.map((link) => (
-              <button
-                key={link.id}
-                onClick={() => scrollToSection(link.id)}
-                className={`w-full text-left px-4 py-3 rounded-lg transition-all ${activeSection === link.id
-                  ? 'bg-gold/20 text-gold border border-gold/40'
-                  : 'text-gray-400 hover:text-gold hover:bg-gold/10'
-                  }`}
-              >
-                {link.label}
-              </button>
-            ))}
+            {links.map((link) =>
+              pathname === '/' ? (
+                <button
+                  key={link.id}
+                  onClick={() => scrollToSection(link.id)}
+                  className={`w-full text-left px-4 py-3 rounded-lg transition-all ${activeSection === link.id
+                    ? 'bg-gold/20 text-gold border border-gold/40'
+                    : 'text-gray-400 hover:text-gold hover:bg-gold/10'
+                    }`}
+                >
+                  {link.label}
+                </button>
+              ) : (
+                <Link
+                  key={link.id}
+                  href="/"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block w-full text-left px-4 py-3 rounded-lg transition-all text-gray-400 hover:text-gold hover:bg-gold/10"
+                >
+                  {link.label}
+                </Link>
+              )
+            )}
             <Link
               href="/signals"
               onClick={() => setMobileMenuOpen(false)}

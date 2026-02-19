@@ -236,6 +236,24 @@ def introspect_full_schema() -> Dict[str, Any]:
     except Exception as e:
         print(f"[SCHEMA] Error getting edges: {e}")
 
+    # Known edge collections used by the app that may not be in _graphs
+    KNOWN_EDGES = {
+        'COMPANY_HAS_OPTIONS': {'from': ['Company'], 'to': ['options_flow']},
+        'OPTIONS_BEFORE_FILING': {'from': ['options_flow'], 'to': ['sec_filings']},
+        'OPTIONS_BEFORE_AWARD': {'from': ['options_flow'], 'to': ['Award']},
+        'HAS_OPTIONS_ACTIVITY': {'from': ['MarketData'], 'to': ['options_flow']},
+        'has_exhibit': {'from': ['sec_filings'], 'to': ['sec_exhibits']},
+        'has_xbrl_data': {'from': ['sec_filings'], 'to': ['sec_xbrl_data']},
+        'INVENTORY_AFFECTS_PRICE': {'from': ['eia_crude_inventory'], 'to': ['futures_prices']},
+        'STORAGE_AFFECTS_PRICE': {'from': ['eia_natgas_storage'], 'to': ['futures_prices']},
+        'POSITION_ON_COMMODITY': {'from': ['commodity_positions'], 'to': ['futures_prices']},
+        'MACRO_IMPACTS_COMMODITY': {'from': ['EconomicData'], 'to': ['futures_prices']},
+        'COMPANY_TRADES_COMMODITY': {'from': ['Company'], 'to': ['futures_prices']},
+    }
+    for edge_name, edge_def in KNOWN_EDGES.items():
+        if edge_name not in result['edges']:
+            result['edges'][edge_name] = edge_def
+
     print(f"[SCHEMA] Introspected {len(result['collections'])} collections, {len(result['edges'])} edges")
     return result
 

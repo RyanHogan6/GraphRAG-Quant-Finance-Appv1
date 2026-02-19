@@ -1,0 +1,48 @@
+/* Brighter, more vibrant theme for Medicaid dashboard only */
+.medicaid-dashboard {
+  --medicaid-gold: #fbbf24;
+  --medicaid-gold-soft: #fcd34d;
+  --medicaid-accent: #22d3ee;
+  --medicaid-bg: #0f172a;
+  --medicaid-card: #1e293b;
+  --medicaid-card-hover: #334155;
+  --medicaid-text: #e2e8f0;
+  --medicaid-muted: #94a3b8;
+}
+
+.medicaid-dashboard .text-gold,
+.medicaid-dashboard [class*="text-gold"] {
+  color: var(--medicaid-gold) !important;
+}
+
+.medicaid-dashboard .bg-dark-800,
+.medicaid-dashboard [class*="bg-dark-800"] {
+  background-color: var(--medicaid-card) !important;
+}
+
+.medicaid-dashboard .bg-dark-700,
+.medicaid-dashboard [class*="bg-dark-700"] {
+  background-color: var(--medicaid-card-hover) !important;
+}
+
+.medicaid-dashboard .border-gold\/20,
+.medicaid-dashboard [class*="border-gold"] {
+  border-color: rgba(251, 191, 36, 0.4) !important;
+}
+
+.medicaid-dashboard .text-gray-500,
+.medicaid-dashboard .text-gray-400 {
+  color: var(--medicaid-muted) !important;
+}
+
+.medicaid-dashboard .text-gray-300 {
+  color: var(--medicaid-text) !important;
+}
+
+.medicaid-dashboard table th {
+  color: var(--medicaid-gold) !important;
+}
+
+.medicaid-dashboard tr:hover {
+  background: rgba(51, 65, 85, 0.5) !important;
+}

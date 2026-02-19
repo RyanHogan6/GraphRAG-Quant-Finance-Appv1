@@ -1,14 +1,54 @@
 """
 USASpending Awards Downloader - Incremental Updates
-Fetches government contract data for S&P 500 companies
+Fetches government contract data for S&P 500 (or index-specific) companies
 """
+import os
 import pandas as pd
 import requests
 import time
 from datetime import date, datetime, timedelta
 
+
+def get_companies_from_arango(index=None):
+    """
+    Fetch (ticker, company_name) from ArangoDB Company collection.
+
+    Args:
+        index: None = all companies; "SP500" | "RUSSELL2000" | "NASDAQ100" = filter by that index.
+
+    Returns:
+        List of (ticker, company_name) for USASpending recipient search.
+    """
+    try:
+        from arango import ArangoClient
+        from dotenv import load_dotenv
+        load_dotenv()
+        url = os.getenv("ARANGO_URL") or os.getenv("ARANGO_HOST")
+        db_name = os.getenv("ARANGO_DB", "QUANT_v3")
+        username = os.getenv("ARANGO_USERNAME", "root")
+        password = os.getenv("ARANGO_PASSWORD", "")
+        if not all([url, db_name, password]):
+            return []
+        client = ArangoClient(hosts=url)
+        db = client.db(db_name, username=username, password=password)
+        if index == "SP500":
+            query = "FOR c IN Company FILTER c.sp500_member == true RETURN { ticker: c.ticker, company: c.company }"
+        elif index == "RUSSELL2000":
+            query = "FOR c IN Company FILTER c.russell2000_member == true RETURN { ticker: c.ticker, company: c.company }"
+        elif index == "NASDAQ100":
+            query = "FOR c IN Company FILTER c.nasdaq100_member == true RETURN { ticker: c.ticker, company: c.company }"
+        else:
+            query = "FOR c IN Company FILTER c.ticker RETURN { ticker: c.ticker, company: c.company }"
+        rows = list(db.aql.execute(query))
+        out = [(r["ticker"], r.get("company") or r["ticker"]) for r in rows if r.get("ticker")]
+        return out
+    except Exception as e:
+        print(f"Error fetching companies from Arango: {e}")
+        return []
+
+
 def get_sp500_companies():
-    """Fetch current S&P 500 companies from Wikipedia"""
+    """Fetch current S&P 500 companies from Wikipedia (fallback when Arango not used)."""
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
         url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
@@ -91,9 +131,9 @@ def query_usaspending(company_name, start_date, end_date, max_retries=3):
 
     return all_records
 
-def fetch_recent_awards(days_back=1, years_back=None, start_date=None, end_date=None):
+def fetch_recent_awards(days_back=1, years_back=None, start_date=None, end_date=None, index=None):
     """
-    Fetch awards from last N days (or N years) for all S&P 500 companies.
+    Fetch awards from last N days (or N years) for companies.
     Returns DataFrame with all new contracts.
 
     Args:
@@ -101,6 +141,7 @@ def fetch_recent_awards(days_back=1, years_back=None, start_date=None, end_date=
         years_back: If set, overrides days_back with years_back * 365 (e.g. 6 for 6 years).
         start_date: If set with end_date, use this range instead of days_back (date or iso string).
         end_date: If set with start_date, use this range (date or iso string).
+        index: None = use Wikipedia S&P 500 list; "SP500"|"RUSSELL2000"|"NASDAQ100" = use Company collection filtered by that index.
     """
     if start_date is not None and end_date is not None:
         start_date = pd.Timestamp(start_date).date() if not isinstance(start_date, date) else start_date
@@ -110,7 +151,7 @@ def fetch_recent_awards(days_back=1, years_back=None, start_date=None, end_date=
             days_back = int(years_back * 365)
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=days_back)
-    companies = get_sp500_companies()
+    companies = get_companies_from_arango(index=index) if index else get_sp500_companies()
     if not companies:
         return pd.DataFrame()
 

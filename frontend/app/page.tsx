@@ -26,6 +26,7 @@ import SentimentDivergence from '@/components/SentimentDivergence'
 import AnomalyHighlight from '@/components/AnomalyHighlight'
 import ResponseRouter from '@/components/ResponseRouter'
 import SectorComparison from '@/components/SectorComparison'
+import { SaveWorkspaceModal, MyWorkspacesModal } from '@/components/WorkspacesModals'
 import AwardResultsView from '@/components/AwardResultsView'
 import SECFilingsListView from '@/components/SECFilingsListView'
 import SECSentencesView from '@/components/SECSentencesView'
@@ -67,6 +68,9 @@ interface Message {
       ticker: string
     }
   }
+  /** For Save workspace: question and optional AQL that produced this response */
+  savedQuestion?: string
+  savedForcedAql?: string
 }
 
 /** Tabbed Database Results: Charts (auto-generated from data shape) + Table */
@@ -136,6 +140,10 @@ export default function HomePage() {
     peerData: null
   })
   const [isPeerLoading, setIsPeerLoading] = useState(false)
+
+  // Saved workspaces
+  const [saveWorkspaceForMessageIndex, setSaveWorkspaceForMessageIndex] = useState<number | null>(null)
+  const [showMyWorkspaces, setShowMyWorkspaces] = useState(false)
 
   // Ref for auto-scroll
   const chatScrollRef = useRef<HTMLDivElement>(null)
@@ -664,6 +672,21 @@ export default function HomePage() {
     }
   }
 
+  const handleWorkspaceRun = (payload: { results: any[]; analysis: string; follow_up_questions?: string[]; query_plan?: any; metadata?: any }, question: string) => {
+    const userMsg: Message = { role: 'user', content: question, timestamp: new Date() }
+    const assistantMsg: Message = {
+      role: 'assistant',
+      content: payload.analysis,
+      timestamp: new Date(),
+      useMarkdown: true,
+      results: payload.results,
+      followUpQuestions: payload.follow_up_questions,
+      queryPlan: payload.query_plan,
+      metadata: payload.metadata,
+    }
+    setMessages((prev) => [...prev, userMsg, assistantMsg])
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -683,13 +706,15 @@ export default function HomePage() {
 
     setIsLoading(true)
 
-    // Create placeholder for streaming assistant message
+    // Create placeholder for streaming assistant message (include snapshot for Save workspace)
     const assistantMessage: Message = {
       role: 'assistant',
       content: '',
       timestamp: new Date(),
       useMarkdown: true,
-      results: []
+      results: [],
+      savedQuestion: currentInput,
+      savedForcedAql: isBuilderMode && builtQuery.aql ? builtQuery.aql : undefined,
     }
     setMessages((prev) => [...prev, assistantMessage])
 
@@ -1667,8 +1692,19 @@ export default function HomePage() {
                         </div>
                       </div>
                     )}
-                    <div className="text-[10px] md:text-xs text-gray-600 mt-1 md:mt-1.5">
-                      {message.timestamp.toLocaleTimeString()}
+                    <div className="flex items-center justify-between gap-2 mt-1 md:mt-1.5">
+                      <div className="text-[10px] md:text-xs text-gray-600">
+                        {message.timestamp.toLocaleTimeString()}
+                      </div>
+                      {message.savedQuestion != null && message.results != null && message.results.length >= 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setSaveWorkspaceForMessageIndex(idx)}
+                          className="text-[10px] text-gold/80 hover:text-gold border border-gold/30 hover:border-gold/50 rounded px-2 py-0.5 transition-colors"
+                        >
+                          Save workspace
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1694,8 +1730,9 @@ export default function HomePage() {
 
             {/* Input Area */}
             <div className="sticky bottom-0 z-[40] md:relative bg-dark-800 border-t border-gold/20 p-2 md:p-4 backdrop-blur-md">
-              {/* Tab Switcher */}
+              {/* Tab Switcher + My workspaces */}
               <div className="flex items-center justify-between mb-2 md:mb-3 gap-1 md:gap-3">
+                <div className="flex items-center gap-2">
                 <div className="flex items-center gap-0.5 bg-dark-900 p-0.5 md:p-1 rounded border border-gray-700">
                   {/* LLM Interface Tab */}
                   <button
@@ -1727,6 +1764,15 @@ export default function HomePage() {
                   >
                     Query Builder
                   </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowMyWorkspaces(true)}
+                  className="text-[10px] md:text-xs text-gray-400 hover:text-gold border border-gray-600 hover:border-gold/40 rounded px-2 py-1 transition-colors"
+                >
+                  My workspaces
+                </button>
+                </div>
 
                   {/* Journey Builder - hidden until graph traversal AQL is implemented */}
                   {false && (
@@ -2394,6 +2440,27 @@ export default function HomePage() {
 
       {/* Scroll to Top Button */}
       <ScrollToTop />
+
+      {/* Saved workspaces modals */}
+      {saveWorkspaceForMessageIndex != null && messages[saveWorkspaceForMessageIndex] && (() => {
+        const msg = messages[saveWorkspaceForMessageIndex]
+        const q = msg.savedQuestion ?? ''
+        const aql = msg.savedForcedAql
+        return (
+          <SaveWorkspaceModal
+            question={q}
+            forcedPlanAql={aql}
+            onClose={() => setSaveWorkspaceForMessageIndex(null)}
+            onSaved={() => {}}
+          />
+        )
+      })()}
+      {showMyWorkspaces && (
+        <MyWorkspacesModal
+          onClose={() => setShowMyWorkspaces(false)}
+          onRun={handleWorkspaceRun}
+        />
+      )}
     </div>
   )
 }

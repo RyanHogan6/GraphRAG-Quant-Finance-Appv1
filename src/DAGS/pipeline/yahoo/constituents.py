@@ -1,5 +1,77 @@
 import pandas as pd, os
+import io
+import urllib.request
+from pathlib import Path
 from .config import *
+
+# Wikipedia returns 403 without a browser User-Agent
+WIKI_UA = "Mozilla/5.0 (Windows NT 10.0; rv:91.0) Gecko/20100101 Firefox/91.0"
+
+
+def _fetch_wiki_html(url):
+    """Fetch Wikipedia page HTML with a browser User-Agent to avoid 403."""
+    req = urllib.request.Request(url, headers={"User-Agent": WIKI_UA})
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return resp.read().decode("utf-8", errors="replace")
+
+
+def _dags_dir():
+    """DAGS directory (parent of pipeline/) where constituent CSVs live."""
+    return Path(__file__).resolve().parent.parent.parent
+
+
+def build_nasdaq100_constituents():
+    """
+    Scrape Wikipedia 'Nasdaq-100' page for Current components table; save
+    NASDAQ100_constituents.csv to DAGS directory (ticker, company).
+    """
+    url = "https://en.wikipedia.org/wiki/Nasdaq-100"
+    html = _fetch_wiki_html(url)
+    tables = pd.read_html(io.StringIO(html))
+    # Find table with Ticker and Company columns (Current components)
+    for df in tables:
+        cols = [c for c in df.columns if isinstance(c, str)]
+        if 'Ticker' in cols and 'Company' in cols:
+            out = df[['Ticker', 'Company']].copy()
+            out.columns = ['ticker', 'company']
+            out['ticker'] = out['ticker'].astype(str).str.strip().str.replace('.', '-', regex=False)
+            out['company'] = out['company'].astype(str).str.strip()
+            out = out[out['ticker'].str.len() > 0].drop_duplicates(subset=['ticker'])
+            path = _dags_dir() / 'NASDAQ100_constituents.csv'
+            path.parent.mkdir(parents=True, exist_ok=True)
+            out.to_csv(path, index=False)
+            print(f"Saved {len(out)} NASDAQ-100 constituents to {path}")
+            return
+    print("Could not find Ticker/Company table on Wikipedia Nasdaq-100 page")
+
+
+def build_russell2000_constituents():
+    """
+    Scrape Wikipedia 'Russell_2000_Index' for Example Members table; save
+    RUSSELL2000_constituents.csv. Note: Wikipedia only lists ~11 example members.
+    For a full ~2000 list, use iShares IWM holdings or another source and
+    save RUSSELL2000_constituents.csv (ticker, company) in src/DAGS/ manually.
+    """
+    url = "https://en.wikipedia.org/wiki/Russell_2000_Index"
+    html = _fetch_wiki_html(url)
+    tables = pd.read_html(io.StringIO(html))
+    for df in tables:
+        cols = [c for c in df.columns if isinstance(c, str)]
+        # Example table has Company, Symbol
+        if 'Symbol' in cols and 'Company' in cols:
+            out = df[['Symbol', 'Company']].copy()
+            out.columns = ['ticker', 'company']
+            out['ticker'] = out['ticker'].astype(str).str.strip().str.replace('.', '-', regex=False)
+            out['company'] = out['company'].astype(str).str.strip()
+            out = out[out['ticker'].str.len() > 0].drop_duplicates(subset=['ticker'])
+            path = _dags_dir() / 'RUSSELL2000_constituents.csv'
+            path.parent.mkdir(parents=True, exist_ok=True)
+            out.to_csv(path, index=False)
+            print(f"Saved {len(out)} Russell 2000 example constituents to {path}")
+            print("  (Wikipedia only has example members; for full list use IWM holdings or paste CSV.)")
+            return
+    print("Could not find Symbol/Company table on Wikipedia Russell 2000 page")
+
 
 def build_sp500_constituents_history():
     WIKI_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"

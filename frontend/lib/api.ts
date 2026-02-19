@@ -141,4 +141,49 @@ export const api = {
     if (!res.ok) throw new Error('Failed to fetch stock overview');
     return res.json();
   },
+
+  // Saved workspaces (session-scoped)
+  async getWorkspaceHeaders(): Promise<{ id: string; name: string; type: string; question: string; created_at: number; updated_at: number }[]> {
+    const { getSessionId } = await import('./workspaceSession');
+    const res = await fetch(`${API_BASE_URL}/api/workspaces`, {
+      headers: { 'X-Session-Id': getSessionId() },
+    });
+    if (!res.ok) throw new Error('Failed to fetch workspaces');
+    return res.json();
+  },
+  async createWorkspace(params: { name: string; type: 'nl' | 'builder'; question: string; forced_plan_aql?: string; watchlist?: string[] }) {
+    const { getSessionId } = await import('./workspaceSession');
+    const res = await fetch(`${API_BASE_URL}/api/workspaces`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Id': getSessionId() },
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) throw new Error('Failed to save workspace');
+    return res.json();
+  },
+  async getWorkspace(id: string) {
+    const { getSessionId } = await import('./workspaceSession');
+    const res = await fetch(`${API_BASE_URL}/api/workspaces/${id}`, {
+      headers: { 'X-Session-Id': getSessionId() },
+    });
+    if (!res.ok) throw new Error('Failed to load workspace');
+    return res.json();
+  },
+  async deleteWorkspace(id: string) {
+    const { getSessionId } = await import('./workspaceSession');
+    const res = await fetch(`${API_BASE_URL}/api/workspaces/${id}`, {
+      method: 'DELETE',
+      headers: { 'X-Session-Id': getSessionId() },
+    });
+    if (!res.ok) throw new Error('Failed to delete workspace');
+  },
+  async runWorkspace(id: string): Promise<{ results: any[]; analysis: string; follow_up_questions?: string[]; query_plan?: any; metadata?: any }> {
+    const { getSessionId } = await import('./workspaceSession');
+    const res = await fetch(`${API_BASE_URL}/api/workspaces/${id}/run`, {
+      method: 'POST',
+      headers: { 'X-Session-Id': getSessionId() },
+    });
+    if (!res.ok) throw new Error('Failed to run workspace');
+    return res.json();
+  },
 };
