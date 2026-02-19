@@ -77,6 +77,7 @@ function SignalsTable<T extends object>({
   loading,
   noDataExplanation,
   maxForBar,
+  compact,
 }: {
   title: string
   rows: T[]
@@ -84,21 +85,24 @@ function SignalsTable<T extends object>({
   loading: boolean
   noDataExplanation?: string
   maxForBar?: number
+  compact?: boolean
 }) {
+  const pad = compact ? 'p-4' : 'p-6'
+  const heading = compact ? 'text-lg font-semibold text-gold mb-2 border-b border-gold/30 pb-1' : 'text-xl font-semibold text-gold mb-4 border-b border-gold/30 pb-2'
   if (loading) {
     return (
-      <div className="bg-dark-800 border border-gold/20 rounded-lg p-6">
-        <h2 className="text-xl font-semibold text-gold mb-4">{title}</h2>
-        <div className="text-gray-400">Loading…</div>
+      <div className={`bg-dark-800 border border-gold/20 rounded-lg ${pad}`}>
+        <h2 className={heading}>{title}</h2>
+        <div className="text-gray-400 text-sm">Loading…</div>
       </div>
     )
   }
   const safeRows = useMemo(() => (Array.isArray(rows) ? rows.filter((r): r is T => r != null && typeof r === 'object') : []), [rows])
   if (!safeRows.length) {
     return (
-      <div className="bg-dark-800 border border-gold/20 rounded-lg p-6">
-        <h2 className="text-xl font-semibold text-gold mb-4">{title}</h2>
-        <div className="text-gray-500">No data</div>
+      <div className={`bg-dark-800 border border-gold/20 rounded-lg ${pad}`}>
+        <h2 className={heading}>{title}</h2>
+        <div className="text-gray-500 text-sm">No data</div>
         {noDataExplanation && (
           <p className="text-gray-500 text-sm mt-2 max-w-md">{noDataExplanation}</p>
         )}
@@ -106,8 +110,8 @@ function SignalsTable<T extends object>({
     )
   }
   return (
-    <div className="bg-dark-800 border border-gold/20 rounded-lg p-6 overflow-x-auto">
-      <h2 className="text-xl font-semibold text-gold mb-4 border-b border-gold/30 pb-2">{title}</h2>
+    <div className={`bg-dark-800 border border-gold/20 rounded-lg ${pad} overflow-x-auto`}>
+      <h2 className={heading}>{title}</h2>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b-2 border-gold/40">
@@ -190,7 +194,7 @@ function BarChart({
     ctx.scale(dpr, dpr)
     const w = rect.width
     const h = rect.height
-    const pad = { top: 20, right: 20, bottom: 36, left: 52 }
+    const pad = { top: 20, right: 20, bottom: 40, left: 56 }
     const chartW = w - pad.left - pad.right
     const chartH = h - pad.top - pad.bottom
     const maxVal = Math.max(...values, 1)
@@ -211,13 +215,13 @@ function BarChart({
     ctx.moveTo(pad.left, pad.top)
     ctx.lineTo(pad.left, h - pad.bottom)
     ctx.stroke()
-    ctx.fillStyle = '#999'
-    ctx.font = '10px monospace'
+    ctx.fillStyle = '#bbb'
+    ctx.font = '12px monospace'
     ctx.textAlign = 'right'
     for (let i = 0; i <= 4; i++) {
       const v = maxVal * (1 - i / 4)
       const y = pad.top + (chartH / 4) * i
-      ctx.fillText(formatNum(v), pad.left - 6, y + 3)
+      ctx.fillText(formatNum(v), pad.left - 8, y + 4)
     }
     labels.forEach((label, i) => {
       const x = pad.left + (i + 0.5) * (chartW / labels.length) - barW / 2
@@ -226,28 +230,28 @@ function BarChart({
       ctx.fillStyle = hovered === i ? GOLD : GOLD_LIGHT
       ctx.fillRect(x, y, barW, barH)
     })
-    ctx.fillStyle = '#999'
-    ctx.font = '9px monospace'
+    ctx.fillStyle = '#bbb'
+    ctx.font = '11px monospace'
     ctx.textAlign = 'center'
     labels.forEach((label, i) => {
       const x = pad.left + (i + 0.5) * (chartW / labels.length)
       const short = label.length > 10 ? label.slice(0, 8) + '…' : label
-      ctx.fillText(short, x, h - pad.bottom + 14)
+      ctx.fillText(short, x, h - pad.bottom + 16)
     })
   }, [labels, values, hovered, height])
 
   return (
     <div className="relative">
-      <div className="text-[10px] text-gold/80 uppercase tracking-wider mb-1 font-semibold">{valueLabel}</div>
+      <div className="text-xs text-gold/80 uppercase tracking-wider mb-1 font-semibold">{valueLabel}</div>
       <canvas
         ref={canvasRef}
         className="w-full rounded-lg border border-gold/20 bg-black/20"
         style={{ height }}
         onMouseMove={(e) => {
           const rect = e.currentTarget.getBoundingClientRect()
-          const pad = 52
-          const chartW = rect.width - 72
-          const i = Math.floor(((e.clientX - rect.left - pad) / chartW) * labels.length)
+          const padLeft = 56
+          const chartW = rect.width - padLeft - 40
+          const i = Math.floor(((e.clientX - rect.left - padLeft) / chartW) * labels.length)
           setHovered(i >= 0 && i < labels.length ? i : null)
         }}
         onMouseLeave={() => setHovered(null)}
@@ -297,19 +301,19 @@ function SectorPieChart({ sectorTotals }: { sectorTotals: { sector: string; tota
       ctx.stroke()
       start += slice
     })
-    ctx.fillStyle = '#999'
-    ctx.font = '9px monospace'
+    ctx.fillStyle = '#bbb'
+    ctx.font = '11px monospace'
     ctx.textAlign = 'center'
     sectorTotals.forEach((s, i) => {
       const pct = ((s.total / total) * 100).toFixed(0)
       const short = s.sector.length > 12 ? s.sector.slice(0, 10) + '…' : s.sector
-      ctx.fillText(`${short} ${pct}%`, cx, cy + r + 16 + i * 12)
+      ctx.fillText(`${short} ${pct}%`, cx, cy + r + 18 + i * 14)
     })
   }, [sectorTotals, total, hovered])
 
   return (
     <div className="relative">
-      <div className="text-[10px] text-gold/80 uppercase tracking-wider mb-1 font-semibold">Contract momentum by sector</div>
+      <div className="text-xs text-gold/80 uppercase tracking-wider mb-1 font-semibold">Contract momentum by sector</div>
       <canvas
         ref={canvasRef}
         className="w-full rounded-lg border border-gold/20 bg-black/20"
@@ -377,7 +381,7 @@ function ScatterChart({
     ctx.scale(dpr, dpr)
     const w = rect.width
     const h = rect.height
-    const pad = { top: 16, right: 16, bottom: 28, left: 48 }
+    const pad = { top: 18, right: 18, bottom: 32, left: 52 }
     const chartW = w - pad.left - pad.right
     const chartH = h - pad.top - pad.bottom
 
@@ -408,14 +412,14 @@ function ScatterChart({
     ctx.moveTo(pad.left, h - pad.bottom)
     ctx.lineTo(w - pad.right, h - pad.bottom)
     ctx.stroke()
-    ctx.fillStyle = '#999'
-    ctx.font = '9px monospace'
+    ctx.fillStyle = '#bbb'
+    ctx.font = '11px monospace'
     ctx.textAlign = 'right'
-    ctx.fillText(formatNum(minY), pad.left - 4, pad.top + 3)
-    ctx.fillText(formatNum(maxY), pad.left - 4, h - pad.bottom + 3)
+    ctx.fillText(formatNum(minY), pad.left - 6, pad.top + 4)
+    ctx.fillText(formatNum(maxY), pad.left - 6, h - pad.bottom + 4)
     ctx.textAlign = 'left'
-    ctx.fillText(formatNum(minX), pad.left, h - pad.bottom + 14)
-    ctx.fillText(formatNum(maxX), w - pad.right - 2, h - pad.bottom + 14)
+    ctx.fillText(formatNum(minX), pad.left, h - pad.bottom + 16)
+    ctx.fillText(formatNum(maxX), w - pad.right - 4, h - pad.bottom + 16)
 
     points.forEach((p, i) => {
       const px = toX(p.x)
@@ -432,7 +436,7 @@ function ScatterChart({
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
-    const pad = { left: 48, right: 16, top: 16, bottom: 28 }
+    const pad = { left: 52, right: 18, top: 18, bottom: 32 }
     const chartW = rect.width - pad.left - pad.right
     const chartH = rect.height - pad.top - pad.bottom
     const mx = e.clientX - rect.left - pad.left
@@ -456,7 +460,7 @@ function ScatterChart({
 
   return (
     <div className="relative">
-      <div className="text-[10px] text-gold/80 uppercase tracking-wider mb-1 font-semibold">
+      <div className="text-xs text-gold/80 uppercase tracking-wider mb-1 font-semibold">
         Momentum vs centrality (by ticker)
       </div>
       <canvas
@@ -617,261 +621,239 @@ export default function SignalsPage() {
   }, [allData?.options_filing_convergence])
 
   return (
-    <div className="container mx-auto px-4 md:px-6 py-8 max-w-7xl">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gold mb-2">Signal Dashboard</h1>
-        <p className="text-gray-500">
-          Alpha signals from the graph: contract momentum, options–filing convergence, contract centrality, and backtest.
-        </p>
+    <div className="container mx-auto px-4 md:px-6 py-4 max-w-7xl">
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold text-gold">Signal Dashboard</h1>
+        <p className="text-gray-500 text-sm">Contract momentum, options–filing, centrality, backtest.</p>
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-900/20 border border-red-500/50 rounded-lg text-red-300">
+        <div className="mb-4 p-3 bg-red-900/20 border border-red-500/50 rounded-lg text-red-300 text-sm">
           {error}
         </div>
       )}
 
-      <div className="grid gap-6 lg:gap-8">
-        {/* Contract momentum: chart + table */}
-        <div className="space-y-4">
-          {!loading && (allData?.contract_momentum_90d?.length ?? 0) > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4">
-                <BarChart
-                  labels={(allData?.contract_momentum_90d ?? []).filter((r): r is ContractMomentumRow => r != null && r.ticker != null).slice(0, 10).map((r) => r.ticker)}
-                  values={(allData?.contract_momentum_90d ?? []).filter((r): r is ContractMomentumRow => r != null && r.ticker != null).slice(0, 10).map((r) => r.contract_momentum_90d)}
-                  valueLabel="90d contract total (top 10)"
-                  height={220}
-                />
-              </div>
-              <div className="bg-dark-800 border border-gold/20 rounded-lg p-4">
-                <SectorPieChart sectorTotals={sectorTotals} />
-              </div>
-            </div>
-          )}
-          <SignalsTable<ContractMomentumRow & { share_of_total_pct?: number }>
-            title="Contract momentum (90d)"
-            rows={momentumWithShare}
-            loading={loading}
-            noDataExplanation={undefined}
-            maxForBar={maxMomentum}
-            columns={[
-              { key: 'ticker', label: 'Ticker' },
-              { key: 'company', label: 'Company' },
-              { key: 'sector', label: 'Sector' },
-              {
-                key: 'contract_momentum_90d',
-                label: '90d total',
-                format: (v) => (typeof v === 'number' ? formatNum(v) : '—'),
-                isNumeric: true,
-                barOfMax: true,
-              },
-              {
-                key: 'share_of_total_pct',
-                label: 'Share',
-                format: (v) => (typeof v === 'number' ? `${v.toFixed(1)}%` : '—'),
-                isNumeric: true,
-              },
-              { key: 'award_count_90d', label: 'Awards', isNumeric: true },
-              { key: 'momentum_rank', label: 'Rank', isRank: true },
-            ]}
-          />
-        </div>
-
-        {/* Options–filing: chart + table */}
-        <div className="space-y-4">
-          {!loading && (allData?.options_filing_convergence?.length ?? 0) > 0 && (
-            <div className="bg-dark-800 border border-gold/20 rounded-lg p-4 max-w-2xl">
-              <BarChart
-                labels={(allData?.options_filing_convergence ?? []).filter((r): r is OptionsFilingRow => r != null && r.ticker != null).slice(0, 10).map((r) => r.ticker)}
-                values={(allData?.options_filing_convergence ?? []).filter((r): r is OptionsFilingRow => r != null && r.ticker != null).slice(0, 10).map((r) => r.options_filing_events)}
-                valueLabel="Options–filing events (top 10)"
-                height={200}
-              />
-            </div>
-          )}
-          <SignalsTable<OptionsFilingRow>
-            title="Options–filing convergence"
-            rows={optionsFilingRows}
-            loading={loading}
-            noDataExplanation="Requires OPTIONS_BEFORE_FILING edges between options activity and SEC filings."
-            columns={[
-              { key: 'ticker', label: 'Ticker' },
-              { key: 'options_filing_events', label: 'Events', isNumeric: true },
-              { key: 'unusual_activity_count', label: 'Unusual count', isNumeric: true },
-              {
-                key: 'max_unusual_ratio',
-                label: 'Max unusual ratio',
-                format: (v) => (typeof v === 'number' ? v.toFixed(2) : '—'),
-                isNumeric: true,
-              },
-            ]}
-          />
-        </div>
-
-        {/* Centrality: chart + table + scatter */}
-        <div className="space-y-4">
-          {!loading && (allData?.contract_centrality?.length ?? 0) > 0 && (
-            <div className="bg-dark-800 border border-gold/20 rounded-lg p-4">
-              <BarChart
-                labels={(allData?.contract_centrality ?? []).filter((r): r is CentralityRow => r != null && r.ticker != null).slice(0, 10).map((r) => r.ticker)}
-                values={(allData?.contract_centrality ?? []).filter((r): r is CentralityRow => r != null && r.ticker != null).slice(0, 10).map((r) => r.contract_degree_centrality)}
-                valueLabel="Contract degree centrality (top 10)"
-                height={220}
-              />
-            </div>
-          )}
-          {scatterPoints.length > 0 && (
-            <div className="bg-dark-800 border border-gold/20 rounded-lg p-4">
-              <ScatterChart
-                points={scatterPoints}
-                xLabel="90d momentum"
-                yLabel="centrality"
-              />
-            </div>
-          )}
-          <SignalsTable<CentralityRow & { share_of_total_pct?: number }>
-            title="Contract centrality"
-            rows={centralityWithShare}
-            loading={loading}
-            noDataExplanation={undefined}
-            maxForBar={maxCentrality}
-            columns={[
-              { key: 'ticker', label: 'Ticker' },
-              { key: 'company', label: 'Company' },
-              { key: 'sector', label: 'Sector' },
-              {
-                key: 'contract_degree_centrality',
-                label: 'Degree',
-                format: (v) => (typeof v === 'number' ? formatNum(v) : '—'),
-                isNumeric: true,
-                barOfMax: true,
-              },
-              {
-                key: 'share_of_total_pct',
-                label: 'Share',
-                format: (v) => (typeof v === 'number' ? `${v.toFixed(1)}%` : '—'),
-                isNumeric: true,
-              },
-            ]}
-          />
-        </div>
-
-        {/* Backtest */}
-        <div className="bg-dark-800 border border-gold/20 rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-gold mb-4 border-b border-gold/30 pb-2">
-            Backtest (contract momentum vs forward returns)
-          </h2>
-          {backtestFallbackNote && (
-            <p className="text-amber-300/90 text-sm mb-3">{backtestFallbackNote}</p>
-          )}
-          {backtestLoading && <div className="text-gray-400">Loading…</div>}
-          {backtestError && (
-            <div className="text-red-300 mb-2">{backtestError}</div>
-          )}
-          {backtestData?.error && (
+      {/* Dashboard grid: charts + backtest strip */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
+        {/* Row 1: 90d bar | sector pie | centrality bar */}
+        <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 min-h-[240px] flex flex-col">
+          {!loading && (allData?.contract_momentum_90d?.length ?? 0) > 0 ? (
+            <BarChart
+              labels={(allData?.contract_momentum_90d ?? []).filter((r): r is ContractMomentumRow => r != null && r.ticker != null).slice(0, 10).map((r) => r.ticker)}
+              values={(allData?.contract_momentum_90d ?? []).filter((r): r is ContractMomentumRow => r != null && r.ticker != null).slice(0, 10).map((r) => r.contract_momentum_90d)}
+              valueLabel="90d contract total (top 10)"
+              height={200}
+            />
+          ) : (
             <>
-              <div className="text-amber-300">{backtestData.error}</div>
-              <p className="text-gray-500 text-sm mt-2">
-                Requires award and market data in the selected date range. Try 2023 if 2024 has no data.
-              </p>
+              <div className="text-xs text-gold/80 uppercase tracking-wider font-semibold mb-1">90d contract total</div>
+              <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">{loading ? 'Loading…' : 'No data'}</div>
             </>
+          )}
+        </div>
+        <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 min-h-[240px] flex flex-col">
+          {!loading && sectorTotals.length > 0 ? (
+            <SectorPieChart sectorTotals={sectorTotals} />
+          ) : (
+            <>
+              <div className="text-xs text-gold/80 uppercase tracking-wider font-semibold mb-1">Momentum by sector</div>
+              <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">{loading ? 'Loading…' : 'No data'}</div>
+            </>
+          )}
+        </div>
+        <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 min-h-[240px] flex flex-col">
+          {!loading && (allData?.contract_centrality?.length ?? 0) > 0 ? (
+            <BarChart
+              labels={(allData?.contract_centrality ?? []).filter((r): r is CentralityRow => r != null && r.ticker != null).slice(0, 10).map((r) => r.ticker)}
+              values={(allData?.contract_centrality ?? []).filter((r): r is CentralityRow => r != null && r.ticker != null).slice(0, 10).map((r) => r.contract_degree_centrality)}
+              valueLabel="Contract degree centrality (top 10)"
+              height={200}
+            />
+          ) : (
+            <>
+              <div className="text-xs text-gold/80 uppercase tracking-wider font-semibold mb-1">Contract centrality</div>
+              <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">{loading ? 'Loading…' : 'No data'}</div>
+            </>
+          )}
+        </div>
+        {/* Row 2: scatter | options-filing bar | backtest KPI strip */}
+        <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 min-h-[240px] flex flex-col">
+          {scatterPoints.length > 0 ? (
+            <ScatterChart points={scatterPoints} xLabel="90d momentum" yLabel="centrality" />
+          ) : (
+            <div className="text-xs text-gold/80 uppercase tracking-wider font-semibold mb-1">Momentum vs centrality</div>
+            <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">{loading ? 'Loading…' : 'No data'}</div>
+          )}
+        </div>
+        <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 min-h-[240px] flex flex-col">
+          {!loading && (allData?.options_filing_convergence?.length ?? 0) > 0 ? (
+            <BarChart
+              labels={(allData?.options_filing_convergence ?? []).filter((r): r is OptionsFilingRow => r != null && r.ticker != null).slice(0, 10).map((r) => r.ticker)}
+              values={(allData?.options_filing_convergence ?? []).filter((r): r is OptionsFilingRow => r != null && r.ticker != null).slice(0, 10).map((r) => r.options_filing_events)}
+              valueLabel="Options–filing events (top 10)"
+              height={200}
+            />
+          ) : (
+            <>
+              <div className="text-xs text-gold/80 uppercase tracking-wider font-semibold mb-1">Options–filing convergence</div>
+              <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">
+                {loading ? 'Loading…' : 'Requires OPTIONS_BEFORE_FILING edges.'}
+              </div>
+            </>
+          )}
+        </div>
+        <div className="bg-dark-800 border border-gold/20 rounded-lg p-3 min-h-[240px] flex flex-col">
+          <h3 className="text-sm font-semibold text-gold mb-2 border-b border-gold/20 pb-1">Backtest</h3>
+          {backtestFallbackNote && <p className="text-amber-300/90 text-xs mb-2">{backtestFallbackNote}</p>}
+          {backtestLoading && <div className="text-gray-400 text-sm">Loading…</div>}
+          {backtestError && <div className="text-red-300 text-sm">{backtestError}</div>}
+          {backtestData?.error && (
+            <p className="text-amber-300 text-sm">No data for range. Try 2023.</p>
           )}
           {!backtestLoading && backtestData && !backtestData.error && (
-            <>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div className="bg-dark-700/50 rounded-lg p-3 border border-gold/10">
-                  <div className="text-gray-500 mb-1">Rank IC</div>
-                  <div className="text-gold font-mono">
-                    {backtestData.rank_ic != null ? backtestData.rank_ic.toFixed(4) : '—'}
-                  </div>
-                </div>
-                <div className="bg-dark-700/50 rounded-lg p-3 border border-gold/10">
-                  <div className="text-gray-500 mb-1">Hit rate</div>
-                  <div className="text-gold font-mono">
-                    {backtestData.hit_rate != null ? (backtestData.hit_rate * 100).toFixed(2) + '%' : '—'}
-                  </div>
-                </div>
-                <div className="bg-dark-700/50 rounded-lg p-3 border border-gold/10">
-                  <div className="text-gray-500 mb-1">Observations</div>
-                  <div className="text-gold font-mono">{backtestData.observations ?? '—'}</div>
-                </div>
-                <div className="bg-dark-700/50 rounded-lg p-3 border border-gold/10">
-                  <div className="text-gray-500 mb-1">Rebalance dates</div>
-                  <div className="text-gold font-mono">{backtestData.rebalance_dates ?? '—'}</div>
-                </div>
-                <div className="bg-dark-700/50 rounded-lg p-3 border border-gold/10">
-                  <div className="text-gray-500 mb-1">Top quintile avg return</div>
-                  <div className="text-gold font-mono">
-                    {backtestData.top_quintile_avg_return != null
-                      ? (backtestData.top_quintile_avg_return * 100).toFixed(2) + '%'
-                      : '—'}
-                  </div>
-                </div>
-                <div className="bg-dark-700/50 rounded-lg p-3 border border-gold/10">
-                  <div className="text-gray-500 mb-1">Bottom quintile avg return</div>
-                  <div className="text-gold font-mono">
-                    {backtestData.bottom_quintile_avg_return != null
-                      ? (backtestData.bottom_quintile_avg_return * 100).toFixed(2) + '%'
-                      : '—'}
-                  </div>
-                </div>
-                <div className="bg-dark-700/50 rounded-lg p-3 border border-gold/10">
-                  <div className="text-gray-500 mb-1">Spread</div>
-                  <div className="text-gold font-mono">
-                    {backtestData.spread != null ? (backtestData.spread * 100).toFixed(2) + '%' : '—'}
-                  </div>
-                </div>
-                <div className="bg-dark-700/50 rounded-lg p-3 border border-gold/10">
-                  <div className="text-gray-500 mb-1">Sharpe-like</div>
-                  <div className="text-gold font-mono">
-                    {backtestData.sharpe_like != null ? backtestData.sharpe_like.toFixed(4) : '—'}
-                  </div>
-                </div>
-                <div className="bg-dark-700/50 rounded-lg p-3 border border-gold/10">
-                  <div className="text-gray-500 mb-1">Mean return</div>
-                  <div className="text-gold font-mono">
-                    {backtestData.mean_return != null ? (backtestData.mean_return * 100).toFixed(2) + '%' : '—'}
-                  </div>
-                </div>
-                <div className="bg-dark-700/50 rounded-lg p-3 border border-gold/10">
-                  <div className="text-gray-500 mb-1">Volatility</div>
-                  <div className="text-gold font-mono">
-                    {backtestData.return_volatility != null ? (backtestData.return_volatility * 100).toFixed(2) + '%' : '—'}
-                  </div>
-                </div>
-                <div className="bg-dark-700/50 rounded-lg p-3 border border-gold/10">
-                  <div className="text-gray-500 mb-1">Total return</div>
-                  <div className="text-gold font-mono">
-                    {backtestData.total_return != null ? (backtestData.total_return * 100).toFixed(2) + '%' : '—'}
-                  </div>
-                </div>
-                <div className="bg-dark-700/50 rounded-lg p-3 border border-gold/10">
-                  <div className="text-gray-500 mb-1">Max drawdown</div>
-                  <div className="text-gold font-mono">
-                    {backtestData.max_drawdown != null ? (backtestData.max_drawdown * 100).toFixed(2) + '%' : '—'}
-                  </div>
-                </div>
-              </div>
-              <p className="text-gray-500 text-xs mt-4">
-                {backtestData.point_in_time}
-              </p>
-              <p className="text-gray-400 text-sm mt-2 max-w-2xl">
-                Rank IC &gt; 0 means higher contract momentum tended to predict higher forward returns; hit rate is the share of observations with positive forward return. Use: rank companies by 90d contract momentum; consider top quintile for the forward period.
-              </p>
-            </>
+            <div className="flex flex-wrap gap-2">
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-dark-700/50 border border-gold/10 text-xs">
+                <span className="text-gray-500">Rank IC</span>
+                <span className="text-gold font-mono">{backtestData.rank_ic != null ? backtestData.rank_ic.toFixed(4) : '—'}</span>
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-dark-700/50 border border-gold/10 text-xs">
+                <span className="text-gray-500">Hit</span>
+                <span className="text-gold font-mono">{backtestData.hit_rate != null ? (backtestData.hit_rate * 100).toFixed(1) + '%' : '—'}</span>
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-dark-700/50 border border-gold/10 text-xs">
+                <span className="text-gray-500">Spread</span>
+                <span className="text-gold font-mono">{backtestData.spread != null ? (backtestData.spread * 100).toFixed(2) + '%' : '—'}</span>
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-dark-700/50 border border-gold/10 text-xs">
+                <span className="text-gray-500">Sharpe</span>
+                <span className="text-gold font-mono">{backtestData.sharpe_like != null ? backtestData.sharpe_like.toFixed(4) : '—'}</span>
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-dark-700/50 border border-gold/10 text-xs">
+                <span className="text-gray-500">Return</span>
+                <span className="text-gold font-mono">{backtestData.total_return != null ? (backtestData.total_return * 100).toFixed(2) + '%' : '—'}</span>
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-dark-700/50 border border-gold/10 text-xs">
+                <span className="text-gray-500">MaxDD</span>
+                <span className="text-gold font-mono">{backtestData.max_drawdown != null ? (backtestData.max_drawdown * 100).toFixed(2) + '%' : '—'}</span>
+              </span>
+            </div>
           )}
         </div>
+      </div>
 
-        {/* Correlation */}
-        <div className="bg-dark-800 border border-gold/20 rounded-lg p-6 mt-6">
-          <h2 className="text-xl font-semibold text-gold mb-4 border-b border-gold/30 pb-2">
-            Correlation (pairwise time series)
-          </h2>
-          <p className="text-gray-400 text-sm mb-4">
+      {/* Compact Top 5 leaderboards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-dark-800 border border-gold/20 rounded-lg p-3">
+          <h3 className="text-sm font-semibold text-gold mb-2 border-b border-gold/20 pb-1">Top 5 — Momentum</h3>
+          {loading ? <div className="text-gray-400 text-sm">Loading…</div> : momentumWithShare.length === 0 ? (
+            <div className="text-gray-500 text-sm">No data</div>
+          ) : (
+            <ul className="text-sm">
+              {momentumWithShare.slice(0, 5).map((r) => (
+                <li key={r.ticker} className="flex justify-between py-0.5 border-b border-white/5 last:border-0">
+                  <span className="text-gold font-mono">{r.ticker}</span>
+                  <span className="text-gray-300 font-mono">{formatNum(r.contract_momentum_90d)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="bg-dark-800 border border-gold/20 rounded-lg p-3">
+          <h3 className="text-sm font-semibold text-gold mb-2 border-b border-gold/20 pb-1">Top 5 — Options–filing</h3>
+          {loading ? <div className="text-gray-400 text-sm">Loading…</div> : optionsFilingRows.length === 0 ? (
+            <div className="text-gray-500 text-sm">No data</div>
+          ) : (
+            <ul className="text-sm">
+              {optionsFilingRows.slice(0, 5).map((r) => (
+                <li key={r.ticker} className="flex justify-between py-0.5 border-b border-white/5 last:border-0">
+                  <span className="text-gold font-mono">{r.ticker}</span>
+                  <span className="text-gray-300 font-mono">{r.options_filing_events}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="bg-dark-800 border border-gold/20 rounded-lg p-3">
+          <h3 className="text-sm font-semibold text-gold mb-2 border-b border-gold/20 pb-1">Top 5 — Centrality</h3>
+          {loading ? <div className="text-gray-400 text-sm">Loading…</div> : centralityWithShare.length === 0 ? (
+            <div className="text-gray-500 text-sm">No data</div>
+          ) : (
+            <ul className="text-sm">
+              {centralityWithShare.slice(0, 5).map((r) => (
+                <li key={r.ticker} className="flex justify-between py-0.5 border-b border-white/5 last:border-0">
+                  <span className="text-gold font-mono">{r.ticker}</span>
+                  <span className="text-gray-300 font-mono">{formatNum(r.contract_degree_centrality)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      {/* Full tables section (tighter) */}
+      <div className="grid gap-4 mb-6">
+        <SignalsTable<ContractMomentumRow & { share_of_total_pct?: number }>
+          title="Contract momentum (90d) — full"
+          rows={momentumWithShare}
+          loading={loading}
+          noDataExplanation={undefined}
+          maxForBar={maxMomentum}
+          compact
+          columns={[
+            { key: 'ticker', label: 'Ticker' },
+            { key: 'company', label: 'Company' },
+            { key: 'sector', label: 'Sector' },
+            {
+              key: 'contract_momentum_90d',
+              label: '90d total',
+              format: (v) => (typeof v === 'number' ? formatNum(v) : '—'),
+              isNumeric: true,
+              barOfMax: true,
+            },
+            { key: 'share_of_total_pct', label: 'Share', format: (v) => (typeof v === 'number' ? `${v.toFixed(1)}%` : '—'), isNumeric: true },
+            { key: 'award_count_90d', label: 'Awards', isNumeric: true },
+            { key: 'momentum_rank', label: 'Rank', isRank: true },
+          ]}
+        />
+        <SignalsTable<OptionsFilingRow>
+          title="Options–filing convergence — full"
+          rows={optionsFilingRows}
+          loading={loading}
+          noDataExplanation="Requires OPTIONS_BEFORE_FILING edges between options activity and SEC filings."
+          compact
+          columns={[
+            { key: 'ticker', label: 'Ticker' },
+            { key: 'options_filing_events', label: 'Events', isNumeric: true },
+            { key: 'unusual_activity_count', label: 'Unusual', isNumeric: true },
+            { key: 'max_unusual_ratio', label: 'Max ratio', format: (v) => (typeof v === 'number' ? v.toFixed(2) : '—'), isNumeric: true },
+          ]}
+        />
+        <SignalsTable<CentralityRow & { share_of_total_pct?: number }>
+          title="Contract centrality — full"
+          rows={centralityWithShare}
+          loading={loading}
+          noDataExplanation={undefined}
+          maxForBar={maxCentrality}
+          compact
+          columns={[
+            { key: 'ticker', label: 'Ticker' },
+            { key: 'company', label: 'Company' },
+            { key: 'sector', label: 'Sector' },
+            { key: 'contract_degree_centrality', label: 'Degree', format: (v) => (typeof v === 'number' ? formatNum(v) : '—'), isNumeric: true, barOfMax: true },
+            { key: 'share_of_total_pct', label: 'Share', format: (v) => (typeof v === 'number' ? `${v.toFixed(1)}%` : '—'), isNumeric: true },
+          ]}
+        />
+      </div>
+
+      {/* Correlation — last section */}
+      <div className="bg-dark-800 border border-gold/20 rounded-lg p-4">
+        <h2 className="text-lg font-semibold text-gold mb-3 border-b border-gold/30 pb-1">
+          Correlation (pairwise time series)
+        </h2>
+        <p className="text-gray-400 text-sm mb-3">
             Compare two series (e.g. two tickers’ close price). Aligned by date; Pearson correlation and p-value.
-          </p>
-          <div className="flex flex-wrap items-end gap-3 mb-4">
+        </p>
+        <div className="flex flex-wrap items-end gap-3 mb-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Series A (ticker)</label>
               <input
@@ -937,9 +919,9 @@ export default function SignalsPage() {
             >
               {corrLoading ? 'Running…' : 'Run'}
             </button>
-          </div>
-          {corrError && <p className="text-red-300 text-sm mb-2">{corrError}</p>}
-          {corrResult && (
+        </div>
+        {corrError && <p className="text-red-300 text-sm mb-2">{corrError}</p>}
+        {corrResult && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div className="bg-dark-700/50 rounded-lg p-3 border border-gold/10">
                 <div className="text-gray-500 mb-1">Correlation</div>
@@ -960,8 +942,7 @@ export default function SignalsPage() {
                 </div>
               )}
             </div>
-          )}
-        </div>
+        )}
       </div>
     </div>
   )
