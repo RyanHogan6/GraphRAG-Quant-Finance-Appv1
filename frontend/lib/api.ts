@@ -1,7 +1,16 @@
 import { marketCache } from './marketCache'
-import { getSessionId } from './workspaceSession'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+function getWorkspaceSessionId(): string {
+  if (typeof window === 'undefined') return ''
+  let id = localStorage.getItem('karga_session_id')
+  if (!id || id.length < 8) {
+    id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `sess_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`
+    localStorage.setItem('karga_session_id', id)
+  }
+  return id
+}
 
 // Helper function for retry logic
 async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 2): Promise<Response> {
@@ -146,7 +155,7 @@ export const api = {
   // Saved workspaces (session-scoped)
   async getWorkspaceHeaders(): Promise<{ id: string; name: string; type: string; question: string; created_at: number; updated_at: number }[]> {
     const res = await fetch(`${API_BASE_URL}/api/workspaces`, {
-      headers: { 'X-Session-Id': getSessionId() },
+      headers: { 'X-Session-Id': getWorkspaceSessionId() },
     });
     if (!res.ok) throw new Error('Failed to fetch workspaces');
     return res.json();
@@ -154,7 +163,7 @@ export const api = {
   async createWorkspace(params: { name: string; type: 'nl' | 'builder'; question: string; forced_plan_aql?: string; watchlist?: string[] }) {
     const res = await fetch(`${API_BASE_URL}/api/workspaces`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Session-Id': getSessionId() },
+      headers: { 'Content-Type': 'application/json', 'X-Session-Id': getWorkspaceSessionId() },
       body: JSON.stringify(params),
     });
     if (!res.ok) throw new Error('Failed to save workspace');
@@ -162,7 +171,7 @@ export const api = {
   },
   async getWorkspace(id: string) {
     const res = await fetch(`${API_BASE_URL}/api/workspaces/${id}`, {
-      headers: { 'X-Session-Id': getSessionId() },
+      headers: { 'X-Session-Id': getWorkspaceSessionId() },
     });
     if (!res.ok) throw new Error('Failed to load workspace');
     return res.json();
@@ -170,14 +179,14 @@ export const api = {
   async deleteWorkspace(id: string) {
     const res = await fetch(`${API_BASE_URL}/api/workspaces/${id}`, {
       method: 'DELETE',
-      headers: { 'X-Session-Id': getSessionId() },
+      headers: { 'X-Session-Id': getWorkspaceSessionId() },
     });
     if (!res.ok) throw new Error('Failed to delete workspace');
   },
   async runWorkspace(id: string): Promise<{ results: any[]; analysis: string; follow_up_questions?: string[]; query_plan?: any; metadata?: any }> {
     const res = await fetch(`${API_BASE_URL}/api/workspaces/${id}/run`, {
       method: 'POST',
-      headers: { 'X-Session-Id': getSessionId() },
+      headers: { 'X-Session-Id': getWorkspaceSessionId() },
     });
     if (!res.ok) throw new Error('Failed to run workspace');
     return res.json();
