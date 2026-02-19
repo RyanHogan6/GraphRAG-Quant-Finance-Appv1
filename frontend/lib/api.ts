@@ -191,4 +191,52 @@ export const api = {
     if (!res.ok) throw new Error('Failed to run workspace');
     return res.json();
   },
+
+  // Alerts (session-scoped)
+  async getAlerts(): Promise<{ id: string; name: string; workspace_id: string; created_at: number }[]> {
+    const res = await fetch(`${API_BASE_URL}/api/alerts`, {
+      headers: { 'X-Session-Id': getWorkspaceSessionId() },
+    });
+    if (!res.ok) throw new Error('Failed to fetch alerts');
+    return res.json();
+  },
+  async createAlert(params: { name: string; workspace_id: string }) {
+    const res = await fetch(`${API_BASE_URL}/api/alerts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Id': getWorkspaceSessionId() },
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) throw new Error('Failed to create alert');
+    return res.json();
+  },
+  async deleteAlert(id: string) {
+    const res = await fetch(`${API_BASE_URL}/api/alerts/${id}`, {
+      method: 'DELETE',
+      headers: { 'X-Session-Id': getWorkspaceSessionId() },
+    });
+    if (!res.ok) throw new Error('Failed to delete alert');
+  },
+  async getNotifications(unreadOnly?: boolean): Promise<{ id: string; alert_id: string; title: string; body: string; created_at: number; read: boolean }[]> {
+    const q = unreadOnly ? '?unread_only=true' : '';
+    const res = await fetch(`${API_BASE_URL}/api/alerts/notifications${q}`, {
+      headers: { 'X-Session-Id': getWorkspaceSessionId() },
+    });
+    if (!res.ok) throw new Error('Failed to fetch notifications');
+    return res.json();
+  },
+  async markNotificationRead(id: string) {
+    const res = await fetch(`${API_BASE_URL}/api/alerts/notifications/${id}/read`, {
+      method: 'POST',
+      headers: { 'X-Session-Id': getWorkspaceSessionId() },
+    });
+    if (!res.ok) throw new Error('Failed to mark read');
+  },
+  async evaluateAlerts(): Promise<{ evaluated: number; notifications_created: number }> {
+    const res = await fetch(`${API_BASE_URL}/api/alerts/evaluate`, {
+      method: 'POST',
+      headers: { 'X-Session-Id': getWorkspaceSessionId() },
+    });
+    if (!res.ok) throw new Error('Failed to evaluate alerts');
+    return res.json();
+  },
 };

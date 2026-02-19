@@ -27,6 +27,8 @@ import AnomalyHighlight from '@/components/AnomalyHighlight'
 import ResponseRouter from '@/components/ResponseRouter'
 import SectorComparison from '@/components/SectorComparison'
 import { SaveWorkspaceModal, MyWorkspacesModal } from '@/components/WorkspacesModals'
+import AlertsModal from '@/components/AlertsModal'
+import { resultsToCSV, downloadCSV } from '@/lib/csvExport'
 import AwardResultsView from '@/components/AwardResultsView'
 import SECFilingsListView from '@/components/SECFilingsListView'
 import SECSentencesView from '@/components/SECSentencesView'
@@ -144,6 +146,7 @@ export default function HomePage() {
   // Saved workspaces
   const [saveWorkspaceForMessageIndex, setSaveWorkspaceForMessageIndex] = useState<number | null>(null)
   const [showMyWorkspaces, setShowMyWorkspaces] = useState(false)
+  const [showAlerts, setShowAlerts] = useState(false)
 
   // Ref for auto-scroll
   const chatScrollRef = useRef<HTMLDivElement>(null)
@@ -1696,15 +1699,29 @@ export default function HomePage() {
                       <div className="text-[10px] md:text-xs text-gray-600">
                         {message.timestamp.toLocaleTimeString()}
                       </div>
-                      {message.savedQuestion != null && message.results != null && message.results.length >= 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setSaveWorkspaceForMessageIndex(idx)}
-                          className="text-[10px] text-gold/80 hover:text-gold border border-gold/30 hover:border-gold/50 rounded px-2 py-0.5 transition-colors"
-                        >
-                          Save workspace
-                        </button>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {message.results != null && Array.isArray(message.results) && message.results.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const csv = resultsToCSV(message.results!)
+                              downloadCSV(csv, `karga-export-${message.timestamp.getTime()}.csv`)
+                            }}
+                            className="text-[10px] text-gold/80 hover:text-gold border border-gold/30 hover:border-gold/50 rounded px-2 py-0.5 transition-colors"
+                          >
+                            Export CSV
+                          </button>
+                        )}
+                        {message.savedQuestion != null && message.results != null && message.results.length >= 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setSaveWorkspaceForMessageIndex(idx)}
+                            className="text-[10px] text-gold/80 hover:text-gold border border-gold/30 hover:border-gold/50 rounded px-2 py-0.5 transition-colors"
+                          >
+                            Save workspace
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1771,6 +1788,13 @@ export default function HomePage() {
                   className="text-[10px] md:text-xs text-gray-400 hover:text-gold border border-gray-600 hover:border-gold/40 rounded px-2 py-1 transition-colors"
                 >
                   My workspaces
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAlerts(true)}
+                  className="text-[10px] md:text-xs text-gray-400 hover:text-gold border border-gray-600 hover:border-gold/40 rounded px-2 py-1 transition-colors"
+                >
+                  Alerts
                 </button>
                 </div>
 
@@ -2459,6 +2483,9 @@ export default function HomePage() {
           onClose={() => setShowMyWorkspaces(false)}
           onRun={handleWorkspaceRun}
         />
+      )}
+      {showAlerts && (
+        <AlertsModal onClose={() => setShowAlerts(false)} />
       )}
     </div>
   )
