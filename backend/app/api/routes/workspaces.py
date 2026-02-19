@@ -53,9 +53,11 @@ def list_workspaces(
     x_session_id: Optional[str] = Header(None, alias="X-Session-Id"),
 ):
     """List workspaces for the current session."""
+    from app.database.connection import get_db
     session_id = _get_session_id(x_session_id)
-    col = _ensure_collection()
-    cursor = col.db.aql.execute(
+    _ensure_collection()  # ensure collection exists before querying
+    db = get_db()
+    cursor = db.aql.execute(
         """
         FOR doc IN saved_workspaces
             FILTER doc.session_id == @session_id
