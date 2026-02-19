@@ -1,4 +1,5 @@
 import { marketCache } from './marketCache'
+import { getSessionId } from './workspaceSession'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -144,7 +145,6 @@ export const api = {
 
   // Saved workspaces (session-scoped)
   async getWorkspaceHeaders(): Promise<{ id: string; name: string; type: string; question: string; created_at: number; updated_at: number }[]> {
-    const { getSessionId } = await import('./workspaceSession');
     const res = await fetch(`${API_BASE_URL}/api/workspaces`, {
       headers: { 'X-Session-Id': getSessionId() },
     });
@@ -152,7 +152,6 @@ export const api = {
     return res.json();
   },
   async createWorkspace(params: { name: string; type: 'nl' | 'builder'; question: string; forced_plan_aql?: string; watchlist?: string[] }) {
-    const { getSessionId } = await import('./workspaceSession');
     const res = await fetch(`${API_BASE_URL}/api/workspaces`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Session-Id': getSessionId() },
@@ -162,7 +161,6 @@ export const api = {
     return res.json();
   },
   async getWorkspace(id: string) {
-    const { getSessionId } = await import('./workspaceSession');
     const res = await fetch(`${API_BASE_URL}/api/workspaces/${id}`, {
       headers: { 'X-Session-Id': getSessionId() },
     });
@@ -170,7 +168,6 @@ export const api = {
     return res.json();
   },
   async deleteWorkspace(id: string) {
-    const { getSessionId } = await import('./workspaceSession');
     const res = await fetch(`${API_BASE_URL}/api/workspaces/${id}`, {
       method: 'DELETE',
       headers: { 'X-Session-Id': getSessionId() },
@@ -178,7 +175,6 @@ export const api = {
     if (!res.ok) throw new Error('Failed to delete workspace');
   },
   async runWorkspace(id: string): Promise<{ results: any[]; analysis: string; follow_up_questions?: string[]; query_plan?: any; metadata?: any }> {
-    const { getSessionId } = await import('./workspaceSession');
     const res = await fetch(`${API_BASE_URL}/api/workspaces/${id}/run`, {
       method: 'POST',
       headers: { 'X-Session-Id': getSessionId() },

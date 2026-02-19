@@ -1831,7 +1831,6 @@ export default function HomePage() {
                     QUERY_ENGINE_V1.2
                   </div>
                 </div>
-              </div>
               {isBuilderMode ? (
                 <div className="flex justify-end">
                   <button
