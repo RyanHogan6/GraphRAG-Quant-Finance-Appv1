@@ -137,6 +137,31 @@ def run_backtest(
     ret_std = (sum((ret - ret_mean) ** 2 for ret in returns) / n) ** 0.5
     sharpe_like = (spread / ret_std * (252 / (forward_days or 1)) ** 0.5) if ret_std > 0 else 0
 
+    # Mean return and volatility (full sample)
+    mean_return = ret_mean
+    return_volatility = ret_std
+
+    # Max drawdown: average return per rebalance date -> cumulative -> drawdown from peak
+    from collections import defaultdict
+    by_date = defaultdict(list)
+    for x in all_ranks:
+        by_date[x["date"]].append(x["forward_return"])
+    period_returns = []
+    for d in signal_dates:
+        if d in by_date and by_date[d]:
+            period_returns.append(sum(by_date[d]) / len(by_date[d]))
+    cum = 1.0
+    peak = 1.0
+    max_dd = 0.0
+    for r in period_returns:
+        cum *= 1 + r
+        if cum > peak:
+            peak = cum
+        dd = (peak - cum) / peak if peak > 0 else 0
+        if dd > max_dd:
+            max_dd = dd
+    total_return = cum - 1.0 if period_returns else 0.0
+
     return {
         "signal": "contract_momentum_90d",
         "start_date": start_date,
@@ -149,5 +174,9 @@ def run_backtest(
         "bottom_quintile_avg_return": round(bot_ret, 4),
         "spread": round(spread, 4),
         "sharpe_like": round(sharpe_like, 4),
+        "mean_return": round(mean_return, 4),
+        "return_volatility": round(return_volatility, 4),
+        "total_return": round(total_return, 4),
+        "max_drawdown": round(max_dd, 4),
         "point_in_time": "Award.start_date and MarketData.date used as observation dates",
     }

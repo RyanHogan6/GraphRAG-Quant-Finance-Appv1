@@ -1520,6 +1520,27 @@ export default function HomePage() {
                     )}
                     {message.results && message.results.length > 0 && (
                       <div className="mt-4 overflow-hidden">
+                        <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gold/20">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const csv = resultsToCSV(message.results!)
+                              downloadCSV(csv, `karga-export-${message.timestamp.getTime()}.csv`)
+                            }}
+                            className="text-xs text-gold/90 hover:text-gold border border-gold/40 hover:border-gold/60 rounded px-2 py-1 transition-colors"
+                          >
+                            Export CSV
+                          </button>
+                          {message.savedQuestion != null && (
+                            <button
+                              type="button"
+                              onClick={() => setSaveWorkspaceForMessageIndex(idx)}
+                              className="text-xs text-gold/90 hover:text-gold border border-gold/40 hover:border-gold/60 rounded px-2 py-1 transition-colors"
+                            >
+                              Save workspace
+                            </button>
+                          )}
+                        </div>
                         {(() => {
                           const family = getResultDisplayFamily(message);
                           const result = message.results[0];
@@ -1698,29 +1719,6 @@ export default function HomePage() {
                     <div className="flex items-center justify-between gap-2 mt-1 md:mt-1.5">
                       <div className="text-[10px] md:text-xs text-gray-600">
                         {message.timestamp.toLocaleTimeString()}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {message.results != null && Array.isArray(message.results) && message.results.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const csv = resultsToCSV(message.results!)
-                              downloadCSV(csv, `karga-export-${message.timestamp.getTime()}.csv`)
-                            }}
-                            className="text-[10px] text-gold/80 hover:text-gold border border-gold/30 hover:border-gold/50 rounded px-2 py-0.5 transition-colors"
-                          >
-                            Export CSV
-                          </button>
-                        )}
-                        {message.savedQuestion != null && message.results != null && message.results.length >= 0 && (
-                          <button
-                            type="button"
-                            onClick={() => setSaveWorkspaceForMessageIndex(idx)}
-                            className="text-[10px] text-gold/80 hover:text-gold border border-gold/30 hover:border-gold/50 rounded px-2 py-0.5 transition-colors"
-                          >
-                            Save workspace
-                          </button>
-                        )}
                       </div>
                     </div>
                   </div>

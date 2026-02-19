@@ -47,6 +47,10 @@ interface BacktestResponse {
   bottom_quintile_avg_return?: number
   spread?: number
   sharpe_like?: number
+  mean_return?: number
+  return_volatility?: number
+  total_return?: number
+  max_drawdown?: number
   point_in_time?: string
   error?: string
 }
@@ -478,6 +482,13 @@ export default function SignalsPage() {
   const [error, setError] = useState<string | null>(null)
   const [backtestError, setBacktestError] = useState<string | null>(null)
 
+  const [corrTickerA, setCorrTickerA] = useState('AAPL')
+  const [corrTickerB, setCorrTickerB] = useState('MSFT')
+  const [corrWindowDays, setCorrWindowDays] = useState(90)
+  const [corrResult, setCorrResult] = useState<{ correlation: number; p_value: number; n_observations: number; date_range?: { min: string; max: string } } | null>(null)
+  const [corrLoading, setCorrLoading] = useState(false)
+  const [corrError, setCorrError] = useState<string | null>(null)
+
   const contractLimit = 20
   const optionsLimit = 15
   const centralityLimit = 20
@@ -815,6 +826,30 @@ export default function SignalsPage() {
                     {backtestData.sharpe_like != null ? backtestData.sharpe_like.toFixed(4) : '—'}
                   </div>
                 </div>
+                <div className="bg-dark-700/50 rounded-lg p-3 border border-gold/10">
+                  <div className="text-gray-500 mb-1">Mean return</div>
+                  <div className="text-gold font-mono">
+                    {backtestData.mean_return != null ? (backtestData.mean_return * 100).toFixed(2) + '%' : '—'}
+                  </div>
+                </div>
+                <div className="bg-dark-700/50 rounded-lg p-3 border border-gold/10">
+                  <div className="text-gray-500 mb-1">Volatility</div>
+                  <div className="text-gold font-mono">
+                    {backtestData.return_volatility != null ? (backtestData.return_volatility * 100).toFixed(2) + '%' : '—'}
+                  </div>
+                </div>
+                <div className="bg-dark-700/50 rounded-lg p-3 border border-gold/10">
+                  <div className="text-gray-500 mb-1">Total return</div>
+                  <div className="text-gold font-mono">
+                    {backtestData.total_return != null ? (backtestData.total_return * 100).toFixed(2) + '%' : '—'}
+                  </div>
+                </div>
+                <div className="bg-dark-700/50 rounded-lg p-3 border border-gold/10">
+                  <div className="text-gray-500 mb-1">Max drawdown</div>
+                  <div className="text-gold font-mono">
+                    {backtestData.max_drawdown != null ? (backtestData.max_drawdown * 100).toFixed(2) + '%' : '—'}
+                  </div>
+                </div>
               </div>
               <p className="text-gray-500 text-xs mt-4">
                 {backtestData.point_in_time}
@@ -823,6 +858,106 @@ export default function SignalsPage() {
                 Rank IC &gt; 0 means higher contract momentum tended to predict higher forward returns; hit rate is the share of observations with positive forward return. Use: rank companies by 90d contract momentum; consider top quintile for the forward period.
               </p>
             </>
+          )}
+        </div>
+
+        {/* Correlation */}
+        <div className="bg-dark-800 border border-gold/20 rounded-lg p-6 mt-6">
+          <h2 className="text-xl font-semibold text-gold mb-4 border-b border-gold/30 pb-2">
+            Correlation (pairwise time series)
+          </h2>
+          <p className="text-gray-400 text-sm mb-4">
+            Compare two series (e.g. two tickers’ close price). Aligned by date; Pearson correlation and p-value.
+          </p>
+          <div className="flex flex-wrap items-end gap-3 mb-4">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Series A (ticker)</label>
+              <input
+                type="text"
+                value={corrTickerA}
+                onChange={(e) => setCorrTickerA(e.target.value.toUpperCase())}
+                className="bg-dark-900 border border-gold/20 rounded px-3 py-1.5 text-sm text-white w-24"
+                placeholder="AAPL"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Series B (ticker)</label>
+              <input
+                type="text"
+                value={corrTickerB}
+                onChange={(e) => setCorrTickerB(e.target.value.toUpperCase())}
+                className="bg-dark-900 border border-gold/20 rounded px-3 py-1.5 text-sm text-white w-24"
+                placeholder="MSFT"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Window (days)</label>
+              <input
+                type="number"
+                value={corrWindowDays}
+                onChange={(e) => setCorrWindowDays(parseInt(e.target.value, 10) || 90)}
+                min={7}
+                max={730}
+                className="bg-dark-900 border border-gold/20 rounded px-3 py-1.5 text-sm text-white w-20"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                setCorrLoading(true)
+                setCorrError(null)
+                setCorrResult(null)
+                try {
+                  const res = await fetch(`${API_BASE}/api/analyze/correlation`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      series_a: { collection: 'MarketData', field: 'close', filter: { ticker: corrTickerA } },
+                      series_b: { collection: 'MarketData', field: 'close', filter: { ticker: corrTickerB } },
+                      window_days: corrWindowDays,
+                      method: 'pearson',
+                    }),
+                  })
+                  if (!res.ok) {
+                    const err = await res.json().catch(() => ({}))
+                    throw new Error(err.detail || res.statusText)
+                  }
+                  const data = await res.json()
+                  setCorrResult(data)
+                } catch (e) {
+                  setCorrError(e instanceof Error ? e.message : 'Correlation failed')
+                } finally {
+                  setCorrLoading(false)
+                }
+              }}
+              disabled={corrLoading || !corrTickerA.trim() || !corrTickerB.trim()}
+              className="px-4 py-1.5 text-sm bg-gold/20 text-gold rounded border border-gold/40 hover:bg-gold/30 disabled:opacity-50"
+            >
+              {corrLoading ? 'Running…' : 'Run'}
+            </button>
+          </div>
+          {corrError && <p className="text-red-300 text-sm mb-2">{corrError}</p>}
+          {corrResult && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="bg-dark-700/50 rounded-lg p-3 border border-gold/10">
+                <div className="text-gray-500 mb-1">Correlation</div>
+                <div className="text-gold font-mono">{corrResult.correlation.toFixed(4)}</div>
+              </div>
+              <div className="bg-dark-700/50 rounded-lg p-3 border border-gold/10">
+                <div className="text-gray-500 mb-1">p-value</div>
+                <div className="text-gold font-mono">{corrResult.p_value.toFixed(4)}</div>
+              </div>
+              <div className="bg-dark-700/50 rounded-lg p-3 border border-gold/10">
+                <div className="text-gray-500 mb-1">N observations</div>
+                <div className="text-gold font-mono">{corrResult.n_observations}</div>
+              </div>
+              {corrResult.date_range && (
+                <div className="bg-dark-700/50 rounded-lg p-3 border border-gold/10">
+                  <div className="text-gray-500 mb-1">Date range</div>
+                  <div className="text-gold font-mono text-xs">{corrResult.date_range.min} to {corrResult.date_range.max}</div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
