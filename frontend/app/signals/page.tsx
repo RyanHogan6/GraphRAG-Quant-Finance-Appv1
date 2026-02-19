@@ -93,7 +93,8 @@ function SignalsTable<T extends object>({
       </div>
     )
   }
-  if (!rows?.length) {
+  const safeRows = useMemo(() => (Array.isArray(rows) ? rows.filter((r): r is T => r != null && typeof r === 'object') : []), [rows])
+  if (!safeRows.length) {
     return (
       <div className="bg-dark-800 border border-gold/20 rounded-lg p-6">
         <h2 className="text-xl font-semibold text-gold mb-4">{title}</h2>
@@ -121,9 +122,9 @@ function SignalsTable<T extends object>({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, i) => (
+          {safeRows.map((row, i) => (
             <tr
-              key={i}
+              key={typeof (row as { ticker?: unknown })?.ticker === 'string' ? (row as { ticker: string }).ticker : i}
               className={`border-b border-white/5 hover:bg-gold/5 transition-colors ${i % 2 === 1 ? 'bg-dark-700/30' : ''}`}
             >
               {columns.map((col) => {
@@ -441,6 +442,7 @@ function ScatterChart({
     let best = -1
     let bestD = 999999
     points.forEach((p, i) => {
+      if (p == null || p.ticker == null) return
       const dx = p.x - dataX
       const dy = p.y - dataY
       const d = dx * dx + dy * dy
@@ -449,7 +451,7 @@ function ScatterChart({
         best = i
       }
     })
-    setHovered(best)
+    setHovered(best >= 0 && best < points.length ? best : null)
   }
 
   return (
@@ -464,7 +466,7 @@ function ScatterChart({
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setHovered(null)}
       />
-      {hovered !== null && hovered < points.length && (
+      {hovered !== null && hovered >= 0 && points[hovered] != null && points[hovered].ticker != null && (
         <div className="absolute top-0 right-0 px-2 py-1 rounded bg-dark-800 border border-gold/30 text-xs text-gold shadow-lg z-10">
           {points[hovered].ticker}: {xLabel}={formatNum(points[hovered].x)}, {yLabel}={formatNum(points[hovered].y)}
         </div>
