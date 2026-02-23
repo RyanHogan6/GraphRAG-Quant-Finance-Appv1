@@ -128,6 +128,42 @@ export const api = {
     return res.json();
   },
 
+  // Research (Market Workup)
+  async getResearchMarkets(platform: 'kalshi' | 'polymarket' = 'kalshi', category?: string, limit = 50) {
+    const params = new URLSearchParams({ platform, limit: limit.toString() });
+    if (category) params.append('category', category);
+    const res = await fetchWithRetry(`${API_BASE_URL}/api/research/markets?${params}`);
+    if (!res.ok) throw new Error('Failed to fetch research markets');
+    return res.json();
+  },
+  async getMarketWorkup(marketId: string, platform: 'kalshi' | 'polymarket' = 'kalshi') {
+    const res = await fetchWithRetry(`${API_BASE_URL}/api/research/market/${encodeURIComponent(marketId)}?platform=${platform}`);
+    if (!res.ok) throw new Error(res.status === 404 ? 'Market not found' : 'Failed to load market workup');
+    return res.json();
+  },
+  async getCongressionalTrades(ticker: string, days = 90) {
+    const res = await fetchWithRetry(`${API_BASE_URL}/api/research/congressional/${encodeURIComponent(ticker)}?days=${days}`);
+    if (!res.ok) return { ticker, trades: [] };
+    return res.json();
+  },
+  async runResearchBacktest(params: {
+    platform: 'kalshi' | 'polymarket';
+    resolution_date: string;
+    lookback_days?: number;
+    market_id?: string;
+    probability_series?: Array<{ date: string; probability: number }>;
+    signals?: { macro?: boolean; options?: boolean; sec?: boolean; contracts?: boolean };
+    theme?: string;
+  }) {
+    const res = await fetchWithRetry(`${API_BASE_URL}/api/research/backtest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) throw new Error('Backtest failed');
+    return res.json();
+  },
+
   // Database endpoints
   async getCollections() {
     const res = await fetch(`${API_BASE_URL}/api/database/collections`);

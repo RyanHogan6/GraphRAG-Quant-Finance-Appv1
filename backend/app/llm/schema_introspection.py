@@ -203,6 +203,7 @@ def introspect_full_schema() -> Dict[str, Any]:
         'polymarket_traders',
         'polymarket_positions',
         'polymarket_price_history',
+        'congressional_trades',
     ]
 
     # Introspect each collection
@@ -249,6 +250,7 @@ def introspect_full_schema() -> Dict[str, Any]:
         'POSITION_ON_COMMODITY': {'from': ['commodity_positions'], 'to': ['futures_prices']},
         'MACRO_IMPACTS_COMMODITY': {'from': ['EconomicData'], 'to': ['futures_prices']},
         'COMPANY_TRADES_COMMODITY': {'from': ['Company'], 'to': ['futures_prices']},
+        'CONGRESS_TRADES_COMPANY': {'from': ['congressional_trades'], 'to': ['Company']},
     }
     for edge_name, edge_def in KNOWN_EDGES.items():
         if edge_name not in result['edges']:
@@ -340,6 +342,7 @@ def get_relevant_collections_dynamic(question: str) -> List[str]:
         'EconomicData': ['economy', 'economic', 'fed', 'unemployment', 'gdp'],
         'eia_crude_inventory': ['crude', 'oil inventory', 'cushing'],
         'eia_natgas_storage': ['natural gas', 'gas storage'],
+        'congressional_trades': ['congressional', 'congress', 'politician', 'stock act', 'disclosure'],
     }
 
     for coll_name, keywords in keyword_map.items():

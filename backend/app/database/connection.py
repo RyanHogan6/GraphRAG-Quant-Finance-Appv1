@@ -78,6 +78,7 @@ DOCUMENT_COLLECTIONS = [
     "polymarket_traders",
     "polymarket_positions",
     "polymarket_price_history",
+    "congressional_trades",
 ]
 
 
@@ -133,7 +134,7 @@ def browse_collection(collection_name: str, limit: int = 50, search: str = None,
                 sort_clause = "SORT doc.end_date DESC"
                 break
             elif collection_name in ("futures_prices", "options_flow", "eia_crude_inventory", "eia_natgas_storage",
-                                     "eia_natgas_production", "eia_lng_exports", "polymarket_price_history"):
+                                     "eia_natgas_production", "eia_lng_exports", "polymarket_price_history", "congressional_trades"):
                 sort_clause = "SORT doc.date DESC"
                 break
             elif collection_name in ("sec_exhibits", "sec_xbrl_data"):

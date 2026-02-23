@@ -590,6 +590,18 @@ DOCUMENT COLLECTIONS:
 
     ⚠️ Use Case: Global LNG demand tracking, export capacity analysis
 
+12. congressional_trades (Congressional stock trading disclosures - STOCK Act)
+    - politician_name (string): Name of representative/senator
+    - chamber (string): "House" | "Senate"
+    - date (string): Transaction date YYYY-MM-DD
+    - ticker (string): Stock ticker
+    - transaction_type (string): "buy" | "sell"
+    - amount_range (string): Disclosure amount range (e.g. "$15,001 - $50,000")
+    - asset_type (string): "stock" | etc.
+
+    ⚠️ Use Case: Legal, visible policy-related trading; link to Company via CONGRESS_TRADES_COMPANY or filter by ticker
+    💡 "Congressional trades", "congress trades", "politician stock" → congressional_trades; filter by ticker and date
+
 6. prediction_markets_polymarket (Polymarket prediction market data)
    - _key (string): Unique market ID (condition_id)
    - condition_id (string): Market condition ID
@@ -1030,6 +1042,13 @@ EDGE COLLECTIONS (Graph Relationships):
     ⚠️ Only 10-K and 10-Q filings have XBRL data
     ⚠️ Example: FOR filing IN sec_filings FILTER filing.type == "10-K" FOR xbrl IN OUTBOUND filing has_xbrl_data
 
+22. CONGRESS_TRADES_COMPANY: congressional_trades -> Company
+    - Links congressional stock trading disclosures to company by ticker
+    - congressional_trades has: politician_name, chamber (House|Senate), date, ticker, transaction_type (buy|sell), amount_range, asset_type
+
+    Usage: FOR trade IN INBOUND company CONGRESS_TRADES_COMPANY (get trades for this company)
+    ⚠️ Or filter by ticker: FOR t IN congressional_trades FILTER t.ticker == @ticker SORT t.date DESC
+
 GRAPHS:
 - QUANT_v3_FinanceGraph: Company-centric financial data graph
 
@@ -1129,6 +1148,56 @@ FOR doc IN EconomicData
   }
 Bind Variables: {"date": "2016-01-04"}
 Requires Embedding: false
+
+---
+
+EXAMPLE 3m - Market-centric: FRED macro for Fed/rates (prediction market research):
+Question: "What does FRED macro data say about the March Fed cut?"
+Intent: time_series
+Collections: ["EconomicData"]
+AQL:
+FOR doc IN EconomicData
+  FILTER doc.date >= @start_date AND doc.date <= @end_date
+  SORT doc.date DESC
+  LIMIT 90
+  RETURN {
+    date: doc.date,
+    federal_funds_rate: doc.federal_funds_rate,
+    sandp_500: doc.sandp_500_index,
+    unemployment_rate: doc.unemployment_rate
+  }
+Bind Variables: {"start_date": "2025-12-01", "end_date": "2026-03-31"}
+Requires Embedding: false
+
+Strategy:
+💡 "Fed cut", "rate cut", "FOMC", "macro" → EconomicData by date range; use federal_funds_rate, sandp_500_index, unemployment_rate
+
+---
+
+EXAMPLE 3m2 - Market-centric: Unusual options on rate-sensitive stocks (prediction market research):
+Question: "Unusual options activity on rate-sensitive stocks"
+Intent: options_screening
+Collections: ["options_flow"]
+AQL:
+FOR opt IN options_flow
+  FILTER opt.ticker IN ["TLT", "JPM", "BAC", "KRE", "VNQ"]
+  FILTER opt.date >= DATE_SUBTRACT(DATE_NOW(), 30, "day")
+  FILTER opt.unusual_call_activity == 1 OR opt.unusual_put_activity == 1 OR opt.unusual_total_activity == 1
+  SORT opt.date DESC
+  LIMIT 50
+  RETURN {
+    ticker: opt.ticker,
+    date: opt.date,
+    put_call_volume_ratio: opt.put_call_volume_ratio,
+    call_volume_unusual: opt.call_volume_unusual,
+    unusual_call_activity: opt.unusual_call_activity,
+    unusual_put_activity: opt.unusual_put_activity
+  }
+Bind Variables: {}
+Requires Embedding: false
+
+Strategy:
+💡 "Rate-sensitive", "Fed", "macro markets" → options_flow with ticker basket: TLT, JPM, BAC, KRE, VNQ (or sector basket)
 
 ---
 
@@ -1659,6 +1728,32 @@ FOR company IN Company
     }
 Bind Variables: {"ticker": "DG"}
 Requires Embedding: false
+
+---
+
+EXAMPLE 7b2 - Congressional Trades (STOCK Act disclosures by ticker):
+Question: "Congressional trades in LMT last 90 days"
+Intent: lookup
+Collections: ["congressional_trades"]
+AQL:
+FOR t IN congressional_trades
+  FILTER t.ticker == @ticker
+  FILTER t.date >= DATE_SUBTRACT(DATE_NOW(), 90, "day")
+  SORT t.date DESC
+  LIMIT 50
+  RETURN {
+    politician_name: t.politician_name,
+    chamber: t.chamber,
+    date: t.date,
+    ticker: t.ticker,
+    transaction_type: t.transaction_type,
+    amount_range: t.amount_range
+  }
+Bind Variables: {"ticker": "LMT"}
+Requires Embedding: false
+
+Strategy:
+💡 "Congressional trades", "congress trades", "politician stock" → congressional_trades; filter by ticker and date
 
 ---
 

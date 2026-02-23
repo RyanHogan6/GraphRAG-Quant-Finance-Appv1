@@ -9,7 +9,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import config
 
-from app.api.routes import query, markets, database, signals, workspaces, alerts, analyze  # report module disabled (requires anthropic package)
+from app.api.routes import query, markets, database, signals, workspaces, alerts, analyze, research  # report module disabled (requires anthropic package)
 
 # Initialize Sentry for error tracking (production only)
 if config.SENTRY_DSN:
@@ -74,6 +74,7 @@ app.add_middleware(
 # Include routers
 app.include_router(query.router, prefix="/api/query", tags=["Query"])
 app.include_router(markets.router, prefix="/api/markets", tags=["Markets"])
+app.include_router(research.router, prefix="/api/research", tags=["Research"])
 app.include_router(database.router, prefix="/api/database", tags=["Database"])
 app.include_router(signals.router, prefix="/api")
 app.include_router(workspaces.router, prefix="/api/workspaces", tags=["Workspaces"])

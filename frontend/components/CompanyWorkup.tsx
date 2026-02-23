@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import TimeSeriesChart from './TimeSeriesChart'
 import { motion, AnimatePresence } from 'framer-motion'
 import SECFilingsExplorer from './SECFilingsExplorer'
@@ -9,6 +9,7 @@ import SectorComparison from './SectorComparison'
 import SentimentIndicators from './company/SentimentIndicators'
 import PerformanceSummaryCard from './PerformanceSummaryCard'
 import { secFilingDocumentUrl, secCompanyUrl } from '@/lib/secUrls'
+import { api } from '@/lib/api'
 import type { Key } from 'react'
 
 const API_BASE = typeof process !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') : 'http://localhost:8000'
@@ -38,6 +39,8 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
     const [sectorPeersLoading, setSectorPeersLoading] = useState(false)
     const [sectorPeersError, setSectorPeersError] = useState<string | null>(null)
     const [sectorSectionExpanded, setSectorSectionExpanded] = useState(true)
+    const [congressionalTrades, setCongressionalTrades] = useState<any[]>([])
+    const [congressionalTradesLoading, setCongressionalTradesLoading] = useState(false)
     const closeDetail = () => {
         setSelectedDetail(null)
         setShowMoreSecModalExcerpts(false)
@@ -69,6 +72,19 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
             setSectorPeersLoading(false)
         }
     }
+
+    useEffect(() => {
+        const ticker = data?.ticker
+        if (!ticker) {
+            setCongressionalTrades([])
+            return
+        }
+        setCongressionalTradesLoading(true)
+        api.getCongressionalTrades(ticker, 90)
+            .then((r: any) => setCongressionalTrades(r?.trades ?? []))
+            .catch(() => setCongressionalTrades([]))
+            .finally(() => setCongressionalTradesLoading(false))
+    }, [data?.ticker])
 
     // Extract nested data - handle both Company-centric and Filing-centric queries - handle both Company-centric and Filing-centric queries
     const company = data
@@ -1335,6 +1351,31 @@ export default function CompanyWorkup({ data, onCompare, peerData, comparisonMod
                     </div>
                 </div>
             )}
+
+            {/* Congressional trading (STOCK Act disclosures) */}
+            <div className="rounded-lg border border-gold/20 bg-dark-800 overflow-hidden">
+                <h3 className="px-4 py-3 border-b border-gold/20 text-gold font-mono font-medium text-sm">Congressional trading</h3>
+                <div className="p-4">
+                    {congressionalTradesLoading ? (
+                        <p className="text-gray-500 text-sm">Loading…</p>
+                    ) : congressionalTrades.length > 0 ? (
+                        <ul className="space-y-1.5 text-sm">
+                            {congressionalTrades.slice(0, 10).map((t: any, i: number) => (
+                                <li key={i} className="flex flex-wrap gap-x-2 text-gray-300">
+                                    <span>{t.politician_name}</span>
+                                    <span className="text-gray-500">({t.chamber})</span>
+                                    <span>{t.date}</span>
+                                    <span className={t.transaction_type === 'buy' ? 'text-green-400' : 'text-red-400'}>{t.transaction_type}</span>
+                                    <span className="text-gold/90">{t.ticker}</span>
+                                    {t.amount_range && <span className="text-gray-500">{t.amount_range}</span>}
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-gray-500 text-sm">No congressional trade disclosures for this ticker in the last 90 days.</p>
+                    )}
+                </div>
+            </div>
 
             {/* SEC Detail Modal (Sentiment Analysis) */}
             <AnimatePresence>

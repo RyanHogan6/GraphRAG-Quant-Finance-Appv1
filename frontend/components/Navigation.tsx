@@ -107,6 +107,15 @@ export default function Navigation() {
 
           <div className="hidden md:flex items-center space-x-1">
             <Link
+              href="/research"
+              className={`px-4 py-2 rounded-lg transition-all ${pathname?.startsWith('/research')
+                ? 'bg-gold/20 text-gold border border-gold/40'
+                : 'text-gray-400 hover:text-gold hover:bg-gold/10'
+                }`}
+            >
+              Research
+            </Link>
+            <Link
               href="/signals"
               className={`px-4 py-2 rounded-lg transition-all ${pathname === '/signals'
                 ? 'bg-gold/20 text-gold border border-gold/40'
@@ -179,6 +188,16 @@ export default function Navigation() {
                 </Link>
               )
             )}
+            <Link
+              href="/research"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`block w-full text-left px-4 py-3 rounded-lg transition-all ${pathname?.startsWith('/research')
+                ? 'bg-gold/20 text-gold border border-gold/40'
+                : 'text-gray-400 hover:text-gold hover:bg-gold/10'
+                }`}
+            >
+              Research
+            </Link>
             <Link
               href="/signals"
               onClick={() => setMobileMenuOpen(false)}
