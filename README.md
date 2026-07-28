@@ -112,22 +112,13 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Create `backend/.env` (or a root `.env` loaded by your process):
+Copy the example env file and fill in real values:
 
-```env
-ARANGO_URL=http://localhost:8529
-ARANGO_DB=QUANT_v3
-ARANGO_USERNAME=root
-ARANGO_PASSWORD=your_password
-
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o-mini
-PERPLEXITY_API_KEY=          # optional
-
-CORS_ORIGINS=http://localhost:3000
-FASTAPI_HOST=0.0.0.0
-FASTAPI_PORT=8000
+```bash
+cp .env.example .env   # from backend/
 ```
+
+See `backend/.env.example` for the full list (`ARANGO_*`, `OPENAI_API_KEY`, optional `PERPLEXITY_API_KEY`, `CORS_ORIGINS`, etc.).
 
 Start the API:
 
@@ -143,15 +134,7 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```bash
 cd frontend
 npm install
-```
-
-Create `frontend/.env.local`:
-
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
-```bash
+cp .env.example .env.local   # set NEXT_PUBLIC_API_URL=http://localhost:8000
 npm run dev
 ```
 
@@ -232,6 +215,14 @@ Point `NEXT_PUBLIC_API_URL` at your deployed API and set `CORS_ORIGINS` accordin
 
 ---
 
+## Security
+
+- **Never commit secrets.** Copy `backend/.env.example` → `backend/.env` and `frontend/.env.example` → `frontend/.env.local`. Real keys stay in local env / Railway / Vercel only.
+- Making this GitHub repo public does **not** expose deployed credentials. Keep Railway/Vercel env vars private and restrict `CORS_ORIGINS` to your frontend domain.
+- The API is read-oriented with AQL validation, rate limits, and input checks — still treat any public deployment as a cost/abuse surface and monitor spend.
+
+---
+
 ## Disclaimer
 
 KARGA is for research and informational purposes only. It is **not** investment advice. Markets, contracts, and prediction-market data can be incomplete, delayed, or wrong. Always verify critical decisions with primary sources and licensed professionals.
@@ -246,8 +237,13 @@ Feedback / beta notes: [karga.analytics@gmail.com](mailto:karga.analytics@gmail.
 
 ## License
 
-Private / unlicensed unless otherwise stated by the repository owner. Ask before redistributing.
+Proprietary — **All Rights Reserved**. See [LICENSE](LICENSE).
 
+You may view this repo for personal or educational evaluation. Redistribution, commercial use, or reuse in a competing product requires written permission.
+
+---
+
+## Screenshots
 
 <img width="860" height="806" alt="Screenshot 2026-01-28 225751" src="https://github.com/user-attachments/assets/c48c3f6b-4e89-46d3-a0a4-73f3c0e9a77d" />
 <img width="726" height="635" alt="Screenshot 2026-02-17 225538" src="https://github.com/user-attachments/assets/e823b88e-c80b-44d8-9c9f-9ccbeeb0197f" />

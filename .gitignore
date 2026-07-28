@@ -1,7 +1,12 @@
 # Environment variables (NEVER COMMIT THESE!)
 .env
+.env.*
+!.env.example
 .env.local
 .env.*.local
+**/.env
+**/.env.*
+!**/.env.example
 backend/.env
 frontend/.env.local
 src/.env
@@ -22,14 +27,19 @@ dist/
 build/
 venv/
 env/
-.venv
+ENV/
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
 
-# Node
+# Node / Next.js
 node_modules/
 .next/
 out/
-.vercel
+.vercel/
 .turbo
+*.tsbuildinfo
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -41,27 +51,23 @@ yarn-error.log*
 *.swp
 *.swo
 *~
+
+# OS
 .DS_Store
+Thumbs.db
 
 # Database
 *.db
 *.sqlite
 *.sqlite3
 
-# Logs
+# Logs / temp
 logs/
-*.log
-
-# Temporary files
 *.tmp
 *.temp
 nul
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Certificates (if you have local dev certs)
+# Certificates
 *.pem
 *.key
 *.crt
