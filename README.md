@@ -1,5 +1,5 @@
 # KARGA Markets
-
+https://karga-ai.com/
 **AI-powered natural language interface to a multi-source financial knowledge graph.**
 
 Ask questions in plain English across stocks, government contracts, SEC filings, prediction markets, commodities, and more — KARGA translates them into graph queries (AQL), runs them against ArangoDB, and synthesizes the results.
